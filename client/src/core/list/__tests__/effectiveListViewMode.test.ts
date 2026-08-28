@@ -39,6 +39,16 @@ describe('getEffectiveColumnCount', () => {
     expect(getEffectiveColumnCount(3, 'desktop')).toBe(3);
     expect(getEffectiveColumnCount(1, 'desktop')).toBe(1);
   });
+
+  it('forces 2 columns on desktop when quick context is open', () => {
+    expect(getEffectiveColumnCount(3, 'desktop', { quickContextOpen: true })).toBe(2);
+    expect(getEffectiveColumnCount(3, 'desktop', { quickContextOpen: false })).toBe(3);
+  });
+
+  it('does not apply quick-context override on phone or pad', () => {
+    expect(getEffectiveColumnCount(3, 'phone', { quickContextOpen: true })).toBe(1);
+    expect(getEffectiveColumnCount(3, 'pad', { quickContextOpen: true })).toBe(2);
+  });
 });
 
 describe('getEffectiveCardColumnCount', () => {
@@ -55,5 +65,9 @@ describe('getEffectiveCardColumnCount', () => {
   it('keeps preference on desktop', () => {
     expect(getEffectiveCardColumnCount(1, 'desktop')).toBe(1);
     expect(getEffectiveCardColumnCount(3, 'desktop')).toBe(3);
+  });
+
+  it('forces 2 on desktop when quick context is open', () => {
+    expect(getEffectiveCardColumnCount(3, 'desktop', { quickContextOpen: true })).toBe(2);
   });
 });

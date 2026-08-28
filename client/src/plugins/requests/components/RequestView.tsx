@@ -3,14 +3,10 @@ import {
   ClipboardList,
   Edit,
   ExternalLink,
-  Info,
-  ListPlus,
   Mail,
   Phone,
   SlidersHorizontal,
-  Trash2,
   User,
-  Zap,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -20,21 +16,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
-  DETAIL_INFO_ROW_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_PROP_ROW_CLASS,
-  DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_SURFACE_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
@@ -79,92 +70,6 @@ interface RequestViewProps {
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
-function RequestQuickActionsCard({
-  request,
-  onEdit,
-  onDeleteClick,
-  canSendToList,
-  onSendToListClick,
-  sentToListName,
-  sendError,
-}: {
-  request: Request;
-  onEdit: (request: Request) => void;
-  onDeleteClick: () => void;
-  canSendToList: boolean;
-  onSendToListClick: () => void;
-  sentToListName: string | null;
-  sendError: string | null;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection title={t('requests.view.quickActions')} icon={Zap} subtleTitle className="p-4">
-        <div className="flex flex-col items-start gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Edit
-                {...props}
-                className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
-              />
-            )}
-            className={DETAIL_QUICK_ACTION_ROW_CLASS}
-            onClick={() => onEdit(request)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Trash2
-                {...props}
-                className={cn(props.className, 'text-red-600 dark:text-red-400')}
-              />
-            )}
-            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-            onClick={onDeleteClick}
-          >
-            {t('common.delete')}
-          </Button>
-          {canSendToList ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={(props) => (
-                <ListPlus
-                  {...props}
-                  className={cn(props.className, 'text-emerald-600 dark:text-emerald-400')}
-                />
-              )}
-              className={DETAIL_QUICK_ACTION_ROW_CLASS}
-              onClick={onSendToListClick}
-            >
-              {t('requests.view.sendToList')}
-            </Button>
-          ) : null}
-          {sentToListName ? (
-            <p className="px-3 py-1 text-xs text-muted-foreground">
-              {t('requests.view.sendToListSuccess', { listName: sentToListName })}
-            </p>
-          ) : null}
-          {sendError ? (
-            <p role="alert" className="px-3 py-1 text-xs text-destructive">
-              {sendError}
-            </p>
-          ) : null}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
-
 export function RequestView({ request: requestProp, item }: RequestViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -176,19 +81,13 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
   const garmentsEnabled = enabledPlugins.has('garments');
   const {
     openRequestForEdit,
-    deleteRequest,
     saveRequest,
     closeRequestPanel,
     validationErrors,
     clearValidationErrors,
-    sendRequestToList,
     requestTypes,
   } = useRequests();
   const { contacts } = useContacts();
-  const [showDelete, setShowDelete] = useState(false);
-  const [showSendToList, setShowSendToList] = useState(false);
-  const [isSendingToList, setIsSendingToList] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
   const [targetListName, setTargetListName] = useState<string | null>(null);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
 
@@ -208,14 +107,6 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
 
   const isGarmentsLinked =
     request?.pluginTarget === 'garments' || typeConfig?.plugin === 'garments';
-
-  const canSendToList = Boolean(
-    garmentsEnabled &&
-      request &&
-      request.pluginTarget === 'garments' &&
-      !request.pluginRoutedAt &&
-      !request.pluginRoutedEntityId,
-  );
 
   const extraDataEntries = useMemo(() => {
     if (!request?.extraData) {
@@ -329,24 +220,6 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
       clearValidationErrors();
     }
     await saveRequest(buildRequestTeamSavePayload(request, teamId), request.id);
-  };
-
-  const handleSendToListConfirm = async () => {
-    setIsSendingToList(true);
-    setSendError(null);
-    try {
-      await sendRequestToList(request.id);
-      setShowSendToList(false);
-    } catch (error: unknown) {
-      setShowSendToList(false);
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : t('requests.view.sendToListError');
-      setSendError(message);
-    } finally {
-      setIsSendingToList(false);
-    }
   };
 
   const updatedLabel = request.updated_at
@@ -539,73 +412,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
 
   return (
     <>
-      <DetailLayout
-        gridClassName="grid-cols-1 lg:grid-cols-[1.3fr_1fr_260px]"
-        leftSidebar={contentColumn}
-        sidebar={
-          <div className="space-y-6">
-            <RequestQuickActionsCard
-              request={request}
-              onEdit={openRequestForEdit}
-              onDeleteClick={() => setShowDelete(true)}
-              canSendToList={canSendToList}
-              onSendToListClick={() => {
-                setSendError(null);
-                setShowSendToList(true);
-              }}
-              sentToListName={
-                request.pluginRoutedAt || request.pluginRoutedEntityId ? listDisplayName : null
-              }
-              sendError={sendError}
-            />
-
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('requests.view.information')}
-                icon={Info}
-                subtleTitle
-                className="p-4"
-                collapsible
-              >
-                <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('requests.view.id')}
-                    </span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDisplayNumber('requests', request.id)}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('requests.view.created')}
-                    </span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatSubmittedDateWithAge(request.created_at, t) ?? '—'}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('common.updated')}
-                    </span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {request.updated_at ? new Date(request.updated_at).toLocaleDateString() : '—'}
-                    </span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-
-            <DetailActivityLog
-              entityType="request"
-              entityId={request.id}
-              title={t('requests.activity')}
-              limit={30}
-              refreshKey={request.updated_at}
-            />
-          </div>
-        }
-      >
+      <DetailLayout gridClassName="grid-cols-1 lg:grid-cols-2" leftSidebar={contentColumn}>
         <div className="space-y-6">
           {blockingValidationErrors.length > 0 ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
@@ -715,38 +522,6 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
             </span>
           ) : null
         }
-      />
-
-      <ConfirmDialog
-        isOpen={showDelete}
-        title={t('requests.view.deleteRequest')}
-        message={t('requests.view.deleteConfirm', { title: request.title })}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={async () => {
-          setShowDelete(false);
-          await deleteRequest(request.id);
-        }}
-        onCancel={() => setShowDelete(false)}
-        variant="danger"
-      />
-
-      <ConfirmDialog
-        isOpen={showSendToList}
-        title={t('requests.view.sendToListConfirmTitle')}
-        message={t('requests.view.sendToListConfirm', { listName: listDisplayName })}
-        confirmText={t('requests.view.sendToListConfirmAction')}
-        cancelText={t('common.cancel')}
-        onConfirm={() => {
-          void handleSendToListConfirm();
-        }}
-        onCancel={() => {
-          if (!isSendingToList) {
-            setShowSendToList(false);
-          }
-        }}
-        variant="warning"
-        confirmDisabled={isSendingToList}
       />
     </>
   );

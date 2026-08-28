@@ -118,6 +118,32 @@ class GarmentsApi {
     });
   }
 
+  assignInventoryItemToList(listId: string, itemId: string) {
+    return apiRequest<GarmentList>(`/lists/${listId}/inventory-items/${itemId}`, {
+      method: 'POST',
+    });
+  }
+
+  unassignInventoryItemFromList(listId: string, itemId: string) {
+    return apiRequest<GarmentList>(`/lists/${listId}/inventory-items/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  updatePersonCtSizes(
+    listId: string,
+    personId: string,
+    patch: {
+      ctSizes?: Record<string, string>;
+      ctAudiences?: Record<string, string>;
+    },
+  ) {
+    return apiRequest<GarmentPerson>(`/lists/${listId}/persons/${personId}/ct-sizes`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  }
+
   deletePerson(listId: string, personId: string) {
     return apiRequest<{ deleted: boolean }>(`/lists/${listId}/persons/${personId}`, {
       method: 'DELETE',

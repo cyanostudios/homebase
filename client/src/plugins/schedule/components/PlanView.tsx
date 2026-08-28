@@ -22,11 +22,9 @@ import {
   type ScheduleTeamFilter,
   type ScheduleTrainingDialogState,
 } from '../types/schedule';
-import type { ScheduleDaySpan, WeekDay } from '../utils/scheduleDaySpan';
+import type { WeekDay } from '../utils/scheduleDaySpan';
 
-import { ScheduleDaySpanToggle } from './ScheduleDaySpanToggle';
 import { ScheduleFooter } from './ScheduleFooter';
-import { ScheduleLockToggle } from './ScheduleLockToggle';
 import { ScheduleSlotDetailDialog } from './ScheduleSlotDetailDialog';
 import { ScheduleTimeGrid } from './ScheduleTimeGrid';
 import { ScheduleWeekView } from './ScheduleWeekView';
@@ -34,30 +32,18 @@ import { ScheduleTrainingDialog } from './ScheduleTrainingDialog';
 
 export function PlanView({
   scheduleId,
-  scheduleName,
+  scheduleName: _scheduleName,
   teamFilter,
   schedulePlans,
-  daySpan,
-  onDaySpanChange,
   visibleDays,
   isStackedView,
-  canGoPrev,
-  canGoNext,
-  onPrevDaySpan,
-  onNextDaySpan,
 }: {
   scheduleId: string;
   scheduleName: string;
   teamFilter: ScheduleTeamFilter;
   schedulePlans: SchedulePlansState;
-  daySpan: ScheduleDaySpan;
-  onDaySpanChange: (span: ScheduleDaySpan) => void;
   visibleDays: readonly WeekDay[];
   isStackedView: boolean;
-  canGoPrev: boolean;
-  canGoNext: boolean;
-  onPrevDaySpan: () => void;
-  onNextDaySpan: () => void;
 }) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
@@ -72,7 +58,6 @@ export function PlanView({
     isLoading: isGridSettingsLoading,
     isLockedForSchedule,
     setLockedForSchedule,
-    isTogglingLock,
   } = useScheduleSettings();
   const gridSettings = getGridSettingsForSchedule(scheduleId);
   const availableHours = getAvailableHours(scheduleId);
@@ -315,28 +300,6 @@ export function PlanView({
   return (
     <>
       <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <h3 className="truncate text-2xl font-semibold tracking-tight text-foreground">
-              {scheduleName}
-            </h3>
-            <ScheduleLockToggle
-              locked={isLocked}
-              disabled={isTogglingLock}
-              onToggle={(nextLocked) => setLockedForSchedule(scheduleId, nextLocked)}
-            />
-          </div>
-          {!isMobile ? (
-            <ScheduleDaySpanToggle
-              daySpan={daySpan}
-              onSelect={onDaySpanChange}
-              canGoPrev={canGoPrev}
-              canGoNext={canGoNext}
-              onPrev={onPrevDaySpan}
-              onNext={onNextDaySpan}
-            />
-          ) : null}
-        </div>
         {loadError ? <p className="mb-2 text-xs text-destructive">{loadError}</p> : null}
         {saveError ? <p className="mb-2 text-xs text-destructive">{saveError}</p> : null}
         {isLoading || isGridSettingsLoading ? (

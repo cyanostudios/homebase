@@ -28,6 +28,7 @@ export type SlotListTableProps = {
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedSlotId: string | null;
   activeSlotId?: string | number | null;
+  selectionEnabled?: boolean;
 };
 
 export function SlotListTable({
@@ -43,6 +44,7 @@ export function SlotListTable({
   onHeaderCheckboxChange,
   recentlyDuplicatedSlotId,
   activeSlotId = null,
+  selectionEnabled = true,
 }: SlotListTableProps) {
   const { t } = useTranslation();
 
@@ -52,7 +54,7 @@ export function SlotListTable({
         field: 'name' as const,
         header: t('slots.nameLabel'),
         cell: (slot: Slot) => (
-          <span className="font-medium text-foreground">
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
             {slot.name?.trim() || `SLT ${slot.id}`}
           </span>
         ),
@@ -111,16 +113,6 @@ export function SlotListTable({
           </span>
         ),
       },
-      {
-        field: 'updatedAt' as const,
-        header: t('common.updated'),
-        className: 'hidden lg:table-cell',
-        cell: (slot: Slot) => (
-          <span className="text-xs text-muted-foreground">
-            {slot.updated_at ? new Date(slot.updated_at).toLocaleDateString('sv-SE') : '—'}
-          </span>
-        ),
-      },
     ],
     [t],
   );
@@ -141,16 +133,20 @@ export function SlotListTable({
           : undefined
       }
       isRowActive={(slot) => activeSlotId != null && String(slot.id) === String(activeSlotId)}
-      selection={{
-        isSelected,
-        onCheckboxMouseDown,
-        onCheckboxChange,
-        allVisibleSelected,
-        onHeaderCheckboxChange,
-        selectAllAriaLabel: t('common.selectAllVisible'),
-        selectRowAriaLabel: (selected) =>
-          selected ? t('common.unselectRow') : t('common.selectRow'),
-      }}
+      selection={
+        selectionEnabled
+          ? {
+              isSelected,
+              onCheckboxMouseDown,
+              onCheckboxChange,
+              allVisibleSelected,
+              onHeaderCheckboxChange,
+              selectAllAriaLabel: t('common.selectAllVisible'),
+              selectRowAriaLabel: (selected) =>
+                selected ? t('common.unselectRow') : t('common.selectRow'),
+            }
+          : undefined
+      }
       pluginName="slots"
       dataListItem={(slot) => slot}
     />

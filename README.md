@@ -67,7 +67,7 @@ npm run build            # Production build
 
 ## Branch & deploy
 
-- **`homebase-v3.7`** — aktiv utvecklingsbranch
+- **`homebase-v4.0`** — aktiv utvecklingsbranch
 - **`main`** — produktion (Railway)
 - **Node:** `>=22.18 <23`
 

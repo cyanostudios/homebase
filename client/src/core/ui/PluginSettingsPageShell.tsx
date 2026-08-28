@@ -12,10 +12,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
-import {
-  SettingsCategoryCard,
-  type SettingsCategoryCardProps,
-} from '@/core/ui/SettingsCategoryCard';
+import { type SettingsCategoryCardProps } from '@/core/ui/SettingsCategoryCard';
 import { cn } from '@/lib/utils';
 
 /** Green header Save matching Core Settings. */
@@ -51,13 +48,6 @@ export type PluginSettingsCategory = Pick<
   'id' | 'label' | 'description' | 'icon' | 'dotClassName'
 >;
 
-const MD_GRID_COLS: Record<number, string> = {
-  1: 'md:grid-cols-1',
-  2: 'md:grid-cols-2',
-  3: 'md:grid-cols-3',
-  4: 'md:grid-cols-4',
-};
-
 export interface PluginSettingsPageShellProps {
   title: string;
   subtitle?: string;
@@ -84,7 +74,7 @@ export interface PluginSettingsPageShellProps {
 
 /**
  * Full-page plugin settings shell matching Core Settings layout:
- * title row + optional Save + Close in header (desktop), category cards, detail content card.
+ * title row + category round buttons (shown when ≥1 category) + optional Save + Close in header (desktop), detail content card.
  * On phone, Close (+ Save when provided) replace the mobile bottom bar.
  */
 export function PluginSettingsPageShell({
@@ -103,8 +93,7 @@ export function PluginSettingsPageShell({
   className,
 }: PluginSettingsPageShellProps) {
   const { t } = useTranslation();
-  const showCategoryGrid = Boolean(categories && categories.length >= 2);
-  const colCount = Math.min(Math.max(categories?.length ?? 1, 1), 4);
+  const showCategoryButtons = Boolean(categories && categories.length >= 1);
 
   useMobileBarOverride(
     onClose
@@ -136,6 +125,23 @@ export function PluginSettingsPageShell({
       <div className={PLUGIN_PAGE_HEADER_CLASS}>
         <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
           <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{title}</h2>
+          {showCategoryButtons
+            ? categories!.map((category) => {
+                const isActive = activeCategory === category.id;
+                return (
+                  <RoundIconLabelButton
+                    key={category.id}
+                    type="button"
+                    icon={category.icon}
+                    label={category.label}
+                    variant={isActive ? 'primary' : 'soft'}
+                    alwaysExpanded
+                    aria-pressed={isActive}
+                    onClick={() => onCategoryChange?.(category.id)}
+                  />
+                );
+              })
+            : null}
         </div>
         {showHeaderActions ? (
           <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
@@ -144,19 +150,6 @@ export function PluginSettingsPageShell({
           </div>
         ) : null}
       </div>
-
-      {showCategoryGrid ? (
-        <div className={cn('grid grid-cols-1 gap-3', MD_GRID_COLS[colCount] ?? 'md:grid-cols-4')}>
-          {categories!.map((category) => (
-            <SettingsCategoryCard
-              key={category.id}
-              {...category}
-              active={activeCategory === category.id}
-              onSelect={() => onCategoryChange?.(category.id)}
-            />
-          ))}
-        </div>
-      ) : null}
 
       {wrapContentInCard ? (
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>

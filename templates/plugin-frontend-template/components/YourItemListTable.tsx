@@ -6,7 +6,6 @@ import {
   type SortableListTableColumn,
   type SortableListTableSelection,
 } from '@/core/ui/SortableListTable';
-import { formatDate } from '@/core/utils/dateFormat';
 
 import type { YourItem } from '../types/your-items';
 import type { YourItemSortField, YourItemSortOrder } from '../utils/yourItemListSort';
@@ -44,14 +43,6 @@ export function YourItemListTable({
         field: 'title',
         header: 'Title',
         cell: (item) => <span className="font-medium text-foreground">{item.title || '—'}</span>,
-      },
-      {
-        field: 'updatedAt',
-        header: 'Updated',
-        className: 'hidden sm:table-cell',
-        cell: (item) => (
-          <span className="text-xs text-muted-foreground">{formatDate(item.updatedAt) || '—'}</span>
-        ),
       },
     ],
     [],

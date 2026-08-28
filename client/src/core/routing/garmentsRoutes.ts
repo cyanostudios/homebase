@@ -5,6 +5,15 @@ export type GarmentsSubpage = (typeof GARMENTS_SUBPAGES)[number];
 
 export const GARMENTS_SUBPAGE_SET = new Set<string>(GARMENTS_SUBPAGES);
 
+/** Nav pages that belong to the garments plugin (URL-driven content views). */
+export const GARMENTS_NAV_PAGES = ['garments', 'garments-lists', 'garments-inventory'] as const;
+
+export type GarmentsNavPage = (typeof GARMENTS_NAV_PAGES)[number];
+
+export function isGarmentsNavPage(page: string): page is GarmentsNavPage {
+  return (GARMENTS_NAV_PAGES as readonly string[]).includes(page);
+}
+
 export function isGarmentsSubRoute(
   pluginName: string | undefined,
   subSegment: string | undefined,

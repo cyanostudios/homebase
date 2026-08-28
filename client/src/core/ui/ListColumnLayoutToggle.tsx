@@ -1,8 +1,11 @@
-import { ArrowDown, ArrowUp, Table2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, LayoutGrid, Table2 } from 'lucide-react';
 import React from 'react';
 
-import { Button } from '@/components/ui/button';
 import type { ListViewMode } from '@/core/list/listViewMode';
+import {
+  LIST_LAYOUT_TOGGLE_DIVIDER_CLASS,
+  LIST_LAYOUT_TOGGLE_SHELL_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { useViewportTier } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
@@ -17,9 +20,15 @@ export type ListColumnLayoutToggleProps = {
   tableAriaLabel: string;
 };
 
+const halfBaseClass = cn(
+  'inline-flex h-11 w-11 items-center justify-center',
+  'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+  '[&_svg]:size-5',
+);
+
 /**
- * Segmented control: 1 | 2 | 3 | table (desktop); 1 | 2 on pad; hidden on phone.
- * See effectiveListViewMode + ADR VIEWPORT_TIER_PAD_SPLIT.
+ * Split button: cards (grid) | table — one shared pill on desktop; hidden on pad/phone.
+ * Selecting cards always calls `onSelectColumns(3)`. See ADR VIEWPORT_TIER_PAD_SPLIT.
  */
 export function ListColumnLayoutToggle({
   columnCount,
@@ -32,52 +41,43 @@ export function ListColumnLayoutToggle({
   const tier = useViewportTier();
   const isTableView = listViewMode === 'table';
 
-  if (tier === 'phone') {
+  if (tier !== 'desktop') {
     return null;
   }
 
-  const columnOptions: ColumnCount[] = tier === 'pad' ? [1, 2] : [1, 2, 3];
-  const showTable = tier === 'desktop';
+  const cardsSelected = !isTableView && columnCount === 3;
 
   return (
-    <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-      {columnOptions.map((count) => (
-        <Button
-          key={count}
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={cn(
-            'h-7 min-w-7 rounded-[6px] px-2 text-xs',
-            !isTableView && columnCount === count
-              ? 'bg-background text-foreground shadow-sm hover:bg-background'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-          onClick={() => onSelectColumns(count)}
-          aria-label={columnAriaLabel(count)}
-          aria-pressed={!isTableView && columnCount === count}
-        >
-          {count}
-        </Button>
-      ))}
-      {showTable ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          icon={Table2}
-          className={cn(
-            'h-7 min-w-7 rounded-[6px] px-2 text-xs',
-            isTableView
-              ? 'bg-background text-foreground shadow-sm hover:bg-background'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-          onClick={onSelectTable}
-          aria-label={tableAriaLabel}
-          aria-pressed={isTableView}
-          title={tableAriaLabel}
-        />
-      ) : null}
+    <div role="group" aria-label={tableAriaLabel} className={LIST_LAYOUT_TOGGLE_SHELL_CLASS}>
+      <button
+        type="button"
+        className={cn(
+          halfBaseClass,
+          'rounded-l-full hover:bg-primary/10',
+          cardsSelected ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-primary',
+        )}
+        onClick={() => onSelectColumns(3)}
+        aria-label={columnAriaLabel(3)}
+        aria-pressed={cardsSelected}
+        title={columnAriaLabel(3)}
+      >
+        <LayoutGrid aria-hidden />
+      </button>
+      <span className={LIST_LAYOUT_TOGGLE_DIVIDER_CLASS} aria-hidden />
+      <button
+        type="button"
+        className={cn(
+          halfBaseClass,
+          'rounded-r-full hover:bg-primary/10',
+          isTableView ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-primary',
+        )}
+        onClick={onSelectTable}
+        aria-label={tableAriaLabel}
+        aria-pressed={isTableView}
+        title={tableAriaLabel}
+      >
+        <Table2 aria-hidden />
+      </button>
     </div>
   );
 }

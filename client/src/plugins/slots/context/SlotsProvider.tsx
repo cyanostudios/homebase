@@ -19,6 +19,7 @@ import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { slotsApi } from '../api/slotsApi';
+import { SlotDetailHeaderMenus } from '../components/SlotDetailHeaderMenus';
 import { Slot, ValidationError, type SlotMention } from '../types/slots';
 import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
 import { getSlotExportBaseFilename, slotExportConfig } from '../utils/slotExportConfig';
@@ -151,7 +152,7 @@ export function SlotsProvider({
     if (canSendMessages) {
       actions.push({
         id: 'send-message',
-        label: t('bulk.sendMessageTitle'),
+        label: t('bulk.message'),
         icon: MessageCircle,
         onClick: openSlotSendMessage,
         className: 'h-9 text-xs px-3',
@@ -161,7 +162,7 @@ export function SlotsProvider({
     if (canSendEmail) {
       actions.push({
         id: 'send-email',
-        label: t('bulk.sendEmailTitle'),
+        label: t('bulk.email'),
         icon: Mail,
         onClick: openSlotSendEmail,
         className: 'h-9 text-xs px-3',
@@ -649,9 +650,7 @@ export function SlotsProvider({
   const getPanelTitle = useCallback(
     (mode: string, item: Slot | null) => {
       if (mode === 'view' && item) {
-        return item.location
-          ? `${item.location} · ${formatDateTime(item.slot_time)}`
-          : formatDateTime(item.slot_time);
+        return <SlotDetailHeaderMenus key={String(item.id)} slot={item} />;
       }
       if (mode === 'edit') {
         return t('slots.editSlot');

@@ -17,18 +17,7 @@ import { useCups } from '@/plugins/cups/hooks/useCups';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
 import type { IngestSource } from '@/plugins/ingest/types/ingest';
 
-import {
-  CUPS_COLUMN_COUNT_STORAGE_KEY,
-  CUPS_SETTINGS_KEY,
-  resolveCupColumnCount,
-  type CupColumnCount,
-} from '../utils/cupColumnCount';
-import {
-  CUPS_LIST_VIEW_MODE_STORAGE_KEY,
-  persistCupListViewModeSession,
-  resolveCupListViewMode,
-  type CupListViewMode,
-} from '../utils/cupListViewMode';
+import { CUPS_SETTINGS_KEY } from '../utils/cupColumnCount';
 
 import {
   CupIngestImportResultDialog,
@@ -36,9 +25,7 @@ import {
 } from './CupIngestImportResultDialog';
 import { CupFallbackPhotosSettings } from './CupFallbackPhotosSettings';
 
-const COLUMN_OPTIONS: CupColumnCount[] = [1, 2, 3];
-const VIEW_MODE_OPTIONS: CupListViewMode[] = ['cards', 'table'];
-export type CupsSettingsCategory = 'view' | 'import' | 'appearance';
+export type CupsSettingsCategory = 'appearance' | 'import';
 
 export function CupsSettingsView({
   selectedCategory,
@@ -54,20 +41,16 @@ export function CupsSettingsView({
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
   const { importFromIngestSource } = useCups();
-  const [internalCategory, setInternalCategory] = useState<CupsSettingsCategory>('view');
+  const [internalCategory, setInternalCategory] = useState<CupsSettingsCategory>('appearance');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
-  const [columnCount, setColumnCount] = useState<CupColumnCount>(1);
-  const [listViewMode, setListViewMode] = useState<CupListViewMode>('cards');
   const [defaultIngestSourceId, setDefaultIngestSourceId] = useState('');
   const [allowedIngestSourceIds, setAllowedIngestSourceIds] = useState<string[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [ingestSources, setIngestSources] = useState<IngestSource[]>([]);
   const [ingestLoading, setIngestLoading] = useState(true);
   const [initialState, setInitialState] = useState({
-    columnCount: 1 as CupColumnCount,
-    listViewMode: 'cards' as CupListViewMode,
     defaultIngestSourceId: '',
     allowedIngestSourceIds: [] as string[],
     autoRefresh: false,
@@ -95,12 +78,6 @@ export function CupsSettingsView({
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
       {
-        id: 'view',
-        label: t('cups.settingsCategories.view'),
-        description: t('cups.settingsCategories.viewDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.view,
-      },
-      {
         id: 'appearance',
         label: t('cups.settingsCategories.appearance'),
         description: t('cups.settingsCategories.appearanceDescription'),
@@ -123,8 +100,6 @@ export function CupsSettingsView({
         if (cancelled) {
           return;
         }
-        const loadedColumns = resolveCupColumnCount(settings);
-        const loadedView = resolveCupListViewMode(settings);
         const loadedDefault = settings?.defaultIngestSourceId
           ? String(settings.defaultIngestSourceId)
           : '';
@@ -132,14 +107,10 @@ export function CupsSettingsView({
           ? settings.allowedIngestSourceIds.map(String)
           : [];
         const loadedAutoRefresh = settings?.autoRefresh === true;
-        setColumnCount(loadedColumns);
-        setListViewMode(loadedView);
         setDefaultIngestSourceId(loadedDefault);
         setAllowedIngestSourceIds(loadedAllowed);
         setAutoRefresh(loadedAutoRefresh);
         setInitialState({
-          columnCount: loadedColumns,
-          listViewMode: loadedView,
           defaultIngestSourceId: loadedDefault,
           allowedIngestSourceIds: loadedAllowed,
           autoRefresh: loadedAutoRefresh,
@@ -177,8 +148,6 @@ export function CupsSettingsView({
   }, []);
 
   const isDirty =
-    columnCount !== initialState.columnCount ||
-    listViewMode !== initialState.listViewMode ||
     defaultIngestSourceId !== initialState.defaultIngestSourceId ||
     JSON.stringify([...allowedIngestSourceIds].sort()) !==
       JSON.stringify([...initialState.allowedIngestSourceIds].sort()) ||
@@ -188,21 +157,12 @@ export function CupsSettingsView({
     setIsSaving(true);
     try {
       const payload = {
-        columnCount,
-        listViewMode,
         defaultIngestSourceId: defaultIngestSourceId.trim() || '',
         allowedIngestSourceIds,
         autoRefresh,
       };
       await updateSettings(CUPS_SETTINGS_KEY, payload);
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(CUPS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
-        window.sessionStorage.setItem(CUPS_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
-      }
-      persistCupListViewModeSession(listViewMode);
       setInitialState({
-        columnCount,
-        listViewMode,
         defaultIngestSourceId: defaultIngestSourceId.trim() || '',
         allowedIngestSourceIds,
         autoRefresh,
@@ -210,14 +170,7 @@ export function CupsSettingsView({
     } finally {
       setIsSaving(false);
     }
-  }, [
-    allowedIngestSourceIds,
-    autoRefresh,
-    columnCount,
-    defaultIngestSourceId,
-    listViewMode,
-    updateSettings,
-  ]);
+  }, [allowedIngestSourceIds, autoRefresh, defaultIngestSourceId, updateSettings]);
 
   const toggleAllowedSource = useCallback((sourceId: string) => {
     setAllowedIngestSourceIds((prev) =>
@@ -310,63 +263,6 @@ export function CupsSettingsView({
           ) : null
         }
       >
-        {activeCategory === 'view' && (
-          <>
-            <DetailSection title={t('common.defaultListView')} className="pt-0">
-              <div className="flex flex-wrap items-center gap-2">
-                {VIEW_MODE_OPTIONS.map((mode) => {
-                  const isActive = listViewMode === mode;
-                  return (
-                    <Button
-                      key={mode}
-                      variant="ghost"
-                      onClick={() => setListViewMode(mode)}
-                      className={cn(
-                        'h-9 text-xs px-3 rounded-lg font-medium',
-                        isActive
-                          ? 'bg-primary/10 text-primary border border-primary'
-                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                      )}
-                      aria-label={mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
-                      aria-pressed={isActive}
-                    >
-                      {mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
-                    </Button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{t('common.listViewHelp')}</p>
-            </DetailSection>
-            {listViewMode === 'cards' ? (
-              <DetailSection title={t('cups.defaultColumns')}>
-                <div className="flex flex-wrap items-center gap-2">
-                  {COLUMN_OPTIONS.map((count) => {
-                    const isActive = columnCount === count;
-                    return (
-                      <Button
-                        key={count}
-                        variant="ghost"
-                        onClick={() => setColumnCount(count)}
-                        className={cn(
-                          'h-9 min-w-9 text-xs px-3 rounded-lg font-medium',
-                          isActive
-                            ? 'bg-primary/10 text-primary border border-primary'
-                            : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                        )}
-                        aria-label={t(`cups.columns${count}`)}
-                        aria-pressed={isActive}
-                      >
-                        {count}
-                      </Button>
-                    );
-                  })}
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">{t('cups.columnsHelp')}</p>
-              </DetailSection>
-            ) : null}
-          </>
-        )}
-
         {activeCategory === 'appearance' && (
           <CupFallbackPhotosSettings
             onDirtyChange={setAppearanceDirty}

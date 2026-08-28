@@ -1,8 +1,11 @@
-import { ArrowDown, ArrowUp, CheckSquare, Plus, Settings, Trash2, XCircle } from 'lucide-react';
+import { ArrowDown, ArrowUp, CheckSquare, Plus, Shirt, Trash2, XCircle } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -19,13 +22,19 @@ import {
   useEffectiveColumnCount,
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
+import { pathToNavPage } from '@/core/routing/routeMap';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -58,12 +67,18 @@ import {
 } from '../utils/garmentListViewMode';
 
 import { GarmentListItem } from './GarmentListItem';
+import { InventoryBulkListsDialog } from './InventoryBulkListsDialog';
 import { GarmentListTable } from './GarmentListTable';
-import { GarmentSettingsView } from './GarmentSettingsView';
 import { InventoryListItem } from './InventoryListItem';
 import { InventoryListTable } from './InventoryListTable';
 import { InventoryQuickContextPanel } from './InventoryQuickContextPanel';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 
 const LIST_SORT_OPTIONS: { value: GarmentSortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'common.updated' },
@@ -85,7 +100,6 @@ export const GarmentList: React.FC = () => {
   const {
     garmentLists,
     inventoryItems,
-    garmentsContentView,
     openGarmentPanel,
     openGarmentForView,
     openInventoryPanel,
@@ -93,25 +107,32 @@ export const GarmentList: React.FC = () => {
     openInventoryForEdit,
     updateInventoryVariantQuantity,
     isSaving,
-    openGarmentsSettings,
-    closeGarmentSettingsView,
     deleteGarments,
     deleteInventoryItems,
+    assignInventoryItemToList,
+    unassignInventoryItemFromList,
     recentlyDuplicatedInventoryId,
     recentlyDuplicatedListId,
   } = useGarments();
+  const location = useLocation();
+  const garmentsNavPage = pathToNavPage(location.pathname);
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
-  const isInventory = garmentsContentView === 'inventory';
+  const isInventory = garmentsNavPage === 'garments-inventory';
 
   useMobileActions({
     onAdd: () =>
       attemptNavigation(() => (isInventory ? openInventoryPanel(null) : openGarmentPanel(null))),
-    onSettings: () => openGarmentsSettings(),
   });
 
   const [searchTerm, setSearchTerm] = useState('');
+  useRegisterMobileSearch({
+    value: searchTerm,
+    onChange: setSearchTerm,
+    placeholder: isInventory ? t('garments.searchInventory') : t('garments.searchLists'),
+  });
+  const [selectionMode, setSelectionMode] = useState(false);
   const [listSort, setListSort] = useState<GarmentSortField>('updatedAt');
   const [inventorySort, setInventorySort] = useState<InventorySortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<GarmentSortOrder>('desc');
@@ -123,6 +144,7 @@ export const GarmentList: React.FC = () => {
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkListsDialog, setShowBulkListsDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const {
@@ -140,7 +162,7 @@ export const GarmentList: React.FC = () => {
   useEffect(() => {
     setSelectedIds([]);
     setSearchTerm('');
-  }, [garmentsContentView]);
+  }, [garmentsNavPage]);
 
   useEffect(() => {
     if (!isInventory) {
@@ -161,10 +183,14 @@ export const GarmentList: React.FC = () => {
           return;
         }
         if (hasColumnPref) {
-          const next = resolveGarmentColumnCount(settings);
+          const resolved = resolveGarmentColumnCount(settings);
+          const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as GarmentColumnCount;
           setColumnCountState(next);
           if (typeof window !== 'undefined') {
             window.sessionStorage.setItem(GARMENTS_COLUMN_COUNT_STORAGE_KEY, String(next));
+          }
+          if (next !== resolved) {
+            updateSettings(GARMENTS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
           }
         }
         if (hasListViewPref) {
@@ -180,14 +206,15 @@ export const GarmentList: React.FC = () => {
   }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback(
-    (count: GarmentColumnCount) => {
-      setColumnCountState(count);
+    (_count: GarmentColumnCount) => {
+      const next = 3 as GarmentColumnCount;
+      setColumnCountState(next);
       setListViewModeState('cards');
       persistGarmentListViewModeSession('cards');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(GARMENTS_COLUMN_COUNT_STORAGE_KEY, String(count));
+        window.sessionStorage.setItem(GARMENTS_COLUMN_COUNT_STORAGE_KEY, String(next));
       }
-      updateSettings(GARMENTS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+      updateSettings(GARMENTS_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
         () => {},
       );
     },
@@ -236,8 +263,9 @@ export const GarmentList: React.FC = () => {
   );
 
   const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
+  const quickContextOpen = Boolean(showQuickContext && previewInventory);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
 
   const filteredLists = useMemo(() => {
     const filtered = garmentLists.filter((item) => garmentListMatchesSearch(item, searchTerm));
@@ -257,6 +285,11 @@ export const GarmentList: React.FC = () => {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const isSelected = useCallback((id: string) => selectedSet.has(id), [selectedSet]);
   const selectedCount = selectedIds.length;
+
+  const selectedInventoryItems = useMemo(
+    () => inventoryItems.filter((item) => selectedSet.has(String(item.id))),
+    [inventoryItems, selectedSet],
+  );
 
   const toggleOne = useCallback((id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -316,64 +349,201 @@ export const GarmentList: React.FC = () => {
     attemptNavigation(() => openGarmentForView(list));
   };
 
+  const handleListRowActivate = (list: GarmentListModel) => {
+    if (selectionMode) {
+      toggleOne(String(list.id));
+      return;
+    }
+    handleOpenList(list);
+  };
+
   const handleOpenInventoryForView = (item: InventoryItem) => {
     markPendingAndOpen(item, () => attemptNavigation(() => openInventoryForView(item)));
   };
 
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearSelection();
+    setSelectionMode(false);
+  };
+
   const handleRowActivate = (item: InventoryItem) => {
+    if (selectionMode) {
+      toggleOne(String(item.id));
+      return;
+    }
     activateRow(item, (next) => attemptNavigation(() => openInventoryForView(next)));
   };
 
-  if (garmentsContentView === 'settings') {
-    return (
-      <div className="plugin-garments min-h-full bg-background">
-        <div className="px-6 py-4">
-          <GarmentSettingsView onClose={closeGarmentSettingsView} />
-        </div>
-      </div>
-    );
-  }
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    const disabled = selectedCount === 0;
+    const actions: BulkActionRoundItem[] = [];
+    if (isInventory) {
+      actions.push({
+        key: 'lists',
+        label: t('garments.bulkListsAction'),
+        icon: Shirt,
+        disabled,
+        onClick: () => setShowBulkListsDialog(true),
+      });
+    }
+    actions.push({
+      key: 'delete',
+      label: t('common.delete'),
+      icon: Trash2,
+      disabled,
+      tone: 'destructive',
+      onClick: () => setShowBulkDeleteModal(true),
+    });
+    return actions;
+  }, [isInventory, selectedCount, t]);
 
   const totalCount = isInventory ? inventoryItems.length : garmentLists.length;
   const filteredCount = isInventory ? filteredInventory.length : filteredLists.length;
 
   return (
-    <div className="plugin-garments min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
-              {t(isInventory ? 'nav.garments-inventory' : 'nav.garments-lists')}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {isInventory
-                ? t('garments.inventoryCount', { count: totalCount })
-                : t('garments.listCount', { count: totalCount })}
-            </p>
+    <div className={cn('plugin-garments', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
+                    {t(isInventory ? 'nav.garments-inventory' : 'nav.garments-lists')}
+                  </h2>
+                  {filteredCount > 0 ? (
+                    selectionMode ? (
+                      <ExpandableIconButton
+                        icon={XCircle}
+                        label={t('common.clear')}
+                        variant="danger"
+                        alwaysExpanded
+                        onClick={handleExitSelectionMode}
+                      />
+                    ) : (
+                      <ExpandableIconButton
+                        icon={CheckSquare}
+                        label={t('common.select')}
+                        variant="soft"
+                        alwaysExpanded
+                        onClick={handleEnterSelectionMode}
+                      />
+                    )
+                  ) : null}
+                </div>
+              </div>
+              {selectionMode ? (
+                <BulkActionRoundBar
+                  selectedCount={selectedCount}
+                  actions={bulkRoundActions}
+                  className="gap-2"
+                />
+              ) : null}
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={
+                  isInventory ? t('garments.searchInventory') : t('garments.searchLists')
+                }
+              />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => t('garments.columnsAria', { count })}
+                tableAriaLabel={t('common.tableView')}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={isInventory ? t('garments.addInventory') : t('garments.addList')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() =>
+                  attemptNavigation(() =>
+                    isInventory ? openInventoryPanel(null) : openGarmentPanel(null),
+                  )
+                }
+              />
+            </div>
           </div>
-          <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-2 md:w-auto md:gap-1">
+        </div>
+
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)} />
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            {isInventory ? (
+              <Select
+                value={inventorySort}
+                onValueChange={(value) => handleInventorySortChange(value as InventorySortField)}
+              >
+                <SelectTrigger
+                  className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                  aria-label={t('garments.sortBy')}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="item-aligned"
+                  className="rounded-xl border-border/50 shadow-xl"
+                >
+                  {INVENTORY_SORT_OPTIONS.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      className="rounded-md text-xs"
+                    >
+                      {t(option.labelKey)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Select
+                value={listSort}
+                onValueChange={(value) => handleListSortChange(value as GarmentSortField)}
+              >
+                <SelectTrigger
+                  className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                  aria-label={t('garments.sortBy')}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="item-aligned"
+                  className="rounded-xl border-border/50 shadow-xl"
+                >
+                  {LIST_SORT_OPTIONS.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      className="rounded-md text-xs"
+                    >
+                      {t(option.labelKey)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Button
+              type="button"
               variant="ghost"
               size="sm"
-              icon={Settings}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={openGarmentsSettings}
-              title={t('common.settings')}
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
             >
-              {t('common.settings')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() =>
-                attemptNavigation(() =>
-                  isInventory ? openInventoryPanel(null) : openGarmentPanel(null),
-                )
-              }
-            >
-              {isInventory ? t('garments.addInventory') : t('garments.addList')}
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
             </Button>
           </div>
         </div>
@@ -387,148 +557,28 @@ export const GarmentList: React.FC = () => {
           isLoading={deleting}
         />
 
-        <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={filteredCount > 0}
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={handleHeaderCheckboxChange}
-              >
-                {t('common.selectAll')}
-              </Button>
-            }
-            search={
-              <ListSearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={
-                  isInventory ? t('garments.searchInventory') : t('garments.searchLists')
-                }
-              />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    {isInventory ? (
-                      <Select
-                        value={inventorySort}
-                        onValueChange={(value) =>
-                          handleInventorySortChange(value as InventorySortField)
-                        }
-                      >
-                        <SelectTrigger
-                          className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                          aria-label={t('garments.sortBy')}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent
-                          position="item-aligned"
-                          className="rounded-xl border-border/50 shadow-xl"
-                        >
-                          {INVENTORY_SORT_OPTIONS.map((option) => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              className="rounded-md text-xs"
-                            >
-                              {t(option.labelKey)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Select
-                        value={listSort}
-                        onValueChange={(value) => handleListSortChange(value as GarmentSortField)}
-                      >
-                        <SelectTrigger
-                          className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                          aria-label={t('garments.sortBy')}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent
-                          position="item-aligned"
-                          className="rounded-xl border-border/50 shadow-xl"
-                        >
-                          {LIST_SORT_OPTIONS.map((option) => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              className="rounded-md text-xs"
-                            >
-                              {t(option.labelKey)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t('garments.columnsAria', { count })}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearSelection}
-                  type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: selectedCount })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                >
-                  {t('common.delete')}
-                </Button>
-              </>
-            }
+        {isInventory ? (
+          <InventoryBulkListsDialog
+            isOpen={showBulkListsDialog}
+            onClose={() => setShowBulkListsDialog(false)}
+            selectedItems={selectedInventoryItems}
+            garmentLists={garmentLists}
+            assignInventoryItemToList={assignInventoryItemToList}
+            unassignInventoryItemFromList={unassignInventoryItemFromList}
+            onSuccess={clearSelection}
           />
+        ) : null}
 
+        <div className="flex min-w-0 flex-col gap-3">
           {isInventory ? (
-            <div className="flex items-start gap-4">
+            <div
+              className={cn(
+                'grid items-start gap-4',
+                showQuickContext && previewInventory ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+              )}
+            >
               {showQuickContext && previewInventory ? (
-                <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
+                <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
                   <InventoryQuickContextPanel
                     item={previewInventory}
                     onClose={() => setPreviewInventory(null)}
@@ -549,7 +599,7 @@ export const GarmentList: React.FC = () => {
                   />
                 </aside>
               ) : null}
-              <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <div className="flex min-w-0 flex-col gap-3">
                 {filteredCount === 0 ? (
                   <ListEmptyState
                     message={
@@ -574,7 +624,7 @@ export const GarmentList: React.FC = () => {
                     onCheckboxChange={onVisibleRowCheckboxChange}
                     allVisibleSelected={allVisibleSelected}
                     onHeaderCheckboxChange={handleHeaderCheckboxChange}
-                    selectionEnabled
+                    selectionEnabled={selectionMode}
                     activeInventoryId={previewInventory?.id ?? null}
                     recentlyDuplicatedInventoryId={recentlyDuplicatedInventoryId}
                   />
@@ -602,17 +652,19 @@ export const GarmentList: React.FC = () => {
                           onClick={() => handleRowActivate(item)}
                           columnCount={effectiveCardColumnCount}
                           checkbox={
-                            <input
-                              type="checkbox"
-                              checked={itemIsSelected}
-                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                              onChange={() => onVisibleRowCheckboxChange(String(item.id))}
-                              onClick={(e) => e.stopPropagation()}
-                              className="h-4 w-4 cursor-pointer"
-                              aria-label={
-                                itemIsSelected ? t('common.unselectRow') : t('common.selectRow')
-                              }
-                            />
+                            selectionMode ? (
+                              <input
+                                type="checkbox"
+                                checked={itemIsSelected}
+                                onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                                onChange={() => onVisibleRowCheckboxChange(String(item.id))}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-4 w-4 cursor-pointer"
+                                aria-label={
+                                  itemIsSelected ? t('common.unselectRow') : t('common.selectRow')
+                                }
+                              />
+                            ) : undefined
                           }
                         />
                       );
@@ -639,12 +691,13 @@ export const GarmentList: React.FC = () => {
               sortOrder={sortOrder}
               onSort={handleTableSortList}
               isSelected={isSelected}
-              onRowClick={handleOpenList}
+              onRowClick={handleListRowActivate}
               onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
               onCheckboxChange={onVisibleRowCheckboxChange}
               allVisibleSelected={allVisibleSelected}
               onHeaderCheckboxChange={handleHeaderCheckboxChange}
               recentlyDuplicatedListId={recentlyDuplicatedListId}
+              selectionEnabled={selectionMode}
             />
           ) : (
             <div
@@ -663,20 +716,22 @@ export const GarmentList: React.FC = () => {
                     item={item}
                     selected={itemIsSelected}
                     highlighted={recentlyDuplicatedListId === String(item.id)}
-                    onClick={() => handleOpenList(item)}
+                    onClick={() => handleListRowActivate(item)}
                     columnCount={effectiveCardColumnCount}
                     checkbox={
-                      <input
-                        type="checkbox"
-                        checked={itemIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(String(item.id))}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={
-                          itemIsSelected ? t('common.unselectRow') : t('common.selectRow')
-                        }
-                      />
+                      selectionMode ? (
+                        <input
+                          type="checkbox"
+                          checked={itemIsSelected}
+                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                          onChange={() => onVisibleRowCheckboxChange(String(item.id))}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 cursor-pointer"
+                          aria-label={
+                            itemIsSelected ? t('common.unselectRow') : t('common.selectRow')
+                          }
+                        />
+                      ) : undefined
                     }
                   />
                 );

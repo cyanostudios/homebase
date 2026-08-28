@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 
 import { cupsApi } from '../../api/cupsApi';
 import type {
@@ -44,6 +43,19 @@ function topCupMeta(row: CupPageviewTopCup): string | null {
   const dateLabel = formatCupDateRange(row.start_date, row.end_date);
   if (dateLabel) parts.push(dateLabel);
   return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+/** Round pill matching RoundIconLabelButton chrome — display-only (not interactive). */
+function MetricPill({ label, value }: { label: string; value: number }) {
+  return (
+    <span
+      className="inline-flex h-11 items-center gap-2 rounded-full bg-secondary px-3.5 pr-4 text-sm font-extrabold text-secondary-foreground"
+      aria-label={`${label}: ${formatViews(value)}`}
+    >
+      <span className="whitespace-nowrap">{label}</span>
+      <span className="tabular-nums text-primary">{formatViews(value)}</span>
+    </span>
+  );
 }
 
 export function CupPageviewStats({ days }: { days: number }) {
@@ -123,28 +135,14 @@ export function CupPageviewStats({ days }: { days: number }) {
     <div className="space-y-4">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <div className="space-y-4 p-4">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <ListFilterStatCard
-              label={t('cups.statistics.metricPageviews')}
-              value={stats.totals.views}
-              dotClassName="bg-primary"
-              active
-            />
-            <ListFilterStatCard
-              label={t('cups.statistics.metricCups')}
-              value={stats.totals.cups}
-              dotClassName="bg-emerald-500"
-            />
-            <ListFilterStatCard
+          <div className="flex flex-wrap items-center gap-2">
+            <MetricPill label={t('cups.statistics.metricPageviews')} value={stats.totals.views} />
+            <MetricPill label={t('cups.statistics.metricCups')} value={stats.totals.cups} />
+            <MetricPill
               label={t('cups.statistics.metricDistricts')}
               value={stats.totals.districts}
-              dotClassName="bg-violet-500"
             />
-            <ListFilterStatCard
-              label={t('cups.statistics.metricSources')}
-              value={stats.totals.sources}
-              dotClassName="bg-amber-500"
-            />
+            <MetricPill label={t('cups.statistics.metricSources')} value={stats.totals.sources} />
           </div>
 
           {empty ? (

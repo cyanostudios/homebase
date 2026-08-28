@@ -1,15 +1,11 @@
 import {
   AlertCircle,
   CalendarDays,
-  Copy,
-  Download,
-  Info,
   Search,
   SlidersHorizontal,
   Trash2,
   User,
   Users,
-  Zap,
 } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -23,20 +19,12 @@ import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import {
-  DETAIL_INFO_ROW_CLASS,
-  DETAIL_PROP_ROW_CLASS,
-  DETAIL_QUICK_ACTION_ROW_CLASS,
-  DETAIL_VIEW_CARD_CLASS,
-} from '@/core/ui/detailViewCardStyles';
-import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDateOnly, formatDateTime, formatTime } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
-import type { ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { matchesApi } from '@/plugins/matches/api/matchesApi';
@@ -64,224 +52,6 @@ function formatTimeOnly(s: string | null): string {
 }
 
 // ─── Sub-components (extracted from SlotView) ─────────────────────────────────
-
-interface SlotExportOptionsCardProps {
-  slot: Slot;
-  exportFormats: ExportFormat[];
-  onExportItem: (format: ExportFormat, item: Slot) => void;
-}
-
-function SlotExportOptionsCard({ slot, exportFormats, onExportItem }: SlotExportOptionsCardProps) {
-  const { t } = useTranslation();
-  if (!Array.isArray(exportFormats) || exportFormats.length === 0) {
-    return null;
-  }
-
-  const exportLabelByFormat: Record<string, string> = {
-    txt: t('common.exportTxt'),
-    csv: t('common.exportCsv'),
-    pdf: t('common.exportPdf'),
-  };
-
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('slots.exportOptions')}
-        icon={Download}
-        iconPlugin="slots"
-        subtleTitle
-        className="p-4"
-      >
-        <div className="flex flex-col items-start gap-1">
-          {exportFormats.map((format) => (
-            <Button
-              key={format}
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={Download}
-              className={DETAIL_QUICK_ACTION_ROW_CLASS}
-              onClick={() => onExportItem(format, slot)}
-            >
-              {exportLabelByFormat[format] ?? `Export ${format.toUpperCase()}`}
-            </Button>
-          ))}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
-
-interface SlotQuickActionsCardProps {
-  slot: Slot;
-  onDeleteClick: () => void;
-  onDuplicate: (slot: Slot) => void;
-  getDuplicateConfig: (
-    item: Slot | null,
-  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
-  detailFooterActions?: Array<{
-    id: string;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    onClick: (item: Slot) => void;
-    className?: string;
-    disabled?: boolean;
-  }>;
-}
-
-function SlotQuickActionsCard({
-  slot,
-  onDeleteClick,
-  onDuplicate,
-  getDuplicateConfig,
-  detailFooterActions,
-}: SlotQuickActionsCardProps) {
-  const { t } = useTranslation();
-  const canDuplicate = Boolean(getDuplicateConfig(slot));
-  const getActionIconColorClass = (actionId: string) => {
-    if (actionId === 'send-message') {
-      return 'text-violet-600 dark:text-violet-400';
-    }
-    if (actionId === 'send-email') {
-      return 'text-red-600 dark:text-red-400';
-    }
-    return '';
-  };
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('slots.quickActions')}
-        icon={Zap}
-        iconPlugin="slots"
-        subtleTitle
-        className="p-4"
-      >
-        <div className="flex flex-col items-start gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Trash2
-                {...props}
-                className={cn(props.className, 'text-red-600 dark:text-red-400')}
-              />
-            )}
-            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-            onClick={onDeleteClick}
-          >
-            {t('common.delete')}
-          </Button>
-          {canDuplicate && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={(props) => (
-                <Copy
-                  {...props}
-                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
-                />
-              )}
-              className={DETAIL_QUICK_ACTION_ROW_CLASS}
-              onClick={() => onDuplicate(slot)}
-            >
-              {t('common.duplicate')}
-            </Button>
-          )}
-          {Array.isArray(detailFooterActions) &&
-            detailFooterActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <Button
-                  key={action.id}
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={(props) => (
-                    <Icon
-                      {...props}
-                      className={cn(props.className, getActionIconColorClass(action.id))}
-                    />
-                  )}
-                  disabled={action.disabled}
-                  className={cn(
-                    DETAIL_QUICK_ACTION_ROW_CLASS,
-                    'disabled:opacity-50',
-                    action.className,
-                  )}
-                  onClick={() => action.onClick(slot)}
-                >
-                  {action.label}
-                </Button>
-              );
-            })}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
-
-interface SlotMetadataCardProps {
-  slot: Slot;
-  hasMatch: boolean;
-  sourceMatch: Match | null;
-  onMatchClick: () => void;
-}
-
-function SlotMetadataCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMetadataCardProps) {
-  const { t } = useTranslation();
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('slots.information')}
-        icon={Info}
-        iconPlugin="slots"
-        subtleTitle
-        className="p-4"
-        collapsible
-      >
-        <div>
-          <div className={DETAIL_INFO_ROW_CLASS}>
-            <span className="text-slate-500 dark:text-slate-400">ID</span>
-            <span className="font-mono font-extrabold text-foreground">
-              {formatDisplayNumber('slots', slot.id)}
-            </span>
-          </div>
-          <div className={DETAIL_INFO_ROW_CLASS}>
-            <span className="text-slate-500 dark:text-slate-400">Created</span>
-            <span className="font-mono font-extrabold text-foreground">
-              {slot.created_at ? new Date(slot.created_at).toLocaleDateString() : '—'}
-            </span>
-          </div>
-          <div className={DETAIL_INFO_ROW_CLASS}>
-            <span className="text-slate-500 dark:text-slate-400">Updated</span>
-            <span className="font-mono font-extrabold text-foreground">
-              {slot.updated_at ? new Date(slot.updated_at).toLocaleDateString() : '—'}
-            </span>
-          </div>
-          {hasMatch && (
-            <div className="flex items-center justify-between border-t border-border/50 pt-2 text-xs">
-              <span className="text-slate-500 dark:text-slate-400">Source Match</span>
-              {sourceMatch ? (
-                <Button
-                  variant="link"
-                  size="sm"
-                  onClick={onMatchClick}
-                  className="h-auto max-w-[150px] truncate p-0 text-[10px] plugin-matches text-plugin"
-                >
-                  {`${sourceMatch.home_team} – ${sourceMatch.away_team}`}
-                </Button>
-              ) : (
-                <span className="italic text-muted-foreground">Deleted Match</span>
-              )}
-            </div>
-          )}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
 
 interface SlotMainInfoCardProps {
   slot: Slot;
@@ -765,14 +535,6 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
     closeSendEmailDialog,
     propertyDraft,
     setPropertyDraftField,
-    deleteSlot,
-    getDuplicateConfig,
-    executeDuplicate,
-    setRecentlyDuplicatedSlotId,
-    detailFooterActions,
-    getDeleteMessage,
-    exportFormats,
-    onExportItem,
   } = useSlotsContext();
 
   const [sourceMatch, setSourceMatch] = useState<Match | null>(null);
@@ -780,8 +542,6 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
   const [bookings, setBookings] = useState<SlotBooking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [bookingToDelete, setBookingToDelete] = useState<SlotBooking | null>(null);
-  const [showDeleteSlotConfirm, setShowDeleteSlotConfirm] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
 
   const mergedMessageRecipients = useMemo(
     () => appendPublicBookingsToMessageRecipients(sendMessageRecipients, bookings),
@@ -871,38 +631,7 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
 
   return (
     <>
-      <DetailLayout
-        sidebar={
-          <div className="space-y-4">
-            <SlotQuickActionsCard
-              slot={slot}
-              onDeleteClick={() => setShowDeleteSlotConfirm(true)}
-              onDuplicate={() => setShowDuplicateDialog(true)}
-              getDuplicateConfig={getDuplicateConfig}
-              detailFooterActions={detailFooterActions}
-            />
-            <SlotExportOptionsCard
-              slot={slot}
-              exportFormats={exportFormats}
-              onExportItem={onExportItem}
-            />
-            <SlotMetadataCard
-              slot={slot}
-              hasMatch={hasMatch}
-              sourceMatch={sourceMatch}
-              onMatchClick={handleMatchClick}
-            />
-            <DetailActivityLog
-              entityType="slot"
-              entityId={slot.id}
-              limit={30}
-              title={t('slots.activity')}
-              showClearButton
-              refreshKey={slot.updated_at ?? slot.id}
-            />
-          </div>
-        }
-      >
+      <DetailLayout>
         <div className="space-y-4">
           <SlotMainInfoCard
             slot={slot}
@@ -935,43 +664,6 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
         onConfirm={onDiscardQuickEditAndClose}
         onCancel={() => setShowDiscardQuickEditDialog(false)}
         variant="warning"
-      />
-
-      <ConfirmDialog
-        isOpen={showDeleteSlotConfirm}
-        title={t('dialog.deleteItem', { label: t('nav.slot') })}
-        message={slot ? getDeleteMessage(slot) : ''}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={async () => {
-          if (slot) {
-            await deleteSlot(slot.id);
-            setShowDeleteSlotConfirm(false);
-          }
-        }}
-        onCancel={() => setShowDeleteSlotConfirm(false)}
-        variant="danger"
-      />
-
-      <DuplicateDialog
-        isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
-          executeDuplicate(slot, newName)
-            .then(({ closePanel, highlightId }) => {
-              closePanel();
-              if (highlightId) {
-                setRecentlyDuplicatedSlotId(highlightId);
-              }
-              setShowDuplicateDialog(false);
-            })
-            .catch(() => {
-              setShowDuplicateDialog(false);
-            });
-        }}
-        onCancel={() => setShowDuplicateDialog(false)}
-        defaultName={getDuplicateConfig(slot)?.defaultName ?? ''}
-        nameLabel={getDuplicateConfig(slot)?.nameLabel ?? 'Name'}
-        confirmOnly={Boolean(getDuplicateConfig(slot)?.confirmOnly)}
       />
 
       <BulkMessageDialog

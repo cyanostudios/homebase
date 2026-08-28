@@ -1,6 +1,6 @@
 export type PanelMode = 'create' | 'edit' | 'view';
 
-export type GarmentsContentView = 'lists' | 'inventory' | 'settings';
+export type GarmentsContentView = 'lists' | 'inventory';
 
 export type GarmentPanelKind = 'list' | 'inventory';
 
@@ -22,6 +22,8 @@ export interface GarmentList {
   name: string;
   teamId: string | null;
   checkboxColumns: GarmentCheckboxColumn[];
+  /** Inventory items assigned to this list. */
+  assignedInventoryItemIds?: string[];
   personCount?: number;
   persons?: GarmentPerson[];
   createdAt: string;
@@ -49,6 +51,10 @@ export interface GarmentPerson {
   /** Linked Contacts id when imported/linked from Contacts. */
   contactId: string | null;
   checkboxValues: Record<string, boolean>;
+  /** Selected size per assigned inventory item id. */
+  ctSizes?: Record<string, string>;
+  /** Selected audience per assigned inventory item id. */
+  ctAudiences?: Record<string, string>;
   sortOrder: number;
   createdAt?: string;
   updatedAt?: string;
@@ -105,6 +111,8 @@ export interface InventoryItem {
   variants: InventoryVariant[];
   totalQuantity: number;
   variantCount: number;
+  /** Garment lists this item is assigned to. */
+  assignedListIds?: string[];
   createdAt: string;
   updatedAt: string;
 }

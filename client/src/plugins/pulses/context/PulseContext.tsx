@@ -63,7 +63,11 @@ export interface PulseContextType {
       fields?: Record<string, string>;
     },
   ) => Promise<{ ok: boolean; provider: string; status: string }>;
-  getPanelTitle: (mode?: string, item?: PulseProviderSettings | null, isMobile?: boolean) => string;
+  getPanelTitle: (
+    mode?: string,
+    item?: PulseProviderSettings | null,
+    isMobile?: boolean,
+  ) => React.ReactNode;
   getPanelSubtitle: (mode?: string, item?: PulseProviderSettings | null) => string;
   getDeleteMessage: (item?: PulseProviderSettings | null) => string;
   selectedIds: string[];

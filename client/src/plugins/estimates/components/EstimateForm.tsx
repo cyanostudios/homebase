@@ -24,7 +24,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_FIELD_LABEL_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -290,8 +290,6 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
 
     // Check if there are any blocking errors (non-warning)
     const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
-    const fieldLabelClass =
-      'mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground';
     const fieldInputClass = 'h-10 text-sm';
     const fieldSelectClass = 'h-10 text-sm';
 
@@ -407,7 +405,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                 >
                   <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
                     <div>
-                      <Label htmlFor="estimate-contact" className={fieldLabelClass}>
+                      <Label htmlFor="estimate-contact" className={DETAIL_FIELD_LABEL_CLASS}>
                         {t('estimates.fieldContact')}
                       </Label>
                       <NativeSelect
@@ -436,7 +434,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                     </div>
 
                     <div>
-                      <Label htmlFor="estimate-currency" className={fieldLabelClass}>
+                      <Label htmlFor="estimate-currency" className={DETAIL_FIELD_LABEL_CLASS}>
                         {t('estimates.fieldCurrency')}
                       </Label>
                       <NativeSelect
@@ -454,7 +452,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                     </div>
 
                     <div>
-                      <Label htmlFor="estimate-valid-to" className={fieldLabelClass}>
+                      <Label htmlFor="estimate-valid-to" className={DETAIL_FIELD_LABEL_CLASS}>
                         {t('estimates.fieldValidTo')}
                       </Label>
                       <Input
@@ -468,7 +466,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                     </div>
 
                     <div>
-                      <Label htmlFor="estimate-status" className={fieldLabelClass}>
+                      <Label htmlFor="estimate-status" className={DETAIL_FIELD_LABEL_CLASS}>
                         {t('estimates.fieldStatus')}
                       </Label>
                       <NativeSelect
@@ -673,7 +671,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                     className="p-6"
                   >
                     <div className="flex items-center gap-4 mb-2">
-                      <Label htmlFor="estimate-discount" className={fieldLabelClass}>
+                      <Label htmlFor="estimate-discount" className={DETAIL_FIELD_LABEL_CLASS}>
                         Estimate Discount (%)
                       </Label>
                       <div className="max-w-xs">
@@ -782,7 +780,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                   className="p-6"
                 >
                   <div>
-                    <Label htmlFor="estimate-notes" className={fieldLabelClass}>
+                    <Label htmlFor="estimate-notes" className={DETAIL_FIELD_LABEL_CLASS}>
                       Additional Notes
                     </Label>
                     <Textarea

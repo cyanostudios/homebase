@@ -2,18 +2,13 @@ import {
   BarChart2,
   CalendarDays,
   Circle,
-  Copy,
-  Edit,
   Inbox,
-  Info,
   LayoutGrid,
   Mail,
   Shirt,
   StickyNote,
-  Trash2,
   Trophy,
   Users,
-  Zap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -26,8 +21,6 @@ import { useApp } from '@/core/api/AppContext';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
@@ -38,7 +31,6 @@ import {
   LIST_FILTER_CHIP_LG_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 import type { Contact } from '@/plugins/contacts/types/contacts';
@@ -111,95 +103,12 @@ function parseTeamViewTab(value: string | null): TeamViewTab {
   return 'overview';
 }
 
-function TeamQuickActionsCard({
-  team,
-  onEdit,
-  onDeleteClick,
-  onDuplicate,
-  getDuplicateConfig,
-}: {
-  team: Team;
-  onEdit: (team: Team) => void;
-  onDeleteClick: () => void;
-  onDuplicate: () => void;
-  getDuplicateConfig: (
-    item: Team | null,
-  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
-}) {
-  const { t } = useTranslation();
-  const canDuplicate = Boolean(getDuplicateConfig(team));
-  const actionRowClass = DETAIL_QUICK_ACTION_ROW_CLASS;
-
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection title={t('teams.quickActions')} icon={Zap} subtleTitle className="p-4">
-        <div className="flex flex-col items-start gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Edit
-                {...props}
-                className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
-              />
-            )}
-            className={actionRowClass}
-            onClick={() => onEdit(team)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Trash2
-                {...props}
-                className={cn(props.className, 'text-red-600 dark:text-red-400')}
-              />
-            )}
-            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-            onClick={onDeleteClick}
-          >
-            {t('common.delete')}
-          </Button>
-          {canDuplicate && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={(props) => (
-                <Copy
-                  {...props}
-                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
-                />
-              )}
-              className={actionRowClass}
-              onClick={onDuplicate}
-            >
-              {t('common.duplicate')}
-            </Button>
-          )}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
-
 export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: Team | null }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, getSettings, settingsVersion } = useApp();
   const team = teamProp ?? item ?? null;
-  const {
-    saveTeam,
-    deleteTeam,
-    openTeamForEdit,
-    getDuplicateConfig,
-    executeDuplicate,
-    setRecentlyDuplicatedTeamId,
-  } = useTeams();
+  const { saveTeam } = useTeams();
   const { contacts } = useContacts();
   const { openRequestForView } = useRequests();
   const { openMatchForView } = useMatches();
@@ -295,8 +204,6 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
     };
   }, [hasMatchesPlugin, team?.id]);
   const [showResponsiblesEmailDialog, setShowResponsiblesEmailDialog] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [pendingRemoveResponsible, setPendingRemoveResponsible] = useState<{
     key: string;
     name: string;
@@ -628,28 +535,14 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
       <DetailLayout
         sidebar={
           <div className="space-y-4">
-            <TeamQuickActionsCard
-              team={team}
-              onEdit={openTeamForEdit}
-              onDeleteClick={() => setShowDelete(true)}
-              onDuplicate={() => setShowDuplicateDialog(true)}
-              getDuplicateConfig={getDuplicateConfig}
-            />
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
-                title={t('teams.view.information')}
-                icon={Info}
+                title={t('teams.form.detailsSection')}
                 subtleTitle
                 className="p-4"
                 collapsible
               >
                 <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDisplayNumber('teams', team.id)}
-                    </span>
-                  </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('teams.form.ageGroupLabel')}
@@ -664,26 +557,9 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                       {team.playing_format || '—'}
                     </span>
                   </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('common.updated')}
-                    </span>
-                    <span className="font-extrabold text-foreground">
-                      {team.updated_at
-                        ? new Date(team.updated_at).toLocaleDateString('sv-SE')
-                        : '—'}
-                    </span>
-                  </div>
                 </div>
               </DetailSection>
             </Card>
-            <DetailActivityLog
-              entityType="team"
-              entityId={team.id}
-              title={t('teams.activity')}
-              limit={5}
-              refreshKey={team.updated_at}
-            />
           </div>
         }
       >
@@ -894,39 +770,6 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
           )}
         </div>
       </DetailLayout>
-      <ConfirmDialog
-        isOpen={showDelete}
-        title={t('teams.view.deleteTeam')}
-        message={t('teams.view.deleteConfirm', { name: teamLabel })}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={async () => {
-          setShowDelete(false);
-          await deleteTeam(team.id);
-        }}
-        onCancel={() => setShowDelete(false)}
-        variant="danger"
-      />
-      <DuplicateDialog
-        isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
-          executeDuplicate(team, newName)
-            .then(({ closePanel, highlightId }) => {
-              closePanel();
-              if (highlightId) {
-                setRecentlyDuplicatedTeamId(highlightId);
-              }
-              setShowDuplicateDialog(false);
-            })
-            .catch(() => {
-              setShowDuplicateDialog(false);
-            });
-        }}
-        onCancel={() => setShowDuplicateDialog(false)}
-        defaultName={getDuplicateConfig(team)?.defaultName ?? ''}
-        nameLabel={getDuplicateConfig(team)?.nameLabel ?? t('teams.form.nameLabel')}
-        confirmOnly={Boolean(getDuplicateConfig(team)?.confirmOnly)}
-      />
       <ConfirmDialog
         isOpen={pendingRemoveResponsible !== null}
         title={t('teams.view.removeResponsible')}

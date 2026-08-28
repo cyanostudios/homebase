@@ -9,6 +9,7 @@ import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 
 import { ingestApi } from '../api/ingestApi';
+import { IngestSourceDetailHeaderMenus } from '../components/IngestSourceDetailHeaderMenus';
 import type { IngestRun, IngestSource, PanelMode, ValidationError } from '../types/ingest';
 
 import { IngestContext } from './IngestContext';
@@ -266,6 +267,13 @@ function useIngestContextValue(
     [t],
   );
 
+  const getPanelTitle = useCallback((mode?: string, item?: IngestSource | null) => {
+    if (mode === 'view' && item) {
+      return <IngestSourceDetailHeaderMenus key={String(item.id)} source={item} />;
+    }
+    return null;
+  }, []);
+
   const {
     navigateToPrevItem,
     navigateToNextItem,
@@ -311,6 +319,7 @@ function useIngestContextValue(
     selectedCount,
     isSelected,
     getDeleteMessage,
+    getPanelTitle,
     navigateToPrevItem,
     navigateToNextItem,
     hasPrevItem,

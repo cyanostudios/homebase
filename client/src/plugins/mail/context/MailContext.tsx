@@ -63,7 +63,11 @@ export interface MailContextType {
       fields?: Record<string, string>;
     },
   ) => Promise<{ ok: boolean; provider: string; status: string }>;
-  getPanelTitle: (mode?: string, item?: MailProviderSettings | null, isMobile?: boolean) => string;
+  getPanelTitle: (
+    mode?: string,
+    item?: MailProviderSettings | null,
+    isMobile?: boolean,
+  ) => React.ReactNode;
   getPanelSubtitle: (mode?: string, item?: MailProviderSettings | null) => string;
   getDeleteMessage: (item?: MailProviderSettings | null) => string;
   selectedIds: string[];

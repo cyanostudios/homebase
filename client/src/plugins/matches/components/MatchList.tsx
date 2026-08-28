@@ -1,8 +1,12 @@
 import {
   BarChart2,
+  Calendar,
+  CalendarDays,
   CheckSquare,
   ArrowDown,
   ArrowUp,
+  Home,
+  LayoutGrid,
   Plus,
   Settings,
   Trash2,
@@ -12,6 +16,8 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -28,14 +34,20 @@ import {
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -78,7 +90,13 @@ import { MatchListItem } from './MatchListItem';
 import { MatchListTable } from './MatchListTable';
 import { MatchQuickContextPanel } from './MatchQuickContextPanel';
 import { MatchSettingsView, type MatchSettingsCategory } from './MatchSettingsView';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 
 type SortField = MatchSortField;
 type SortOrder = MatchSortOrder;
@@ -126,6 +144,12 @@ export function MatchList() {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
+  useRegisterMobileSearch({
+    value: searchTerm,
+    onChange: setSearchTerm,
+    placeholder: t('matches.searchPlaceholder', { count: matches.length }),
+  });
+  const [selectionMode, setSelectionMode] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -137,7 +161,7 @@ export function MatchList() {
   );
   const [activeFilters, setActiveFilters] = useState<MatchListFilterSelection>([]);
   const [defaultHomeTeam, setDefaultHomeTeam] = useState('');
-  const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('view');
+  const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('api');
 
   useEffect(() => {
     let cancelled = false;
@@ -146,10 +170,14 @@ export function MatchList() {
         if (cancelled) {
           return;
         }
-        const next = resolveMatchColumnCount(settings);
+        const resolved = resolveMatchColumnCount(settings);
+        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as MatchColumnCount;
         setColumnCountState(next);
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(MATCHES_COLUMN_COUNT_STORAGE_KEY, String(next));
+        }
+        if (next !== resolved) {
+          updateSettings(MATCHES_SETTINGS_KEY, { columnCount: next }).catch(() => {});
         }
         const nextView = resolveMatchListViewMode(settings);
         setListViewModeState(nextView);
@@ -167,14 +195,15 @@ export function MatchList() {
   }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback(
-    (count: MatchColumnCount) => {
-      setColumnCountState(count);
+    (_count: MatchColumnCount) => {
+      const next = 3 as MatchColumnCount;
+      setColumnCountState(next);
       setListViewModeState('cards');
       persistMatchListViewModeSession('cards');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(MATCHES_COLUMN_COUNT_STORAGE_KEY, String(count));
+        window.sessionStorage.setItem(MATCHES_COLUMN_COUNT_STORAGE_KEY, String(next));
       }
-      updateSettings(MATCHES_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+      updateSettings(MATCHES_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
         () => {},
       );
     },
@@ -209,8 +238,6 @@ export function MatchList() {
   );
 
   const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
   const showHomeTeamFilter = defaultHomeTeam.length > 0;
 
   const teamNameById = useMemo(() => {
@@ -249,11 +276,6 @@ export function MatchList() {
     );
   }, [matches, searchTerm, primarySort, sortOrder, activeFilters, defaultHomeTeam, teamNameById]);
 
-  const visibleMatchIds = useMemo(
-    () => filteredAndSorted.map((m) => String(m.id)),
-    [filteredAndSorted],
-  );
-
   const stats = useMemo(() => {
     const nowMs = Date.now();
     return {
@@ -272,6 +294,11 @@ export function MatchList() {
   const toggleFilter = (filter: MatchListFilter) => {
     setActiveFilters((prev) => toggleMatchListFilter(prev, filter));
   };
+
+  const visibleMatchIds = useMemo(
+    () => filteredAndSorted.map((m) => String(m.id)),
+    [filteredAndSorted],
+  );
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
@@ -306,13 +333,44 @@ export function MatchList() {
     getItemId: (match) => String(match.id),
   });
 
+  const quickContextOpen = Boolean(showQuickContext && previewMatch);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
+
   const handleOpenForView = (match: Match) => {
     markPendingAndOpen(match, () => attemptNavigation(() => openMatchForView(match)));
   };
 
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearMatchSelection();
+    setSelectionMode(false);
+  };
+
   const handleRowActivate = (match: Match) => {
+    if (selectionMode) {
+      toggleMatchSelected(String(match.id));
+      return;
+    }
     activateRow(match, (item) => attemptNavigation(() => openMatchForView(item)));
   };
+
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    const disabled = selectedCount === 0;
+    return [
+      {
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      },
+    ];
+  }, [selectedCount, t]);
 
   const handleBulkDelete = async () => {
     if (selectedMatchIds.length === 0) {
@@ -355,90 +413,208 @@ export function MatchList() {
   }
 
   return (
-    <div className="plugin-matches min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.matches')}</h2>
-            <p className="text-sm text-muted-foreground">{t('matches.listDescription')}</p>
-          </div>
-          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={() => openMatchSettings()}
-              title={t('matches.settings')}
-            >
-              {t('matches.settings')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={BarChart2}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={() => openMatchStatistics()}
-              title={t('common.statistics')}
-            >
-              {t('common.statistics')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(() => openMatchPanel(null))}
-            >
-              {t('matches.addMatch')}
-            </Button>
+    <div className={cn('plugin-matches', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.matches')}</h2>
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('matches.settings')}
+                    variant="soft"
+                    onClick={() => openMatchSettings()}
+                  />
+                  <ExpandableIconButton
+                    icon={BarChart2}
+                    label={t('common.statistics')}
+                    variant="soft"
+                    onClick={() => openMatchStatistics()}
+                  />
+                  {filteredAndSorted.length > 0 ? (
+                    selectionMode ? (
+                      <ExpandableIconButton
+                        icon={XCircle}
+                        label={t('common.clear')}
+                        variant="danger"
+                        alwaysExpanded
+                        onClick={handleExitSelectionMode}
+                      />
+                    ) : (
+                      <ExpandableIconButton
+                        icon={CheckSquare}
+                        label={t('common.select')}
+                        variant="soft"
+                        alwaysExpanded
+                        onClick={handleEnterSelectionMode}
+                      />
+                    )
+                  ) : null}
+                </div>
+              </div>
+              {selectionMode ? (
+                <BulkActionRoundBar
+                  selectedCount={selectedCount}
+                  actions={bulkRoundActions}
+                  className="gap-2"
+                />
+              ) : null}
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t('matches.searchPlaceholder', { count: matches.length })}
+              />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => t(`matches.columns${count}`)}
+                tableAriaLabel={t('common.tableView')}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('matches.addMatch')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => attemptNavigation(() => openMatchPanel(null))}
+              />
+            </div>
           </div>
         </div>
 
-        <div
-          className={cn(
-            LIST_FILTER_STAT_ROW_CLASS,
-            'md:grid-cols-2 md:gap-2 lg:grid-cols-4',
-            showHomeTeamFilter && 'lg:grid-cols-5',
-          )}
-        >
-          <ListFilterStatCard
-            label={t('matches.filterAll')}
-            value={stats.total}
-            dotClassName="bg-blue-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label={t('matches.filterUpcoming')}
-            value={stats.upcoming}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('upcoming')}
-            onClick={() => toggleFilter('upcoming')}
-          />
-          <ListFilterStatCard
-            label={t('matches.filterUpcoming7')}
-            value={stats.upcoming7}
-            dotClassName="bg-indigo-500"
-            active={isFilterActive('upcoming7')}
-            onClick={() => toggleFilter('upcoming7')}
-          />
-          <ListFilterStatCard
-            label={t('matches.filterUpcoming14')}
-            value={stats.upcoming14}
-            dotClassName="bg-amber-500"
-            active={isFilterActive('upcoming14')}
-            onClick={() => toggleFilter('upcoming14')}
-          />
-          {showHomeTeamFilter ? (
-            <ListFilterStatCard
-              label={defaultHomeTeam}
-              value={stats.homeTeam}
-              dotClassName="bg-rose-500"
-              active={isFilterActive('homeTeam')}
-              onClick={() => toggleFilter('homeTeam')}
-            />
-          ) : null}
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFilters([])}
+              className={cn(
+                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                {t('matches.filterAll')}{' '}
+                <span className="tabular-nums font-semibold">({stats.total})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('upcoming')}
+              className={cn(
+                isFilterActive('upcoming') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              <span>
+                {t('matches.filterUpcoming')}{' '}
+                <span className="tabular-nums font-semibold">({stats.upcoming})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('upcoming7')}
+              className={cn(
+                isFilterActive('upcoming7')
+                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                  : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span>
+                {t('matches.filterUpcoming7')}{' '}
+                <span className="tabular-nums font-semibold">({stats.upcoming7})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('upcoming14')}
+              className={cn(
+                isFilterActive('upcoming14')
+                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                  : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span>
+                {t('matches.filterUpcoming14')}{' '}
+                <span className="tabular-nums font-semibold">({stats.upcoming14})</span>
+              </span>
+            </Button>
+            {showHomeTeamFilter ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleFilter('homeTeam')}
+                className={cn(
+                  isFilterActive('homeTeam')
+                    ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                    : LIST_FILTER_CHIP_CLASS,
+                )}
+              >
+                <Home className="h-3.5 w-3.5" />
+                <span>
+                  {defaultHomeTeam}{' '}
+                  <span className="tabular-nums font-semibold">({stats.homeTeam})</span>
+                </span>
+              </Button>
+            ) : null}
+          </div>
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label="Sort by"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
 
         <BulkDeleteModal
@@ -451,115 +627,14 @@ export function MatchList() {
         />
 
         <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={filteredAndSorted.length > 0}
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={handleHeaderCheckboxChange}
-              >
-                Select all
-              </Button>
-            }
-            search={
-              <ListSearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('matches.searchPlaceholder', { count: matches.length })}
-              />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t(`matches.columns${count}`)}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearMatchSelection}
-                  type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: selectedCount })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                >
-                  {t('common.delete')}
-                </Button>
-              </>
-            }
-          />
-
-          <div className="flex items-start gap-4">
+          <div
+            className={cn(
+              'grid items-start gap-4',
+              showQuickContext && previewMatch ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+            )}
+          >
             {showQuickContext && previewMatch ? (
-              <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
+              <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
                 <MatchQuickContextPanel
                   match={previewMatch}
                   onClose={() => setPreviewMatch(null)}
@@ -572,7 +647,7 @@ export function MatchList() {
                 />
               </aside>
             ) : null}
-            <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-3">
               {filteredAndSorted.length === 0 ? (
                 <ListEmptyState
                   message={searchTerm ? t('matches.noMatch') : t('matches.noYet')}
@@ -595,6 +670,7 @@ export function MatchList() {
                   allVisibleSelected={allVisibleSelected}
                   onHeaderCheckboxChange={handleHeaderCheckboxChange}
                   recentlyDuplicatedMatchId={recentlyDuplicatedMatchId}
+                  selectionEnabled={selectionMode}
                 />
               ) : (
                 <div
@@ -619,15 +695,17 @@ export function MatchList() {
                         }
                         onClick={() => handleRowActivate(match)}
                         checkbox={
-                          <input
-                            type="checkbox"
-                            checked={matchIsSelected}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onChange={() => onVisibleRowCheckboxChange(match.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-4 w-4 cursor-pointer"
-                            aria-label={matchIsSelected ? 'Unselect match' : 'Select match'}
-                          />
+                          selectionMode ? (
+                            <input
+                              type="checkbox"
+                              checked={matchIsSelected}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(match.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="h-4 w-4 cursor-pointer"
+                              aria-label={matchIsSelected ? 'Unselect match' : 'Select match'}
+                            />
+                          ) : undefined
                         }
                       />
                     );

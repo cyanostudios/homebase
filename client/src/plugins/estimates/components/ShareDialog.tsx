@@ -1,15 +1,16 @@
-import { Share, Copy, Check, X, ExternalLink } from 'lucide-react';
+import { Share, Copy, Check, ExternalLink } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
   AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { DialogCloseButton } from '@/core/ui/DialogRoundButtons';
+import { DialogActionButton, DialogCloseButton } from '@/core/ui/DialogRoundButtons';
 
 interface ShareDialogProps {
   isOpen: boolean;
@@ -18,7 +19,9 @@ interface ShareDialogProps {
   /** Label shown in copy (estimate number, note title, etc.) */
   entityLabel: string;
   /** Controls title and wording */
-  variant?: 'estimate' | 'note' | 'task' | 'invoice';
+  variant?: 'estimate' | 'note' | 'task' | 'invoice' | 'garment';
+  /** Optional title override (wins over variant-based title). */
+  title?: string;
 }
 
 export function ShareDialog({
@@ -27,6 +30,7 @@ export function ShareDialog({
   shareUrl,
   entityLabel,
   variant = 'estimate',
+  title: titleOverride,
 }: ShareDialogProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = React.useState(false);
@@ -48,13 +52,16 @@ export function ShareDialog({
   };
 
   const title =
-    variant === 'note'
+    titleOverride ??
+    (variant === 'note'
       ? t('shareDialog.titleNote', { defaultValue: 'Note share' })
       : variant === 'task'
         ? t('shareDialog.titleTask', { defaultValue: 'Task share' })
         : variant === 'invoice'
           ? t('invoices.shareDialogTitle', { defaultValue: 'Invoice share' })
-          : t('shareDialog.titleEstimate', { defaultValue: 'Estimate share' });
+          : variant === 'garment'
+            ? t('shareDialog.titleGarment', { defaultValue: 'List share' })
+            : t('shareDialog.titleEstimate', { defaultValue: 'Estimate share' }));
 
   const help =
     variant === 'invoice'
@@ -69,52 +76,42 @@ export function ShareDialog({
               ? t('shareDialog.entityNote', { defaultValue: 'note' })
               : variant === 'task'
                 ? t('shareDialog.entityTask', { defaultValue: 'task' })
-                : t('shareDialog.entityEstimate', { defaultValue: 'estimate' }),
+                : variant === 'garment'
+                  ? t('shareDialog.entityGarment', { defaultValue: 'list' })
+                  : t('shareDialog.entityEstimate', { defaultValue: 'estimate' }),
           label: entityLabel,
         });
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent className="sm:max-w-lg">
-        <AlertDialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <AlertDialogTitle className="flex items-center gap-2">
-            <Share className="h-5 w-5 text-blue-600" />
-            {title}
-          </AlertDialogTitle>
-          <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full p-0" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+        <AlertDialogHeader>
+          <div className="flex items-center gap-3">
+            <Share className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+            <AlertDialogTitle>{title}</AlertDialogTitle>
+          </div>
+          <AlertDialogDescription className="pt-2">{help}</AlertDialogDescription>
         </AlertDialogHeader>
 
-        <div className="space-y-4 py-4">
-          <p className="text-sm text-gray-500 dark:text-gray-400">{help}</p>
-
-          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-            <p className="select-all break-all font-mono text-sm text-foreground">{shareUrl}</p>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={copied ? Check : Copy}
-              onClick={handleCopy}
-              className={`h-9 px-3 text-xs ${copied ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300' : ''}`}
-            >
-              {copied ? t('common.copied') : t('common.copy')}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={ExternalLink}
-              onClick={handleView}
-              className="h-9 px-3 text-xs"
-            >
-              {t('common.view')}
-            </Button>
-            <DialogCloseButton onClick={onClose} />
-          </div>
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+          <p className="select-all break-all font-mono text-sm text-foreground">{shareUrl}</p>
         </div>
+
+        <AlertDialogFooter>
+          <DialogActionButton
+            icon={copied ? Check : Copy}
+            label={copied ? t('common.copied') : t('common.copy')}
+            variant={copied ? 'success' : 'soft'}
+            onClick={() => void handleCopy()}
+          />
+          <DialogActionButton
+            icon={ExternalLink}
+            label={t('common.view')}
+            variant="soft"
+            onClick={handleView}
+          />
+          <DialogCloseButton onClick={onClose} />
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );

@@ -13,4 +13,4 @@ export const LIST_SEARCH_FIELD_PROPS = {
   'data-1p-ignore': true,
   'data-lpignore': 'true',
   'data-form-type': 'other',
-} satisfies InputHTMLAttributes<HTMLInputElement>;
+} as InputHTMLAttributes<HTMLInputElement>;

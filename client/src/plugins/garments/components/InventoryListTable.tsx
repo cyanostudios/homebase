@@ -6,7 +6,6 @@ import {
   type SortableListTableColumn,
   type SortableListTableSelection,
 } from '@/core/ui/SortableListTable';
-import { formatDate } from '@/core/utils/dateFormat';
 
 import type { InventoryItem } from '../types/garments';
 import type { GarmentSortOrder, InventorySortField } from '../utils/garmentListSort';
@@ -51,7 +50,9 @@ export function InventoryListTable({
         field: 'articleName',
         header: t('garments.articleName'),
         cell: (item) => (
-          <span className="font-medium text-foreground">{item.articleName || '—'}</span>
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+            {item.articleName || '—'}
+          </span>
         ),
       },
       {
@@ -74,14 +75,6 @@ export function InventoryListTable({
         field: 'totalQuantity',
         header: t('garments.totalQuantity'),
         cell: (item) => <span className="text-xs text-foreground">{item.totalQuantity ?? 0}</span>,
-      },
-      {
-        field: 'updatedAt',
-        header: t('common.updated'),
-        className: 'hidden xl:table-cell',
-        cell: (item) => (
-          <span className="text-xs text-muted-foreground">{formatDate(item.updatedAt) || '—'}</span>
-        ),
       },
     ],
     [t],

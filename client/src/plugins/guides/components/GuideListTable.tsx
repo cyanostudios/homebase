@@ -7,7 +7,6 @@ import {
   type SortableListTableColumn,
   type SortableListTableSelection,
 } from '@/core/ui/SortableListTable';
-import { formatDate } from '@/core/utils/dateFormat';
 
 import type { Guide } from '../types/guides';
 import { GUIDE_LIFECYCLE_COLORS } from '../types/guides';
@@ -26,6 +25,7 @@ export type GuideListTableProps = {
   onCheckboxChange: (id: string) => void;
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
+  selectionEnabled?: boolean;
 };
 
 export function GuideListTable({
@@ -39,6 +39,7 @@ export function GuideListTable({
   onCheckboxChange,
   allVisibleSelected,
   onHeaderCheckboxChange,
+  selectionEnabled = true,
 }: GuideListTableProps) {
   const { t } = useTranslation();
 
@@ -47,7 +48,11 @@ export function GuideListTable({
       {
         field: 'displayName',
         header: t('guides.colName'),
-        cell: (guide) => <span className="font-medium text-foreground">{guide.displayName}</span>,
+        cell: (guide) => (
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+            {guide.displayName}
+          </span>
+        ),
       },
       {
         field: 'lifecycleStatus',
@@ -69,29 +74,22 @@ export function GuideListTable({
           />
         ),
       },
-      {
-        field: 'updatedAt',
-        header: t('guides.colUpdated'),
-        className: 'hidden md:table-cell',
-        cell: (guide) => (
-          <span className="text-xs text-muted-foreground">
-            {guide.updatedAt ? formatDate(guide.updatedAt) : '—'}
-          </span>
-        ),
-      },
     ],
     [t],
   );
 
-  const selection: SortableListTableSelection = {
-    isSelected,
-    onCheckboxMouseDown,
-    onCheckboxChange,
-    allVisibleSelected,
-    onHeaderCheckboxChange,
-    selectAllAriaLabel: t('common.selectAllVisible'),
-    selectRowAriaLabel: (selected) => (selected ? t('common.unselectRow') : t('common.selectRow')),
-  };
+  const selection: SortableListTableSelection | undefined = selectionEnabled
+    ? {
+        isSelected,
+        onCheckboxMouseDown,
+        onCheckboxChange,
+        allVisibleSelected,
+        onHeaderCheckboxChange,
+        selectAllAriaLabel: t('common.selectAllVisible'),
+        selectRowAriaLabel: (selected) =>
+          selected ? t('common.unselectRow') : t('common.selectRow'),
+      }
+    : undefined;
 
   return (
     <SortableListTable

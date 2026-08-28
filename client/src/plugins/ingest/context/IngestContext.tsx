@@ -41,6 +41,7 @@ export interface IngestContextType {
   selectedCount: number;
   isSelected: (id: string) => boolean;
   getDeleteMessage: (item: IngestSource | null) => string;
+  getPanelTitle: (mode?: string, item?: IngestSource | null) => React.ReactNode;
   navigateToPrevItem: () => void;
   navigateToNextItem: () => void;
   hasPrevItem: boolean;
@@ -87,6 +88,7 @@ const EMPTY_INGEST_CONTEXT: IngestContextType = {
   selectedCount: 0,
   isSelected: () => false,
   getDeleteMessage: () => '',
+  getPanelTitle: () => null,
   navigateToPrevItem: () => {},
   navigateToNextItem: () => {},
   hasPrevItem: false,

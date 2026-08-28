@@ -13,6 +13,7 @@ import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { teamsApi } from '../api/teamsApi';
 import type { TeamPayload } from '../api/teamsApi';
+import { TeamDetailHeaderMenus } from '../components/TeamDetailHeaderMenus';
 import type { Team, TeamValidationError, TrainingTime } from '../types/teams';
 import { formatTeamLabel } from '../utils/formatTeamLabel';
 
@@ -368,9 +369,9 @@ export function TeamProvider({
   } = usePluginNavigation(teamsOrderedByName, currentTeam, openTeamForView);
 
   const getPanelTitle = useCallback(
-    (mode: string) => {
+    (mode: string, item: Team | null) => {
       if (mode === 'view') {
-        return '';
+        return item ? <TeamDetailHeaderMenus team={item} /> : '';
       }
       if (mode === 'edit') {
         return t('panel.editItem', { item: t('nav.team') });

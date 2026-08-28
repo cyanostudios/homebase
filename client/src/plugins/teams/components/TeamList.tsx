@@ -3,8 +3,11 @@ import {
   ArrowDown,
   ArrowUp,
   BarChart2,
+  CheckCircle2,
   LayoutGrid,
   ListPlus,
+  Moon,
+  PauseCircle,
   Plus,
   Settings,
   Trash2,
@@ -15,6 +18,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -31,19 +36,20 @@ import {
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -85,7 +91,13 @@ import { TeamQuickContextPanel } from './TeamQuickContextPanel';
 import { TeamsBulkCreateView } from './TeamsBulkCreateView';
 import { TeamsSettingsView } from './TeamsSettingsView';
 import { TeamsStatisticsView } from './TeamsStatisticsView';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 
 type SortField = TeamSortField;
 type SortOrder = TeamSortOrder;
@@ -137,10 +149,15 @@ export function TeamList() {
   const hasMatchesPlugin = enabledPlugins.has('matches');
   const { matches } = useMatches();
   const [search, setSearch] = useState('');
+  useRegisterMobileSearch({
+    value: search,
+    onChange: setSearch,
+    placeholder: t('teams.searchPlaceholder', { count: teams.length }),
+  });
+  const [selectionMode, setSelectionMode] = useState(false);
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('all');
   const [activeFilters, setActiveFilters] = useState<TeamListFilterSelection>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-  const [activeSeason, setActiveSeason] = useState<string>('');
   const [primarySort, setPrimarySort] = useState<SortField>('age_group');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<TeamColumnCount>(getInitialTeamColumnCount);
@@ -163,41 +180,39 @@ export function TeamList() {
   useEffect(() => {
     let cancelled = false;
     getSettings(TEAMS_SETTINGS_KEY)
-      .then(
-        (settings: { activeSeason?: string; columnCount?: unknown; listViewMode?: unknown }) => {
-          if (cancelled) {
-            return;
-          }
-          setActiveSeason(String(settings?.activeSeason || new Date().getFullYear()));
-          const next = resolveTeamColumnCount(settings);
-          setColumnCountState(next);
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.setItem(TEAMS_COLUMN_COUNT_STORAGE_KEY, String(next));
-          }
-          const nextView = resolveTeamListViewMode(settings);
-          setListViewModeState(nextView);
-          persistTeamListViewModeSession(nextView);
-        },
-      )
-      .catch(() => {
-        if (!cancelled) {
-          setActiveSeason(String(new Date().getFullYear()));
+      .then((settings: { columnCount?: unknown; listViewMode?: unknown }) => {
+        if (cancelled) {
+          return;
         }
-      });
+        const resolved = resolveTeamColumnCount(settings);
+        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as TeamColumnCount;
+        setColumnCountState(next);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(TEAMS_COLUMN_COUNT_STORAGE_KEY, String(next));
+        }
+        if (next !== resolved) {
+          updateSettings(TEAMS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
+        }
+        const nextView = resolveTeamListViewMode(settings);
+        setListViewModeState(nextView);
+        persistTeamListViewModeSession(nextView);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [getSettings, settingsVersion]);
+  }, [getSettings, settingsVersion, updateSettings]);
 
   const setColumnCount = useCallback(
-    (count: TeamColumnCount) => {
-      setColumnCountState(count);
+    (_count: TeamColumnCount) => {
+      const next = 3 as TeamColumnCount;
+      setColumnCountState(next);
       setListViewModeState('cards');
       persistTeamListViewModeSession('cards');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(TEAMS_COLUMN_COUNT_STORAGE_KEY, String(count));
+        window.sessionStorage.setItem(TEAMS_COLUMN_COUNT_STORAGE_KEY, String(next));
       }
-      updateSettings(TEAMS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+      updateSettings(TEAMS_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
         () => {},
       );
     },
@@ -232,8 +247,9 @@ export function TeamList() {
   );
 
   const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
+  const quickContextOpen = Boolean(showQuickContext && previewTeam);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
 
   const filteredAndSorted = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -256,14 +272,6 @@ export function TeamList() {
     return [...filtered].sort((a, b) => compareTeamsByField(a, b, primarySort, sortOrder));
   }, [teams, search, genderFilter, activeFilters, t, primarySort, sortOrder]);
 
-  const handleOpenForView = (team: Team) => {
-    markPendingAndOpen(team, () => attemptNavigation(() => openTeamForView(team)));
-  };
-
-  const handleRowActivate = (team: Team) => {
-    activateRow(team, (item) => attemptNavigation(() => openTeamForView(item)));
-  };
-
   const isFilterActive = (filter: TeamListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: TeamListFilter) => {
     setActiveFilters((prev) => toggleTeamListFilter(prev, filter));
@@ -284,6 +292,41 @@ export function TeamList() {
     }
     return { active, break: breakCount, dormant };
   }, [teams]);
+
+  const handleOpenForView = (team: Team) => {
+    markPendingAndOpen(team, () => attemptNavigation(() => openTeamForView(team)));
+  };
+
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearTeamSelection();
+    setSelectionMode(false);
+  };
+
+  const handleRowActivate = (team: Team) => {
+    if (selectionMode) {
+      toggleTeamSelected(String(team.id));
+      return;
+    }
+    activateRow(team, (item) => attemptNavigation(() => openTeamForView(item)));
+  };
+
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    const disabled = selectedCount === 0;
+    return [
+      {
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      },
+    ];
+  }, [selectedCount, t]);
 
   const genderCounts = useMemo(() => {
     const counts: Record<string, number> = { all: teams.length };
@@ -371,117 +414,212 @@ export function TeamList() {
   }
 
   return (
-    <div className="plugin-teams min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.teams')}</h2>
-            <p className="text-sm text-muted-foreground">
-              {t('teams.listDescription', { count: teams.length, season: activeSeason })}
-            </p>
-          </div>
-          <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-2 md:w-auto md:gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={openTeamSettings}
-              title={t('common.settings')}
-            >
-              {t('common.settings')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={BarChart2}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={openTeamStatistics}
-              title={t('common.statistics')}
-            >
-              {t('common.statistics')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={ListPlus}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={openTeamBulkCreate}
-              title={t('teams.bulkCreate')}
-            >
-              {t('teams.bulkCreate')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(() => openTeamPanel(null))}
-            >
-              {t('teams.addTeam')}
-            </Button>
+    <div className={cn('plugin-teams', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.teams')}</h2>
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('common.settings')}
+                    variant="soft"
+                    onClick={openTeamSettings}
+                  />
+                  <ExpandableIconButton
+                    icon={BarChart2}
+                    label={t('common.statistics')}
+                    variant="soft"
+                    onClick={openTeamStatistics}
+                  />
+                  {filteredAndSorted.length > 0 ? (
+                    selectionMode ? (
+                      <ExpandableIconButton
+                        icon={XCircle}
+                        label={t('common.clear')}
+                        variant="danger"
+                        alwaysExpanded
+                        onClick={handleExitSelectionMode}
+                      />
+                    ) : (
+                      <ExpandableIconButton
+                        icon={CheckSquare}
+                        label={t('common.select')}
+                        variant="soft"
+                        alwaysExpanded
+                        onClick={handleEnterSelectionMode}
+                      />
+                    )
+                  ) : null}
+                </div>
+              </div>
+              {selectionMode ? (
+                <BulkActionRoundBar
+                  selectedCount={selectedCount}
+                  actions={bulkRoundActions}
+                  className="gap-2"
+                />
+              ) : null}
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
+                value={search}
+                onChange={setSearch}
+                placeholder={t('teams.searchPlaceholder', { count: teams.length })}
+              />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => t(`teams.columns${count}`)}
+                tableAriaLabel={t('common.tableView')}
+              />
+              <ExpandableIconButton
+                icon={ListPlus}
+                label={t('teams.bulkCreate')}
+                variant="soft"
+                onClick={openTeamBulkCreate}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('teams.addTeam')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => attemptNavigation(() => openTeamPanel(null))}
+              />
+            </div>
           </div>
         </div>
 
-        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-3')}>
-          <ListFilterStatCard
-            label={t('teams.status.active')}
-            value={stats.active}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('active')}
-            onClick={() => toggleFilter('active')}
-          />
-          <ListFilterStatCard
-            label={t('teams.status.break')}
-            value={stats.break}
-            dotClassName="bg-orange-500"
-            active={isFilterActive('break')}
-            onClick={() => toggleFilter('break')}
-          />
-          <ListFilterStatCard
-            label={t('teams.status.dormant')}
-            value={stats.dormant}
-            dotClassName="bg-amber-500"
-            active={isFilterActive('dormant')}
-            onClick={() => toggleFilter('dormant')}
-          />
-        </div>
-
-        <div className={LIST_FILTER_CHIP_ROW_CLASS}>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setGenderFilter('all')}
-            className={cn(
-              genderFilter === 'all' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-            )}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            <span>
-              {t('teams.filterAll')}{' '}
-              <span className="tabular-nums font-semibold">({genderCounts.all})</span>
-            </span>
-          </Button>
-          {TEAM_GENDERS.map((gender) => {
-            const isActive = genderFilter === gender;
-            return (
-              <Button
-                key={gender}
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setGenderFilter(isActive ? 'all' : gender)}
-                className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('active')}
+              className={cn(
+                isFilterActive('active') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>
+                {t('teams.status.active')}{' '}
+                <span className="tabular-nums font-semibold">({stats.active})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('break')}
+              className={cn(
+                isFilterActive('break') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <PauseCircle className="h-3.5 w-3.5" />
+              <span>
+                {t('teams.status.break')}{' '}
+                <span className="tabular-nums font-semibold">({stats.break})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('dormant')}
+              className={cn(
+                isFilterActive('dormant') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Moon className="h-3.5 w-3.5" />
+              <span>
+                {t('teams.status.dormant')}{' '}
+                <span className="tabular-nums font-semibold">({stats.dormant})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setGenderFilter('all')}
+              className={cn(
+                genderFilter === 'all' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                {t('teams.filterAll')}{' '}
+                <span className="tabular-nums font-semibold">({genderCounts.all})</span>
+              </span>
+            </Button>
+            {TEAM_GENDERS.map((gender) => {
+              const isActive = genderFilter === gender;
+              return (
+                <Button
+                  key={gender}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setGenderFilter(isActive ? 'all' : gender)}
+                  className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  <span>
+                    {t(`teams.gender.${gender}`)}{' '}
+                    <span className="tabular-nums font-semibold">
+                      ({genderCounts[gender] ?? 0})
+                    </span>
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label="Sort by"
               >
-                <Users className="h-3.5 w-3.5" />
-                <span>
-                  {t(`teams.gender.${gender}`)}{' '}
-                  <span className="tabular-nums font-semibold">({genderCounts[gender] ?? 0})</span>
-                </span>
-              </Button>
-            );
-          })}
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
 
         <BulkDeleteModal
@@ -496,115 +634,14 @@ export function TeamList() {
         />
 
         <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={filteredAndSorted.length > 0}
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={handleHeaderCheckboxChange}
-              >
-                Select all
-              </Button>
-            }
-            search={
-              <ListSearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder={t('teams.searchPlaceholder', { count: teams.length })}
-              />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t(`teams.columns${count}`)}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearTeamSelection}
-                  type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: selectedCount })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                >
-                  {t('common.delete')}
-                </Button>
-              </>
-            }
-          />
-
-          <div className="flex items-start gap-4">
+          <div
+            className={cn(
+              'grid items-start gap-4',
+              showQuickContext && previewTeam ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+            )}
+          >
             {showQuickContext && previewTeam ? (
-              <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
+              <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
                 <TeamQuickContextPanel
                   team={previewTeam}
                   nextMatch={nextMatchByTeamId.get(String(previewTeam.id)) ?? null}
@@ -618,7 +655,7 @@ export function TeamList() {
                 />
               </aside>
             ) : null}
-            <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-3">
               {filteredAndSorted.length === 0 ? (
                 <ListEmptyState
                   message={teams.length === 0 ? t('teams.noYet') : t('teams.noMatch')}
@@ -643,6 +680,7 @@ export function TeamList() {
                   onHeaderCheckboxChange={handleHeaderCheckboxChange}
                   recentlyDuplicatedTeamId={recentlyDuplicatedTeamId}
                   activeTeamId={previewTeam?.id ?? null}
+                  selectionEnabled={selectionMode}
                 />
               ) : (
                 <div
@@ -668,14 +706,16 @@ export function TeamList() {
                       columnCount={effectiveCardColumnCount}
                       nextMatch={nextMatchByTeamId.get(String(team.id)) ?? null}
                       checkbox={
-                        <input
-                          type="checkbox"
-                          checked={isSelected(team.id)}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(team.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 flex-shrink-0 cursor-pointer"
-                        />
+                        selectionMode ? (
+                          <input
+                            type="checkbox"
+                            checked={isSelected(team.id)}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(team.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 flex-shrink-0 cursor-pointer"
+                          />
+                        ) : undefined
                       }
                     />
                   ))}

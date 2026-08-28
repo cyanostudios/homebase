@@ -1,8 +1,8 @@
-import { Copy, Check, ExternalLink } from 'lucide-react';
+import { Copy, Check, ExternalLink, Unlink } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { ShareDialog } from '@/plugins/estimates/components/ShareDialog';
 
@@ -41,77 +41,71 @@ export function GarmentShareBlock({ list }: { list: GarmentList }) {
     <>
       {garmentShareExistingShare && (
         <div
-          className={`p-4 rounded-lg border ${
+          className={`rounded-lg border p-4 ${
             isShareExpired
-              ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
-              : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+              ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30'
+              : 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30'
           }`}
         >
           <div
-            className={`text-sm font-medium mb-2 ${
+            className={`mb-2 text-sm font-medium ${
               isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
             }`}
           >
             {isShareExpired ? t('garments.shareExpired') : t('garments.shareActive')}
           </div>
 
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex-1 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 text-sm font-mono break-all text-gray-900 dark:text-gray-100">
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1 break-all rounded border border-gray-200 bg-white p-2 font-mono text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
               {shareUrl}
             </div>
             {!isShareExpired && (
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <RoundIconLabelButton
+                  type="button"
                   icon={copied ? Check : Copy}
+                  label={copied ? t('garments.copied') : t('garments.copy')}
+                  variant={copied ? 'success' : 'soft'}
+                  alwaysExpanded
                   onClick={handleCopy}
-                  className={`h-9 text-xs px-3 ${
-                    copied
-                      ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
-                      : ''
-                  }`}
-                >
-                  {copied ? t('garments.copied') : t('garments.copy')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
+                />
+                <RoundIconLabelButton
+                  type="button"
                   icon={ExternalLink}
+                  label={t('common.view')}
+                  variant="soft"
+                  alwaysExpanded
                   onClick={() => shareUrl && window.open(shareUrl, '_blank', 'noopener,noreferrer')}
-                  className="h-9 text-xs px-3"
-                >
-                  {t('common.view')}
-                </Button>
+                />
               </div>
             )}
           </div>
 
           <div
-            className={`text-xs ${isShareExpired ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'}`}
+            className={`flex flex-wrap items-center gap-3 text-xs ${
+              isShareExpired ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'
+            }`}
           >
-            <div className="flex items-center justify-left">
-              <div>
-                {isShareExpired ? t('garments.expiredOn') : t('garments.expiresOn')}{' '}
-                {new Date(garmentShareExistingShare.validUntil).toLocaleDateString()}
-                {garmentShareExistingShare.accessedCount > 0 && (
-                  <span className="ml-2">
-                    •{' '}
-                    {t('garments.accessedTimes', {
-                      count: garmentShareExistingShare.accessedCount,
-                    })}
-                  </span>
-                )}
-              </div>
-              <Button
-                variant="link"
-                size="sm"
-                onClick={() => void handleGarmentRevokeShare()}
-                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 h-auto p-0 underline decoration-red-600/30 font-normal ml-4"
-              >
-                {t('garments.revoke')}
-              </Button>
+            <div>
+              {isShareExpired ? t('garments.expiredOn') : t('garments.expiresOn')}{' '}
+              {new Date(garmentShareExistingShare.validUntil).toLocaleDateString()}
+              {garmentShareExistingShare.accessedCount > 0 && (
+                <span className="ml-2">
+                  •{' '}
+                  {t('garments.accessedTimes', {
+                    count: garmentShareExistingShare.accessedCount,
+                  })}
+                </span>
+              )}
             </div>
+            <RoundIconLabelButton
+              type="button"
+              icon={Unlink}
+              label={t('garments.revoke')}
+              variant="dangerSoft"
+              alwaysExpanded
+              onClick={() => void handleGarmentRevokeShare()}
+            />
           </div>
         </div>
       )}
@@ -121,7 +115,8 @@ export function GarmentShareBlock({ list }: { list: GarmentList }) {
         onClose={() => setGarmentShareShowDialog(false)}
         shareUrl={shareUrl}
         entityLabel={entityLabel}
-        variant="note"
+        variant="garment"
+        title={t('garments.shareDialogTitle')}
       />
     </>
   );

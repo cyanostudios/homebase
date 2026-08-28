@@ -4,11 +4,9 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 /**
- * Phone: compact chips in a horizontal scroll row.
- * Pad/desktop: normal grid (append `md:grid-cols-*` / `lg:grid-cols-*` at call site).
+ * Filter/stat card row — 2-column grid on phone; append `lg:grid-cols-*` at call site.
  */
-export const LIST_FILTER_STAT_ROW_CLASS =
-  'flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:overflow-visible md:pb-0';
+export const LIST_FILTER_STAT_ROW_CLASS = 'grid grid-cols-2 gap-2';
 
 /**
  * Filter/stat chip used above plugin lists (§0.1).
@@ -31,7 +29,7 @@ export function ListFilterStatCard({
   return (
     <Card
       className={cn(
-        'group min-w-[8.75rem] shrink-0 rounded-xl border-0 bg-card px-3 py-2 shadow-sm transition-colors md:min-w-0 md:px-6 md:py-4',
+        'group min-w-0 rounded-xl border-0 bg-card px-3 py-2 shadow-sm transition-colors md:px-6 md:py-4',
         onClick && 'cursor-pointer hover:bg-primary/10 hover:text-primary',
         active && 'bg-primary/10 text-primary ring-1 ring-border/70',
       )}

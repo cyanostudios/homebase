@@ -4,6 +4,126 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-28 – Platform list UX: filter chips through iPad; DetailHeaderMenus mobile; Requests filters
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved (UI-only / prior garments APIs).** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** enhancement / UX / frontend  
+**Scope:** `detailViewCardStyles.ts`, `DetailHeaderMenus.tsx`, Requests list/table
+
+**Sammanfattning:** Sekundära listfilterchips scrollar horisontellt t.o.m. **pad/iPad** (`lg+` wrap, inte `sm+`). Filter + sort-rad: staplad på phone/pad, `items-center` från `lg`. Detail **Actions/Export**-undermenyer: på phone inline bredvid triggern med horisontell scroll; desktop på egen rad under triggers (`md`-brytpunkt). Requests: borttagna filterchips **Completed** och **External**; tabell- och sorteringsalternativ **Source** borttaget (kortvy behåller source-badge).
+
+**Beteende (verifierat i kod)**
+
+- **`LIST_FILTER_CHIP_ROW_CLASS`:** `flex-nowrap overflow-x-auto` t.o.m. `< lg`; `lg:flex-wrap lg:overflow-visible`.
+- **`LIST_FILTER_AND_SORT_ROW_CLASS`:** kolumn på phone/pad; `lg:flex-row lg:items-center`.
+- **`DetailHeaderMenus`:** trigger-rad scrollar på phone; öppen undermeny i `DETAIL_HEADER_SUBMENU_INLINE_CLASS` (`md:hidden`); desktop rad `md:flex`.
+- **Requests:** `RequestList.tsx` — All / Active / Not related + per-type chips; `RequestListTable.tsx` utan `source`-kolumn.
+
+**Guides:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.1; [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) § Detail header menus
+
+---
+
+## 2026-08-28 – Garments: inventory linked to lists (per article; no Settings tab)
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** feature / backend / frontend  
+**Scope:** migrations `153`–`154`, garments list ↔ inventory assignment, PersonMatrix, inventory UI
+
+**Sammanfattning:** Inventory-artiklar tilldelas garment lists **per artikel** (full/edit **Show in lists**-kort) och via **bulk List visibility** på inventory-listan — inte via en separat Settings-yta (`/garments/settings` borttagen). Tilldelning lägger till tre statuskolumner (Ordered / Delivered / Handed out) per artikel i listans spreadsheet. Per person: audience + storlek för tilldelade artiklar. PersonMatrix visar endast kolumner för tilldelade artiklar (legacy Shorts/Shirt/Socks + Fogis dolda). Inventory full view: 50/50-layout som Contacts.
+
+**Beteende (verifierat i kod)**
+
+- **DB:** `garment_list_inventory_items` (join); `garment_list_persons.ct_sizes` + `ct_audiences` JSONB (migration **`153`**, **`154`**).
+- **API:** `POST/DELETE /api/garments/lists/:id/inventory-items/:itemId`; `PATCH …/persons/:personId/ct-sizes` med valfria `ctSizes` / `ctAudiences` (trim 50 / 100 tecken).
+- **UI:** `InventoryListAssignmentCheckboxes` i `GarmentView` / `GarmentForm`; `InventoryBulkListsDialog` på inventory-listan; optimistic assign i `GarmentProvider`; `enrichInventoryWithAssignments` på single-item GET.
+- **Nav:** Sidebar **Lists** + **Inventory** endast (`garmentsNavigation.ts`).
+
+**Guides:** [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (Inventory ↔ lists, API, migrations)
+
+---
+
+## 2026-08-28 – Settings default list view: shared cards/table toggle; list toggle white shell
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved (UI-only).** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** enhancement / UX / frontend  
+**Scope:** `SettingsListViewModeToggle`, `ListColumnLayoutToggle` shell, plugin settings default list view, Schedule team filter active color
+
+**Sammanfattning:** Plugin-settings “Default list view” använder samma runda vit pill (grid | tabell) som list-headern. List-toggle och settings-toggle delar `LIST_LAYOUT_TOGGLE_*`-tokens. Schedule teamfilter: vald chip är primary (blå), inte svart.
+
+**Beteende (verifierat i kod)**
+
+- **`SettingsListViewModeToggle`:** `onChange('cards'|'table')`; i18n `common.cardsView` / `common.tableView`; synlig på alla viewports.
+- **`ListColumnLayoutToggle`:** samma vita shell; fortfarande dold på pad/phone; desktop **3 | table**.
+- **Settings wiring:** Contacts, Tasks, Notes, Slots, Cups, Matches, Instructions, Clubdesk, Estimates, Garments (+ Tasks/Notes/Slots settings forms).
+- **Schedule:** `SCHEDULE_FILTER_CHIP_ACTIVE_CLASS` → `text-primary` + `decoration-primary`.
+
+**Guides:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) (layout + settings toggle)
+
+---
+
+## 2026-08-27 – List layout: 3-column cards + table; 2 cols with quick context
+
+**Status:** Implementerat lokalt. **QA: pending.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** enhancement / UX / frontend  
+**Scope:** `ListColumnLayoutToggle`, `effectiveListViewMode`, CRUD/provider lists inkl. Contacts
+
+**Sammanfattning:** Layout-toggle i list-header (som Tasks) erbjuder bara **3** och **tabell**. Kortvy sparar alltid `columnCount: 3`. När quick context är öppen visas 2 kolumner (display-only). Contacts återställs till kort + tabell. Schedule/Settings orörda.
+
+**Beteende (verifierat i kod)**
+
+- **`ListColumnLayoutToggle`:** desktop **3 | table**; dold på pad/phone.
+- **`effectiveListViewMode`:** `quickContextOpen` → 2 kolumner på desktop.
+- **Contacts:** `ContactList` kortgrid + `ContactListTable` via samma toggle.
+
+**Guides:** [`docs/ai/adr/VIEWPORT_TIER_PAD_SPLIT.md`](ai/adr/VIEWPORT_TIER_PAD_SPLIT.md)
+
+---
+
+## 2026-08-27 – Wave 2: Contacts list/detail as canonical platform pattern
+
+**Status:** Implementerat lokalt. **QA: pending.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** enhancement / UX / frontend  
+**Scope:** CRUD list headers (bulk search), full view layout (no system Information / Activity)
+
+**Sammanfattning:** Contacts-mönstret blir plattformens kanoniska list-/detail-referens. CRUD-listor använder Select/Clear + `BulkActionRoundBar` + `RoundExpandableSearch` i sidhuvudet; `ListToolbar` tas bort från CRUD-listor. Full view renderar inte system-Information-kort (ID/Created/Updated) eller `DetailActivityLog`. Provider-/config-listor utan meningsfull bulk är search-only i headern.
+
+**Beteende (verifierat i kod)**
+
+- **List:** `ContactList.tsx` — `ExpandableIconButton` Select/Clear (`alwaysExpanded`), `BulkActionRoundBar` vid `selectionMode`, `RoundExpandableSearch` i `PLUGIN_PAGE_HEADER_ACTIONS_CLASS`; `selectionEnabled={selectionMode}` på tabell.
+- **Detail:** `ContactView.tsx` — Actions/Export i panel title via `DetailHeaderMenus`; inget system Information-kort; inget `DetailActivityLog`.
+- **Provider lists:** t.ex. `AIProvidersList.tsx` — `RoundExpandableSearch` i header, ingen Select/Clear.
+- **Guides undantag:** `guides.information.*` (kostnader/språk) är domänsektioner — inte system Information-kortet.
+
+**Guides:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md)
+
+---
+
+## 2026-08-27 – Platform rollout: Contacts UI pattern to all CRUD plugins
+
+**Status:** Implementerat lokalt. **QA: blocker fixed (garments inventory list wiring test updated).** **Security N/A (UI-only).** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** enhancement / UX / frontend  
+**Scope:** Shared `DetailHeaderMenus`, list shells (`PLUGIN_PAGE_LIST_SHELL_CLASS`), 50/50 sticky quick-context grids, soft `ExpandableIconButton` headers, remove sidebar Quick Actions/Export cards
+
+**Sammanfattning:** Contacts-mönstret (header Actions/Export-menyer, ytterkant-scroll, list-only sticky quick context, 50/50-kolumner, soft header-knappar) rullas ut till övriga list/detail-plugins. Schedule, Settings, Mail/Pulse/AI history & routing lämnas orörda.
+
+**Beteende (verifierat i kod)**
+
+- **`DetailHeaderMenus`** (`client/src/core/ui/DetailHeaderMenus.tsx`) + plugin-wrappers via `getPanelTitle` i view mode.
+- **Listor:** `PLUGIN_PAGE_LIST_SHELL_CLASS` (`overflow-x-clip`); quick-context `lg:grid-cols-2` + `lg:sticky lg:top-4` (ej i full view).
+- **Header:** Settings/Add m.fl. → `ExpandableIconButton variant="soft"`; Tasks/Notes/Requests quick-add bredvid titelraden.
+- **Detail:** sidebar Quick Actions/Export-kort borttagna till förmån för header-menyer; `DetailActivityLog` flyttas till huvudkolumn där actions-sidebar blir tom.
+- **Utanför scope:** Schedule, Settings, MailHistory/PulseHistory/\*Routing, ClubdeskInfoView.
+
+**Guides:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md), [`PLUGIN_RUNTIME_CONVENTIONS.md`](PLUGIN_RUNTIME_CONVENTIONS.md)
+
+---
+
 ## 2026-08-27 – Contacts full view: Actions / Export / Time log in panel title
 
 **Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
@@ -315,7 +435,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 **Beteende (verifierat)**
 
-- Ny token `LIST_FILTER_CHIP_ROW_CLASS` i `detailViewCardStyles.ts` (phone: `flex-nowrap` + `overflow-x-auto` + `no-scrollbar`; `sm+`: wrap)
+- Ny token `LIST_FILTER_CHIP_ROW_CLASS` i `detailViewCardStyles.ts` (phone/pad: `flex-nowrap` + `overflow-x-auto` + `no-scrollbar`; **`lg+`**: wrap — uppdaterat 2026-08-28 från `sm+` för iPad-paritet)
 - Chip-klasser får `shrink-0` så knapparna inte komprimeras i scrollraden
 - Applicerat i Requests, Instructions, Clubdesk, Teams, Schedule listor (+ Teams detail tabs / Matches view-mode chips)
 

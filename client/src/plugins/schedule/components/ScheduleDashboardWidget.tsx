@@ -1,8 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import React, { useMemo } from 'react';
 
-import { Button } from '@/components/ui/button';
-import { LIST_FILTER_CHIP_CLASS } from '@/core/ui/detailViewCardStyles';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import type { DashboardWidgetProps } from '@/core/pluginRegistry';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
 
@@ -31,18 +30,16 @@ export function ScheduleDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) 
           {customEventCount > 0 && `, ${customEventCount} egna pass`}
         </span>
       </p>
-      <Button
-        variant="ghost"
-        size="sm"
-        className={LIST_FILTER_CHIP_CLASS}
+      <RoundIconLabelButton
+        icon={ChevronRight}
+        label="Öppna Schedule"
+        variant="secondary"
+        alwaysExpanded
         onClick={(e) => {
           e.stopPropagation();
           onOpenPlugin();
         }}
-      >
-        Öppna Schedule
-        <ChevronRight className="ml-1 h-4 w-4" />
-      </Button>
+      />
     </div>
   );
 }

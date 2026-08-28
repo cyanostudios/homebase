@@ -37,7 +37,6 @@ export function QuickContextHeaderActions({
           icon={ExternalLink}
           label={t('common.open')}
           variant={openVariant}
-          alwaysExpanded
         />
       ) : null}
       <RoundIconLabelButton

@@ -18,6 +18,7 @@ import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
 import { taskShareApi, tasksApi } from '../api/tasksApi';
+import { TaskDetailHeaderMenus } from '../components/TaskDetailHeaderMenus';
 import {
   Task,
   TASK_PRIORITY_COLORS,
@@ -628,12 +629,15 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const handleTaskShareClick = useCallback(
     async (taskItem: Task) => {
-      if (taskShareExistingShare) {
-        setTaskShareShowDialog(true);
-        return;
-      }
       setTaskShareIsCreatingShare(true);
       try {
+        const shares = await taskShareApi.getShares(taskItem.id);
+        const active = shares.find((s) => new Date(s.validUntil) > new Date());
+        if (active) {
+          setTaskShareExistingShare(active);
+          setTaskShareShowDialog(true);
+          return;
+        }
         const share = await taskShareApi.createShare({
           taskId: taskItem.id,
           validUntil: defaultTaskShareValidUntil(),
@@ -647,7 +651,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         setTaskShareIsCreatingShare(false);
       }
     },
-    [taskShareExistingShare, defaultTaskShareValidUntil],
+    [defaultTaskShareValidUntil],
   );
 
   const handleTaskCopyShareUrl = useCallback(() => {
@@ -817,6 +821,13 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const getDeleteMessage = (item: Task | null) =>
     buildDeleteMessage(t, 'tasks', item?.title || undefined);
 
+  const getPanelTitle = (mode: string, item: Task | null) => {
+    if (mode === 'view' && item) {
+      return <TaskDetailHeaderMenus key={String(item.id)} task={item} />;
+    }
+    return null;
+  };
+
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
   const tasksExportConfig = React.useMemo(() => getTasksExportConfig(contacts ?? []), [contacts]);
 
@@ -894,6 +905,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     selectedCount,
     isSelected,
     getPanelSubtitle,
+    getPanelTitle,
     getDeleteMessage,
     recentlyDuplicatedTaskId,
     setRecentlyDuplicatedTaskId,
@@ -920,6 +932,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     taskShareShowDialog,
     setTaskShareShowDialog,
     taskShareIsCreatingShare,
+    handleTaskShareClick,
     handleTaskCopyShareUrl,
     handleTaskRevokeShare,
   };

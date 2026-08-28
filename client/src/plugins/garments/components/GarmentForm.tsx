@@ -1,11 +1,11 @@
-import { Check, Copy, Info, Layers, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { Copy, Info, Layers, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useImperativeHandle, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   Select,
   SelectContent,
@@ -41,6 +41,16 @@ import {
   buildDuplicatedVariantPayload,
   findDuplicateVariantIndices,
 } from '../utils/inventoryValidation';
+import {
+  VARIANT_COMPACT_INPUT_CLASS,
+  VARIANT_COMPACT_LABEL_CLASS,
+  VARIANT_EDIT_GRID_CLASS,
+  VARIANT_EDIT_ROW_CLASS,
+  VARIANT_WARNING_DOT_CLASS,
+  VARIANT_WARNING_DOT_PLACEHOLDER_CLASS,
+} from '../utils/variantListStyles';
+
+import { InventoryListAssignmentCheckboxes } from './InventoryListAssignmentCheckboxes';
 
 interface GarmentFormProps {
   currentGarment?: GarmentList | null;
@@ -65,14 +75,8 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
   ref,
 ) {
   const { t } = useTranslation();
-  const {
-    validationErrors,
-    clearValidationErrors,
-    panelMode,
-    panelKind,
-    isSaving,
-    currentInventoryItem,
-  } = useGarments();
+  const { validationErrors, clearValidationErrors, panelKind, isSaving, currentInventoryItem } =
+    useGarments();
   const enabledPlugins = useEnabledPlugins();
   const hasTeams = enabledPlugins.has('teams');
   const { teams } = useTeams();
@@ -505,6 +509,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
           </div>
         </DetailSection>
       </Card>
+      <InventoryListAssignmentCheckboxes itemId={currentInventoryItem?.id} />
     </div>
   );
 
@@ -562,7 +567,12 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
 
   const variantsCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection title={t('garments.variants')} icon={Layers} subtleTitle className="p-6">
+      <DetailSection
+        title={t('garments.variants')}
+        icon={Layers}
+        subtleTitle
+        className="p-4 sm:p-5"
+      >
         <p className="mb-3 text-xs text-muted-foreground">{t('garments.variantsHelp')}</p>
         {duplicateVariantIndices.identity.size > 0 ? (
           <p className="mb-2 text-sm text-destructive">
@@ -577,131 +587,118 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
         {getFieldError('variants') ? (
           <p className="mb-2 text-sm text-destructive">{getFieldError('variants')?.message}</p>
         ) : null}
-        <div className="space-y-2">
-          {(inventoryForm.variants || []).map((variant, index) => {
-            const rowDup = duplicateVariantIndices.any.has(index);
-            return (
-              <div
-                key={variant.id ?? `new-${index}`}
-                className={cn(
-                  'flex flex-col gap-2 rounded-lg border p-2 sm:flex-row sm:items-end',
-                  rowDup ? 'border-destructive' : 'border-border/60',
-                )}
-              >
-                <div className="min-w-0 flex-1">
-                  <Label className="text-[11px]">{t('garments.sku')}</Label>
-                  <Input
-                    value={variant.sku ?? ''}
-                    onChange={(e) => updateVariant(index, { sku: e.target.value })}
-                    placeholder={t('garments.skuPlaceholder')}
-                    className={cn(
-                      (duplicateVariantIndices.sku.has(index) ||
-                        getFieldError(`variants.${index}.sku`)) &&
-                        'border-destructive',
-                    )}
-                  />
-                </div>
-                <div className="w-full sm:w-28">
-                  <Label className="text-[11px]">{t('garments.audience')}</Label>
-                  <Input
-                    value={variant.audience ?? ''}
-                    onChange={(e) => updateVariant(index, { audience: e.target.value })}
-                    placeholder={t('garments.audiencePlaceholder')}
-                  />
-                </div>
-                <div className="w-full sm:w-28">
-                  <Label className="text-[11px]">{t('garments.color')}</Label>
-                  <Input
-                    value={variant.color ?? ''}
-                    onChange={(e) => updateVariant(index, { color: e.target.value })}
-                    placeholder={t('garments.colorPlaceholder')}
-                  />
-                </div>
-                <div className="w-full sm:w-24">
-                  <Label className="text-[11px]">{t('garments.size')}</Label>
-                  <Input
-                    value={variant.size ?? ''}
-                    onChange={(e) => updateVariant(index, { size: e.target.value })}
-                    placeholder={t('garments.sizePlaceholder')}
-                  />
-                </div>
-                <div className="w-full sm:w-24">
-                  <Label className="text-[11px]">{t('garments.quantity')}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={variant.quantity ?? 0}
-                    onChange={(e) =>
-                      updateVariant(index, { quantity: Number(e.target.value) || 0 })
+        <div className="flex flex-col gap-4">
+          <div className="space-y-1">
+            {(inventoryForm.variants || []).map((variant, index) => {
+              const rowDup = duplicateVariantIndices.any.has(index);
+              return (
+                <div key={variant.id ?? `new-${index}`} className={VARIANT_EDIT_ROW_CLASS}>
+                  <span
+                    className={
+                      rowDup ? VARIANT_WARNING_DOT_CLASS : VARIANT_WARNING_DOT_PLACEHOLDER_CLASS
                     }
+                    aria-hidden={!rowDup}
+                    title={rowDup ? t('garments.variantIdentityDuplicateWarning') : undefined}
                   />
+                  <div className={VARIANT_EDIT_GRID_CLASS}>
+                    <div className="min-w-0 sm:col-span-1">
+                      <Label className={VARIANT_COMPACT_LABEL_CLASS}>{t('garments.sku')}</Label>
+                      <Input
+                        value={variant.sku ?? ''}
+                        onChange={(e) => updateVariant(index, { sku: e.target.value })}
+                        placeholder={t('garments.skuPlaceholder')}
+                        className={VARIANT_COMPACT_INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className={VARIANT_COMPACT_LABEL_CLASS}>
+                        {t('garments.audience')}
+                      </Label>
+                      <Input
+                        value={variant.audience ?? ''}
+                        onChange={(e) => updateVariant(index, { audience: e.target.value })}
+                        placeholder={t('garments.audiencePlaceholder')}
+                        className={VARIANT_COMPACT_INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className={VARIANT_COMPACT_LABEL_CLASS}>{t('garments.color')}</Label>
+                      <Input
+                        value={variant.color ?? ''}
+                        onChange={(e) => updateVariant(index, { color: e.target.value })}
+                        placeholder={t('garments.colorPlaceholder')}
+                        className={VARIANT_COMPACT_INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className={VARIANT_COMPACT_LABEL_CLASS}>{t('garments.size')}</Label>
+                      <Input
+                        value={variant.size ?? ''}
+                        onChange={(e) => updateVariant(index, { size: e.target.value })}
+                        placeholder={t('garments.sizePlaceholder')}
+                        className={VARIANT_COMPACT_INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className={VARIANT_COMPACT_LABEL_CLASS}>
+                        {t('garments.quantity')}
+                      </Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={variant.quantity ?? 0}
+                        onChange={(e) =>
+                          updateVariant(index, { quantity: Number(e.target.value) || 0 })
+                        }
+                        className={VARIANT_COMPACT_INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="col-span-2 flex shrink-0 items-end justify-end gap-0.5 sm:col-span-1 sm:justify-start">
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={Copy}
+                        label={t('garments.duplicateVariant')}
+                        variant="secondary"
+                        size="xs"
+                        expandOnHover={false}
+                        contentClassName="text-green-600 dark:text-green-400"
+                        onClick={() => duplicateVariant(index)}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={Trash2}
+                        label={t('garments.removeVariant')}
+                        variant="dangerSoft"
+                        size="xs"
+                        expandOnHover={false}
+                        onClick={() => setPendingDeleteVariantIndex(index)}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={Copy}
-                    className="h-9 w-9 p-0 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30"
-                    onClick={() => duplicateVariant(index)}
-                    aria-label={t('garments.duplicateVariant')}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={Trash2}
-                    className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                    onClick={() => setPendingDeleteVariantIndex(index)}
-                    aria-label={t('garments.removeVariant')}
-                  />
-                </div>
-              </div>
-            );
-          })}
-          <Button type="button" variant="secondary" size="sm" icon={Plus} onClick={addVariant}>
-            {t('garments.addVariant')}
-          </Button>
+              );
+            })}
+          </div>
+          <div className="flex justify-end">
+            <RoundIconLabelButton
+              type="button"
+              icon={Plus}
+              label={t('garments.addVariant')}
+              variant="soft"
+              alwaysExpanded
+              onClick={addVariant}
+            />
+          </div>
         </div>
       </DetailSection>
     </Card>
-  );
-
-  const formActions = (
-    <div className="flex justify-end gap-2 border-t border-border pt-4">
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        icon={X}
-        onClick={handleCancel}
-        disabled={isCurrentlySubmitting}
-        className="h-9 px-3 text-xs"
-      >
-        {t('common.cancel')}
-      </Button>
-      <Button
-        type="button"
-        variant="primary"
-        size="sm"
-        icon={Check}
-        onClick={() => void handleSubmit()}
-        disabled={hasBlockingErrors || isCurrentlySubmitting}
-        className="h-9 px-3 text-xs bg-green-600 hover:bg-green-700 text-white border-none"
-      >
-        {isCurrentlySubmitting
-          ? t('common.saving')
-          : panelMode === 'edit'
-            ? t('common.update')
-            : t('common.save')}
-      </Button>
-    </div>
   );
 
   return (
     <>
       <div className="plugin-garments">
         <DetailLayout
+          gridClassName={isInventory ? 'grid-cols-1 lg:grid-cols-2' : undefined}
           leftSidebar={isInventory ? inventoryLeftSidebar : undefined}
           sidebar={isInventory ? undefined : formSidebar}
         >
@@ -726,7 +723,6 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
             )}
 
             {isInventory ? variantsCard : listDetailsCard}
-            {formActions}
           </form>
         </DetailLayout>
       </div>

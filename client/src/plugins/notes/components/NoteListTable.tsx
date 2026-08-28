@@ -46,7 +46,9 @@ export function NoteListTable({
         field: 'title' as const,
         header: t('notes.title'),
         cell: (note: Note) => (
-          <span className="font-medium leading-4 text-foreground">{note.title}</span>
+          <span className="font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary">
+            {note.title}
+          </span>
         ),
       },
       {
@@ -56,26 +58,6 @@ export function NoteListTable({
         cell: (note: Note) => (
           <span className="text-xs tabular-nums text-muted-foreground">
             {note.mentions?.length ?? 0}
-          </span>
-        ),
-      },
-      {
-        field: 'updatedAt' as const,
-        header: t('common.updated'),
-        className: 'hidden md:table-cell',
-        cell: (note: Note) => (
-          <span className="text-xs text-muted-foreground">
-            {note.updatedAt ? new Date(note.updatedAt).toLocaleDateString() : '—'}
-          </span>
-        ),
-      },
-      {
-        field: 'createdAt' as const,
-        header: t('common.created'),
-        className: 'hidden lg:table-cell',
-        cell: (note: Note) => (
-          <span className="text-xs text-muted-foreground">
-            {note.createdAt ? new Date(note.createdAt).toLocaleDateString() : '—'}
           </span>
         ),
       },

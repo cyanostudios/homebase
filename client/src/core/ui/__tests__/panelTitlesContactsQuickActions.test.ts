@@ -2,7 +2,7 @@ import { createElement } from 'react';
 
 import { createPanelTitles } from '../PanelTitles';
 
-describe('createPanelTitles — contacts view Quick Actions', () => {
+describe('createPanelTitles — detail header menus in view mode', () => {
   const contact = { id: 42, companyName: 'Acme' };
   const quickActionsTitle = createElement('div', { 'data-testid': 'contacts-quick-actions' });
 
@@ -15,7 +15,7 @@ describe('createPanelTitles — contacts view Quick Actions', () => {
     },
   };
 
-  it('returns contacts getPanelTitle on desktop view', () => {
+  it('returns contacts getPanelTitle React node on desktop view', () => {
     const { getPanelTitle } = createPanelTitles(
       { name: 'contacts' },
       'view',
@@ -27,7 +27,7 @@ describe('createPanelTitles — contacts view Quick Actions', () => {
     expect(getPanelTitle()).toBe(quickActionsTitle);
   });
 
-  it('returns contacts getPanelTitle on mobile view (not blanked)', () => {
+  it('returns contacts getPanelTitle React node on mobile view (not blanked)', () => {
     const { getPanelTitle } = createPanelTitles(
       { name: 'contacts' },
       'view',
@@ -39,7 +39,23 @@ describe('createPanelTitles — contacts view Quick Actions', () => {
     expect(getPanelTitle()).toBe(quickActionsTitle);
   });
 
-  it('still blanks other plugins on mobile view', () => {
+  it('returns tasks getPanelTitle React node on mobile view when provided', () => {
+    const taskMenus = createElement('div', { 'data-testid': 'tasks-header-menus' });
+    const { getPanelTitle } = createPanelTitles(
+      { name: 'tasks' },
+      'view',
+      { id: 1, title: 'Task' },
+      true,
+      () => undefined,
+      {
+        getPanelTitle: (mode: string, item: unknown) =>
+          mode === 'view' && item ? taskMenus : null,
+      },
+    );
+    expect(getPanelTitle()).toBe(taskMenus);
+  });
+
+  it('still blanks other plugins on mobile view when getPanelTitle is absent', () => {
     const { getPanelTitle } = createPanelTitles(
       { name: 'tasks' },
       'view',

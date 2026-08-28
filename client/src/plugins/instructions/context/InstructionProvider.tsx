@@ -13,6 +13,7 @@ import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { buildSlug, resolveSlug, slugify } from '@/core/utils/slugUtils';
 
 import { instructionsApi } from '../api/instructionsApi';
+import { InstructionDetailHeaderMenus } from '../components/InstructionDetailHeaderMenus';
 import type {
   Instruction,
   InstructionCategory,
@@ -79,7 +80,7 @@ export function InstructionProvider({
   const [instructionsContentView, setInstructionsContentView] =
     useState<InstructionContentView>('list');
   const [instructionsSettingsTab, setInstructionsSettingsTab] =
-    useState<InstructionSettingsTab>('view');
+    useState<InstructionSettingsTab>('');
   const [recentlyDuplicatedInstructionId, setRecentlyDuplicatedInstructionId] = useState<
     string | null
   >(null);
@@ -218,7 +219,7 @@ export function InstructionProvider({
       setCurrentInstruction(null);
       setPanelMode('create');
       setValidationErrors([]);
-      setInstructionsSettingsTab(options?.tab ?? 'view');
+      setInstructionsSettingsTab(options?.tab ?? '');
       setInstructionsContentView('settings');
       onCloseOtherPanels();
       navigateToBase();
@@ -723,6 +724,13 @@ export function InstructionProvider({
   const getDeleteMessage = (item: Instruction | null) =>
     buildDeleteMessage(t, 'instructions', item?.title || undefined);
 
+  const getPanelTitle = useCallback((mode?: string, item?: Instruction | null) => {
+    if (mode !== 'view' || !item) {
+      return null;
+    }
+    return <InstructionDetailHeaderMenus key={String(item.id)} instruction={item} />;
+  }, []);
+
   const value = useMemo<InstructionContextType>(
     () => ({
       isInstructionPanelOpen,
@@ -770,6 +778,7 @@ export function InstructionProvider({
       hasNextItem,
       currentItemIndex,
       totalItems,
+      getPanelTitle,
     }),
     [
       isInstructionPanelOpen,
@@ -815,6 +824,7 @@ export function InstructionProvider({
       hasNextItem,
       currentItemIndex,
       totalItems,
+      getPanelTitle,
       t,
     ],
   );

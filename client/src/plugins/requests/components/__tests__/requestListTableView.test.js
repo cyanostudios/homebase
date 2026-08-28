@@ -9,7 +9,8 @@ describe('RequestList table view wiring', () => {
     expect(listSrc).toMatch(/ListColumnLayoutToggle/);
     expect(listSrc).toMatch(/setListViewMode\('table'\)/);
     expect(listSrc).toMatch(/persistRequestListViewModeSession/);
-    expect(listSrc).toMatch(/!isTableView \?/);
+    expect(listSrc).toMatch(/aria-label="Sort by"/);
+    expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
     expect(listSrc).toMatch(/RequestListTable/);
     expect(listSrc).not.toMatch(/updateSettings\(.*listViewMode/);
   });
@@ -18,8 +19,8 @@ describe('RequestList table view wiring', () => {
     expect(tableSrc).toMatch(/SortableListTable/);
     expect(tableSrc).toMatch(/title/);
     expect(tableSrc).toMatch(/priority/);
-    expect(tableSrc).toMatch(/source/);
     expect(tableSrc).toMatch(/responseDueAt/);
+    expect(tableSrc).not.toMatch(/field: 'source'/);
     expect(tableSrc).not.toMatch(/field: 'updated_at'/);
   });
 });

@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
 import { cn } from '@/lib/utils';
 
@@ -56,7 +57,7 @@ export function MailProvidersListTable({
   const { t } = useTranslation();
 
   return (
-    <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
+    <Card className={cn('overflow-hidden', DETAIL_VIEW_CARD_CLASS)}>
       <Table rowBorders={false}>
         <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
           <TableRow>
@@ -85,22 +86,6 @@ export function MailProvidersListTable({
             <TableHead className="hidden text-xs md:table-cell">
               {t('mail.credentials', { defaultValue: 'Credentials' })}
             </TableHead>
-            <TableHead
-              className="hidden cursor-pointer select-none text-xs hover:bg-muted/50 lg:table-cell"
-              onClick={() => onSort('updatedAt')}
-              aria-sort={
-                primarySort === 'updatedAt'
-                  ? sortOrder === 'asc'
-                    ? 'ascending'
-                    : 'descending'
-                  : 'none'
-              }
-            >
-              <div className="flex items-center gap-2">
-                <span>{t('common.updated')}</span>
-                <ListTableSortIcon active={primarySort === 'updatedAt'} order={sortOrder} />
-              </div>
-            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -109,7 +94,7 @@ export function MailProvidersListTable({
             return (
               <TableRow
                 key={provider.providerKey}
-                className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/80"
+                className="group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/80"
                 onClick={() => onRowClick(provider)}
                 data-list-item={JSON.stringify(provider)}
                 data-plugin-name="mail"
@@ -120,7 +105,9 @@ export function MailProvidersListTable({
                 })}
               >
                 <TableCell>
-                  <span className="font-medium text-foreground">{title}</span>
+                  <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+                    {title}
+                  </span>
                   <div className="text-xs text-muted-foreground">{provider.providerKey}</div>
                 </TableCell>
                 <TableCell>
@@ -139,9 +126,6 @@ export function MailProvidersListTable({
                   {provider.configured
                     ? t('mail.keyConfigured', { defaultValue: 'Configured' })
                     : t('mail.keyMissing', { defaultValue: 'Missing' })}
-                </TableCell>
-                <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
-                  {provider.updatedAt ? new Date(provider.updatedAt).toLocaleDateString() : '—'}
                 </TableCell>
               </TableRow>
             );

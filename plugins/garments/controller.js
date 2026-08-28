@@ -111,6 +111,47 @@ class GarmentsController {
     }
   }
 
+  async assignInventoryItemToList(req, res, next) {
+    try {
+      const list = await this.model.assignInventoryItemToList(
+        req,
+        req.params.id,
+        req.params.itemId,
+      );
+      res.json(list);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async unassignInventoryItemFromList(req, res, next) {
+    try {
+      const list = await this.model.unassignInventoryItemFromList(
+        req,
+        req.params.id,
+        req.params.itemId,
+      );
+      res.json(list);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updatePersonCtSizes(req, res, next) {
+    try {
+      const person = await this.model.updatePersonCtSizes(
+        req,
+        req.params.id,
+        req.params.personId,
+        req.body.ctSizes ?? req.body.ct_sizes,
+        req.body.ctAudiences ?? req.body.ct_audiences,
+      );
+      res.json(person);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async createShare(req, res, next) {
     try {
       const { listId, validUntil } = req.body;

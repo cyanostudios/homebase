@@ -5,6 +5,7 @@ import { useApp } from '@/core/api/AppContext';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 
 import { mailApi } from '../api/mailApi';
+import { MailProviderDetailHeaderMenus } from '../components/MailProviderDetailHeaderMenus';
 import type {
   MailCatalogEntry,
   MailContentView,
@@ -355,6 +356,9 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       const key = provider?.providerKey || pendingProviderKey;
       if (mode === 'create' || (!provider && !key)) {
         return t('mail.addProvider', { defaultValue: 'Add provider' });
+      }
+      if (mode === 'view' && provider) {
+        return <MailProviderDetailHeaderMenus key={provider.providerKey} provider={provider} />;
       }
       return t(`mail.providers.${key}.title`, { defaultValue: key || t('mail.panelTitle') });
     },

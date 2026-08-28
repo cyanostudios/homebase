@@ -84,13 +84,13 @@ export function DialogSendButton({ label, ...props }: DialogRoundButtonProps) {
 
 export type DialogActionButtonProps = DialogRoundButtonProps & {
   variant?: RoundIconLabelButtonVariant;
-  icon: AppIcon;
+  icon?: AppIcon;
 };
 
 export function DialogActionButton({
   label,
   variant = 'primary',
-  icon,
+  icon = Check,
   ...props
 }: DialogActionButtonProps) {
   return (

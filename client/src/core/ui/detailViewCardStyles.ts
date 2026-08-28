@@ -58,26 +58,37 @@ export const DETAIL_QUICK_ACTION_ROW_CLASS = `h-9 justify-start rounded-md px-3 
 export const DETAIL_QUICK_ACTION_ROW_ACTIVE_CLASS = `h-9 justify-start rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} ${LINK_BUTTON_TEXT_ACTIVE_CLASS} transition-colors hover:text-foreground`;
 
 /**
- * Compact list filter chips — gray text idle, black text when selected.
+ * Compact list filter chips — pill shape (matches round buttons).
+ * Idle: muted text + ghost hover fill. Selected: soft primary (blue).
  */
-export const LIST_FILTER_CHIP_CLASS = `h-9 shrink-0 gap-1.5 rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-border transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground hover:decoration-foreground`;
+export const LIST_FILTER_CHIP_CLASS = `h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs ${LINK_BUTTON_FONT_CLASS} transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground`;
 
-export const LIST_FILTER_CHIP_ACTIVE_CLASS = `h-9 shrink-0 gap-1.5 rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-foreground transition-colors ${LINK_BUTTON_TEXT_ACTIVE_CLASS} hover:text-foreground hover:decoration-foreground`;
+export const LIST_FILTER_CHIP_ACTIVE_CLASS = `h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs ${LINK_BUTTON_FONT_CLASS} bg-primary/10 text-primary transition-colors hover:bg-primary/10 hover:text-primary`;
 
 /**
- * Phone: single-row horizontal scroll for secondary filter chips.
- * Pad/desktop (`sm+`): wrap normally.
+ * Filter chip row — phone/pad: single-row horizontal scroll; lg+: wrap.
  */
 export const LIST_FILTER_CHIP_ROW_CLASS =
-  '-mx-1 flex flex-nowrap items-center gap-1 overflow-x-auto px-1 no-scrollbar sm:mx-0 sm:flex-wrap sm:gap-2 sm:overflow-visible sm:px-0';
+  '-mx-1 flex min-w-0 w-full flex-nowrap items-center gap-1.5 overflow-x-auto px-1 no-scrollbar lg:mx-0 lg:flex-wrap lg:gap-2 lg:overflow-visible lg:px-0';
+
+/** Chip row slot — full width on phone/pad (scroll row), shares row with sort from lg. */
+export const LIST_FILTER_CHIP_SLOT_CLASS = 'min-w-0 w-full lg:flex-1';
+
+/** Filter chips + sort — stacked on phone/pad (sort on its own row); inline from lg, vertically centered. */
+export const LIST_FILTER_AND_SORT_ROW_CLASS =
+  'flex min-w-0 w-full flex-col gap-1.5 lg:flex-row lg:items-center lg:gap-3';
+
+/** Sort cluster — own row on phone/pad, right-aligned; vertically centered beside chips from lg. */
+export const LIST_FILTER_SORT_CLUSTER_CLASS =
+  'flex shrink-0 items-center gap-1 self-end lg:self-auto';
 
 /**
  * Large select-style chips (e.g. Teams detail tabs: Overview / Schedule) —
- * same underline language as the small chips, larger padding/type.
+ * same pill language as the small chips, larger padding/type.
  */
-export const LIST_FILTER_CHIP_LG_CLASS = `h-auto shrink-0 gap-1.5 rounded-md px-3 py-2 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-border transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground hover:decoration-foreground sm:gap-2 sm:px-5 sm:py-3 sm:text-sm`;
+export const LIST_FILTER_CHIP_LG_CLASS = `h-auto shrink-0 gap-1.5 rounded-full px-3 py-2 text-xs ${LINK_BUTTON_FONT_CLASS} transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground lg:gap-2 lg:px-5 lg:py-3 lg:text-sm`;
 
-export const LIST_FILTER_CHIP_LG_ACTIVE_CLASS = `h-auto shrink-0 gap-1.5 rounded-md px-3 py-2 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-foreground transition-colors ${LINK_BUTTON_TEXT_ACTIVE_CLASS} hover:text-foreground hover:decoration-foreground sm:gap-2 sm:px-5 sm:py-3 sm:text-sm`;
+export const LIST_FILTER_CHIP_LG_ACTIVE_CLASS = `h-auto shrink-0 gap-1.5 rounded-full px-3 py-2 text-xs ${LINK_BUTTON_FONT_CLASS} bg-primary/10 text-primary transition-colors hover:bg-primary/10 hover:text-primary lg:gap-2 lg:px-5 lg:py-3 lg:text-sm`;
 
 /** Dashboard plugin widget card — same surface/hover language as select-style filter chips. */
 export const DASHBOARD_WIDGET_CARD_CLASS =

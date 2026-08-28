@@ -1,17 +1,15 @@
-import { Clock, Copy, Download, Edit, Trash2, Zap } from 'lucide-react';
+import { Clock, Copy, Download, Edit, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { apiFetch } from '@/core/api/apiFetch';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/DetailHeaderMenus';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import type { ExportFormat } from '@/core/utils/exportUtils';
 
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
-
-type HeaderMenuId = 'actions' | 'export' | 'timeLog' | null;
 
 type TimeEntry = { id: string; seconds: number; loggedAt: string };
 
@@ -31,7 +29,6 @@ export function ContactDetailHeaderMenus({ contact }: { contact: Contact }) {
     setContactHasTimeEntries,
   } = useContacts();
 
-  const [openMenu, setOpenMenu] = useState<HeaderMenuId>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
@@ -40,11 +37,6 @@ export function ContactDetailHeaderMenus({ contact }: { contact: Contact }) {
 
   const duplicateConfig = getDuplicateConfig(contact);
   const canDuplicate = Boolean(duplicateConfig);
-  const hasTimeEntries = timeEntries.length > 0;
-
-  const toggleMenu = (menu: Exclude<HeaderMenuId, null>) => {
-    setOpenMenu((prev) => (prev === menu ? null : menu));
-  };
 
   useEffect(() => {
     if (!contact?.id) {
@@ -83,10 +75,7 @@ export function ContactDetailHeaderMenus({ contact }: { contact: Contact }) {
       return;
     }
     setContactHasTimeEntries(contact.id, timeEntries.length > 0);
-    if (timeEntries.length === 0 && openMenu === 'timeLog') {
-      setOpenMenu(null);
-    }
-  }, [contact?.id, timeEntries.length, setContactHasTimeEntries, openMenu]);
+  }, [contact?.id, timeEntries.length, setContactHasTimeEntries]);
 
   const formatDuration = useCallback((seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -127,63 +116,54 @@ export function ContactDetailHeaderMenus({ contact }: { contact: Contact }) {
     return '';
   };
 
-  const actionButtons = useMemo(() => {
-    const buttons: React.ReactNode[] = [
-      <RoundIconLabelButton
-        key="edit"
-        icon={Edit}
-        label={t('contacts.edit')}
-        variant="soft"
-        alwaysExpanded
-        onClick={() => openContactForEdit(contact)}
-      />,
-      <RoundIconLabelButton
-        key="delete"
-        icon={Trash2}
-        label={t('contacts.delete')}
-        variant="secondary"
-        alwaysExpanded
-        contentClassName="text-red-600 dark:text-red-400"
-        onClick={() => setShowDeleteConfirm(true)}
-      />,
+  const actions = useMemo((): DetailHeaderMenuAction[] => {
+    const buttons: DetailHeaderMenuAction[] = [
+      {
+        id: 'edit',
+        icon: Edit,
+        label: t('contacts.edit'),
+        variant: 'soft',
+        onClick: () => openContactForEdit(contact),
+      },
+      {
+        id: 'delete',
+        icon: Trash2,
+        label: t('contacts.delete'),
+        variant: 'secondary',
+        contentClassName: 'text-red-600 dark:text-red-400',
+        onClick: () => setShowDeleteConfirm(true),
+      },
     ];
 
     if (canDuplicate) {
-      buttons.push(
-        <RoundIconLabelButton
-          key="duplicate"
-          icon={Copy}
-          label={t('contacts.duplicate')}
-          variant="secondary"
-          alwaysExpanded
-          contentClassName="text-green-600 dark:text-green-400"
-          onClick={() => setShowDuplicateDialog(true)}
-        />,
-      );
+      buttons.push({
+        id: 'duplicate',
+        icon: Copy,
+        label: t('contacts.duplicate'),
+        variant: 'secondary',
+        contentClassName: 'text-green-600 dark:text-green-400',
+        onClick: () => setShowDuplicateDialog(true),
+      });
     }
 
     if (Array.isArray(detailFooterActions)) {
       for (const action of detailFooterActions) {
-        const Icon = action.icon;
-        buttons.push(
-          <RoundIconLabelButton
-            key={action.id}
-            icon={Icon}
-            label={action.label}
-            variant="secondary"
-            alwaysExpanded
-            disabled={action.disabled}
-            contentClassName={getActionIconColorClass(action.id)}
-            onClick={() => action.onClick(contact)}
-          />,
-        );
+        buttons.push({
+          id: action.id,
+          icon: action.icon,
+          label: action.label,
+          variant: 'secondary',
+          disabled: action.disabled,
+          contentClassName: getActionIconColorClass(action.id),
+          onClick: () => action.onClick(contact),
+        });
       }
     }
 
     return buttons;
   }, [canDuplicate, contact, detailFooterActions, openContactForEdit, t]);
 
-  const exportButtons = useMemo(() => {
+  const exportActions = useMemo((): DetailHeaderMenuAction[] => {
     if (!Array.isArray(exportFormats) || exportFormats.length === 0) {
       return [];
     }
@@ -192,92 +172,63 @@ export function ContactDetailHeaderMenus({ contact }: { contact: Contact }) {
       csv: t('contacts.exportCsv'),
       pdf: t('contacts.exportPdf'),
     };
-    return exportFormats.map((format) => (
-      <RoundIconLabelButton
-        key={`export-${format}`}
-        icon={Download}
-        label={exportLabelByFormat[format]}
-        variant="secondary"
-        alwaysExpanded
-        onClick={() => onExportItem(format, contact)}
-      />
-    ));
+    return exportFormats.map((format) => ({
+      id: `export-${format}`,
+      icon: Download,
+      label: exportLabelByFormat[format],
+      variant: 'secondary' as const,
+      onClick: () => onExportItem(format, contact),
+    }));
   }, [contact, exportFormats, onExportItem, t]);
 
-  const hasExport = exportButtons.length > 0;
+  const timeLogContent =
+    timeEntries.length > 0 ? (
+      <>
+        {timeEntries.map((entry) => (
+          <div
+            key={entry.id}
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-amber-600 px-3.5 pr-2 text-sm text-white dark:bg-amber-600"
+          >
+            <Clock className="size-5 shrink-0 text-white" aria-hidden />
+            <span className="whitespace-nowrap font-extrabold text-white">
+              {formatDuration(entry.seconds)} – {new Date(entry.loggedAt).toLocaleDateString()}
+            </span>
+            <button
+              type="button"
+              className="ml-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20 disabled:opacity-50"
+              aria-label={t('contacts.delete')}
+              title={t('contacts.delete')}
+              disabled={deletingEntryId === entry.id}
+              onClick={() => setConfirmDeleteEntryId(entry.id)}
+            >
+              <Trash2 className="size-4" aria-hidden />
+            </button>
+          </div>
+        ))}
+      </>
+    ) : null;
 
   return (
-    <>
-      <div className="flex min-w-0 flex-1 flex-col gap-5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <RoundIconLabelButton
-            icon={Zap}
-            label={t('contacts.headerActions')}
-            variant={openMenu === 'actions' ? 'primary' : 'soft'}
-            alwaysExpanded
-            onClick={() => toggleMenu('actions')}
-          />
-          {hasExport ? (
-            <RoundIconLabelButton
-              icon={Download}
-              label={t('contacts.headerExport')}
-              variant={openMenu === 'export' ? 'primary' : 'soft'}
-              alwaysExpanded
-              onClick={() => toggleMenu('export')}
-            />
-          ) : null}
-          {hasTimeEntries ? (
-            <span className="relative inline-flex overflow-visible">
-              <RoundIconLabelButton
-                icon={Clock}
-                label={t('contacts.headerTimeLog')}
-                variant={openMenu === 'timeLog' ? 'primary' : 'soft'}
-                alwaysExpanded
-                onClick={() => toggleMenu('timeLog')}
-              />
-              <span
-                className="absolute -right-1 -top-1 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-0.5 text-[10px] font-extrabold leading-none text-white shadow-sm ring-2 ring-background"
-                aria-label={t('contacts.timeLoggedBadge')}
-                title={t('contacts.timeLoggedBadge')}
-              >
-                {timeEntries.length > 99 ? '99+' : timeEntries.length}
-              </span>
-            </span>
-          ) : null}
-        </div>
-        {openMenu === 'actions' ? (
-          <div className="flex flex-wrap items-center gap-1">{actionButtons}</div>
-        ) : null}
-        {openMenu === 'export' ? (
-          <div className="flex flex-wrap items-center gap-1">{exportButtons}</div>
-        ) : null}
-        {openMenu === 'timeLog' && hasTimeEntries ? (
-          <div className="flex flex-wrap items-center gap-1">
-            {timeEntries.map((entry) => (
-              <div
-                key={entry.id}
-                className="inline-flex h-11 items-center gap-2 rounded-full bg-amber-600 px-3.5 pr-2 text-sm text-white dark:bg-amber-600"
-              >
-                <Clock className="size-5 shrink-0 text-white" aria-hidden />
-                <span className="whitespace-nowrap font-extrabold text-white">
-                  {formatDuration(entry.seconds)} – {new Date(entry.loggedAt).toLocaleDateString()}
-                </span>
-                <button
-                  type="button"
-                  className="ml-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20 disabled:opacity-50"
-                  aria-label={t('contacts.delete')}
-                  title={t('contacts.delete')}
-                  disabled={deletingEntryId === entry.id}
-                  onClick={() => setConfirmDeleteEntryId(entry.id)}
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
+    <DetailHeaderMenus
+      actions={actions}
+      exportActions={exportActions}
+      actionsLabel={t('contacts.headerActions')}
+      exportLabel={t('contacts.headerExport')}
+      extraMenus={
+        timeEntries.length > 0
+          ? [
+              {
+                id: 'timeLog',
+                label: t('contacts.headerTimeLog'),
+                icon: Clock,
+                badgeCount: timeEntries.length,
+                badgeAriaLabel: t('contacts.timeLoggedBadge'),
+                content: timeLogContent,
+              },
+            ]
+          : []
+      }
+    >
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title={t('dialog.deleteItem', { label: t('nav.contacts') })}
@@ -329,6 +280,6 @@ export function ContactDetailHeaderMenus({ contact }: { contact: Contact }) {
         nameLabel={duplicateConfig?.nameLabel ?? t('contacts.title')}
         confirmOnly={Boolean(duplicateConfig?.confirmOnly)}
       />
-    </>
+    </DetailHeaderMenus>
   );
 }

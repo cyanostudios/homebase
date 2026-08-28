@@ -66,7 +66,12 @@ export const NavItem = React.memo(function NavItem({
     return (
       <Collapsible open={isSubmenuOpen} onOpenChange={handleSubmenuOpenChange} className="w-full">
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" type="button" className={buttonClass}>
+          <Button
+            variant="ghost"
+            type="button"
+            className={buttonClass}
+            aria-current={isActive ? 'page' : undefined}
+          >
             {content}
           </Button>
         </CollapsibleTrigger>
@@ -87,7 +92,13 @@ export const NavItem = React.memo(function NavItem({
   }
 
   return (
-    <Button variant="ghost" type="button" onClick={handleNavigateTop} className={buttonClass}>
+    <Button
+      variant="ghost"
+      type="button"
+      onClick={handleNavigateTop}
+      className={buttonClass}
+      aria-current={isActive ? 'page' : undefined}
+    >
       {content}
     </Button>
   );

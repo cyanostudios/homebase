@@ -6,7 +6,6 @@ import {
   type SortableListTableColumn,
   type SortableListTableSelection,
 } from '@/core/ui/SortableListTable';
-import { formatDate } from '@/core/utils/dateFormat';
 
 import type { GarmentList } from '../types/garments';
 import type { GarmentSortField, GarmentSortOrder } from '../utils/garmentListSort';
@@ -23,6 +22,7 @@ export type GarmentListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedListId?: string | null;
+  selectionEnabled?: boolean;
 };
 
 export function GarmentListTable({
@@ -37,6 +37,7 @@ export function GarmentListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyDuplicatedListId = null,
+  selectionEnabled = true,
 }: GarmentListTableProps) {
   const { t } = useTranslation();
 
@@ -45,7 +46,11 @@ export function GarmentListTable({
       {
         field: 'name',
         header: t('garments.name'),
-        cell: (item) => <span className="font-medium text-foreground">{item.name || '—'}</span>,
+        cell: (item) => (
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+            {item.name || '—'}
+          </span>
+        ),
       },
       {
         field: 'personCount',
@@ -57,27 +62,22 @@ export function GarmentListTable({
           </span>
         ),
       },
-      {
-        field: 'updatedAt',
-        header: t('common.updated'),
-        className: 'hidden sm:table-cell',
-        cell: (item) => (
-          <span className="text-xs text-muted-foreground">{formatDate(item.updatedAt) || '—'}</span>
-        ),
-      },
     ],
     [t],
   );
 
-  const selection: SortableListTableSelection = {
-    isSelected,
-    onCheckboxMouseDown,
-    onCheckboxChange,
-    allVisibleSelected,
-    onHeaderCheckboxChange,
-    selectAllAriaLabel: t('common.selectAllVisible'),
-    selectRowAriaLabel: (selected) => (selected ? t('common.unselectRow') : t('common.selectRow')),
-  };
+  const selection: SortableListTableSelection | undefined = selectionEnabled
+    ? {
+        isSelected,
+        onCheckboxMouseDown,
+        onCheckboxChange,
+        allVisibleSelected,
+        onHeaderCheckboxChange,
+        selectAllAriaLabel: t('common.selectAllVisible'),
+        selectRowAriaLabel: (selected) =>
+          selected ? t('common.unselectRow') : t('common.selectRow'),
+      }
+    : undefined;
 
   return (
     <SortableListTable

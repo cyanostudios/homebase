@@ -47,6 +47,7 @@ export interface TaskContextType {
   selectedCount: number;
   isSelected: (id: string) => boolean;
   getPanelSubtitle: (mode: string, item: Task | null) => any;
+  getPanelTitle: (mode: string, item: Task | null) => React.ReactNode;
   getDeleteMessage: (item: Task | null) => string;
   recentlyDuplicatedTaskId: string | null;
   setRecentlyDuplicatedTaskId: (id: string | null) => void;
@@ -97,6 +98,7 @@ export interface TaskContextType {
   taskShareShowDialog: boolean;
   setTaskShareShowDialog: (show: boolean) => void;
   taskShareIsCreatingShare: boolean;
+  handleTaskShareClick: (task: Task) => Promise<void>;
   handleTaskCopyShareUrl: () => void;
   handleTaskRevokeShare: () => void;
 }
@@ -139,6 +141,7 @@ const EMPTY_TASK_CONTEXT: TaskContextType = {
   selectedCount: 0,
   isSelected: () => false,
   getPanelSubtitle: () => '',
+  getPanelTitle: () => null,
   getDeleteMessage: () => '',
   recentlyDuplicatedTaskId: null,
   setRecentlyDuplicatedTaskId: () => {},
@@ -165,6 +168,7 @@ const EMPTY_TASK_CONTEXT: TaskContextType = {
   taskShareShowDialog: false,
   setTaskShareShowDialog: () => {},
   taskShareIsCreatingShare: false,
+  handleTaskShareClick: async () => {},
   handleTaskCopyShareUrl: () => {},
   handleTaskRevokeShare: () => {},
 };

@@ -1,4 +1,17 @@
-import { isGarmentsSubRoute, resolveGarmentPanelClosePath } from '@/core/routing/garmentsRoutes';
+import {
+  isGarmentsNavPage,
+  isGarmentsSubRoute,
+  resolveGarmentPanelClosePath,
+} from '@/core/routing/garmentsRoutes';
+
+describe('isGarmentsNavPage', () => {
+  it('matches garments list and inventory nav pages', () => {
+    expect(isGarmentsNavPage('garments')).toBe(true);
+    expect(isGarmentsNavPage('garments-lists')).toBe(true);
+    expect(isGarmentsNavPage('garments-inventory')).toBe(true);
+    expect(isGarmentsNavPage('contacts')).toBe(false);
+  });
+});
 
 describe('isGarmentsSubRoute', () => {
   it('recognizes the inventory sub-route', () => {

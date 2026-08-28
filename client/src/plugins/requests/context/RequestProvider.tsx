@@ -11,6 +11,7 @@ import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { requestsApi } from '../api/requestsApi';
 import type { RequestPayload } from '../api/requestsApi';
+import { RequestDetailHeaderMenus } from '../components/RequestDetailHeaderMenus';
 import { DEFAULT_REQUEST_TYPES, isRequestUnopened } from '../types/requests';
 import type { Request, RequestValidationError } from '../types/requests';
 import { shouldApplyOpenRequestSaveEffects } from '../utils/requestListSave';
@@ -383,6 +384,13 @@ export function RequestProvider({
     [],
   );
 
+  const getPanelTitle = useCallback((mode: string, item: Request | null) => {
+    if (mode === 'view' && item) {
+      return <RequestDetailHeaderMenus key={String(item.id)} request={item} />;
+    }
+    return null;
+  }, []);
+
   const requestsOrderedByDate = useMemo(
     () =>
       [...requests].sort(
@@ -432,6 +440,7 @@ export function RequestProvider({
     selectedCount,
     isSelected,
     clearValidationErrors,
+    getPanelTitle,
     getDeleteMessage,
     navigateToPrevItem,
     navigateToNextItem,

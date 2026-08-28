@@ -6,10 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { formatDate } from '@/core/utils/dateFormat';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import { useGuides } from '../hooks/useGuides';
 import { useProductionJob } from '../hooks/useProductionJob';
@@ -246,22 +245,8 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
               >
                 <div className="space-y-3 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{t('guides.colId')}</span>
-                    <span className="font-mono">
-                      {formatDisplayNumber('guides', actualGuide.id)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">{t('guides.masterGuideId')}</span>
                     <span className="font-mono">{actualGuide.masterGuideId ?? '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{t('common.created')}</span>
-                    <span>{formatDate(actualGuide.createdAt)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{t('common.updated')}</span>
-                    <span>{formatDate(actualGuide.updatedAt)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">

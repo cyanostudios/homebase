@@ -1,13 +1,17 @@
 import {
+  Calendar,
   CheckSquare,
   ArrowDown,
   ArrowUp,
+  Eye,
   FileSpreadsheet,
+  LayoutGrid,
   Mail,
   MessageSquare,
   Plus,
   Settings,
   SlidersHorizontal,
+  Tag,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -15,6 +19,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -25,6 +31,7 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
@@ -36,12 +43,17 @@ import {
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { exportItems } from '@/core/utils/exportUtils';
 import { formatDateTime, formatDateTimeShort } from '@/core/utils/dateFormat';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
@@ -91,8 +103,14 @@ import { BulkPropertiesDialog } from './BulkPropertiesDialog';
 import { SlotListItem } from './SlotListItem';
 import { SlotListTable } from './SlotListTable';
 import { SlotQuickContextPanel } from './SlotQuickContextPanel';
-import { SlotsSettingsView } from './SlotsSettingsView';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { SlotsSettingsView, type SlotsSettingsCategory } from './SlotsSettingsView';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 
 type SortField = SlotSortField;
 type SortOrder = SlotSortOrder;
@@ -141,6 +159,12 @@ export function SlotsList() {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
+  useRegisterMobileSearch({
+    value: searchTerm,
+    onChange: setSearchTerm,
+    placeholder: t('slots.searchPlaceholder', { count: slots.length }),
+  });
+  const [selectionMode, setSelectionMode] = useState(false);
   const [primarySort, setPrimarySort] = useState<SortField>('slot_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<SlotListFilterSelection>([]);
@@ -148,7 +172,7 @@ export function SlotsList() {
   const [listViewMode, setListViewModeState] = useState<SlotListViewMode>(
     getInitialSlotListViewMode,
   );
-  const [settingsCategory, setSettingsCategory] = useState<'view' | 'categories'>('view');
+  const [settingsCategory, setSettingsCategory] = useState<SlotsSettingsCategory>('categories');
 
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
@@ -171,10 +195,14 @@ export function SlotsList() {
         if (cancelled) {
           return;
         }
-        const next = resolveSlotColumnCount(settings);
+        const resolved = resolveSlotColumnCount(settings);
+        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as SlotColumnCount;
         setColumnCountState(next);
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(next));
+        }
+        if (next !== resolved) {
+          updateSettings(SLOTS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
         }
         const nextView = resolveSlotListViewMode(settings);
         setListViewModeState(nextView);
@@ -187,14 +215,15 @@ export function SlotsList() {
   }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback(
-    (count: SlotColumnCount) => {
-      setColumnCountState(count);
+    (_count: SlotColumnCount) => {
+      const next = 3 as SlotColumnCount;
+      setColumnCountState(next);
       setListViewModeState('cards');
       persistSlotListViewModeSession('cards');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(count));
+        window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(next));
       }
-      updateSettings(SLOTS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+      updateSettings(SLOTS_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
         () => {},
       );
     },
@@ -230,6 +259,7 @@ export function SlotsList() {
     });
     return [...filtered].sort((a, b) => compareSlotsByField(a, b, primarySort, sortOrder));
   }, [slots, searchTerm, primarySort, sortOrder, formatDateTimeForFilter, activeFilters]);
+
   const stats = useMemo(
     () => ({
       total: slots.length,
@@ -292,8 +322,6 @@ export function SlotsList() {
   );
 
   const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const {
     previewItem: previewSlot,
@@ -307,11 +335,28 @@ export function SlotsList() {
     getItemId: (slot) => String(slot.id),
   });
 
+  const quickContextOpen = Boolean(showQuickContext && previewSlot);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
+
   const handleOpenForView = (slot: Slot) => {
     markPendingAndOpen(slot, () => attemptNavigation(() => openSlotForView(slot)));
   };
 
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearSlotSelection();
+    setSelectionMode(false);
+  };
+
   const handleRowActivate = (slot: Slot) => {
+    if (selectionMode) {
+      toggleSlotSelected(String(slot.id));
+      return;
+    }
     activateRow(slot, (item) => attemptNavigation(() => openSlotForView(item)));
   };
 
@@ -410,6 +455,68 @@ export function SlotsList() {
     });
   }, [selectedSlots, t]);
 
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    const disabled = selectedCount === 0;
+    const actions: BulkActionRoundItem[] = [];
+    if (canSendMessages) {
+      actions.push({
+        key: 'message',
+        label: t('bulk.message'),
+        icon: MessageSquare,
+        disabled,
+        contentClassName: 'text-sky-500 dark:text-sky-400',
+        onClick: () => {
+          void openBulkMessageDialog();
+        },
+      });
+    }
+    if (canSendEmail) {
+      actions.push({
+        key: 'email',
+        label: t('bulk.email'),
+        icon: Mail,
+        disabled,
+        contentClassName: 'text-red-800 dark:text-red-500',
+        onClick: () => {
+          void openBulkEmailDialog();
+        },
+      });
+    }
+    actions.push(
+      {
+        key: 'properties',
+        label: t('slots.properties'),
+        icon: SlidersHorizontal,
+        disabled,
+        onClick: () => setShowBulkPropertiesDialog(true),
+      },
+      {
+        key: 'csv',
+        label: t('common.exportCsv'),
+        icon: FileSpreadsheet,
+        disabled,
+        onClick: handleBulkExportCSV,
+      },
+      {
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      },
+    );
+    return actions;
+  }, [
+    selectedCount,
+    canSendMessages,
+    canSendEmail,
+    t,
+    openBulkMessageDialog,
+    openBulkEmailDialog,
+    handleBulkExportCSV,
+  ]);
+
   if (slotsContentView === 'settings') {
     return (
       <div className="plugin-slots min-h-full bg-background">
@@ -426,65 +533,178 @@ export function SlotsList() {
   }
 
   return (
-    <div className="plugin-slots min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.slots')}</h2>
-            <p className="text-sm text-muted-foreground">{t('slots.listDescription')}</p>
-          </div>
-          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={() => openSlotSettings()}
-              title={t('slots.settings')}
-            >
-              {t('slots.settings')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(() => openSlotPanel(null))}
-            >
-              {t('slots.addSlot')}
-            </Button>
+    <div className={cn('plugin-slots', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.slots')}</h2>
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('slots.settings')}
+                    variant="soft"
+                    onClick={() => openSlotSettings()}
+                  />
+                  {filteredAndSorted.length > 0 ? (
+                    selectionMode ? (
+                      <ExpandableIconButton
+                        icon={XCircle}
+                        label={t('common.clear')}
+                        variant="danger"
+                        alwaysExpanded
+                        onClick={handleExitSelectionMode}
+                      />
+                    ) : (
+                      <ExpandableIconButton
+                        icon={CheckSquare}
+                        label={t('common.select')}
+                        variant="soft"
+                        alwaysExpanded
+                        onClick={handleEnterSelectionMode}
+                      />
+                    )
+                  ) : null}
+                </div>
+              </div>
+              {selectionMode ? (
+                <BulkActionRoundBar
+                  selectedCount={selectedCount}
+                  actions={bulkRoundActions}
+                  className="gap-2"
+                />
+              ) : null}
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t('slots.searchPlaceholder', { count: slots.length })}
+              />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => t(`slots.columns${count}`)}
+                tableAriaLabel={t('common.tableView')}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('slots.addSlot')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => attemptNavigation(() => openSlotPanel(null))}
+              />
+            </div>
           </div>
         </div>
 
-        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
-          <ListFilterStatCard
-            label="Total"
-            value={stats.total}
-            dotClassName="bg-blue-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label="Visible"
-            value={stats.visible}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('visible')}
-            onClick={() => toggleFilter('visible')}
-          />
-          <ListFilterStatCard
-            label="Upcoming"
-            value={stats.upcoming}
-            dotClassName="bg-amber-500"
-            active={isFilterActive('upcoming')}
-            onClick={() => toggleFilter('upcoming')}
-          />
-          <ListFilterStatCard
-            label="With Category"
-            value={stats.withCategory}
-            dotClassName="bg-violet-500"
-            active={isFilterActive('withCategory')}
-            onClick={() => toggleFilter('withCategory')}
-          />
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFilters([])}
+              className={cn(
+                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                Total <span className="tabular-nums font-semibold">({stats.total})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('visible')}
+              className={cn(
+                isFilterActive('visible') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              <span>
+                Visible <span className="tabular-nums font-semibold">({stats.visible})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('upcoming')}
+              className={cn(
+                isFilterActive('upcoming') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              <span>
+                Upcoming <span className="tabular-nums font-semibold">({stats.upcoming})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('withCategory')}
+              className={cn(
+                isFilterActive('withCategory')
+                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                  : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Tag className="h-3.5 w-3.5" />
+              <span>
+                With Category{' '}
+                <span className="tabular-nums font-semibold">({stats.withCategory})</span>
+              </span>
+            </Button>
+          </div>
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label="Sort by"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
 
         <BulkMessageDialog
@@ -531,9 +751,14 @@ export function SlotsList() {
           isLoading={deleting}
         />
 
-        <div className="flex items-start gap-4">
+        <div
+          className={cn(
+            'grid items-start gap-4',
+            showQuickContext && previewSlot ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+          )}
+        >
           {showQuickContext && previewSlot ? (
-            <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
+            <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
               <SlotQuickContextPanel
                 slot={previewSlot}
                 onClose={() => setPreviewSlot(null)}
@@ -546,153 +771,7 @@ export function SlotsList() {
               />
             </aside>
           ) : null}
-          <div className="flex min-w-0 flex-1 flex-col gap-3">
-            <ListToolbar
-              selectedCount={selectedCount}
-              showSelectAll={filteredAndSorted.length > 0}
-              selectAll={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                  icon={CheckSquare}
-                  onClick={onToggleAllVisible}
-                >
-                  {t('common.selectAll')}
-                </Button>
-              }
-              search={
-                <ListSearchInput
-                  value={searchTerm}
-                  onChange={setSearchTerm}
-                  placeholder={t('slots.searchPlaceholder', { count: slots.length })}
-                />
-              }
-              trailing={
-                <>
-                  {!isTableView ? (
-                    <div className="mr-1 flex items-center gap-1">
-                      <Select
-                        value={primarySort}
-                        onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                      >
-                        <SelectTrigger
-                          className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                          aria-label="Sort by"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent
-                          position="item-aligned"
-                          className="rounded-xl border-border/50 shadow-xl"
-                        >
-                          {SORT_FIELD_OPTIONS.map((option) => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              className="rounded-md text-xs"
-                            >
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 px-0 text-xs"
-                        onClick={toggleSortOrder}
-                        aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                        title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                      >
-                        {sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3.5 w-3.5" />
-                        ) : (
-                          <ArrowDown className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                    </div>
-                  ) : null}
-                  <ListColumnLayoutToggle
-                    columnCount={columnCount}
-                    listViewMode={listViewMode}
-                    onSelectColumns={setColumnCount}
-                    onSelectTable={() => setListViewMode('table')}
-                    columnAriaLabel={(count) => t(`slots.columns${count}`)}
-                    tableAriaLabel={t('common.tableView')}
-                  />
-                </>
-              }
-              bulkActions={
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={XCircle}
-                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                    onClick={clearSlotSelection}
-                    type="button"
-                  >
-                    {t('common.clearSelection')}
-                  </Button>
-                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                    {t('bulk.selected', { count: selectedCount })}
-                  </span>
-                  {canSendMessages ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={MessageSquare}
-                      onClick={openBulkMessageDialog}
-                      className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                    >
-                      {t('bulk.sendMessageTitle')}
-                    </Button>
-                  ) : null}
-                  {canSendEmail ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={Mail}
-                      onClick={openBulkEmailDialog}
-                      className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                    >
-                      {t('bulk.sendEmailTitle')}
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={SlidersHorizontal}
-                    onClick={() => setShowBulkPropertiesDialog(true)}
-                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                  >
-                    {t('slots.properties')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={FileSpreadsheet}
-                    onClick={handleBulkExportCSV}
-                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                  >
-                    {t('common.exportCsv')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={Trash2}
-                    onClick={() => setShowBulkDeleteModal(true)}
-                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  >
-                    {t('common.delete')}
-                  </Button>
-                </>
-              }
-            />
-
+          <div className="flex min-w-0 flex-col gap-3">
             {filteredAndSorted.length === 0 ? (
               <ListEmptyState
                 message={searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
@@ -715,6 +794,7 @@ export function SlotsList() {
                 allVisibleSelected={allVisibleSelected}
                 onHeaderCheckboxChange={onToggleAllVisible}
                 recentlyDuplicatedSlotId={recentlyDuplicatedSlotId}
+                selectionEnabled={selectionMode}
               />
             ) : (
               <div
@@ -737,15 +817,17 @@ export function SlotsList() {
                       onClick={() => handleRowActivate(slot)}
                       columnCount={effectiveCardColumnCount}
                       checkbox={
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(slot.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={selected ? t('common.deselect') : t('common.select')}
-                        />
+                        selectionMode ? (
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(slot.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 cursor-pointer"
+                            aria-label={selected ? t('common.deselect') : t('common.select')}
+                          />
+                        ) : undefined
                       }
                     />
                   );

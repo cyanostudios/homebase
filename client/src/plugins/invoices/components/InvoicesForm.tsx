@@ -11,7 +11,11 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_FIELD_LABEL_CLASS,
+  DETAIL_PROP_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -324,7 +328,9 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     const moveLineItem = (index: number, direction: 'up' | 'down') => {
       const items = [...formData.lineItems];
       const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= items.length) return;
+      if (targetIndex < 0 || targetIndex >= items.length) {
+        return;
+      }
       [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
       items.forEach((item, i) => {
         item.sortOrder = i;
@@ -337,8 +343,6 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
 
     const getFieldError = (field: string) => validationErrors.find((e) => e.field === field);
     const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
-    const fieldLabelClass =
-      'mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground';
     const fieldInputClass = 'h-10 text-sm';
     const propSelectClass = 'h-9 w-full max-w-[180px] text-sm';
     const dueDisplay = formatInvoiceDueDate(formData.dueDate);
@@ -639,7 +643,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                   className="p-6"
                 >
                   <div className="max-w-xs">
-                    <Label htmlFor="invoice-discount" className={fieldLabelClass}>
+                    <Label htmlFor="invoice-discount" className={DETAIL_FIELD_LABEL_CLASS}>
                       {t('invoices.discountPercent', { defaultValue: 'Discount %' })}
                     </Label>
                     <Input

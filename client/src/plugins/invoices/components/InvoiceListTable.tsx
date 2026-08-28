@@ -29,6 +29,7 @@ export type InvoiceListTableProps = {
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedInvoiceId?: string | null;
   activeInvoiceId?: string | number | null;
+  selectionEnabled?: boolean;
 };
 
 function formatDate(value: Date | string | null | undefined): string {
@@ -51,6 +52,7 @@ export function InvoiceListTable({
   onHeaderCheckboxChange,
   recentlyDuplicatedInvoiceId = null,
   activeInvoiceId = null,
+  selectionEnabled = true,
 }: InvoiceListTableProps) {
   const { t } = useTranslation();
 
@@ -60,7 +62,7 @@ export function InvoiceListTable({
         field: 'invoiceNumber',
         header: t('invoices.table.number', { defaultValue: 'Number' }),
         cell: (invoice) => (
-          <span className="font-mono text-xs font-medium text-foreground">
+          <span className="font-mono text-xs font-extrabold text-foreground transition-colors group-hover:text-primary">
             {formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}
           </span>
         ),
@@ -69,7 +71,9 @@ export function InvoiceListTable({
         field: 'contactName',
         header: t('invoices.fieldContact', { defaultValue: 'Customer' }),
         cell: (invoice) => (
-          <span className="font-medium text-foreground">{invoice.contactName || '—'}</span>
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+            {invoice.contactName || '—'}
+          </span>
         ),
       },
       {
@@ -115,14 +119,6 @@ export function InvoiceListTable({
           );
         },
       },
-      {
-        field: 'updatedAt',
-        header: t('common.updated', { defaultValue: 'Updated' }),
-        className: 'hidden lg:table-cell',
-        cell: (invoice) => (
-          <span className="text-xs text-muted-foreground">{formatDate(invoice.updatedAt)}</span>
-        ),
-      },
     ],
     [t],
   );
@@ -149,16 +145,20 @@ export function InvoiceListTable({
         activeInvoiceId !== undefined &&
         String(invoice.id) === String(activeInvoiceId)
       }
-      selection={{
-        isSelected,
-        onCheckboxMouseDown,
-        onCheckboxChange,
-        allVisibleSelected,
-        onHeaderCheckboxChange,
-        selectAllAriaLabel: t('common.selectAllVisible'),
-        selectRowAriaLabel: (selected) =>
-          selected ? t('common.unselectRow') : t('common.selectRow'),
-      }}
+      selection={
+        selectionEnabled
+          ? {
+              isSelected,
+              onCheckboxMouseDown,
+              onCheckboxChange,
+              allVisibleSelected,
+              onHeaderCheckboxChange,
+              selectAllAriaLabel: t('common.selectAllVisible'),
+              selectRowAriaLabel: (selected) =>
+                selected ? t('common.unselectRow') : t('common.selectRow'),
+            }
+          : undefined
+      }
       pluginName="invoices"
       dataListItem={(invoice) => invoice}
     />

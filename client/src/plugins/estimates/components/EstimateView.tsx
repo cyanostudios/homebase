@@ -1,32 +1,18 @@
-import {
-  Copy,
-  Download,
-  Edit,
-  Info,
-  SlidersHorizontal,
-  StickyNote,
-  Trash2,
-  Zap,
-} from 'lucide-react';
-import React, { useState } from 'react';
+import { SlidersHorizontal, StickyNote } from 'lucide-react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_PROP_ROW_CLASS,
-  DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
-import { cn } from '@/lib/utils';
 
 import { useEstimates } from '../hooks/useEstimates';
 import { Estimate, calculateEstimateTotals } from '../types/estimate';
@@ -34,158 +20,6 @@ import { Estimate, calculateEstimateTotals } from '../types/estimate';
 import { EstimateShareBlock } from './EstimateActions';
 import { EstimateStatusSelect } from './EstimateStatusSelect';
 import { StatusReasonModal } from './StatusReasonModal';
-
-interface EstimateQuickActionsCardProps {
-  estimate: Estimate;
-  onEdit: (estimate: Estimate) => void;
-  onDeleteClick: () => void;
-  onDuplicate: () => void;
-  getDuplicateConfig: (
-    item: Estimate | null,
-  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
-}
-
-interface EstimateExportOptionsCardProps {
-  estimate: Estimate;
-  actions: Array<{
-    id: string;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    onClick: (item: Estimate) => void;
-    className?: string;
-    disabled?: boolean;
-  }>;
-}
-
-function getEstimateQuickActionIconTint(actionId: string): string {
-  if (actionId === 'download-pdf') {
-    return 'text-amber-600 dark:text-amber-400';
-  }
-  if (actionId === 'view-share') {
-    return 'text-blue-600 dark:text-blue-400';
-  }
-  if (actionId === 'share') {
-    return 'text-violet-600 dark:text-violet-400';
-  }
-  return '';
-}
-
-function EstimateQuickActionsCard({
-  estimate,
-  onEdit,
-  onDeleteClick,
-  onDuplicate,
-  getDuplicateConfig,
-}: EstimateQuickActionsCardProps) {
-  const { t } = useTranslation();
-  const canDuplicate = Boolean(getDuplicateConfig(estimate));
-
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('estimates.quickActions')}
-        icon={Zap}
-        iconPlugin="estimates"
-        subtleTitle
-        className="p-4"
-      >
-        <div className="flex flex-col items-start gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Edit
-                {...props}
-                className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
-              />
-            )}
-            className={DETAIL_QUICK_ACTION_ROW_CLASS}
-            onClick={() => onEdit(estimate)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Trash2
-                {...props}
-                className={cn(props.className, 'text-red-600 dark:text-red-400')}
-              />
-            )}
-            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-            onClick={onDeleteClick}
-          >
-            {t('common.delete')}
-          </Button>
-          {canDuplicate && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={(props) => (
-                <Copy
-                  {...props}
-                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
-                />
-              )}
-              className={DETAIL_QUICK_ACTION_ROW_CLASS}
-              onClick={onDuplicate}
-            >
-              {t('common.duplicate')}
-            </Button>
-          )}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
-
-function EstimateExportOptionsCard({ estimate, actions }: EstimateExportOptionsCardProps) {
-  const { t } = useTranslation();
-  if (!Array.isArray(actions) || actions.length === 0) {
-    return null;
-  }
-
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('estimates.exportOptions')}
-        icon={Download}
-        iconPlugin="estimates"
-        subtleTitle
-        className="p-4"
-      >
-        <div className="flex flex-col items-start gap-1">
-          {actions.map((action) => {
-            const Icon = action.icon;
-            const iconTint = getEstimateQuickActionIconTint(action.id);
-            return (
-              <Button
-                key={action.id}
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={(props) => <Icon {...props} className={cn(props.className, iconTint)} />}
-                disabled={action.disabled}
-                className={cn(
-                  DETAIL_QUICK_ACTION_ROW_CLASS,
-                  'disabled:opacity-50',
-                  action.className,
-                )}
-                onClick={() => action.onClick(estimate)}
-              >
-                {action.label}
-              </Button>
-            );
-          })}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
 
 interface EstimateViewProps {
   estimate: Estimate;
@@ -206,18 +40,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
     showDiscardQuickEditDialog,
     setShowDiscardQuickEditDialog,
     onDiscardQuickEditAndClose,
-    openEstimateForEdit,
-    deleteEstimate,
-    closeEstimatePanel,
-    getDuplicateConfig,
-    executeDuplicate,
-    setRecentlyDuplicatedEstimateId,
-    getDeleteMessage,
-    detailFooterActions,
   } = useEstimates();
-
-  const [showDeleteEstimateConfirm, setShowDeleteEstimateConfirm] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
 
   const displayEstimate = React.useMemo(
     () =>
@@ -233,65 +56,9 @@ export function EstimateView({ estimate }: EstimateViewProps) {
 
   const totals = calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0);
 
-  const handleConfirmDelete = async () => {
-    await deleteEstimate(estimate.id);
-    setShowDeleteEstimateConfirm(false);
-    closeEstimatePanel();
-  };
-
   return (
     <>
-      <DetailLayout
-        sidebar={
-          <div className="space-y-6">
-            <EstimateQuickActionsCard
-              estimate={estimate}
-              onEdit={openEstimateForEdit}
-              onDeleteClick={() => setShowDeleteEstimateConfirm(true)}
-              onDuplicate={() => setShowDuplicateDialog(true)}
-              getDuplicateConfig={getDuplicateConfig}
-            />
-            <EstimateExportOptionsCard estimate={estimate} actions={detailFooterActions} />
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('estimates.information')}
-                icon={Info}
-                className="p-4"
-                collapsible
-              >
-                <div className="space-y-4 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">ID</span>
-                    <span className="font-mono font-medium">
-                      {formatDisplayNumber('estimates', estimate.id)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Created</span>
-                    <span className="font-medium">
-                      {new Date(estimate.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Updated</span>
-                    <span className="font-medium">
-                      {new Date(estimate.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-            <DetailActivityLog
-              entityType="estimate"
-              entityId={estimate.id}
-              limit={30}
-              title={t('estimates.activity')}
-              showClearButton
-              refreshKey={String(estimate.updatedAt ?? estimate.id)}
-            />
-          </div>
-        }
-      >
+      <DetailLayout>
         <div className="space-y-6">
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
@@ -494,38 +261,6 @@ export function EstimateView({ estimate }: EstimateViewProps) {
         onConfirm={onDiscardQuickEditAndClose}
         onCancel={() => setShowDiscardQuickEditDialog(false)}
         variant="warning"
-      />
-
-      <ConfirmDialog
-        isOpen={showDeleteEstimateConfirm}
-        title={t('estimates.deleteTitle')}
-        message={getDeleteMessage(estimate)}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setShowDeleteEstimateConfirm(false)}
-        variant="danger"
-      />
-
-      <DuplicateDialog
-        isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
-          executeDuplicate(estimate, newName)
-            .then(({ closePanel, highlightId }) => {
-              closePanel();
-              if (highlightId) {
-                setRecentlyDuplicatedEstimateId(highlightId);
-              }
-              setShowDuplicateDialog(false);
-            })
-            .catch(() => {
-              setShowDuplicateDialog(false);
-            });
-        }}
-        onCancel={() => setShowDuplicateDialog(false)}
-        defaultName={getDuplicateConfig(estimate)?.defaultName ?? ''}
-        nameLabel={getDuplicateConfig(estimate)?.nameLabel ?? t('nav.estimate')}
-        confirmOnly={Boolean(getDuplicateConfig(estimate)?.confirmOnly)}
       />
     </>
   );

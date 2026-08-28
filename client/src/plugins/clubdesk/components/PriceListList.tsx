@@ -1,8 +1,20 @@
-import { ArrowDown, ArrowUp, CheckSquare, Plus, Trash2, XCircle } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  CheckSquare,
+  FileText,
+  LayoutGrid,
+  Plus,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -12,20 +24,33 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { nextListTableSort } from '@/core/list/listViewMode';
 import {
   useEffectiveCardColumnCount,
   useEffectiveColumnCount,
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
+import { nextListTableSort } from '@/core/list/listViewMode';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -38,12 +63,6 @@ import {
   resolveClubdeskColumnCount,
   type ClubdeskColumnCount,
 } from '../utils/clubdeskColumnCount';
-import {
-  getInitialClubdeskListViewMode,
-  persistClubdeskListViewModeSession,
-  resolveClubdeskListViewMode,
-  type ClubdeskListViewMode,
-} from '../utils/clubdeskListViewMode';
 import { getClubdeskListStatusErrorMessage } from '../utils/clubdeskListStatusError';
 import {
   priceListMatchesListFilters,
@@ -51,6 +70,12 @@ import {
   type PriceListListFilter,
   type PriceListListFilterSelection,
 } from '../utils/priceListListFilter';
+import {
+  getInitialClubdeskListViewMode,
+  persistClubdeskListViewModeSession,
+  resolveClubdeskListViewMode,
+  type ClubdeskListViewMode,
+} from '../utils/clubdeskListViewMode';
 import {
   comparePriceListsByField,
   isPriceListAscDefaultField,
@@ -60,7 +85,6 @@ import {
 
 import { PriceListListItem } from './PriceListListItem';
 import { PriceListListTable } from './PriceListListTable';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 const SORT_FIELD_OPTIONS: { value: PriceListSortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'clubdesk.sort.updated' },
@@ -100,8 +124,18 @@ export const PriceListList: React.FC = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectionMode, setSelectionMode] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  useRegisterMobileSearch({
+    value: searchTerm,
+    onChange: setSearchTerm,
+    placeholder: t('clubdesk.priceList.searchPlaceholder', {
+      count: priceLists.length,
+    }),
+  });
+
   const [primarySort, setPrimarySort] = useState<PriceListSortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<PriceListSortOrder>('desc');
   const [columnCount, setColumnCountState] = useState<ClubdeskColumnCount>(
@@ -110,6 +144,7 @@ export const PriceListList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<ClubdeskListViewMode>(
     getInitialClubdeskListViewMode,
   );
+
   const [activeFilters, setActiveFilters] = useState<PriceListListFilterSelection>([]);
 
   useEffect(() => {
@@ -119,10 +154,14 @@ export const PriceListList: React.FC = () => {
         if (cancelled) {
           return;
         }
-        const next = resolveClubdeskColumnCount(settings);
+        const resolved = resolveClubdeskColumnCount(settings);
+        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as ClubdeskColumnCount;
         setColumnCountState(next);
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(CLUBDESK_COLUMN_COUNT_STORAGE_KEY, String(next));
+        }
+        if (next !== resolved) {
+          updateSettings(CLUBDESK_SETTINGS_KEY, { columnCount: next }).catch(() => {});
         }
         const nextView = resolveClubdeskListViewMode(settings);
         setListViewModeState(nextView);
@@ -135,14 +174,15 @@ export const PriceListList: React.FC = () => {
   }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback(
-    (count: ClubdeskColumnCount) => {
-      setColumnCountState(count);
+    (_count: ClubdeskColumnCount) => {
+      const next = 3 as ClubdeskColumnCount;
+      setColumnCountState(next);
       setListViewModeState('cards');
       persistClubdeskListViewModeSession('cards');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(CLUBDESK_COLUMN_COUNT_STORAGE_KEY, String(count));
+        window.sessionStorage.setItem(CLUBDESK_COLUMN_COUNT_STORAGE_KEY, String(next));
       }
-      updateSettings(CLUBDESK_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+      updateSettings(CLUBDESK_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
         () => {},
       );
     },
@@ -271,6 +311,37 @@ export const PriceListList: React.FC = () => {
     });
   };
 
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearPriceListSelection();
+    setSelectionMode(false);
+  };
+
+  const handleRowActivate = (item: (typeof priceLists)[0]) => {
+    if (selectionMode) {
+      togglePriceListSelected(String(item.id));
+      return;
+    }
+    handleOpenForView(item);
+  };
+
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    const disabled = priceListSelectedCount === 0;
+    return [
+      {
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      },
+    ];
+  }, [priceListSelectedCount, t]);
+
   const handleStatusChange = (item: (typeof priceLists)[0], status: PublicationStatus) => {
     void updatePriceListPublicationStatus(item, status);
   };
@@ -300,50 +371,161 @@ export const PriceListList: React.FC = () => {
   const listStatusError = getClubdeskListStatusErrorMessage(validationErrors);
 
   return (
-    <div className="plugin-clubdesk h-full min-h-full w-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.clubdesk')}</h2>
-            <p className="text-sm text-muted-foreground">
-              {t('clubdesk.priceList.listDescription')}
-            </p>
-          </div>
-          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(() => openPriceListPanel(null))}
-            >
-              {t('clubdesk.priceList.add')}
-            </Button>
+    <div className={cn('plugin-clubdesk', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.clubdesk')}</h2>
+                  {sortedPriceLists.length > 0 ? (
+                    selectionMode ? (
+                      <ExpandableIconButton
+                        icon={XCircle}
+                        label={t('common.clear')}
+                        variant="danger"
+                        alwaysExpanded
+                        onClick={handleExitSelectionMode}
+                      />
+                    ) : (
+                      <ExpandableIconButton
+                        icon={CheckSquare}
+                        label={t('common.select')}
+                        variant="soft"
+                        alwaysExpanded
+                        onClick={handleEnterSelectionMode}
+                      />
+                    )
+                  ) : null}
+                </div>
+              </div>
+              {selectionMode ? (
+                <BulkActionRoundBar
+                  selectedCount={priceListSelectedCount}
+                  actions={bulkRoundActions}
+                  className="gap-2"
+                />
+              ) : null}
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t('clubdesk.priceList.searchPlaceholder', {
+                  count: priceLists.length,
+                })}
+              />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => t(`clubdesk.columns${count}`)}
+                tableAriaLabel={t('common.tableView')}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('clubdesk.priceList.add')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => attemptNavigation(() => openPriceListPanel(null))}
+              />
+            </div>
           </div>
         </div>
 
-        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-3')}>
-          <ListFilterStatCard
-            label={t('clubdesk.filter.all')}
-            value={stats.total}
-            dotClassName="bg-blue-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label={t('clubdesk.filter.draft')}
-            value={stats.draft}
-            dotClassName="bg-slate-400"
-            active={isFilterActive('draft')}
-            onClick={() => toggleFilter('draft')}
-          />
-          <ListFilterStatCard
-            label={t('clubdesk.filter.published')}
-            value={stats.published}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('published')}
-            onClick={() => toggleFilter('published')}
-          />
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFilters([])}
+              className={cn(
+                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                {t('clubdesk.filter.all')}{' '}
+                <span className="tabular-nums font-semibold">({stats.total})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('draft')}
+              className={cn(
+                isFilterActive('draft') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span>
+                {t('clubdesk.filter.draft')}{' '}
+                <span className="tabular-nums font-semibold">({stats.draft})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('published')}
+              className={cn(
+                isFilterActive('published')
+                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                  : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>
+                {t('clubdesk.filter.published')}{' '}
+                <span className="tabular-nums font-semibold">({stats.published})</span>
+              </span>
+            </Button>
+          </div>
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as PriceListSortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label={t('clubdesk.sortBy')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {t(option.labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? t('clubdesk.sortDesc') : t('clubdesk.sortAsc')}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
 
         {listStatusError ? (
@@ -362,117 +544,6 @@ export const PriceListList: React.FC = () => {
         />
 
         <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={priceListSelectedCount}
-            showSelectAll={sortedPriceLists.length > 0}
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={onToggleAllVisible}
-              >
-                {t('common.selectAll')}
-              </Button>
-            }
-            search={
-              <ListSearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('clubdesk.priceList.searchPlaceholder', {
-                  count: priceLists.length,
-                })}
-              />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) =>
-                        handlePrimarySortChange(value as PriceListSortField)
-                      }
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label={t('clubdesk.sortBy')}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {t(option.labelKey)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={
-                        sortOrder === 'asc' ? t('clubdesk.sortDesc') : t('clubdesk.sortAsc')
-                      }
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t(`clubdesk.columns${count}`)}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearPriceListSelection}
-                  type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: priceListSelectedCount })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                >
-                  {t('common.delete')}
-                </Button>
-              </>
-            }
-          />
-
           {sortedPriceLists.length === 0 ? (
             <ListEmptyState
               message={
@@ -496,12 +567,13 @@ export const PriceListList: React.FC = () => {
               sortOrder={sortOrder}
               onSort={handleTableSort}
               isSelected={isPriceListSelected}
-              onRowClick={handleOpenForView}
+              onRowClick={handleRowActivate}
               onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
               onCheckboxChange={onVisibleRowCheckboxChange}
               allVisibleSelected={allVisibleSelected}
               onHeaderCheckboxChange={onToggleAllVisible}
               recentlyDuplicatedPriceListId={recentlyDuplicatedPriceListId}
+              selectionEnabled={selectionMode}
             />
           ) : (
             <div
@@ -520,7 +592,7 @@ export const PriceListList: React.FC = () => {
                     priceList={item}
                     selected={itemIsSelected}
                     highlighted={recentlyDuplicatedPriceListId === String(item.id)}
-                    onClick={() => handleOpenForView(item)}
+                    onClick={() => handleRowActivate(item)}
                     columnCount={effectiveCardColumnCount}
                     onStatusChange={(status) => handleStatusChange(item, status)}
                     onFeaturedChange={(featured) => handleFeaturedChange(item, featured)}
@@ -531,19 +603,21 @@ export const PriceListList: React.FC = () => {
                     isFirst={index === 0}
                     isLast={index === sortedPriceLists.length - 1}
                     checkbox={
-                      <input
-                        type="checkbox"
-                        checked={itemIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(item.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={
-                          itemIsSelected
-                            ? t('clubdesk.priceList.unselect')
-                            : t('clubdesk.priceList.select')
-                        }
-                      />
+                      selectionMode ? (
+                        <input
+                          type="checkbox"
+                          checked={itemIsSelected}
+                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                          onChange={() => onVisibleRowCheckboxChange(item.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 cursor-pointer"
+                          aria-label={
+                            itemIsSelected
+                              ? t('clubdesk.priceList.unselect')
+                              : t('clubdesk.priceList.select')
+                          }
+                        />
+                      ) : undefined
                     }
                   />
                 );

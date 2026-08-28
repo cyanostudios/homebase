@@ -15,30 +15,15 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
-import { cn } from '@/lib/utils';
 
 import { matchesApi } from '../api/matchesApi';
-import {
-  MATCHES_COLUMN_COUNT_STORAGE_KEY,
-  MATCHES_SETTINGS_KEY,
-  resolveMatchColumnCount,
-  type MatchColumnCount,
-} from '../utils/matchColumnCount';
+import { MATCHES_SETTINGS_KEY } from '../utils/matchColumnCount';
 import { resolveMatchDefaultHomeTeam } from '../utils/matchDefaultHomeTeam';
-import {
-  MATCHES_LIST_VIEW_MODE_STORAGE_KEY,
-  persistMatchListViewModeSession,
-  resolveMatchListViewMode,
-  type MatchListViewMode,
-} from '../utils/matchListViewMode';
 
 const DEFAULT_API_BASE_URL = 'https://forening-api.svenskfotboll.se';
 const MASKED_API_KEY = '••••••••';
 
-const COLUMN_OPTIONS: MatchColumnCount[] = [1, 2, 3];
-const VIEW_MODE_OPTIONS: MatchListViewMode[] = ['cards', 'table'];
-
-export type MatchSettingsCategory = 'view' | 'api';
+export type MatchSettingsCategory = 'api';
 
 interface MatchSettingsViewProps {
   selectedCategory?: MatchSettingsCategory;
@@ -56,14 +41,10 @@ export function MatchSettingsView({
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
 
-  const [internalCategory, setInternalCategory] = useState<MatchSettingsCategory>('view');
+  const [internalCategory, setInternalCategory] = useState<MatchSettingsCategory>('api');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
-  const [columnCount, setColumnCount] = useState<MatchColumnCount>(1);
-  const [initialColumnCount, setInitialColumnCount] = useState<MatchColumnCount>(1);
-  const [listViewMode, setListViewMode] = useState<MatchListViewMode>('cards');
-  const [initialListViewMode, setInitialListViewMode] = useState<MatchListViewMode>('cards');
   const [defaultHomeTeam, setDefaultHomeTeam] = useState('');
   const [initialDefaultHomeTeam, setInitialDefaultHomeTeam] = useState('');
   const [apiBaseUrl, setApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
@@ -78,12 +59,6 @@ export function MatchSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
-      {
-        id: 'view',
-        label: t('matches.settingsCategories.view'),
-        description: t('matches.settingsCategories.viewDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.view,
-      },
       {
         id: 'api',
         label: t('matches.apiSettings'),
@@ -101,18 +76,12 @@ export function MatchSettingsView({
         if (cancelled) {
           return;
         }
-        const loadedColumns = resolveMatchColumnCount(settings);
-        const loadedView = resolveMatchListViewMode(settings);
         const loadedDefaultHomeTeam = resolveMatchDefaultHomeTeam(settings);
         const loadedBaseUrl =
           typeof settings?.apiBaseUrl === 'string' && settings.apiBaseUrl.trim()
             ? settings.apiBaseUrl.trim()
             : DEFAULT_API_BASE_URL;
         const storedKey = typeof settings?.apiKey === 'string' && settings.apiKey.trim();
-        setColumnCount(loadedColumns);
-        setInitialColumnCount(loadedColumns);
-        setListViewMode(loadedView);
-        setInitialListViewMode(loadedView);
         setDefaultHomeTeam(loadedDefaultHomeTeam);
         setInitialDefaultHomeTeam(loadedDefaultHomeTeam);
         setApiBaseUrl(loadedBaseUrl);
@@ -131,63 +100,36 @@ export function MatchSettingsView({
     };
   }, [getSettings]);
 
-  const isViewDirty =
-    columnCount !== initialColumnCount ||
-    listViewMode !== initialListViewMode ||
-    defaultHomeTeam.trim() !== initialDefaultHomeTeam.trim();
   const isApiDirty =
     apiBaseUrl.trim() !== initialApiBaseUrl.trim() ||
-    (apiKey.trim() !== '' && !apiKey.startsWith('••••'));
-  const isDirty = activeCategory === 'view' ? isViewDirty : isApiDirty;
+    (apiKey.trim() !== '' && !apiKey.startsWith('••••')) ||
+    defaultHomeTeam.trim() !== initialDefaultHomeTeam.trim();
+  const isDirty = isApiDirty;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     setImportError(null);
     try {
-      if (activeCategory === 'view') {
-        const trimmedDefaultHomeTeam = defaultHomeTeam.trim();
-        await updateSettings(MATCHES_SETTINGS_KEY, {
-          columnCount,
-          listViewMode,
-          defaultHomeTeam: trimmedDefaultHomeTeam,
-        });
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(MATCHES_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
-          window.sessionStorage.setItem(MATCHES_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
-        }
-        persistMatchListViewModeSession(listViewMode);
-        setInitialColumnCount(columnCount);
-        setInitialListViewMode(listViewMode);
-        setDefaultHomeTeam(trimmedDefaultHomeTeam);
-        setInitialDefaultHomeTeam(trimmedDefaultHomeTeam);
-      } else {
-        const payload: Record<string, string> = {
-          apiBaseUrl: apiBaseUrl.trim() || DEFAULT_API_BASE_URL,
-        };
-        if (apiKey.trim() && !apiKey.startsWith('••••')) {
-          payload.apiKey = apiKey.trim();
-        }
-        await updateSettings(MATCHES_SETTINGS_KEY, payload);
-        setInitialApiBaseUrl(payload.apiBaseUrl);
-        if (payload.apiKey) {
-          setHasStoredApiKey(true);
-          setApiKey(MASKED_API_KEY);
-        }
+      const payload: Record<string, string> = {
+        apiBaseUrl: apiBaseUrl.trim() || DEFAULT_API_BASE_URL,
+        defaultHomeTeam: defaultHomeTeam.trim(),
+      };
+      if (apiKey.trim() && !apiKey.startsWith('••••')) {
+        payload.apiKey = apiKey.trim();
+      }
+      await updateSettings(MATCHES_SETTINGS_KEY, payload);
+      setInitialApiBaseUrl(payload.apiBaseUrl);
+      setInitialDefaultHomeTeam(payload.defaultHomeTeam);
+      if (payload.apiKey) {
+        setHasStoredApiKey(true);
+        setApiKey(MASKED_API_KEY);
       }
     } catch (error) {
       console.error('Failed to save matches settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [
-    activeCategory,
-    apiBaseUrl,
-    apiKey,
-    columnCount,
-    defaultHomeTeam,
-    listViewMode,
-    updateSettings,
-  ]);
+  }, [apiBaseUrl, apiKey, defaultHomeTeam, updateSettings]);
 
   const handleImport = useCallback(async () => {
     setIsImporting(true);
@@ -236,61 +178,9 @@ export function MatchSettingsView({
         ) : null
       }
     >
-      {activeCategory === 'view' && (
-        <>
-          <DetailSection title={t('common.defaultListView')} className="pt-0">
-            <div className="flex flex-wrap items-center gap-2">
-              {VIEW_MODE_OPTIONS.map((mode) => {
-                const isActive = listViewMode === mode;
-                return (
-                  <Button
-                    key={mode}
-                    variant="ghost"
-                    onClick={() => setListViewMode(mode)}
-                    className={cn(
-                      'h-9 text-xs px-3 rounded-lg font-medium',
-                      isActive
-                        ? 'bg-primary/10 text-primary border border-primary'
-                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                    )}
-                    aria-label={mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
-                    aria-pressed={isActive}
-                  >
-                    {mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
-                  </Button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">{t('common.listViewHelp')}</p>
-          </DetailSection>
-          {listViewMode === 'cards' ? (
-            <DetailSection title={t('matches.defaultColumns')}>
-              <div className="flex flex-wrap items-center gap-2">
-                {COLUMN_OPTIONS.map((count) => {
-                  const isActive = columnCount === count;
-                  return (
-                    <Button
-                      key={count}
-                      variant="ghost"
-                      onClick={() => setColumnCount(count)}
-                      className={cn(
-                        'h-9 min-w-9 text-xs px-3 rounded-lg font-medium',
-                        isActive
-                          ? 'bg-primary/10 text-primary border border-primary'
-                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                      )}
-                      aria-label={t(`matches.columns${count}`)}
-                      aria-pressed={isActive}
-                    >
-                      {count}
-                    </Button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{t('matches.columnsHelp')}</p>
-            </DetailSection>
-          ) : null}
-          <DetailSection title={t('matches.defaultHomeTeam')}>
+      {activeCategory === 'api' && (
+        <DetailSection title={t('matches.apiSettings')} className="pt-0">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="matches-default-home-team">{t('matches.defaultHomeTeamLabel')}</Label>
               <Input
@@ -302,13 +192,6 @@ export function MatchSettingsView({
               />
               <p className="text-sm text-muted-foreground">{t('matches.defaultHomeTeamHelp')}</p>
             </div>
-          </DetailSection>
-        </>
-      )}
-
-      {activeCategory === 'api' && (
-        <DetailSection title={t('matches.apiSettings')} className="pt-0">
-          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="matches-api-base-url">{t('matches.apiBaseUrl')}</Label>
               <Input

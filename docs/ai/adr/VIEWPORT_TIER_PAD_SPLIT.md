@@ -20,8 +20,8 @@ UI/UX design (etapp 1) requires three surfaces: phone (&lt;768), pad (768–1023
 5. **List display overrides** (`effectiveListViewMode.ts`) take `ViewportTier`:
    - phone: cards, 1 grid column, card content as column-2
    - pad: cards, clamp grid columns to max 2; card content follows clamped count
-   - desktop: persisted preference
-6. **`ListColumnLayoutToggle`:** hidden on phone; pad shows **1 | 2** only; desktop shows **1 | 2 | 3 | table**.
+   - desktop: persisted preference (`columnCount` = **3** for cards); when quick context is open, display **2** columns (preference unchanged)
+6. **`ListColumnLayoutToggle`:** hidden on phone and pad; desktop shows **3 | table** only (selecting cards always persists `columnCount: 3`).
 7. **`MobileBottomBar`:** remains phone-only (`md:hidden`).
 
 ## Consequences

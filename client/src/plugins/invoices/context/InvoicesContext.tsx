@@ -26,6 +26,16 @@ export interface Invoice {
   totalDiscount?: number;
 }
 
+export interface InvoiceShare {
+  id: string;
+  invoiceId: string;
+  shareToken: string;
+  validUntil: string;
+  createdAt: string;
+  accessedCount: number;
+  lastAccessedAt?: string;
+}
+
 export interface InvoicesContextType {
   isInvoicesPanelOpen: boolean;
   currentInvoice: Invoice | null;
@@ -48,8 +58,25 @@ export interface InvoicesContextType {
   selectedCount: number;
   isSelected: (id: string) => boolean;
   clearValidationErrors: () => void;
+  getPanelTitle: (mode: string, item: Invoice | null) => React.ReactNode;
   getPanelSubtitle: (mode: string, item: Invoice | null) => any;
   getDeleteMessage: (item: Invoice | null) => string;
+  invoiceShare: InvoiceShare | null;
+  isCreatingInvoiceShare: boolean;
+  showCreateInvoiceShareModal: boolean;
+  setShowCreateInvoiceShareModal: (show: boolean) => void;
+  showInvoiceShareDialog: boolean;
+  setShowInvoiceShareDialog: (show: boolean) => void;
+  shareValidUntil: string;
+  setShareValidUntil: (value: string) => void;
+  openCreateInvoiceShare: () => void;
+  openInvoiceShareForItem: (invoice: Invoice) => Promise<void>;
+  openInvoiceShareDialog: () => void;
+  handleCreateInvoiceShare: () => Promise<void>;
+  handleCopyInvoiceShareUrl: () => void;
+  handleRevokeInvoiceShare: () => Promise<void>;
+  /** Invoice used for share create/dialog when opened from list quick context. */
+  shareTargetInvoice: Invoice | null;
   getDuplicateConfig: (
     item: Invoice | null,
   ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
@@ -99,8 +126,24 @@ const EMPTY_INVOICES_CONTEXT: InvoicesContextType = {
   selectedCount: 0,
   isSelected: () => false,
   clearValidationErrors: () => {},
+  getPanelTitle: () => null,
   getPanelSubtitle: () => '',
   getDeleteMessage: () => '',
+  invoiceShare: null,
+  isCreatingInvoiceShare: false,
+  showCreateInvoiceShareModal: false,
+  setShowCreateInvoiceShareModal: () => {},
+  showInvoiceShareDialog: false,
+  setShowInvoiceShareDialog: () => {},
+  shareValidUntil: '',
+  setShareValidUntil: () => {},
+  openCreateInvoiceShare: () => {},
+  openInvoiceShareForItem: async () => {},
+  openInvoiceShareDialog: () => {},
+  handleCreateInvoiceShare: async () => {},
+  handleCopyInvoiceShareUrl: () => {},
+  handleRevokeInvoiceShare: async () => {},
+  shareTargetInvoice: null,
   getDuplicateConfig: () => null,
   executeDuplicate: async () => ({ closePanel: () => {} }),
   recentlyDuplicatedInvoiceId: null,

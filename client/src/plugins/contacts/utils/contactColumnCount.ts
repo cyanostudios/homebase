@@ -7,7 +7,7 @@ export function isContactColumnCount(value: unknown): value is ContactColumnCoun
   return value === 1 || value === 2 || value === 3;
 }
 
-/** Prefer columnCount; migrate legacy viewMode (grid→3, list→1). Default 1. */
+/** Prefer columnCount; migrate legacy viewMode (grid→3, list→1). Default 3. */
 export function resolveContactColumnCount(
   settings:
     | {
@@ -29,7 +29,10 @@ export function resolveContactColumnCount(
   if (settings?.viewMode === 'grid') {
     return 3;
   }
-  return 1;
+  if (settings?.viewMode === 'list') {
+    return 1;
+  }
+  return 3;
 }
 
 export function parseStoredContactColumnCount(raw: string | null): ContactColumnCount | null {
@@ -42,7 +45,7 @@ export function parseStoredContactColumnCount(raw: string | null): ContactColumn
 
 export function getInitialContactColumnCount(): ContactColumnCount {
   if (typeof window === 'undefined') {
-    return 1;
+    return 3;
   }
   const fromColumn = parseStoredContactColumnCount(
     window.sessionStorage.getItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY),
@@ -54,5 +57,8 @@ export function getInitialContactColumnCount(): ContactColumnCount {
   if (legacy === 'grid') {
     return 3;
   }
-  return 1;
+  if (legacy === 'list') {
+    return 1;
+  }
+  return 3;
 }

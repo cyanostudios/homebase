@@ -1,9 +1,13 @@
 import {
+  AlertCircle,
+  BadgeCheck,
   CheckSquare,
   ArrowDown,
   ArrowUp,
+  FileEdit,
   FileSpreadsheet,
   FileText,
+  LayoutGrid,
   Plus,
   Trash2,
   XCircle,
@@ -12,6 +16,8 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -28,14 +34,20 @@ import {
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -72,7 +84,13 @@ import {
 import { InvoiceListItem } from './InvoiceListItem';
 import { InvoiceListTable } from './InvoiceListTable';
 import { InvoiceQuickContextPanel } from './InvoiceQuickContextPanel';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 
 type SortField = InvoiceSortField;
 type SortOrder = InvoiceSortOrder;
@@ -114,6 +132,12 @@ export function InvoicesList() {
 
   const [currentPage, setCurrentPage] = useState<string>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
+  useRegisterMobileSearch({
+    value: searchTerm,
+    onChange: setSearchTerm,
+    placeholder: t('invoices.searchPlaceholder', { defaultValue: 'Search invoices…' }),
+  });
+  const [selectionMode, setSelectionMode] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [primarySort, setPrimarySort] = useState<SortField>('createdAt');
@@ -156,10 +180,14 @@ export function InvoicesList() {
         if (cancelled) {
           return;
         }
-        const next = resolveInvoiceColumnCount(settings);
+        const resolved = resolveInvoiceColumnCount(settings);
+        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as InvoiceColumnCount;
         setColumnCountState(next);
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(INVOICES_COLUMN_COUNT_STORAGE_KEY, String(next));
+        }
+        if (next !== resolved) {
+          updateSettings(INVOICES_SETTINGS_KEY, { columnCount: next }).catch(() => {});
         }
         const nextView = resolveInvoiceListViewMode(settings);
         setListViewModeState(nextView);
@@ -172,14 +200,15 @@ export function InvoicesList() {
   }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback(
-    (count: InvoiceColumnCount) => {
-      setColumnCountState(count);
+    (_count: InvoiceColumnCount) => {
+      const next = 3 as InvoiceColumnCount;
+      setColumnCountState(next);
       setListViewModeState('cards');
       persistInvoiceListViewModeSession('cards');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(INVOICES_COLUMN_COUNT_STORAGE_KEY, String(count));
+        window.sessionStorage.setItem(INVOICES_COLUMN_COUNT_STORAGE_KEY, String(next));
       }
-      updateSettings(INVOICES_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+      updateSettings(INVOICES_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
         () => {},
       );
     },
@@ -214,8 +243,6 @@ export function InvoicesList() {
   );
 
   const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const sortedInvoices = useMemo(() => {
     const byFilter = invoices.filter((invoice) =>
@@ -363,13 +390,60 @@ export function InvoicesList() {
     getItemId: (invoice) => String(invoice.id),
   });
 
+  const quickContextOpen = Boolean(showQuickContext && previewInvoice);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
+
   const handleOpenForView = (invoice: Invoice) => {
     markPendingAndOpen(invoice, () => attemptNavigation(() => openInvoiceForView(invoice)));
   };
 
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearInvoiceSelection();
+    setSelectionMode(false);
+  };
+
   const handleRowActivate = (invoice: Invoice) => {
+    if (selectionMode) {
+      toggleInvoiceSelected(String(invoice.id));
+      return;
+    }
     activateRow(invoice, (item) => attemptNavigation(() => openInvoiceForView(item)));
   };
+
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    const disabled = selectedCount === 0;
+    return [
+      {
+        key: 'csv',
+        label: t('common.exportCsv'),
+        icon: FileSpreadsheet,
+        disabled,
+        onClick: handleExportCSV,
+      },
+      {
+        key: 'pdf',
+        label: t('common.exportPdf'),
+        icon: FileText,
+        disabled,
+        onClick: () => {
+          void handleExportPDF();
+        },
+      },
+      {
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      },
+    ];
+  }, [selectedCount, t, handleExportCSV, handleExportPDF]);
 
   const handleSubNavClick = (page: string) => {
     attemptNavigation(() => {
@@ -383,53 +457,169 @@ export function InvoicesList() {
   };
 
   return (
-    <div className="plugin-invoices min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.invoices')}</h2>
-            <p className="text-sm text-muted-foreground">{t('invoices.listDescription')}</p>
+    <div className={cn('plugin-invoices', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.invoices')}</h2>
+                  {sortedInvoices.length > 0 ? (
+                    selectionMode ? (
+                      <ExpandableIconButton
+                        icon={XCircle}
+                        label={t('common.clear')}
+                        variant="danger"
+                        alwaysExpanded
+                        onClick={handleExitSelectionMode}
+                      />
+                    ) : (
+                      <ExpandableIconButton
+                        icon={CheckSquare}
+                        label={t('common.select')}
+                        variant="soft"
+                        alwaysExpanded
+                        onClick={handleEnterSelectionMode}
+                      />
+                    )
+                  ) : null}
+                </div>
+              </div>
+              {selectionMode ? (
+                <BulkActionRoundBar
+                  selectedCount={selectedCount}
+                  actions={bulkRoundActions}
+                  className="gap-2"
+                />
+              ) : null}
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t('invoices.searchPlaceholder', { defaultValue: 'Search invoices…' })}
+              />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => `${count} columns`}
+                tableAriaLabel={t('common.tableView', { defaultValue: 'Table view' })}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('invoices.addInvoice')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => attemptNavigation(() => openInvoicesPanel(null))}
+              />
+            </div>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Plus}
-            className="h-9 flex-1 md:flex-initial px-3 text-xs"
-            onClick={() => attemptNavigation(() => openInvoicesPanel(null))}
-          >
-            {t('invoices.addInvoice')}
-          </Button>
         </div>
 
-        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
-          <ListFilterStatCard
-            label="Total"
-            value={stats.total}
-            dotClassName="bg-blue-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label="Draft"
-            value={stats.draft}
-            dotClassName="bg-slate-500"
-            active={isFilterActive('draft')}
-            onClick={() => toggleFilter('draft')}
-          />
-          <ListFilterStatCard
-            label="Paid"
-            value={stats.paid}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('paid')}
-            onClick={() => toggleFilter('paid')}
-          />
-          <ListFilterStatCard
-            label="Overdue"
-            value={stats.overdue}
-            dotClassName="bg-rose-500"
-            active={isFilterActive('overdue')}
-            onClick={() => toggleFilter('overdue')}
-          />
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFilters([])}
+              className={cn(
+                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                Total <span className="tabular-nums font-semibold">({stats.total})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('draft')}
+              className={cn(
+                isFilterActive('draft') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <FileEdit className="h-3.5 w-3.5" />
+              <span>
+                Draft <span className="tabular-nums font-semibold">({stats.draft})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('paid')}
+              className={cn(
+                isFilterActive('paid') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <BadgeCheck className="h-3.5 w-3.5" />
+              <span>
+                Paid <span className="tabular-nums font-semibold">({stats.paid})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('overdue')}
+              className={cn(
+                isFilterActive('overdue') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <AlertCircle className="h-3.5 w-3.5" />
+              <span>
+                Overdue <span className="tabular-nums font-semibold">({stats.overdue})</span>
+              </span>
+            </Button>
+          </div>
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label="Sort by"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
 
         {invoicesNavigation.submenu && (
@@ -470,130 +660,6 @@ export function InvoicesList() {
         />
 
         <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={sortedInvoices.length > 0}
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={handleHeaderCheckboxChange}
-              >
-                Select all
-              </Button>
-            }
-            search={
-              <ListSearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('invoices.searchPlaceholder', { defaultValue: 'Search invoices…' })}
-              />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => `${count} columns`}
-                  tableAriaLabel={t('common.tableView', { defaultValue: 'Table view' })}
-                />
-              </>
-            }
-            bulkActions={
-              <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-3 text-xs hover:bg-primary/10 hover:text-primary"
-                  icon={FileSpreadsheet}
-                  onClick={handleExportCSV}
-                >
-                  {t('common.exportCsv')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-3 text-xs hover:bg-primary/10 hover:text-primary"
-                  icon={FileText}
-                  onClick={handleExportPDF}
-                >
-                  {t('common.exportPdf')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                >
-                  {t('common.delete')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-3 text-xs text-destructive hover:bg-destructive/10"
-                  icon={XCircle}
-                  onClick={clearInvoiceSelection}
-                >
-                  {t('common.clearSelection', { defaultValue: 'Clear' })}
-                </Button>
-              </>
-            }
-          />
-
           {sortedInvoices.length === 0 ? (
             <ListEmptyState
               message={
@@ -611,9 +677,14 @@ export function InvoicesList() {
               }
             />
           ) : (
-            <div className="flex items-start gap-4">
+            <div
+              className={cn(
+                'grid items-start gap-4',
+                showQuickContext && previewInvoice ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+              )}
+            >
               {showQuickContext && previewInvoice ? (
-                <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
+                <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
                   <InvoiceQuickContextPanel
                     invoice={previewInvoice}
                     onClose={() => setPreviewInvoice(null)}
@@ -626,7 +697,7 @@ export function InvoicesList() {
                   />
                 </aside>
               ) : null}
-              <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <div className="flex min-w-0 flex-col gap-3">
                 {isTableView ? (
                   <InvoiceListTable
                     invoices={sortedInvoices}
@@ -641,6 +712,7 @@ export function InvoicesList() {
                     onHeaderCheckboxChange={handleHeaderCheckboxChange}
                     recentlyDuplicatedInvoiceId={recentlyDuplicatedInvoiceId}
                     activeInvoiceId={previewInvoice?.id ?? null}
+                    selectionEnabled={selectionMode}
                   />
                 ) : (
                   <div
@@ -663,19 +735,21 @@ export function InvoicesList() {
                         columnCount={effectiveCardColumnCount}
                         onClick={() => handleRowActivate(invoice)}
                         checkbox={
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4"
-                            checked={isSelected(String(invoice.id))}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onChange={() => onVisibleRowCheckboxChange(String(invoice.id))}
-                            onClick={(e) => e.stopPropagation()}
-                            aria-label={
-                              isSelected(String(invoice.id))
-                                ? t('common.unselectRow')
-                                : t('common.selectRow')
-                            }
-                          />
+                          selectionMode ? (
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={isSelected(String(invoice.id))}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(String(invoice.id))}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={
+                                isSelected(String(invoice.id))
+                                  ? t('common.unselectRow')
+                                  : t('common.selectRow')
+                              }
+                            />
+                          ) : undefined
                         }
                       />
                     ))}

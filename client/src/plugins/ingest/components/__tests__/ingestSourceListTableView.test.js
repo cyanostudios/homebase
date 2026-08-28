@@ -5,11 +5,13 @@ const listSrc = fs.readFileSync(path.join(__dirname, '../IngestSourceList.tsx'),
 const tableSrc = fs.readFileSync(path.join(__dirname, '../IngestSourceListTable.tsx'), 'utf8');
 
 describe('IngestSourceList table view wiring', () => {
-  test('toolbar includes table mode control and hides sort dropdown in table mode', () => {
+  test('toolbar uses ListColumnLayoutToggle and always-visible sort row', () => {
     expect(listSrc).toMatch(/setListViewMode\('table'\)|onSelectTable/);
     expect(listSrc).toMatch(/ListColumnLayoutToggle/);
-    expect(listSrc).toMatch(/!isTableView/);
+    expect(listSrc).toMatch(/aria-label="Sort by"/);
+    expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
     expect(listSrc).toMatch(/IngestSourceListTable/);
+    expect(listSrc).not.toMatch(/!isTableView/);
   });
 
   test('table uses SortableListTable with expected columns', () => {
@@ -19,6 +21,6 @@ describe('IngestSourceList table view wiring', () => {
     expect(tableSrc).toMatch(/field: 'isActive'/);
     expect(tableSrc).toMatch(/field: 'lastFetchStatus'/);
     expect(tableSrc).toMatch(/field: 'lastFetchedAt'/);
-    expect(tableSrc).toMatch(/field: 'updatedAt'/);
+    expect(tableSrc).not.toMatch(/field: 'updatedAt'/);
   });
 });

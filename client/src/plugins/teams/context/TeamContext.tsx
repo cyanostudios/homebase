@@ -38,7 +38,7 @@ export type TeamsContextType = {
 
   clearValidationErrors: () => void;
   getDeleteMessage: (item: Team | null) => string;
-  getPanelTitle: (mode: string, item: Team | null) => string;
+  getPanelTitle: (mode: string, item: Team | null) => React.ReactNode;
   getPanelSubtitle: (mode: string, item: Team | null) => React.ReactNode;
 
   getDuplicateConfig: (

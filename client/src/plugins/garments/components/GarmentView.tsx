@@ -1,45 +1,41 @@
-import {
-  Copy,
-  Edit,
-  Info,
-  Layers,
-  Share2,
-  SlidersHorizontal,
-  Trash2,
-  Upload,
-  Users,
-  Zap,
-} from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { Edit, Layers, SlidersHorizontal, Users } from 'lucide-react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import {
   DETAIL_FIELD_LABEL_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
-  DETAIL_INFO_ROW_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_PROP_ROW_CLASS,
-  DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { formatDate } from '@/core/utils/dateFormat';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
+import { SeriesTeamBadge } from '@/plugins/teams/components/ResponsibleRow';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import {
+  SERIES_TEAM_BADGE_NEUTRAL_STYLE,
+  TEAM_COLORS,
+  TEAM_HEADER_BADGE_CLASS,
+  type TeamColor,
+} from '@/plugins/teams/types/teams';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useGarments } from '../hooks/useGarments';
 import type { GarmentList, InventoryItem } from '../types/garments';
 import { findDuplicateVariantIndices } from '../utils/inventoryValidation';
+import {
+  VARIANT_LIST_ROW_CLASS,
+  VARIANT_WARNING_DOT_CLASS,
+  VARIANT_WARNING_DOT_PLACEHOLDER_CLASS,
+} from '../utils/variantListStyles';
 
-import { GarmentPersonImportDialog } from './GarmentPersonImportDialog';
 import { GarmentShareBlock } from './GarmentShareBlock';
+import { InventoryListAssignmentCheckboxes } from './InventoryListAssignmentCheckboxes';
 import { VariantQuantityEditor } from './InventoryQuickContextPanel';
 import { PersonMatrix } from './PersonMatrix';
 
@@ -65,19 +61,7 @@ function formatPurchasePrice(price: number | null | undefined, currency: string)
 
 function InventoryDetailView({ item }: { item: InventoryItem }) {
   const { t } = useTranslation();
-  const {
-    openInventoryForEdit,
-    deleteInventoryItem,
-    getDeleteMessage,
-    updateInventoryVariantQuantity,
-    isSaving,
-    getDuplicateConfig,
-    executeDuplicate,
-    setRecentlyDuplicatedInventoryId,
-  } = useGarments();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-  const canDuplicate = Boolean(getDuplicateConfig(item));
+  const { openInventoryForEdit, updateInventoryVariantQuantity, isSaving } = useGarments();
 
   const description = item.description?.trim() || '';
   const comment = item.comment?.trim() || '';
@@ -116,218 +100,129 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
   ];
 
   return (
-    <>
-      <DetailLayout
-        gridClassName="grid-cols-1 lg:grid-cols-[1.3fr_1fr_260px]"
-        leftSidebar={
-          <div className="space-y-4">
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <div className="border-b border-border/50 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-sm font-semibold text-rose-800 dark:bg-rose-950/50 dark:text-rose-200"
-                    aria-hidden
-                  >
-                    {(item.articleName || '—').trim().slice(0, 2).toUpperCase()}
-                  </div>
-                  <h2 className={cn('min-w-0 flex-1', PLUGIN_PAGE_TITLE_CLASS)}>
-                    {item.articleName || '—'}
-                  </h2>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={Edit}
-                    className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
-                    onClick={() => openInventoryForEdit(item)}
-                    aria-label={t('common.edit')}
-                    title={t('common.edit')}
-                  />
+    <DetailLayout
+      gridClassName="grid-cols-1 lg:grid-cols-2"
+      leftSidebar={
+        <div className="space-y-4">
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <div className="border-b border-border/50 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-sm font-semibold text-rose-800 dark:bg-rose-950/50 dark:text-rose-200"
+                  aria-hidden
+                >
+                  {(item.articleName || '—').trim().slice(0, 2).toUpperCase()}
                 </div>
+                <h2 className={cn('min-w-0 flex-1', PLUGIN_PAGE_TITLE_CLASS)}>
+                  {item.articleName || '—'}
+                </h2>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={Edit}
+                  className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
+                  onClick={() => openInventoryForEdit(item)}
+                  aria-label={t('common.edit')}
+                  title={t('common.edit')}
+                />
               </div>
-              <DetailSection
-                title={t('garments.details')}
-                icon={SlidersHorizontal}
-                subtleTitle
-                className="p-4"
-              >
-                <div className="space-y-4">
-                  <div className="space-y-0">
-                    {propertyRows.map((row) => (
-                      <div key={row.label} className={DETAIL_PROP_ROW_CLASS}>
-                        <span className="text-sm text-slate-500 dark:text-slate-400">
-                          {row.label}
-                        </span>
-                        <span className={cn(DETAIL_FIELD_VALUE_CLASS, 'sm:text-right')}>
-                          {row.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {description ? (
-                    <div>
-                      <div className={DETAIL_FIELD_LABEL_CLASS}>{t('garments.description')}</div>
-                      <p className="whitespace-pre-wrap text-sm text-foreground">{description}</p>
+            </div>
+            <DetailSection
+              title={t('garments.details')}
+              icon={SlidersHorizontal}
+              subtleTitle
+              className="p-4"
+            >
+              <div className="space-y-4">
+                <div className="space-y-0">
+                  {propertyRows.map((row) => (
+                    <div key={row.label} className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {row.label}
+                      </span>
+                      <span className={cn(DETAIL_FIELD_VALUE_CLASS, 'sm:text-right')}>
+                        {row.value}
+                      </span>
                     </div>
-                  ) : null}
-                  {comment ? (
-                    <div>
-                      <div className={DETAIL_FIELD_LABEL_CLASS}>{t('garments.comment')}</div>
-                      <div className={DETAIL_NOTE_CALLOUT_CLASS}>
-                        <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
-                          {comment}
-                        </p>
-                      </div>
+                  ))}
+                </div>
+                {description ? (
+                  <div>
+                    <div className={DETAIL_FIELD_LABEL_CLASS}>{t('garments.description')}</div>
+                    <p className="whitespace-pre-wrap text-sm text-foreground">{description}</p>
+                  </div>
+                ) : null}
+                {comment ? (
+                  <div>
+                    <div className={DETAIL_FIELD_LABEL_CLASS}>{t('garments.comment')}</div>
+                    <div className={DETAIL_NOTE_CALLOUT_CLASS}>
+                      <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
+                        {comment}
+                      </p>
                     </div>
-                  ) : null}
-                </div>
-              </DetailSection>
-            </Card>
-          </div>
-        }
-        sidebar={
-          <div className="space-y-4">
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('garments.quickActions')}
-                icon={Zap}
-                iconPlugin="garments"
-                subtleTitle
-                className="p-4"
-              >
-                <div className="flex flex-col items-start gap-1.5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={(props) => (
-                      <Edit
-                        {...props}
-                        className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
-                      />
-                    )}
-                    className={cn(DETAIL_QUICK_ACTION_ROW_CLASS)}
-                    onClick={() => openInventoryForEdit(item)}
-                  >
-                    {t('common.edit')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={(props) => (
-                      <Trash2
-                        {...props}
-                        className={cn(props.className, 'text-red-600 dark:text-red-400')}
-                      />
-                    )}
-                    className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    {t('common.delete')}
-                  </Button>
-                  {canDuplicate ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      icon={(props) => (
-                        <Copy
-                          {...props}
-                          className={cn(props.className, 'text-green-600 dark:text-green-400')}
-                        />
-                      )}
-                      className={DETAIL_QUICK_ACTION_ROW_CLASS}
-                      onClick={() => setShowDuplicateDialog(true)}
-                    >
-                      {t('common.duplicate')}
-                    </Button>
-                  ) : null}
-                </div>
-              </DetailSection>
-            </Card>
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('garments.information')}
-                icon={Info}
-                subtleTitle
-                className="p-4"
-                collapsible
-              >
-                <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDisplayNumber('garments', item.id)}
-                    </span>
                   </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('common.created')}
-                    </span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDate(item.createdAt)}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('common.updated')}
-                    </span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDate(item.updatedAt)}
-                    </span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-          </div>
-        }
-      >
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection title={t('garments.variants')} icon={Layers} subtleTitle className="p-6">
-            {variants.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('garments.noVariantsYet')}</p>
-            ) : (
-              <div className="space-y-2">
-                {duplicateVariantIndices.identity.size > 0 ? (
-                  <p className="text-sm text-destructive">
-                    {t('garments.variantIdentityDuplicateWarning')}
-                  </p>
                 ) : null}
-                {duplicateVariantIndices.sku.size > 0 ? (
-                  <p className="text-sm text-destructive">
-                    {t('garments.variantSkuDuplicateWarning')}
-                  </p>
-                ) : null}
-                {variants.map((row, index) => {
-                  const rowDup = duplicateVariantIndices.any.has(index);
-                  const label =
-                    [row.audience?.trim(), row.color?.trim(), row.size?.trim()]
-                      .filter(Boolean)
-                      .join(' · ') ||
-                    row.sku?.trim() ||
-                    '—';
-                  return (
-                    <div
-                      key={row.id}
-                      className={cn(
-                        'flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5',
-                        rowDup ? 'border-destructive' : 'border-border/50',
-                      )}
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-foreground">{label}</div>
-                        {row.sku?.trim() ? (
-                          <div
+              </div>
+            </DetailSection>
+          </Card>
+          <InventoryListAssignmentCheckboxes itemId={item.id} />
+        </div>
+      }
+    >
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('garments.variants')}
+          icon={Layers}
+          subtleTitle
+          className="p-4 sm:p-5"
+        >
+          {variants.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t('garments.noVariantsYet')}</p>
+          ) : (
+            <div className="space-y-1">
+              {duplicateVariantIndices.identity.size > 0 ? (
+                <p className="text-sm text-destructive">
+                  {t('garments.variantIdentityDuplicateWarning')}
+                </p>
+              ) : null}
+              {duplicateVariantIndices.sku.size > 0 ? (
+                <p className="text-sm text-destructive">
+                  {t('garments.variantSkuDuplicateWarning')}
+                </p>
+              ) : null}
+              {variants.map((row, index) => {
+                const rowDup = duplicateVariantIndices.any.has(index);
+                const label =
+                  [row.audience?.trim(), row.color?.trim(), row.size?.trim()]
+                    .filter(Boolean)
+                    .join(' · ') ||
+                  row.sku?.trim() ||
+                  '—';
+                const sku = row.sku?.trim() || '';
+                const showSkuSuffix = sku && label !== sku;
+                return (
+                  <div key={row.id} className={VARIANT_LIST_ROW_CLASS}>
+                    <span
+                      className={
+                        rowDup ? VARIANT_WARNING_DOT_CLASS : VARIANT_WARNING_DOT_PLACEHOLDER_CLASS
+                      }
+                      aria-hidden={!rowDup}
+                      title={rowDup ? t('garments.variantIdentityDuplicateWarning') : undefined}
+                    />
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <div className="min-w-0 flex-1 truncate text-xs">
+                        <span className="font-semibold text-foreground">{label}</span>
+                        {showSkuSuffix ? (
+                          <span
                             className={cn(
-                              'truncate text-xs',
-                              duplicateVariantIndices.sku.has(index)
-                                ? 'text-destructive'
-                                : 'text-muted-foreground',
+                              'text-muted-foreground',
+                              duplicateVariantIndices.sku.has(index) && 'text-destructive',
                             )}
                           >
-                            {row.sku}
-                          </div>
+                            {' · '}
+                            {sku}
+                          </span>
                         ) : null}
                       </div>
                       <VariantQuantityEditor
@@ -338,71 +233,21 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
                         }}
                       />
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </DetailSection>
-        </Card>
-      </DetailLayout>
-
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title={t('dialog.deleteItem', { label: t('garments.inventoryItem') })}
-        message={getDeleteMessage(item)}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={() => {
-          void deleteInventoryItem(item.id);
-          setShowDeleteConfirm(false);
-        }}
-        onCancel={() => setShowDeleteConfirm(false)}
-        variant="danger"
-      />
-
-      <DuplicateDialog
-        isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
-          executeDuplicate(item, newName)
-            .then(({ closePanel, highlightId }) => {
-              closePanel();
-              if (highlightId) {
-                setRecentlyDuplicatedInventoryId(highlightId);
-              }
-              setShowDuplicateDialog(false);
-            })
-            .catch(() => {
-              setShowDuplicateDialog(false);
-            });
-        }}
-        onCancel={() => setShowDuplicateDialog(false)}
-        defaultName={getDuplicateConfig(item)?.defaultName ?? ''}
-        nameLabel={getDuplicateConfig(item)?.nameLabel ?? t('garments.articleName')}
-        confirmOnly={Boolean(getDuplicateConfig(item)?.confirmOnly)}
-      />
-    </>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </DetailSection>
+      </Card>
+    </DetailLayout>
   );
 }
 
 export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
   const { t } = useTranslation();
-  const {
-    panelKind,
-    currentInventoryItem,
-    openGarmentForEdit,
-    deleteGarment,
-    getDeleteMessage,
-    handleGarmentShareClick,
-    garmentShareIsCreatingShare,
-    getDuplicateConfig,
-    executeDuplicate,
-    setRecentlyDuplicatedListId,
-    importPersons,
-  } = useGarments();
+  const { panelKind, currentInventoryItem } = useGarments();
   const { teams } = useTeams();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   if (panelKind === 'inventory') {
     if (!currentInventoryItem) {
@@ -416,209 +261,45 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
     return null;
   }
 
-  const canDuplicate = Boolean(getDuplicateConfig(list));
   const matchedTeam = list.teamId
     ? teams.find((team) => String(team.id) === String(list.teamId))
     : undefined;
-  const teamLabel = matchedTeam ? formatTeamLabel(matchedTeam) : list.teamId;
+  const teamColor: TeamColor | null =
+    matchedTeam?.color && TEAM_COLORS.includes(matchedTeam.color as TeamColor)
+      ? (matchedTeam.color as TeamColor)
+      : null;
+  const teamLabel = matchedTeam ? formatTeamLabel(matchedTeam) || matchedTeam.name : null;
+  const personCount = list.personCount ?? list.persons?.length ?? 0;
 
   return (
-    <>
-      <DetailLayout
-        sidebar={
-          <div className="space-y-4">
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('garments.quickActions')}
-                icon={Zap}
-                iconPlugin="garments"
-                subtleTitle
-                className="p-4"
+    <DetailLayout>
+      <div className="min-w-0 space-y-4">
+        <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'min-w-0 overflow-hidden')}>
+          <div className="border-b border-border/50 px-4 py-4 md:px-6">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0')}>{list.name || '—'}</h2>
+              {teamLabel ? (
+                <SeriesTeamBadge label={teamLabel} color={teamColor} size="header" />
+              ) : null}
+              <span
+                className={cn(
+                  'inline-flex flex-shrink-0 items-center gap-1.5 rounded-full font-medium',
+                  TEAM_HEADER_BADGE_CLASS,
+                  SERIES_TEAM_BADGE_NEUTRAL_STYLE,
+                )}
               >
-                <div className="flex flex-col items-start gap-1.5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={(props) => (
-                      <Edit
-                        {...props}
-                        className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
-                      />
-                    )}
-                    className={cn(DETAIL_QUICK_ACTION_ROW_CLASS)}
-                    onClick={() => openGarmentForEdit(list)}
-                  >
-                    {t('common.edit')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={(props) => (
-                      <Trash2
-                        {...props}
-                        className={cn(props.className, 'text-red-600 dark:text-red-400')}
-                      />
-                    )}
-                    className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    {t('common.delete')}
-                  </Button>
-                  {canDuplicate ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      icon={(props) => (
-                        <Copy
-                          {...props}
-                          className={cn(props.className, 'text-green-600 dark:text-green-400')}
-                        />
-                      )}
-                      className={DETAIL_QUICK_ACTION_ROW_CLASS}
-                      onClick={() => setShowDuplicateDialog(true)}
-                    >
-                      {t('common.duplicate')}
-                    </Button>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={(props) => (
-                      <Upload
-                        {...props}
-                        className={cn(props.className, 'text-emerald-600 dark:text-emerald-400')}
-                      />
-                    )}
-                    className={cn(DETAIL_QUICK_ACTION_ROW_CLASS)}
-                    onClick={() => setIsImportDialogOpen(true)}
-                  >
-                    {t('garments.importPersons')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={(props) => (
-                      <Share2
-                        {...props}
-                        className={cn(props.className, 'text-violet-600 dark:text-violet-400')}
-                      />
-                    )}
-                    className={cn(DETAIL_QUICK_ACTION_ROW_CLASS)}
-                    disabled={garmentShareIsCreatingShare}
-                    onClick={() => void handleGarmentShareClick(list)}
-                  >
-                    {garmentShareIsCreatingShare
-                      ? t('garments.creatingShare')
-                      : t('garments.shareList')}
-                  </Button>
-                </div>
-              </DetailSection>
-            </Card>
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('garments.information')}
-                icon={Info}
-                subtleTitle
-                className="p-4"
-                collapsible
-              >
-                <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDisplayNumber('garments', list.id)}
-                    </span>
-                  </div>
-                  {teamLabel ? (
-                    <div className={DETAIL_INFO_ROW_CLASS}>
-                      <span className="text-slate-500 dark:text-slate-400">
-                        {t('garments.team')}
-                      </span>
-                      <span className="font-extrabold text-foreground">{teamLabel}</span>
-                    </div>
-                  ) : null}
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('common.created')}
-                    </span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDate(list.createdAt)}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('common.updated')}
-                    </span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDate(list.updatedAt)}
-                    </span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <div className="border-b border-border/50 px-6 py-4">
-              <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{list.name || '—'}</h2>
+                <Users className="h-3.5 w-3.5" aria-hidden />
+                <span>{t('garments.personCount', { count: personCount })}</span>
+              </span>
             </div>
-            <DetailSection title={t('garments.persons')} icon={Users} subtleTitle className="p-6">
-              <PersonMatrix list={list} />
-            </DetailSection>
-          </Card>
+          </div>
+          <div className="min-w-0 p-4 md:p-6">
+            <PersonMatrix list={list} />
+          </div>
+        </Card>
 
-          <GarmentShareBlock list={list} />
-        </div>
-      </DetailLayout>
-
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title={t('dialog.deleteItem', { label: t('garments.list') })}
-        message={getDeleteMessage(list)}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={() => {
-          void deleteGarment(list.id);
-          setShowDeleteConfirm(false);
-        }}
-        onCancel={() => setShowDeleteConfirm(false)}
-        variant="danger"
-      />
-
-      <DuplicateDialog
-        isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
-          executeDuplicate(list, newName)
-            .then(({ closePanel, highlightId }) => {
-              closePanel();
-              if (highlightId) {
-                setRecentlyDuplicatedListId(highlightId);
-              }
-              setShowDuplicateDialog(false);
-            })
-            .catch(() => {
-              setShowDuplicateDialog(false);
-            });
-        }}
-        onCancel={() => setShowDuplicateDialog(false)}
-        defaultName={getDuplicateConfig(list)?.defaultName ?? ''}
-        nameLabel={getDuplicateConfig(list)?.nameLabel ?? t('garments.name')}
-        confirmOnly={Boolean(getDuplicateConfig(list)?.confirmOnly)}
-      />
-
-      <GarmentPersonImportDialog
-        isOpen={isImportDialogOpen}
-        onClose={() => setIsImportDialogOpen(false)}
-        listId={list.id}
-        onImportRows={importPersons}
-      />
-    </>
+        <GarmentShareBlock list={list} />
+      </div>
+    </DetailLayout>
   );
 };

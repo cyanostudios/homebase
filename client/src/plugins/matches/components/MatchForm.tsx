@@ -25,7 +25,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DateTimePicker } from '@/core/ui/DateTimePicker';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_FIELD_LABEL_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -317,8 +317,6 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
   );
 
   const formatOptions = getFormatsForSport(formData.sport_type);
-  const FIELD_LABEL_CLASS =
-    'text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5';
   const formSidebar = currentMatch ? (
     <div className="space-y-4">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -387,7 +385,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
               <div className="space-y-4">
                 {/* Name (own row) */}
                 <div>
-                  <Label htmlFor="match-name" className={FIELD_LABEL_CLASS}>
+                  <Label htmlFor="match-name" className={DETAIL_FIELD_LABEL_CLASS}>
                     {t('matches.nameLabel')}
                   </Label>
                   <Input
@@ -402,7 +400,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                 {/* Home / Away (same row) */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor="match-home" className={FIELD_LABEL_CLASS}>
+                    <Label htmlFor="match-home" className={DETAIL_FIELD_LABEL_CLASS}>
                       {t('matches.homeTeamLabel')}
                     </Label>
                     <Input
@@ -422,7 +420,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                     )}
                   </div>
                   <div>
-                    <Label htmlFor="match-away" className={FIELD_LABEL_CLASS}>
+                    <Label htmlFor="match-away" className={DETAIL_FIELD_LABEL_CLASS}>
                       {t('matches.awayTeamLabel')}
                     </Label>
                     <Input
@@ -446,7 +444,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                 {/* Number + Date time (same row) */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor="match-number" className={FIELD_LABEL_CLASS}>
+                    <Label htmlFor="match-number" className={DETAIL_FIELD_LABEL_CLASS}>
                       {t('matches.matchNumber')}
                     </Label>
                     <Input
@@ -461,7 +459,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                     />
                   </div>
                   <div>
-                    <Label htmlFor="match-time" className={FIELD_LABEL_CLASS}>
+                    <Label htmlFor="match-time" className={DETAIL_FIELD_LABEL_CLASS}>
                       {t('matches.dateTimePlaceholder')}
                     </Label>
                     <DateTimePicker
@@ -483,7 +481,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                 {/* Location + Map link (same row) */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor="match-location" className={FIELD_LABEL_CLASS}>
+                    <Label htmlFor="match-location" className={DETAIL_FIELD_LABEL_CLASS}>
                       {t('matches.locationLabel')}
                     </Label>
                     <Input
@@ -495,7 +493,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                     />
                   </div>
                   <div>
-                    <Label htmlFor="match-map-link" className={FIELD_LABEL_CLASS}>
+                    <Label htmlFor="match-map-link" className={DETAIL_FIELD_LABEL_CLASS}>
                       {t('matches.mapLink')}
                     </Label>
                     <Input
@@ -511,7 +509,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                 {/* Sport / Format / Minutes (same row) */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
-                    <Label className={FIELD_LABEL_CLASS}>{t('matches.sport')}</Label>
+                    <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.sport')}</Label>
                     <Select
                       value={formData.sport_type}
                       onValueChange={(v) => setSportType(v as SportType)}
@@ -529,7 +527,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                     </Select>
                   </div>
                   <div>
-                    <Label className={FIELD_LABEL_CLASS}>{t('matches.format')}</Label>
+                    <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.format')}</Label>
                     <Select
                       value={formData.format || '__none__'}
                       onValueChange={(v) => updateField('format', v === '__none__' ? '' : v)}
@@ -548,7 +546,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="match-minutes" className={FIELD_LABEL_CLASS}>
+                    <Label htmlFor="match-minutes" className={DETAIL_FIELD_LABEL_CLASS}>
                       {t('matches.minutes')}
                     </Label>
                     <Input
@@ -566,7 +564,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                 {/* Type / Referees / Future (same row) */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
-                    <Label className={FIELD_LABEL_CLASS}>{t('matches.matchType')}</Label>
+                    <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.matchType')}</Label>
                     <Select
                       value={formData.match_type || '__none__'}
                       onValueChange={(v) =>
@@ -588,7 +586,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="match-referees" className={FIELD_LABEL_CLASS}>
+                    <Label htmlFor="match-referees" className={DETAIL_FIELD_LABEL_CLASS}>
                       {t('matches.refereeCount')}
                     </Label>
                     <Input
@@ -607,7 +605,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                 {/* Competition / Result */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="sm:col-span-3">
-                    <Label htmlFor="match-competition" className={FIELD_LABEL_CLASS}>
+                    <Label htmlFor="match-competition" className={DETAIL_FIELD_LABEL_CLASS}>
                       {t('matches.competitionName')}
                     </Label>
                     <Input
@@ -618,7 +616,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                     />
                   </div>
                   <div className="sm:col-span-3">
-                    <Label className={FIELD_LABEL_CLASS}>{t('matches.result')}</Label>
+                    <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.result')}</Label>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label htmlFor="match-home-score" className="text-xs text-muted-foreground">
@@ -695,7 +693,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
 
                 {/* Contacts (last row) */}
                 <div>
-                  <Label className={FIELD_LABEL_CLASS}>{t('matches.contacts')}</Label>
+                  <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.contacts')}</Label>
                   <Select
                     value="__add__"
                     onValueChange={(v) => {

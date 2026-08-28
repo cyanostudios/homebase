@@ -1,4 +1,4 @@
-import { ExternalLink, File, FileText, Image as ImageIcon, Info } from 'lucide-react';
+import { ExternalLink, File, FileText, Image as ImageIcon } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,7 +6,6 @@ import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import type { FileItem } from '../types/files';
 
@@ -59,7 +58,6 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={t('files.viewInformation')}
-              icon={Info}
               iconPlugin="files"
               subtleTitle
               className="p-4"
@@ -90,26 +88,6 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
                     </a>
                   </div>
                 )}
-                <div className="mt-2 border-t border-border/50 pt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{t('files.viewId')}</span>
-                    <span className="font-mono font-medium opacity-70">
-                      {formatDisplayNumber('files', f.id)}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between">
-                    <span className="text-muted-foreground">{t('files.viewCreated')}</span>
-                    <span className="font-mono text-[10px] font-medium opacity-70">
-                      {f.createdAt ? new Date(f.createdAt).toLocaleDateString() : '—'}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between">
-                    <span className="text-muted-foreground">{t('files.viewUpdated')}</span>
-                    <span className="font-mono text-[10px] font-medium opacity-70">
-                      {f.updatedAt ? new Date(f.updatedAt).toLocaleDateString() : '—'}
-                    </span>
-                  </div>
-                </div>
               </div>
             </DetailSection>
           </Card>

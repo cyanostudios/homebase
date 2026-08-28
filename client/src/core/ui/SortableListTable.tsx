@@ -69,7 +69,7 @@ export function SortableListTable<TRow, TField extends string>({
   return (
     <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
       <Table rowBorders={false}>
-        <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
+        <TableHeader className="bg-primary/5">
           <TableRow>
             {effectiveSelection ? (
               <TableHead className="w-8 px-3 pr-1">
@@ -88,8 +88,8 @@ export function SortableListTable<TRow, TField extends string>({
                 <TableHead
                   key={col.field}
                   className={cn(
-                    'text-xs',
-                    sortable && 'cursor-pointer select-none hover:bg-muted/50',
+                    'text-xs font-black text-slate-400 dark:text-slate-500',
+                    sortable && 'cursor-pointer select-none hover:bg-primary/10',
                     col.className,
                   )}
                   onClick={sortable ? () => onSort(col.field) : undefined}
@@ -123,6 +123,7 @@ export function SortableListTable<TRow, TField extends string>({
               <TableRow
                 key={id}
                 className={cn(
+                  'group',
                   onRowClick && 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/80',
                   selected && 'bg-plugin-subtle ring-1 border-plugin-subtle',
                   active && 'bg-primary/5 ring-1 ring-primary/40',

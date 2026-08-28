@@ -58,6 +58,18 @@ export function translateCheckboxColumnLabel(
   t: TFunction,
   column: Pick<GarmentCheckboxColumn, 'id' | 'label'>,
 ): string {
+  const invMatch = column.id.match(/^inv_\d+_(ordered|delivered|handed_out)$/);
+  if (invMatch) {
+    const suffixMap: Record<string, string> = {
+      ordered: 'bestallt',
+      delivered: 'levererat',
+      handed_out: 'utdelat',
+    };
+    const statusKey = suffixMap[invMatch[1]];
+    if (statusKey) {
+      return t(`garments.columnStatus.${statusKey}`);
+    }
+  }
   const statusKey = STATUS_BY_COLUMN_ID[column.id] ?? STATUS_BY_LABEL[column.label];
   if (statusKey) {
     return t(`garments.columnStatus.${statusKey}`);

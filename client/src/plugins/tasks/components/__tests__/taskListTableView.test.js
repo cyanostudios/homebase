@@ -5,10 +5,14 @@ const listSrc = fs.readFileSync(path.join(__dirname, '../TaskList.tsx'), 'utf8')
 const tableSrc = fs.readFileSync(path.join(__dirname, '../TaskListTable.tsx'), 'utf8');
 
 describe('TaskList table view wiring', () => {
-  test('toolbar includes table mode control and hides sort dropdown in table mode', () => {
+  test('toolbar includes table mode control and always-visible sort row', () => {
     expect(listSrc).toMatch(/setListViewMode\('table'\)/);
     expect(listSrc).toMatch(/ListColumnLayoutToggle/);
-    expect(listSrc).toMatch(/!isTableView \? \(/);
+    expect(listSrc).toMatch(/aria-label="Sort by"/);
+    expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
+    expect(listSrc).toMatch(/TASK_LIST_FILTER_INITIAL/);
+    expect(listSrc).toMatch(/toggleFilter\('open'\)/);
+    expect(listSrc).not.toMatch(/ListFilterStatCard/);
     expect(listSrc).toMatch(/TaskListTable/);
   });
 
@@ -20,6 +24,6 @@ describe('TaskList table view wiring', () => {
     expect(tableSrc).toMatch(/field: 'status'/);
     expect(tableSrc).toMatch(/field: 'priority'/);
     expect(tableSrc).toMatch(/field: 'dueDate'/);
-    expect(tableSrc).toMatch(/field: 'updatedAt'/);
+    expect(tableSrc).not.toMatch(/field: 'updatedAt'/);
   });
 });

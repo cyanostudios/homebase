@@ -1,5 +1,5 @@
 import { Calendar, Hash, ListOrdered, Receipt, Wallet } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -9,22 +9,21 @@ import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { BADGE_CHIP_CLASS, QC_INVOICE_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { QuickContextActiveShareLink } from '@/core/ui/QuickContextActiveShareLink';
 import {
   QuickContextHeaderActions,
   QuickContextOpenFullFooter,
 } from '@/core/ui/QuickContextHeaderActions';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
-import type { Invoice } from '../context/InvoicesContext';
+import { invoicesApi } from '../api/invoicesApi';
+import type { Invoice, InvoiceShare } from '../context/InvoicesContext';
 import { formatInvoiceDueDate, formatPaymentTermsLabel } from '../utils/invoiceDueDate';
 
-import {
-  INVOICE_STATUS_BADGE_CLASS,
-  INVOICE_STATUS_COLORS,
-  formatInvoiceStatusForDisplay,
-} from './InvoiceStatusSelect';
-
+import { formatInvoiceStatusForDisplay } from './InvoiceStatusSelect';
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
@@ -56,6 +55,7 @@ export function InvoiceQuickContextPanel({
 }) {
   const isFullView = variant === 'full';
   const { t, i18n } = useTranslation();
+  const [listShareUrl, setListShareUrl] = useState<string | null>(null);
   const status = invoice.status || 'draft';
   const due = formatInvoiceDueDate(invoice.dueDate);
   const showDueUrgency = status !== 'paid' && status !== 'canceled';
@@ -71,40 +71,62 @@ export function InvoiceQuickContextPanel({
   const paymentTermsLabel = formatPaymentTermsLabel(invoice.paymentTerms);
   const lineItemCount = Array.isArray(invoice.lineItems) ? invoice.lineItems.length : 0;
   const invoiceNotes = invoice.notes?.trim() || '';
+  const updatedLabel = invoice.updatedAt
+    ? new Date(invoice.updatedAt).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
+
+  useEffect(() => {
+    if (isFullView) {
+      setListShareUrl(null);
+      return;
+    }
+    let cancelled = false;
+    setListShareUrl(null);
+    invoicesApi
+      .getShares(invoice.id)
+      .then((shares: InvoiceShare[]) => {
+        if (cancelled) {
+          return;
+        }
+        const active = shares.find((share) => new Date(share.validUntil) > new Date());
+        setListShareUrl(
+          active ? `${window.location.origin}/public/invoice/${active.shareToken}` : null,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setListShareUrl(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFullView, invoice.id]);
 
   const identityHeader = (
-    <div className="flex items-start gap-3">
+    <div className="flex items-center gap-3">
       <div
-        className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold plugin-invoices bg-plugin-subtle text-plugin"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold plugin-invoices bg-plugin-subtle text-plugin"
         aria-hidden
       >
         {invoiceInitials(invoice)}
       </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="break-words text-base font-semibold leading-snug tracking-tight text-foreground sm:text-lg">
-          {invoice.contactName || t('invoices.noCustomer')}
-        </h3>
-        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Badge
-              className={cn(
-                'shrink-0',
-                INVOICE_STATUS_BADGE_CLASS,
-                INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
-              )}
-            >
-              {formatInvoiceStatusForDisplay(status)}
-            </Badge>
-          </div>
-          <QuickContextHeaderActions
-            onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
-            onEdit={onEdit}
-            onClose={!isFullView && onClose ? onClose : undefined}
-            editLabel={t('common.edit')}
-            closeLabel={t('common.close')}
-          />
-        </div>
-      </div>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>
+        {invoice.contactName || t('invoices.noCustomer')}
+      </h3>
+      <QuickContextHeaderActions
+        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onEdit={onEdit}
+        onClose={!isFullView && onClose ? onClose : undefined}
+        editLabel={t('common.edit')}
+        closeLabel={t('common.close')}
+      />
     </div>
   );
 
@@ -184,9 +206,30 @@ export function InvoiceQuickContextPanel({
       className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-invoices flex flex-col')}
       data-plugin-name="invoices"
     >
-      <div className="border-b border-border/50 px-4 py-3">{identityHeader}</div>
+      <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
 
       <div className={cn('px-4 py-4', isFullView ? 'space-y-4' : 'space-y-6')}>
+        <div className="flex flex-wrap items-center gap-2">
+          {updatedLabel ? (
+            <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+              {t('common.updated')} {updatedLabel}
+            </p>
+          ) : (
+            <div className="min-w-0 flex-1" />
+          )}
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            <Badge
+              className={cn(
+                'shrink-0',
+                BADGE_CHIP_CLASS,
+                QC_INVOICE_STATUS_BADGE_COLORS[status] ?? QC_INVOICE_STATUS_BADGE_COLORS.draft,
+              )}
+            >
+              {formatInvoiceStatusForDisplay(status)}
+            </Badge>
+          </div>
+        </div>
+
         {factGrid}
 
         {!isFullView && invoiceNotes ? (
@@ -210,6 +253,15 @@ export function InvoiceQuickContextPanel({
           </div>
         ) : null}
       </div>
+
+      {!isFullView && listShareUrl ? (
+        <div className="px-4 pb-4">
+          <QuickContextActiveShareLink
+            shareUrl={listShareUrl}
+            activeLabel={t('invoices.shareActive')}
+          />
+        </div>
+      ) : null}
 
       {!isFullView && onOpenFullProfile ? (
         <QuickContextOpenFullFooter onOpen={onOpenFullProfile} />

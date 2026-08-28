@@ -314,6 +314,38 @@ function createGarmentsRoutes(controller, context) {
     (req, res, next) => controller.deletePerson(req, res, next),
   );
 
+  router.post(
+    '/lists/:id/inventory-items/:itemId',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('itemId'),
+    validateRequest,
+    (req, res, next) => controller.assignInventoryItemToList(req, res, next),
+  );
+
+  router.delete(
+    '/lists/:id/inventory-items/:itemId',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('itemId'),
+    validateRequest,
+    (req, res, next) => controller.unassignInventoryItemFromList(req, res, next),
+  );
+
+  router.patch(
+    '/lists/:id/persons/:personId/ct-sizes',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('personId'),
+    body('ctSizes').optional().isObject(),
+    body('ctAudiences').optional().isObject(),
+    validateRequest,
+    (req, res, next) => controller.updatePersonCtSizes(req, res, next),
+  );
+
   return router;
 }
 

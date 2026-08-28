@@ -41,7 +41,15 @@ export interface AIProvidersContextType {
   saveAIProvider: (data: Record<string, unknown>) => Promise<boolean>;
   deleteProvider: (providerKey: string) => Promise<void>;
   testConnection: (providerKey: string, data: TestConnectionInput) => Promise<TestConnectionResult>;
-  getPanelTitle: (mode?: string, item?: ProviderSettings | null, isMobile?: boolean) => string;
+  testingProviderKey: string | null;
+  testResultMessage: string | null;
+  testResultError: string | null;
+  handleTestConnection: (provider: ProviderSettings) => Promise<void>;
+  getPanelTitle: (
+    mode?: string,
+    item?: ProviderSettings | null,
+    isMobile?: boolean,
+  ) => React.ReactNode;
   getPanelSubtitle: (mode?: string, item?: ProviderSettings | null) => string;
   getDeleteMessage: (item?: ProviderSettings | null) => string;
 }
@@ -84,6 +92,10 @@ const EMPTY_AI_PROVIDERS_CONTEXT: AIProvidersContextType = {
   testConnection: async () => {
     throw new Error('AI Providers plugin is not available');
   },
+  testingProviderKey: null,
+  testResultMessage: null,
+  testResultError: null,
+  handleTestConnection: async () => {},
   getPanelTitle: () => '',
   getPanelSubtitle: () => '',
   getDeleteMessage: () => '',

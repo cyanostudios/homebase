@@ -787,10 +787,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: RequestView,
     },
     navigation: {
-      category: 'Booking',
+      category: 'Main',
       label: 'Requests',
       icon: Inbox,
-      order: 0,
+      order: 4,
     },
     dashboardWidget: RequestsDashboardWidget,
     displayPrefix: 'REQ',
@@ -811,10 +811,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: SlotView,
     },
     navigation: {
-      category: 'Booking',
+      category: 'Beta',
       label: 'Slots',
       icon: Store,
-      order: 1,
+      order: 2,
     },
     dashboardWidget: SlotsDashboardWidget,
     displayPrefix: 'SLT',
@@ -837,10 +837,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: CupView,
     },
     navigation: {
-      category: 'Sport',
+      category: 'Apps',
       label: 'Cups',
       icon: Trophy,
-      order: 2,
+      order: 0,
     },
     dashboardWidget: CupsDashboardWidget,
     displayPrefix: 'CUP',
@@ -871,10 +871,6 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentFlush: true,
     slugField: 'name',
     noPrimaryAction: true,
-    getViewExtraProps: (context: any) =>
-      typeof context?.runIngestImport === 'function'
-        ? { runIngestImport: context.runIngestImport as (id: string) => Promise<void> }
-        : {},
   },
   {
     name: 'guides',
@@ -890,7 +886,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: GuideView,
     },
     navigation: {
-      category: 'Content',
+      category: 'Beta',
       label: 'Guides',
       icon: MapPin,
       order: 0,
@@ -916,7 +912,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: InstructionView,
     },
     navigation: {
-      category: 'Content',
+      category: 'Beta',
       label: 'Instructions',
       icon: ListOrdered,
       order: 1,

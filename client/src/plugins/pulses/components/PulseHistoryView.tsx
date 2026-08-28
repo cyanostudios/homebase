@@ -16,9 +16,10 @@ import {
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -283,7 +284,7 @@ export const PulseHistoryView: React.FC = () => {
           isLoading={deleting}
         />
 
-        <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
+        <Card className={cn('overflow-hidden', DETAIL_VIEW_CARD_CLASS)}>
           <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
             <ListSearchInput
               value={searchTerm}

@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useTimeFormat } from '@/core/settings/useTimeFormat';
+import { BADGE_CHIP_CLASS, QC_TEAM_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { QuickContextSection } from '@/core/ui/QuickContextSection';
 import {
@@ -19,6 +20,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 import { MatchQuickInfoDialog } from '@/plugins/matches/components/MatchQuickInfoDialog';
 import { formatMatchDateTime, type Match } from '@/plugins/matches/types/match';
@@ -35,14 +37,12 @@ import type { Team, TrainingTime } from '../types/teams';
 import {
   isTeamOnBreak,
   TEAM_COLOR_GRADIENTS,
-  TEAM_STATUS_BADGES,
   teamColorGradientTextClass,
   WEEK_DAYS,
 } from '../types/teams';
 import { formatTeamLabel } from '../utils/formatTeamLabel';
 
 import { TeamSeriesTeamBadges } from './TeamSeriesTeamBadges';
-
 const REQUESTS_PREVIEW_LIMIT = 4;
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
@@ -184,7 +184,7 @@ export function TeamQuickContextPanel({
     <div className="flex items-center gap-3">
       <div
         className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-xs font-bold',
+          'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold',
           TEAM_COLOR_GRADIENTS[team.color],
           teamColorGradientTextClass(team.color),
         )}
@@ -192,19 +192,7 @@ export function TeamQuickContextPanel({
       >
         {(team.age_group || team.name).slice(0, 3).toUpperCase()}
       </div>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <h3 className="min-w-0 truncate text-lg font-semibold tracking-tight text-foreground">
-          {title}
-        </h3>
-        <Badge
-          className={cn(
-            'shrink-0 border-0 rounded-md px-2 py-0.5 text-xs font-extrabold',
-            TEAM_STATUS_BADGES[statusKey],
-          )}
-        >
-          {t(`teams.status.${statusKey}`)}
-        </Badge>
-      </div>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{title}</h3>
       <QuickContextHeaderActions
         onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
         onEdit={onEdit}
@@ -215,10 +203,38 @@ export function TeamQuickContextPanel({
     </div>
   );
 
+  const statusBadge = (
+    <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+      <Badge
+        className={cn(
+          'shrink-0',
+          BADGE_CHIP_CLASS,
+          QC_TEAM_STATUS_BADGE_COLORS[statusKey] ?? QC_TEAM_STATUS_BADGE_COLORS.active,
+        )}
+      >
+        {t(`teams.status.${statusKey}`)}
+      </Badge>
+    </div>
+  );
+
+  const updatedWithBadges = (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs text-muted-foreground">{metaLine}</p>
+        {updatedLabel ? (
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {t('common.updated')} {updatedLabel}
+          </p>
+        ) : null}
+      </div>
+      {statusBadge}
+    </div>
+  );
+
   return (
     <>
       <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
-        <div className="border-b border-border/50 px-4 py-2.5">{identityHeader}</div>
+        <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
 
         <div
           className={cn(
@@ -228,14 +244,7 @@ export function TeamQuickContextPanel({
         >
           {!isFullView ? (
             <QuickContextSection title={t('teams.view.information')} icon={Info} iconPlugin="teams">
-              <div>
-                <p className="truncate text-xs text-muted-foreground">{metaLine}</p>
-                {updatedLabel ? (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {t('common.updated')} {updatedLabel}
-                  </p>
-                ) : null}
-              </div>
+              {updatedWithBadges}
               <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                 <div>
                   <div className={FACT_LABEL_CLASS}>
@@ -273,14 +282,7 @@ export function TeamQuickContextPanel({
               </div>
             </QuickContextSection>
           ) : (
-            <div>
-              <p className="truncate text-xs text-muted-foreground">{metaLine}</p>
-              {updatedLabel ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t('common.updated')} {updatedLabel}
-                </p>
-              ) : null}
-            </div>
+            updatedWithBadges
           )}
 
           <QuickContextSection title={t('teams.table.seriesTeams')} icon={Users} iconPlugin="teams">

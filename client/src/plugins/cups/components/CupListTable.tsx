@@ -27,6 +27,7 @@ export type CupListTableProps = {
   onCheckboxChange: (id: string) => void;
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
+  selectionEnabled?: boolean;
 };
 
 function formatDate(value: string | null | undefined): string {
@@ -48,6 +49,7 @@ export function CupListTable({
   onCheckboxChange,
   allVisibleSelected,
   onHeaderCheckboxChange,
+  selectionEnabled = true,
 }: CupListTableProps) {
   const { t } = useTranslation();
 
@@ -56,7 +58,11 @@ export function CupListTable({
       {
         field: 'name',
         header: t('cups.columnName'),
-        cell: (cup) => <span className="font-medium text-foreground">{cup.name || '—'}</span>,
+        cell: (cup) => (
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+            {cup.name || '—'}
+          </span>
+        ),
       },
       {
         field: 'ingest',
@@ -113,14 +119,6 @@ export function CupListTable({
             <span className="text-xs text-muted-foreground">—</span>
           ),
       },
-      {
-        field: 'updatedAt',
-        header: t('common.updated'),
-        className: 'hidden lg:table-cell',
-        cell: (cup) => (
-          <span className="text-xs text-muted-foreground">{formatDate(cup.updated_at)}</span>
-        ),
-      },
     ],
     [t, ingestTitleForCup],
   );
@@ -138,16 +136,20 @@ export function CupListTable({
       rowClassName={(cup) =>
         cup.deleted_at !== null && cup.deleted_at !== undefined ? 'opacity-60' : undefined
       }
-      selection={{
-        isSelected,
-        onCheckboxMouseDown,
-        onCheckboxChange,
-        allVisibleSelected,
-        onHeaderCheckboxChange,
-        selectAllAriaLabel: t('common.selectAllVisible'),
-        selectRowAriaLabel: (selected) =>
-          selected ? t('common.unselectRow') : t('common.selectRow'),
-      }}
+      selection={
+        selectionEnabled
+          ? {
+              isSelected,
+              onCheckboxMouseDown,
+              onCheckboxChange,
+              allVisibleSelected,
+              onHeaderCheckboxChange,
+              selectAllAriaLabel: t('common.selectAllVisible'),
+              selectRowAriaLabel: (selected) =>
+                selected ? t('common.unselectRow') : t('common.selectRow'),
+            }
+          : undefined
+      }
       pluginName="cups"
       dataListItem={(cup) => cup}
     />

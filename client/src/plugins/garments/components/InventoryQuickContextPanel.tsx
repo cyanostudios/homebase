@@ -1,8 +1,9 @@
-import { Hash, Minus, Plus, ShoppingBag, Tag } from 'lucide-react';
+import { Hash, Minus, Plus, ShoppingBag, Shirt, Tag } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,10 +15,17 @@ import {
   QuickContextHeaderActions,
   QuickContextOpenFullFooter,
 } from '@/core/ui/QuickContextHeaderActions';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
+import { useGarments } from '../hooks/useGarments';
 import type { InventoryItem, InventoryVariant } from '../types/garments';
 import { findDuplicateVariantIndices } from '../utils/inventoryValidation';
+import {
+  VARIANT_LIST_ROW_CLASS,
+  VARIANT_WARNING_DOT_CLASS,
+  VARIANT_WARNING_DOT_PLACEHOLDER_CLASS,
+} from '../utils/variantListStyles';
 
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
@@ -111,16 +119,15 @@ export function VariantQuantityEditor({
   }
 
   return (
-    <div className="flex items-center gap-1">
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
+    <div className="flex shrink-0 items-center gap-1">
+      <RoundIconLabelButton
         icon={Minus}
-        className="h-8 w-8 shrink-0 p-0"
+        label={t('garments.quickContext.decreaseQuantity')}
+        variant="secondary"
+        size="xs"
+        expandOnHover={false}
         disabled={disabled || variant.quantity <= 0}
         onClick={() => void commit(variant.quantity - 1)}
-        aria-label={t('garments.quickContext.decreaseQuantity')}
       />
       <Input
         type="number"
@@ -136,18 +143,17 @@ export function VariantQuantityEditor({
             (e.target as HTMLInputElement).blur();
           }
         }}
-        className="h-8 w-16 text-center text-sm"
+        className="h-8 w-12 min-w-[3rem] shrink-0 px-1 py-0 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         aria-label={t('garments.quantity')}
       />
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
+      <RoundIconLabelButton
         icon={Plus}
-        className="h-8 w-8 shrink-0 p-0"
+        label={t('garments.quickContext.increaseQuantity')}
+        variant="secondary"
+        size="xs"
+        expandOnHover={false}
         disabled={disabled}
         onClick={() => void commit(variant.quantity + 1)}
-        aria-label={t('garments.quickContext.increaseQuantity')}
       />
     </div>
   );
@@ -172,6 +178,7 @@ export function InventoryQuickContextPanel({
 }) {
   const isFullView = variant === 'full';
   const { t } = useTranslation();
+  const { garmentLists } = useGarments();
   const [contentExpanded, setContentExpanded] = useState(false);
 
   useEffect(() => {
@@ -198,6 +205,10 @@ export function InventoryQuickContextPanel({
   const showReadMoreToggle = descriptionPreview.truncated && !isFullView;
   const variants = item.variants || [];
   const duplicateVariantIndices = useMemo(() => findDuplicateVariantIndices(variants), [variants]);
+  const assignedLists = useMemo(() => {
+    const ids = new Set((item.assignedListIds ?? []).map(String));
+    return garmentLists.filter((list) => ids.has(String(list.id)));
+  }, [garmentLists, item.assignedListIds]);
 
   const identityHeader = (
     <div className="flex items-center gap-3">
@@ -207,11 +218,7 @@ export function InventoryQuickContextPanel({
       >
         {inventoryInitials(item.articleName)}
       </div>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <h3 className="truncate text-lg font-semibold tracking-tight text-foreground">
-          {item.articleName || '—'}
-        </h3>
-      </div>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{item.articleName || '—'}</h3>
       <QuickContextHeaderActions
         onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
         onEdit={onEdit}
@@ -281,7 +288,7 @@ export function InventoryQuickContextPanel({
 
   return (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
-      <div className="border-b border-border/50 px-4 py-2.5">{identityHeader}</div>
+      <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
 
       <div
         className={cn(
@@ -296,6 +303,30 @@ export function InventoryQuickContextPanel({
         ) : null}
 
         {factGrid}
+
+        <div>
+          <div className={FACT_LABEL_CLASS}>
+            <Shirt className="h-3 w-3" />
+            {t('garments.assignToLists')}
+          </div>
+          {assignedLists.length > 0 ? (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {assignedLists.map((list) => (
+                <Badge
+                  key={list.id}
+                  variant="outline"
+                  className="rounded-md border-border/60 bg-primary/5 text-xs font-extrabold text-primary"
+                >
+                  {list.name || '—'}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('garments.quickContext.notInAnyList')}
+            </p>
+          )}
+        </div>
 
         {displayedDescription ? (
           <div>
@@ -343,7 +374,7 @@ export function InventoryQuickContextPanel({
           {variants.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('garments.noVariantsYet')}</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {duplicateVariantIndices.identity.size > 0 ? (
                 <p className="text-sm text-destructive">
                   {t('garments.variantIdentityDuplicateWarning')}
@@ -356,36 +387,37 @@ export function InventoryQuickContextPanel({
               ) : null}
               {variants.map((row, index) => {
                 const rowDup = duplicateVariantIndices.any.has(index);
+                const sku = row.sku?.trim() || '';
                 return (
-                  <div
-                    key={row.id}
-                    className={cn(
-                      'flex items-center justify-between gap-3 rounded-lg border px-3 py-2',
-                      rowDup ? 'border-destructive' : 'border-border/50',
-                    )}
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-foreground">
-                        {variantLabel(row)}
-                      </div>
-                      {row.sku?.trim() ? (
-                        <div
-                          className={cn(
-                            'truncate text-xs',
-                            duplicateVariantIndices.sku.has(index)
-                              ? 'text-destructive'
-                              : 'text-muted-foreground',
-                          )}
-                        >
-                          {row.sku}
-                        </div>
-                      ) : null}
-                    </div>
-                    <VariantQuantityEditor
-                      variant={row}
-                      disabled={quantitySaving}
-                      onQuantityChange={onVariantQuantityChange}
+                  <div key={row.id} className={VARIANT_LIST_ROW_CLASS}>
+                    <span
+                      className={
+                        rowDup ? VARIANT_WARNING_DOT_CLASS : VARIANT_WARNING_DOT_PLACEHOLDER_CLASS
+                      }
+                      aria-hidden={!rowDup}
+                      title={rowDup ? t('garments.variantIdentityDuplicateWarning') : undefined}
                     />
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <div className="min-w-0 flex-1 truncate text-xs">
+                        <span className="font-semibold text-foreground">{variantLabel(row)}</span>
+                        {sku ? (
+                          <span
+                            className={cn(
+                              'text-muted-foreground',
+                              duplicateVariantIndices.sku.has(index) && 'text-destructive',
+                            )}
+                          >
+                            {' · '}
+                            {sku}
+                          </span>
+                        ) : null}
+                      </div>
+                      <VariantQuantityEditor
+                        variant={row}
+                        disabled={quantitySaving}
+                        onQuantityChange={onVariantQuantityChange}
+                      />
+                    </div>
                   </div>
                 );
               })}

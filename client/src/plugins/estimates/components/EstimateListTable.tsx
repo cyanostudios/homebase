@@ -27,6 +27,7 @@ export type EstimateListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedEstimateId: string | null;
+  selectionEnabled?: boolean;
 };
 
 function formatDate(value: Date | string | null | undefined): string {
@@ -48,6 +49,7 @@ export function EstimateListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyDuplicatedEstimateId,
+  selectionEnabled = true,
 }: EstimateListTableProps) {
   const { t } = useTranslation();
 
@@ -57,7 +59,7 @@ export function EstimateListTable({
         field: 'estimateNumber',
         header: t('estimates.table.number'),
         cell: (estimate) => (
-          <span className="font-mono text-xs font-medium text-foreground">
+          <span className="font-mono text-xs font-extrabold text-foreground transition-colors group-hover:text-primary">
             {formatDisplayNumber('estimates', estimate.estimateNumber)}
           </span>
         ),
@@ -66,7 +68,9 @@ export function EstimateListTable({
         field: 'contactName',
         header: t('estimates.fieldContact'),
         cell: (estimate) => (
-          <span className="font-medium text-foreground">{estimate.contactName || '—'}</span>
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+            {estimate.contactName || '—'}
+          </span>
         ),
       },
       {
@@ -102,14 +106,6 @@ export function EstimateListTable({
           <span className="text-xs text-muted-foreground">{formatDate(estimate.validTo)}</span>
         ),
       },
-      {
-        field: 'updatedAt',
-        header: t('common.updated'),
-        className: 'hidden lg:table-cell',
-        cell: (estimate) => (
-          <span className="text-xs text-muted-foreground">{formatDate(estimate.updatedAt)}</span>
-        ),
-      },
     ],
     [t],
   );
@@ -134,16 +130,20 @@ export function EstimateListTable({
           ? 'bg-green-50 dark:bg-green-950/30'
           : undefined
       }
-      selection={{
-        isSelected,
-        onCheckboxMouseDown,
-        onCheckboxChange,
-        allVisibleSelected,
-        onHeaderCheckboxChange,
-        selectAllAriaLabel: t('common.selectAllVisible'),
-        selectRowAriaLabel: (selected) =>
-          selected ? t('common.unselectRow') : t('common.selectRow'),
-      }}
+      selection={
+        selectionEnabled
+          ? {
+              isSelected,
+              onCheckboxMouseDown,
+              onCheckboxChange,
+              allVisibleSelected,
+              onHeaderCheckboxChange,
+              selectAllAriaLabel: t('common.selectAllVisible'),
+              selectRowAriaLabel: (selected) =>
+                selected ? t('common.unselectRow') : t('common.selectRow'),
+            }
+          : undefined
+      }
       pluginName="estimates"
       dataListItem={(estimate) => estimate}
     />

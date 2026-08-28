@@ -30,6 +30,7 @@ export type TeamListTableProps = {
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedTeamId?: string | null;
   activeTeamId?: string | number | null;
+  selectionEnabled?: boolean;
 };
 
 export function TeamListTable({
@@ -45,6 +46,7 @@ export function TeamListTable({
   onHeaderCheckboxChange,
   recentlyDuplicatedTeamId = null,
   activeTeamId = null,
+  selectionEnabled = true,
 }: TeamListTableProps) {
   const { t } = useTranslation();
 
@@ -54,7 +56,9 @@ export function TeamListTable({
         field: 'age_group',
         header: t('teams.table.age'),
         cell: (team) => (
-          <span className="font-medium text-foreground">{formatTeamLabel(team) || '—'}</span>
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+            {formatTeamLabel(team) || '—'}
+          </span>
         ),
       },
       {
@@ -114,15 +118,18 @@ export function TeamListTable({
     [t],
   );
 
-  const selection: SortableListTableSelection = {
-    isSelected,
-    onCheckboxMouseDown,
-    onCheckboxChange,
-    allVisibleSelected,
-    onHeaderCheckboxChange,
-    selectAllAriaLabel: t('common.selectAllVisible'),
-    selectRowAriaLabel: (selected) => (selected ? t('common.unselectRow') : t('common.selectRow')),
-  };
+  const selection: SortableListTableSelection | undefined = selectionEnabled
+    ? {
+        isSelected,
+        onCheckboxMouseDown,
+        onCheckboxChange,
+        allVisibleSelected,
+        onHeaderCheckboxChange,
+        selectAllAriaLabel: t('common.selectAllVisible'),
+        selectRowAriaLabel: (selected) =>
+          selected ? t('common.unselectRow') : t('common.selectRow'),
+      }
+    : undefined;
 
   return (
     <SortableListTable

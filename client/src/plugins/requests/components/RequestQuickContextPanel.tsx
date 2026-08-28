@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
+import { BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import {
   DETAIL_FIELD_VALUE_CLASS,
   DETAIL_PROP_ROW_CLASS,
@@ -16,6 +17,7 @@ import {
   QuickContextHeaderActions,
   QuickContextOpenFullFooter,
 } from '@/core/ui/QuickContextHeaderActions';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
@@ -52,8 +54,6 @@ import { RequestPrioritySelect } from './RequestPrioritySelect';
 import { RequestResponseDueControl } from './RequestResponseDueControl';
 import { RequestStatusSelect } from './RequestStatusSelect';
 import { RequestTypeSelect } from './RequestTypeSelect';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
@@ -231,20 +231,7 @@ export function RequestQuickContextPanel({
       >
         {requestInitials(request.title)}
       </div>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <h3 className="min-w-0 truncate text-lg font-semibold tracking-tight text-foreground">
-          {request.title || '—'}
-        </h3>
-        <Badge
-          variant="outline"
-          className={cn('shrink-0', BADGE_CLASS, 'bg-muted text-muted-foreground')}
-        >
-          {getTypeLabel(request.requestType, t)}
-        </Badge>
-        <Badge className={cn('shrink-0', BADGE_CLASS, REQUEST_STATUS_COLORS[request.status])}>
-          {formatRequestStatusForDisplay(request.status, t)}
-        </Badge>
-      </div>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{request.title || '—'}</h3>
       <QuickContextHeaderActions
         onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
         onEdit={onEdit}
@@ -255,10 +242,24 @@ export function RequestQuickContextPanel({
     </div>
   );
 
+  const statusBadges = (
+    <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+      <Badge
+        variant="outline"
+        className={cn('shrink-0', BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS.muted)}
+      >
+        {getTypeLabel(request.requestType, t)}
+      </Badge>
+      <Badge className={cn('shrink-0', BADGE_CHIP_CLASS, REQUEST_STATUS_COLORS[request.status])}>
+        {formatRequestStatusForDisplay(request.status, t)}
+      </Badge>
+    </div>
+  );
+
   return (
     <>
       <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
-        <div className="border-b border-border/50 px-4 py-2.5">{identityHeader}</div>
+        <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
 
         <div
           className={cn(
@@ -266,11 +267,16 @@ export function RequestQuickContextPanel({
             isFullView ? 'space-y-4' : 'space-y-6',
           )}
         >
-          {updatedLabel ? (
-            <p className="text-xs text-muted-foreground">
-              {t('common.updated')} {updatedLabel}
-            </p>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {updatedLabel ? (
+              <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                {t('common.updated')} {updatedLabel}
+              </p>
+            ) : (
+              <div className="min-w-0 flex-1" />
+            )}
+            {statusBadges}
+          </div>
 
           {!isFullView && displayedContent ? (
             <div className="min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere]">
@@ -396,13 +402,13 @@ export function RequestQuickContextPanel({
               <QuickContextLinkTile label={t('requests.form.requestType')} icon={Tag}>
                 <Badge
                   variant="outline"
-                  className={cn(BADGE_CLASS, 'bg-muted text-muted-foreground')}
+                  className={cn(BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS.muted)}
                 >
                   {getTypeLabel(request.requestType, t)}
                 </Badge>
               </QuickContextLinkTile>
               <QuickContextLinkTile label={t('requests.form.priority')} icon={Flag}>
-                <Badge className={cn(BADGE_CLASS, REQUEST_PRIORITY_COLORS[request.priority])}>
+                <Badge className={cn(BADGE_CHIP_CLASS, REQUEST_PRIORITY_COLORS[request.priority])}>
                   {request.priority}
                 </Badge>
               </QuickContextLinkTile>

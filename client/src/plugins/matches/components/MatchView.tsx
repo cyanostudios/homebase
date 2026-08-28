@@ -1,4 +1,4 @@
-import { Copy, ExternalLink, Info, Search, Trash2, Users, Zap } from 'lucide-react';
+import { ExternalLink, Info, Search, Trash2, Users } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,24 +15,18 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, type DetailSectionIconPlugin } from '@/core/ui/DetailSection';
 import {
   DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_FIELD_LABEL_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
-  DETAIL_INFO_ROW_CLASS,
-  DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_SURFACE_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDateTime } from '@/core/utils/dateFormat';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
-import type { AppIcon } from '@/types/icons';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import {
   collectContactTags,
@@ -50,23 +44,6 @@ interface MatchViewProps {
   item?: Match;
 }
 
-interface MatchQuickActionsCardProps {
-  match: Match;
-  onDeleteClick: () => void;
-  onDuplicate: () => void;
-  getDuplicateConfig: (
-    item: Match | null,
-  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
-  detailFooterActions?: Array<{
-    id: string;
-    label: string;
-    icon: AppIcon;
-    onClick: (item: Match) => void;
-    className?: string;
-    disabled?: boolean;
-  }>;
-}
-
 type AssignableContact = {
   id: string | number;
   companyName?: string;
@@ -81,95 +58,6 @@ type AssignableContact = {
 };
 
 type RelatedItem = { id: string | number; label: string; onOpen: () => void; pluginClass: string };
-
-function MatchQuickActionsCard({
-  match,
-  onDeleteClick,
-  onDuplicate,
-  getDuplicateConfig,
-  detailFooterActions,
-}: MatchQuickActionsCardProps) {
-  const { t } = useTranslation();
-  const canDuplicate = Boolean(getDuplicateConfig(match));
-  const getActionIconColorClass = (actionId: string) => {
-    if (actionId === 'create-slot-from-match') {
-      return 'text-green-600 dark:text-green-400';
-    }
-    return '';
-  };
-
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('matches.quickActions')}
-        icon={Zap}
-        iconPlugin="matches"
-        subtleTitle
-        className="p-4"
-      >
-        <div className="flex flex-col items-start gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Trash2
-                {...props}
-                className={cn(props.className, 'text-red-600 dark:text-red-400')}
-              />
-            )}
-            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-            onClick={onDeleteClick}
-          >
-            {t('matches.delete')}
-          </Button>
-
-          {canDuplicate && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={(props) => (
-                <Copy
-                  {...props}
-                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
-                />
-              )}
-              className={DETAIL_QUICK_ACTION_ROW_CLASS}
-              onClick={onDuplicate}
-            >
-              {t('matches.duplicate')}
-            </Button>
-          )}
-
-          {Array.isArray(detailFooterActions) &&
-            detailFooterActions.map((action) => {
-              const Icon = action.icon;
-              const tint = getActionIconColorClass(action.id);
-              return (
-                <Button
-                  key={action.id}
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={(props) => <Icon {...props} className={cn(props.className, tint)} />}
-                  disabled={action.disabled}
-                  className={cn(
-                    DETAIL_QUICK_ACTION_ROW_CLASS,
-                    'disabled:opacity-50',
-                    action.className,
-                  )}
-                  onClick={() => action.onClick(match)}
-                >
-                  {action.label}
-                </Button>
-              );
-            })}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
 
 interface MatchMainInfoCardProps {
   match: Match;
@@ -336,43 +224,6 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
   );
 }
 
-function MatchMetadataCard({ match }: { match: Match }) {
-  const { t } = useTranslation();
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('matches.information')}
-        icon={Info}
-        iconPlugin="matches"
-        subtleTitle
-        className="p-4"
-        collapsible
-      >
-        <div>
-          <div className={DETAIL_INFO_ROW_CLASS}>
-            <span className="text-slate-500 dark:text-slate-400">ID</span>
-            <span className="font-mono font-extrabold text-foreground">
-              {formatDisplayNumber('matches', match.id)}
-            </span>
-          </div>
-          <div className={DETAIL_INFO_ROW_CLASS}>
-            <span className="text-slate-500 dark:text-slate-400">{t('matches.created')}</span>
-            <span className="font-mono font-extrabold text-foreground">
-              {match.created_at ? new Date(match.created_at).toLocaleDateString('sv-SE') : '—'}
-            </span>
-          </div>
-          <div className={DETAIL_INFO_ROW_CLASS}>
-            <span className="text-slate-500 dark:text-slate-400">{t('matches.updated')}</span>
-            <span className="font-mono font-extrabold text-foreground">
-              {match.updated_at ? new Date(match.updated_at).toLocaleDateString('sv-SE') : '—'}
-            </span>
-          </div>
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
-
 function RelatedItemsCard({
   title,
   icon: Icon,
@@ -441,12 +292,6 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
     return map;
   }, [contacts]);
   const {
-    getDeleteMessage,
-    deleteMatch,
-    getDuplicateConfig,
-    executeDuplicate,
-    setRecentlyDuplicatedMatchId,
-    detailFooterActions,
     showQuickActionDialog,
     quickActionDialogMessage,
     closeQuickActionDialog,
@@ -461,8 +306,6 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
   const [contactSearch, setContactSearch] = useState('');
   const [contactTagFilter, setContactTagFilter] = useState('all');
   const [showContactSuggestions, setShowContactSuggestions] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [pendingRemoveContactId, setPendingRemoveContactId] = useState<string | null>(null);
   const [pendingRemoveContactName, setPendingRemoveContactName] = useState<string>('');
   const { slots: allSlots } = useSlotsContext();
@@ -525,58 +368,40 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
     <>
       <DetailLayout
         sidebar={
-          <div className="space-y-4">
-            <MatchQuickActionsCard
-              match={match}
-              onDeleteClick={() => setShowDeleteConfirm(true)}
-              onDuplicate={() => setShowDuplicateDialog(true)}
-              getDuplicateConfig={getDuplicateConfig}
-              detailFooterActions={detailFooterActions}
-            />
-            <MatchMetadataCard match={match} />
-            {hasSlotsPlugin && (
-              <>
-                {relatedSlots.length === 0 ? (
-                  <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                    <DetailSection
-                      title={t('matches.relatedSlots')}
-                      icon={Info}
-                      iconPlugin="slots"
-                      className="p-4"
-                    >
-                      <p className="text-sm text-muted-foreground">{t('matches.noRelatedSlots')}</p>
-                    </DetailSection>
-                  </Card>
-                ) : (
-                  <RelatedItemsCard
+          hasSlotsPlugin ? (
+            <div className="space-y-4">
+              {relatedSlots.length === 0 ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
                     title={t('matches.relatedSlots')}
                     icon={Info}
                     iconPlugin="slots"
-                    items={relatedSlots.map((s) => ({
-                      id: s.id,
-                      label: s.location?.trim()
-                        ? `${s.location} · ${formatDateTime(s.slot_time)}`
-                        : formatDateTime(s.slot_time),
-                      pluginClass: 'plugin-slots',
-                      onOpen: () => {
-                        if (openSlotForView) {
-                          openSlotForView(s);
-                        }
-                      },
-                    }))}
-                  />
-                )}
-              </>
-            )}
-            <DetailActivityLog
-              entityType="match"
-              entityId={match.id}
-              limit={30}
-              title={t('matches.activity')}
-              showClearButton
-              refreshKey={match.updated_at ?? match.id}
-            />
-          </div>
+                    className="p-4"
+                  >
+                    <p className="text-sm text-muted-foreground">{t('matches.noRelatedSlots')}</p>
+                  </DetailSection>
+                </Card>
+              ) : (
+                <RelatedItemsCard
+                  title={t('matches.relatedSlots')}
+                  icon={Info}
+                  iconPlugin="slots"
+                  items={relatedSlots.map((s) => ({
+                    id: s.id,
+                    label: s.location?.trim()
+                      ? `${s.location} · ${formatDateTime(s.slot_time)}`
+                      : formatDateTime(s.slot_time),
+                    pluginClass: 'plugin-slots',
+                    onOpen: () => {
+                      if (openSlotForView) {
+                        openSlotForView(s);
+                      }
+                    },
+                  }))}
+                />
+              )}
+            </div>
+          ) : undefined
         }
       >
         <div className="space-y-4 plugin-matches">
@@ -749,41 +574,6 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
           </Card>
         </div>
       </DetailLayout>
-
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title={t('dialog.deleteItem', { label: t('nav.match') })}
-        message={match ? getDeleteMessage(match) : ''}
-        confirmText={t('matches.delete')}
-        cancelText={t('matches.cancel')}
-        onConfirm={async () => {
-          await deleteMatch(match.id);
-          setShowDeleteConfirm(false);
-        }}
-        onCancel={() => setShowDeleteConfirm(false)}
-        variant="danger"
-      />
-
-      <DuplicateDialog
-        isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
-          executeDuplicate(match, newName)
-            .then(({ closePanel, highlightId }) => {
-              closePanel();
-              if (highlightId) {
-                setRecentlyDuplicatedMatchId(highlightId);
-              }
-              setShowDuplicateDialog(false);
-            })
-            .catch(() => {
-              setShowDuplicateDialog(false);
-            });
-        }}
-        onCancel={() => setShowDuplicateDialog(false)}
-        defaultName={getDuplicateConfig(match)?.defaultName ?? ''}
-        nameLabel={getDuplicateConfig(match)?.nameLabel ?? t('matches.duplicateNameLabel')}
-        confirmOnly={Boolean(getDuplicateConfig(match)?.confirmOnly)}
-      />
 
       <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}

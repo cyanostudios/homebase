@@ -10,6 +10,7 @@ import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { cupsApi } from '../api/cupsApi';
+import { CupDetailHeaderMenus } from '../components/CupDetailHeaderMenus';
 import type { Cup, CupValidationError } from '../types/cups';
 
 import { CupsContext } from './CupsContext';
@@ -255,6 +256,13 @@ export function CupsProvider({
     [],
   );
 
+  const getPanelTitle = useCallback((mode?: string, item?: Cup | null) => {
+    if (mode !== 'view' || !item) {
+      return null;
+    }
+    return <CupDetailHeaderMenus key={String(item.id)} cup={item} />;
+  }, []);
+
   const setQuickEditField = useCallback(
     (field: 'visible' | 'sanctioned' | 'featured', value: boolean) => {
       setQuickEditDraft((prev) => ({ ...prev, [field]: value }));
@@ -381,6 +389,7 @@ export function CupsProvider({
     isSelected,
     clearValidationErrors,
     getDeleteMessage,
+    getPanelTitle,
     navigateToPrevItem,
     navigateToNextItem,
     hasPrevItem,

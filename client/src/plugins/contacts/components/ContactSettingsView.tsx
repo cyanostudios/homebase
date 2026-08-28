@@ -43,7 +43,7 @@ export type ContactSettingsCategory = 'tags' | 'import';
 interface ContactSettingsViewProps {
   selectedCategory?: ContactSettingsCategory;
   onSelectedCategoryChange?: (category: ContactSettingsCategory) => void;
-  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
+  /** @deprecated Category buttons live in the settings header. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
@@ -54,7 +54,7 @@ export function ContactSettingsView({
   onClose,
 }: ContactSettingsViewProps = {}) {
   const { t } = useTranslation();
-  const { getSettings, updateSettings } = useApp();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { importContacts } = useContacts();
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
@@ -111,23 +111,25 @@ export function ContactSettingsView({
     return () => {
       cancelled = true;
     };
-  }, [getSettings]);
+  }, [getSettings, settingsVersion]);
 
   const tagsEqual =
     tags.length === initialTags.length && tags.every((tag, i) => tag === initialTags[i]);
-  const isDirty = !tagsEqual;
+  const isDirty = activeCategory === 'tags' && tagsEqual === false;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await updateSettings(CONTACTS_SETTINGS_KEY, { tags });
-      setInitialTags([...tags]);
+      if (activeCategory === 'tags') {
+        await updateSettings(CONTACTS_SETTINGS_KEY, { tags });
+        setInitialTags([...tags]);
+      }
     } catch (error) {
       console.error('Failed to save contacts settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [tags, updateSettings]);
+  }, [activeCategory, tags, updateSettings]);
 
   const addTag = useCallback(() => {
     const next = newTag.trim();

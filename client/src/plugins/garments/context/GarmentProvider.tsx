@@ -11,6 +11,10 @@ import { pathToNavPage } from '@/core/routing/routeMap';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { garmentShareApi, garmentsApi } from '../api/garmentsApi';
+import {
+  GarmentListDetailHeaderMenus,
+  InventoryDetailHeaderMenus,
+} from '../components/GarmentDetailHeaderMenus';
 import type {
   GarmentList,
   GarmentListPayload,
@@ -50,6 +54,17 @@ function inventoryProxyList(item: InventoryItem): GarmentList {
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
+}
+
+function mergeInventorySaved(
+  existing: InventoryItem | null | undefined,
+  saved: InventoryItem,
+): InventoryItem {
+  const hasAssignments = (saved.assignedListIds?.length ?? 0) > 0;
+  const assignedListIds = hasAssignments
+    ? saved.assignedListIds
+    : (existing?.assignedListIds ?? saved.assignedListIds ?? []);
+  return { ...saved, assignedListIds };
 }
 
 export function GarmentProvider({
@@ -116,20 +131,12 @@ export function GarmentProvider({
 
   useEffect(() => {
     if (!location.pathname.startsWith('/garments')) {
-      if (garmentsContentView !== 'lists') {
-        setGarmentsContentView('lists');
-      }
-      return;
-    }
-    if (garmentsContentView === 'settings') {
+      setGarmentsContentView('lists');
       return;
     }
     const page = pathToNavPage(location.pathname);
-    const nextView = page === 'garments-inventory' ? 'inventory' : 'lists';
-    if (garmentsContentView !== nextView) {
-      setGarmentsContentView(nextView);
-    }
-  }, [location.pathname, garmentsContentView]);
+    setGarmentsContentView(page === 'garments-inventory' ? 'inventory' : 'lists');
+  }, [location.pathname]);
 
   const closeGarmentPanel = useCallback(() => {
     // Prefer window.location: handlePageChange navigates first, then closes
@@ -343,15 +350,6 @@ export function GarmentProvider({
     }
   }, [location.pathname, garmentLists]);
 
-  const openGarmentsSettings = useCallback(() => {
-    setGarmentsContentView('settings');
-  }, []);
-
-  const closeGarmentSettingsView = useCallback(() => {
-    const page = pathToNavPage(location.pathname);
-    setGarmentsContentView(page === 'garments-inventory' ? 'inventory' : 'lists');
-  }, [location.pathname]);
-
   const openGarmentsInventory = useCallback(() => {
     setGarmentsContentView('inventory');
     navigate('/garments/inventory');
@@ -386,8 +384,12 @@ export function GarmentProvider({
   );
 
   const applyInventoryItemUpdate = useCallback((saved: InventoryItem) => {
-    setInventoryItems((prev) => prev.map((i) => (i.id === saved.id ? saved : i)));
-    setCurrentInventoryItem((current) => (current && current.id === saved.id ? saved : current));
+    setInventoryItems((prev) =>
+      prev.map((i) => (i.id === saved.id ? mergeInventorySaved(i, saved) : i)),
+    );
+    setCurrentInventoryItem((current) =>
+      current && current.id === saved.id ? mergeInventorySaved(current, saved) : current,
+    );
     setCurrentGarment((current) =>
       current && String(current.id) === String(saved.id) ? inventoryProxyList(saved) : current,
     );
@@ -825,6 +827,118 @@ export function GarmentProvider({
     [refreshGarmentList],
   );
 
+  const applyListUpdate = useCallback((saved: GarmentList) => {
+    setGarmentLists((prev) => prev.map((l) => (l.id === saved.id ? { ...l, ...saved } : l)));
+    setCurrentGarment((prev) => (prev?.id === saved.id ? { ...prev, ...saved } : prev));
+  }, []);
+
+  const reloadInventoryItems = useCallback(async () => {
+    try {
+      const inventory = await garmentsApi.getInventory();
+      setInventoryItems(inventory);
+      setCurrentInventoryItem((current) => {
+        if (!current) {
+          return current;
+        }
+        return inventory.find((row) => String(row.id) === String(current.id)) ?? current;
+      });
+    } catch (err) {
+      console.error('Failed to reload inventory:', err);
+    }
+  }, []);
+
+  const patchInventoryListAssignment = useCallback(
+    (itemId: string, listId: string, assign: boolean) => {
+      const patch = (item: InventoryItem): InventoryItem => {
+        if (String(item.id) !== String(itemId)) {
+          return item;
+        }
+        const ids = new Set((item.assignedListIds ?? []).map(String));
+        const key = String(listId);
+        if (assign) {
+          ids.add(key);
+        } else {
+          ids.delete(key);
+        }
+        return { ...item, assignedListIds: [...ids] };
+      };
+      setInventoryItems((prev) => prev.map(patch));
+      setCurrentInventoryItem((current) => (current ? patch(current) : current));
+    },
+    [],
+  );
+
+  const assignInventoryItemToList = useCallback(
+    async (listId: string, itemId: string): Promise<boolean> => {
+      patchInventoryListAssignment(itemId, listId, true);
+      try {
+        const saved = await garmentsApi.assignInventoryItemToList(listId, itemId);
+        applyListUpdate(saved);
+        await reloadInventoryItems();
+        return true;
+      } catch (err) {
+        patchInventoryListAssignment(itemId, listId, false);
+        console.error('Failed to assign inventory item to list:', err);
+        return false;
+      }
+    },
+    [applyListUpdate, patchInventoryListAssignment, reloadInventoryItems],
+  );
+
+  const unassignInventoryItemFromList = useCallback(
+    async (listId: string, itemId: string): Promise<boolean> => {
+      patchInventoryListAssignment(itemId, listId, false);
+      try {
+        const saved = await garmentsApi.unassignInventoryItemFromList(listId, itemId);
+        applyListUpdate(saved);
+        await reloadInventoryItems();
+        return true;
+      } catch (err) {
+        patchInventoryListAssignment(itemId, listId, true);
+        console.error('Failed to unassign inventory item from list:', err);
+        return false;
+      }
+    },
+    [applyListUpdate, patchInventoryListAssignment, reloadInventoryItems],
+  );
+
+  const updatePersonCtSizes = useCallback(
+    async (
+      listId: string,
+      personId: string,
+      patch: { ctSizes?: Record<string, string>; ctAudiences?: Record<string, string> },
+    ): Promise<GarmentPerson | null> => {
+      try {
+        const person = await garmentsApi.updatePersonCtSizes(listId, personId, patch);
+        setCurrentGarment((prev) => {
+          if (!prev || prev.id !== listId || !prev.persons) {
+            return prev;
+          }
+          return {
+            ...prev,
+            persons: prev.persons.map((p) => (p.id === person.id ? person : p)),
+          };
+        });
+        setGarmentLists((prev) =>
+          prev.map((list) => {
+            if (list.id !== listId || !list.persons) {
+              return list;
+            }
+            return {
+              ...list,
+              persons: list.persons.map((p) => (p.id === person.id ? person : p)),
+            };
+          }),
+        );
+        return person;
+      } catch (err) {
+        console.error('Failed to update person sizes:', err);
+        return null;
+      }
+    },
+    [],
+  );
+
   const importPersons = useCallback(
     async (
       listId: string,
@@ -945,12 +1059,18 @@ export function GarmentProvider({
           return t('garments.newInventoryItem');
         }
         const inv = currentInventoryItem;
+        if (mode === 'view') {
+          return inv ? <InventoryDetailHeaderMenus item={inv} /> : '';
+        }
         return inv?.articleName || t('garments.inventoryItem');
       }
       if (mode === 'create') {
         return t('garments.newList');
       }
       const list = item && 'checkboxColumns' in item ? item : currentGarment;
+      if (mode === 'view') {
+        return list ? <GarmentListDetailHeaderMenus list={list} /> : '';
+      }
       return list?.name || t('garments.list');
     },
     [currentGarment, currentInventoryItem, panelKind, t],
@@ -1009,10 +1129,11 @@ export function GarmentProvider({
       openInventoryPanel,
       openInventoryForEdit,
       openInventoryForView,
-      openGarmentsSettings,
-      closeGarmentSettingsView,
       openGarmentsInventory,
       openGarmentsLists,
+      assignInventoryItemToList,
+      unassignInventoryItemFromList,
+      updatePersonCtSizes,
       saveGarment,
       deleteGarment,
       deleteGarments,
@@ -1067,10 +1188,11 @@ export function GarmentProvider({
       openInventoryPanel,
       openInventoryForEdit,
       openInventoryForView,
-      openGarmentsSettings,
-      closeGarmentSettingsView,
       openGarmentsInventory,
       openGarmentsLists,
+      assignInventoryItemToList,
+      unassignInventoryItemFromList,
+      updatePersonCtSizes,
       saveGarment,
       deleteGarment,
       deleteGarments,

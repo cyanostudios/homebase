@@ -14,7 +14,9 @@ describe('Garment inventory list split view wiring', () => {
     expect(listSrc).toMatch(/InventoryQuickContextPanel/);
     expect(listSrc).toMatch(/handleRowActivate/);
     expect(listSrc).toMatch(/handleOpenInventoryForView/);
-    expect(listSrc).toMatch(/w-\[min\(100%,36rem\)\]/);
+    expect(listSrc).toMatch(/lg:grid-cols-2/);
+    expect(listSrc).toMatch(/lg:sticky lg:top-4/);
+    expect(listSrc).toMatch(/PLUGIN_PAGE_LIST_SHELL_CLASS/);
     expect(tableSrc).toMatch(/activeInventoryId/);
     expect(tableSrc).toMatch(/selectionEnabled/);
     expect(itemSrc).toMatch(/active\?: boolean/);
@@ -26,7 +28,7 @@ describe('Garment inventory list split view wiring', () => {
 
   test('quick context and form support variants with editable quantity', () => {
     expect(panelSrc).toMatch(/variant = 'list'/);
-    expect(panelSrc).toMatch(/garments\.quickContext\.openFullProfile/);
+    expect(panelSrc).toMatch(/QuickContextOpenFullFooter/);
     expect(panelSrc).toMatch(/DETAIL_NOTE_CALLOUT_CLASS/);
     expect(panelSrc).toMatch(/garments\.brand/);
     expect(panelSrc).toMatch(/garments\.variants/);
@@ -45,6 +47,14 @@ describe('Garment inventory list split view wiring', () => {
     expect(formSrc).toMatch(/garments\.variants/);
     expect(tableSrc).toMatch(/totalQuantity/);
     expect(tableSrc).toMatch(/variantCount/);
+  });
+
+  test('inventory bulk select supports list visibility like contacts assignable', () => {
+    expect(listSrc).toMatch(/BulkActionRoundBar/);
+    expect(listSrc).toMatch(/InventoryBulkListsDialog/);
+    expect(listSrc).toMatch(/bulkListsAction/);
+    expect(listSrc).toMatch(/assignInventoryItemToList/);
+    expect(listSrc).toMatch(/unassignInventoryItemFromList/);
   });
 
   test('provider clears duplicate highlight on all open helpers and uses shared validation', () => {

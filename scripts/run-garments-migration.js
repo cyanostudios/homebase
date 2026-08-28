@@ -24,6 +24,8 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/150-garment-inventory-variant-sku-nonunique.sql'),
   path.join(__dirname, '../server/migrations/151-garment-inventory-recommended-sale-price.sql'),
   path.join(__dirname, '../server/migrations/152-garment-inventory-variant-identity-nonunique.sql'),
+  path.join(__dirname, '../server/migrations/153-garment-list-inventory.sql'),
+  path.join(__dirname, '../server/migrations/154-garment-list-persons-ct-audiences.sql'),
 ];
 const MAIN_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/132-grant-garments-plugin-access.sql'),
@@ -36,22 +38,31 @@ async function runSqlFileOnClient(client, filePath) {
   console.log(`   Applied ${path.basename(filePath)}`);
 }
 
+function resolveTenantSchema(connectionString) {
+  const match = String(connectionString || '').match(/search_path%3D([^&]+)/i);
+  if (match) {
+    return decodeURIComponent(match[1]);
+  }
+  // Legacy local admin tenant rows store a bare DATABASE_URL → public schema.
+  return 'public';
+}
+
 async function runMigrationOnTenant(connectionString, tenantInfo) {
   const pool = new Pool({ connectionString });
   const client = await pool.connect();
+  const schemaName = tenantInfo.schemaName || resolveTenantSchema(connectionString);
 
   try {
-    const tenantLabel = tenantInfo.schemaName
-      ? `${tenantInfo.email || tenantInfo.userId} (${tenantInfo.schemaName})`
-      : tenantInfo.email || tenantInfo.userId;
+    const tenantLabel = tenantInfo.email
+      ? `${tenantInfo.email} (${schemaName})`
+      : tenantInfo.userId || schemaName;
     console.log(`\nRunning tenant migration on: ${tenantLabel}...`);
 
-    if (tenantInfo.schemaName) {
-      await client.query(`SET search_path TO ${tenantInfo.schemaName}`);
-    }
+    await client.query(`SET search_path TO ${schemaName}`);
 
     let applied = 0;
     let skipped = 0;
+    let failed = 0;
     for (const filePath of TENANT_MIGRATIONS) {
       try {
         await runSqlFileOnClient(client, filePath);
@@ -69,10 +80,11 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
           skipped += 1;
           continue;
         }
-        throw error;
+        console.error(`   Failed ${path.basename(filePath)}: ${error.message}`);
+        failed += 1;
       }
     }
-    return { success: true, tenantInfo, applied, skipped };
+    return { success: failed === 0, tenantInfo, applied, skipped, failed };
   } catch (error) {
     console.error(`   Migration failed:`, error.message);
     return { success: false, tenantInfo, error: error.message };
@@ -181,17 +193,27 @@ async function main() {
 
       console.log('\nTenant migration summary');
       const successful = results.filter((r) => r.success).length;
-      const failed = results.filter((r) => !r.success).length;
+      const partial = results.filter((r) => !r.success && (r.failed ?? 0) > 0).length;
+      const failed = results.filter((r) => !r.success && !(r.failed ?? 0)).length;
       console.log(`Successful: ${successful}`);
+      if (partial > 0) {
+        console.log(`Partial (some files failed): ${partial}`);
+      }
       console.log(`Failed: ${failed}`);
 
-      if (failed > 0) {
+      if (failed > 0 || partial > 0) {
         results
           .filter((r) => !r.success)
           .forEach((r) => {
-            console.log(`- User ${r.tenantInfo.userId} (${r.tenantInfo.email}): ${r.error}`);
+            const detail =
+              r.failed != null
+                ? `${r.failed} file(s) failed (applied ${r.applied}, skipped ${r.skipped})`
+                : r.error;
+            console.log(`- User ${r.tenantInfo.userId} (${r.tenantInfo.email}): ${detail}`);
           });
-        process.exitCode = 1;
+        if (failed > 0) {
+          process.exitCode = 1;
+        }
       }
     }
 

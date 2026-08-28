@@ -10,7 +10,8 @@ import type {
 
 export type InstructionPanelMode = 'create' | 'edit' | 'view';
 export type InstructionContentView = 'list' | 'settings';
-export type InstructionSettingsTab = 'view';
+/** No settings categories remain; list view prefs live on the list header. */
+export type InstructionSettingsTab = '';
 
 export interface InstructionContextType {
   isInstructionPanelOpen: boolean;
@@ -73,6 +74,7 @@ export interface InstructionContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+  getPanelTitle: (mode?: string, item?: Instruction | null) => React.ReactNode;
 }
 
 const InstructionContext = createContext<InstructionContextType | undefined>(undefined);
@@ -98,7 +100,7 @@ const EMPTY_INSTRUCTION_CONTEXT: InstructionContextType = {
   deleteInstructionCategory: async () => {},
   isSaving: false,
   instructionsContentView: 'list',
-  instructionsSettingsTab: 'view',
+  instructionsSettingsTab: '',
   openInstructionSettings: () => {},
   closeInstructionSettingsView: () => {},
   openInstructionPanel: () => {},
@@ -131,6 +133,7 @@ const EMPTY_INSTRUCTION_CONTEXT: InstructionContextType = {
   hasNextItem: false,
   currentItemIndex: 0,
   totalItems: 0,
+  getPanelTitle: () => null,
 };
 
 export function InstructionNullProvider({ children }: { children: React.ReactNode }) {

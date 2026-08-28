@@ -7,10 +7,12 @@ const cardSrc = fs.readFileSync(path.join(__dirname, '../TeamCard.tsx'), 'utf8')
 const badgesSrc = fs.readFileSync(path.join(__dirname, '../TeamSeriesTeamBadges.tsx'), 'utf8');
 
 describe('TeamList table view wiring', () => {
-  test('toolbar includes table mode control and hides sort dropdown in table mode', () => {
+  test('toolbar includes table mode control and always-visible sort row', () => {
     expect(listSrc).toMatch(/setListViewMode\('table'\)|onSelectTable/);
     expect(listSrc).toMatch(/ListColumnLayoutToggle/);
-    expect(listSrc).toMatch(/!isTableView/);
+    expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
+    expect(listSrc).toMatch(/aria-label="Sort by"/);
+    expect(listSrc).not.toMatch(/!isTableView \? \(/);
     expect(listSrc).toMatch(/TeamListTable/);
     expect(listSrc).toMatch(/TeamCard/);
   });

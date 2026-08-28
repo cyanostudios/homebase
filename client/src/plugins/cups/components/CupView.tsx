@@ -1,15 +1,13 @@
-import { Globe, Info, RotateCcw, SlidersHorizontal, Trophy, Trash2, Zap } from 'lucide-react';
+import { Globe, RotateCcw, SlidersHorizontal, Trophy } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
 import type { IngestSource } from '@/plugins/ingest/types/ingest';
@@ -24,7 +22,6 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
   const { t } = useTranslation();
   const current = cup ?? item ?? null;
   const {
-    deleteCup,
     restoreCup,
     quickEditDraft,
     setQuickEditField,
@@ -32,7 +29,6 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
     setShowDiscardQuickEditDialog,
     onDiscardQuickEditAndClose,
   } = useCups();
-  const [showDelete, setShowDelete] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [ingestSources, setIngestSources] = useState<IngestSource[]>([]);
 
@@ -95,38 +91,8 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
         sidebar={
           <div className="space-y-3">
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('contacts.quickActions')}
-                icon={Zap}
-                subtleTitle
-                className="p-4"
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 [&>svg]:text-red-600 dark:[&>svg]:text-red-400"
-                  onClick={() => setShowDelete(true)}
-                >
-                  {t('common.delete')}
-                </Button>
-              </DetailSection>
-            </Card>
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('contacts.information')}
-                icon={Info}
-                subtleTitle
-                className="p-4"
-                collapsible
-              >
+              <DetailSection title={t('cups.columnIngest')} subtleTitle className="p-4" collapsible>
                 <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDisplayNumber('cups', current.id)}
-                    </span>
-                  </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">Source URL</span>
                     <span className="max-w-[170px] truncate font-extrabold text-foreground">
@@ -145,30 +111,9 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
                       {current.ingest_run_id || '—'}
                     </span>
                   </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Updated</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {current.updated_at
-                        ? new Date(current.updated_at).toLocaleDateString('sv-SE')
-                        : '—'}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Created</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {current.created_at
-                        ? new Date(current.created_at).toLocaleDateString('sv-SE')
-                        : '—'}
-                    </span>
-                  </div>
                 </div>
               </DetailSection>
             </Card>
-            <DetailActivityLog
-              entityType="cups"
-              entityId={current.id}
-              title={t('contacts.activity')}
-            />
           </div>
         }
       >
@@ -320,19 +265,6 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
         onConfirm={onDiscardQuickEditAndClose}
         onCancel={() => setShowDiscardQuickEditDialog(false)}
         variant="warning"
-      />
-      <ConfirmDialog
-        isOpen={showDelete}
-        title="Delete cup?"
-        message={`Delete "${current.name}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
-        onConfirm={async () => {
-          await deleteCup(current.id);
-          setShowDelete(false);
-        }}
-        onCancel={() => setShowDelete(false)}
-        variant="danger"
       />
     </>
   );

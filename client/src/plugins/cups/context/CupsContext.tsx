@@ -47,6 +47,7 @@ export type CupsContextType = {
 
   clearValidationErrors: () => void;
   getDeleteMessage: (item: Cup | null) => string;
+  getPanelTitle: (mode?: string, item?: Cup | null) => React.ReactNode;
 
   navigateToPrevItem: () => void;
   navigateToNextItem: () => void;
@@ -117,6 +118,7 @@ const EMPTY_CUPS_CONTEXT: CupsContextType = {
   isSelected: () => false,
   clearValidationErrors: () => {},
   getDeleteMessage: () => '',
+  getPanelTitle: () => null,
   navigateToPrevItem: () => {},
   navigateToNextItem: () => {},
   hasPrevItem: false,

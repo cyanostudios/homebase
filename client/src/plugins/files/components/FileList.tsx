@@ -1,8 +1,22 @@
-import { CheckSquare, ArrowDown, ArrowUp, Plus, Settings, Trash2, XCircle } from 'lucide-react';
+import {
+  CheckSquare,
+  ArrowDown,
+  ArrowUp,
+  Clock,
+  HardDrive,
+  Image,
+  LayoutGrid,
+  Plus,
+  Settings,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -12,20 +26,33 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { nextListTableSort } from '@/core/list/listViewMode';
 import {
   useEffectiveCardColumnCount,
   useEffectiveColumnCount,
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
+import { nextListTableSort } from '@/core/list/listViewMode';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -64,7 +91,6 @@ import {
 import { FileListItem } from './FileListItem';
 import { FileListTable } from './FileListTable';
 import { FileSettingsView } from './FileSettingsView';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 type SortField = FileSortField;
 type SortOrder = FileSortOrder;
@@ -105,6 +131,14 @@ export const FileList: React.FC = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectionMode, setSelectionMode] = useState(false);
+
+  useRegisterMobileSearch({
+    value: searchTerm,
+    onChange: setSearchTerm,
+    placeholder: t('files.searchPlaceholder'),
+  });
+
   const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [columnCount, setColumnCountState] = useState<FileColumnCount>(getInitialFileColumnCount);
@@ -129,10 +163,14 @@ export const FileList: React.FC = () => {
           return;
         }
         if (hasColumnPref) {
-          const next = resolveFileColumnCount(settings);
+          const resolved = resolveFileColumnCount(settings);
+          const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as FileColumnCount;
           setColumnCountState(next);
           if (typeof window !== 'undefined') {
             window.sessionStorage.setItem(FILES_COLUMN_COUNT_STORAGE_KEY, String(next));
+          }
+          if (next !== resolved) {
+            updateSettings(FILES_SETTINGS_KEY, { columnCount: next }).catch(() => {});
           }
         }
         if (hasListViewPref) {
@@ -148,14 +186,15 @@ export const FileList: React.FC = () => {
   }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback(
-    (count: FileColumnCount) => {
-      setColumnCountState(count);
+    (_count: FileColumnCount) => {
+      const next = 3 as FileColumnCount;
+      setColumnCountState(next);
       setListViewModeState('cards');
       persistFileListViewModeSession('cards');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(FILES_COLUMN_COUNT_STORAGE_KEY, String(count));
+        window.sessionStorage.setItem(FILES_COLUMN_COUNT_STORAGE_KEY, String(next));
       }
-      updateSettings(FILES_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+      updateSettings(FILES_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
         () => {},
       );
     },
@@ -274,6 +313,37 @@ export const FileList: React.FC = () => {
 
   const handleOpenForView = (item: any) => attemptNavigation(() => openFileForView(item));
 
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearFileSelection();
+    setSelectionMode(false);
+  };
+
+  const handleRowActivate = (item: any) => {
+    if (selectionMode) {
+      toggleFileSelected(String(item.id));
+      return;
+    }
+    handleOpenForView(item);
+  };
+
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    const disabled = selectedCount === 0;
+    return [
+      {
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      },
+    ];
+  }, [selectedCount, t]);
+
   if (filesContentView === 'settings') {
     return (
       <div className="plugin-files min-h-full bg-background">
@@ -285,65 +355,177 @@ export const FileList: React.FC = () => {
   }
 
   return (
-    <div className="plugin-files min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.files')}</h2>
-            <p className="text-sm text-muted-foreground">{t('files.listDescription')}</p>
-          </div>
-          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={() => openFileSettings()}
-              title={t('common.settings')}
-            >
-              {t('common.settings')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(() => openFilePanel(null))}
-            >
-              {t('files.addFile')}
-            </Button>
+    <div className={cn('plugin-files', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.files')}</h2>
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('common.settings')}
+                    variant="soft"
+                    onClick={() => openFileSettings()}
+                  />
+                  {filteredAndSorted.length > 0 ? (
+                    selectionMode ? (
+                      <ExpandableIconButton
+                        icon={XCircle}
+                        label={t('common.clear')}
+                        variant="danger"
+                        alwaysExpanded
+                        onClick={handleExitSelectionMode}
+                      />
+                    ) : (
+                      <ExpandableIconButton
+                        icon={CheckSquare}
+                        label={t('common.select')}
+                        variant="soft"
+                        alwaysExpanded
+                        onClick={handleEnterSelectionMode}
+                      />
+                    )
+                  ) : null}
+                </div>
+              </div>
+              {selectionMode ? (
+                <BulkActionRoundBar
+                  selectedCount={selectedCount}
+                  actions={bulkRoundActions}
+                  className="gap-2"
+                />
+              ) : null}
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t('files.searchPlaceholder')}
+              />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => t(`files.columns${count}`)}
+                tableAriaLabel={t('common.tableView')}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('files.addFile')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => attemptNavigation(() => openFilePanel(null))}
+              />
+            </div>
           </div>
         </div>
 
-        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
-          <ListFilterStatCard
-            label="Total"
-            value={stats.total}
-            dotClassName="bg-blue-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label="Images"
-            value={stats.images}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('images')}
-            onClick={() => toggleFilter('images')}
-          />
-          <ListFilterStatCard
-            label="With Size"
-            value={stats.withSize}
-            dotClassName="bg-amber-500"
-            active={isFilterActive('withSize')}
-            onClick={() => toggleFilter('withSize')}
-          />
-          <ListFilterStatCard
-            label="Updated 7d"
-            value={stats.updated7d}
-            dotClassName="bg-violet-500"
-            active={isFilterActive('updated7d')}
-            onClick={() => toggleFilter('updated7d')}
-          />
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFilters([])}
+              className={cn(
+                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                Total <span className="tabular-nums font-semibold">({stats.total})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('images')}
+              className={cn(
+                isFilterActive('images') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Image className="h-3.5 w-3.5" />
+              <span>
+                Images <span className="tabular-nums font-semibold">({stats.images})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('withSize')}
+              className={cn(
+                isFilterActive('withSize') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <HardDrive className="h-3.5 w-3.5" />
+              <span>
+                With Size <span className="tabular-nums font-semibold">({stats.withSize})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('updated7d')}
+              className={cn(
+                isFilterActive('updated7d')
+                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                  : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              <span>
+                Updated 7d <span className="tabular-nums font-semibold">({stats.updated7d})</span>
+              </span>
+            </Button>
+          </div>
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label="Sort by"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
 
         <BulkDeleteModal
@@ -357,112 +539,6 @@ export const FileList: React.FC = () => {
         />
 
         <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={filteredAndSorted.length > 0}
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={handleHeaderCheckboxChange}
-              >
-                Select all
-              </Button>
-            }
-            search={
-              <ListSearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('files.searchPlaceholder')}
-              />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t(`files.columns${count}`)}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearFileSelection}
-                  type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: selectedCount })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                >
-                  {t('common.delete')}
-                </Button>
-              </>
-            }
-          />
-
           {filteredAndSorted.length === 0 ? (
             <ListEmptyState
               message={searchTerm ? t('files.noMatch') : t('files.noYet')}
@@ -478,11 +554,12 @@ export const FileList: React.FC = () => {
               sortOrder={sortOrder}
               onSort={handleTableSort}
               isSelected={isSelected}
-              onRowClick={handleOpenForView}
+              onRowClick={handleRowActivate}
               onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
               onCheckboxChange={onVisibleRowCheckboxChange}
               allVisibleSelected={allVisibleSelected}
               onHeaderCheckboxChange={handleHeaderCheckboxChange}
+              selectionEnabled={selectionMode}
             />
           ) : (
             <div
@@ -500,18 +577,20 @@ export const FileList: React.FC = () => {
                     key={file.id}
                     file={file}
                     selected={fileIsSelected}
-                    onClick={() => handleOpenForView(file)}
+                    onClick={() => handleRowActivate(file)}
                     columnCount={effectiveCardColumnCount}
                     checkbox={
-                      <input
-                        type="checkbox"
-                        checked={fileIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(String(file.id))}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={fileIsSelected ? 'Unselect file' : 'Select file'}
-                      />
+                      selectionMode ? (
+                        <input
+                          type="checkbox"
+                          checked={fileIsSelected}
+                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                          onChange={() => onVisibleRowCheckboxChange(String(file.id))}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 cursor-pointer"
+                          aria-label={fileIsSelected ? 'Unselect file' : 'Select file'}
+                        />
+                      ) : undefined
                     }
                   />
                 );

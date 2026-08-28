@@ -6,15 +6,17 @@
 
 **Canonical references (copy, do not invent):**
 
-| Area                         | Primary reference                                                                                      |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Quick context panel          | `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx`                                |
-| List wiring                  | `client/src/plugins/garments/components/GarmentList.tsx`                                               |
-| Full detail (inventory)      | `client/src/plugins/garments/components/GarmentView.tsx` (`InventoryDetailView`)                       |
-| Quick actions / sidebar      | `client/src/plugins/slots/components/SlotView.tsx`, `client/src/plugins/tasks/components/TaskView.tsx` |
-| Contacts detail header menus | `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx` (panel title; not sidebar cards) |
-| Shared tokens                | `client/src/core/ui/detailViewCardStyles.ts`                                                           |
-| Preview hook                 | `client/src/core/hooks/useQuickContextPreview.ts`                                                      |
+| Area                          | Primary reference                                                                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **List header (canonical)**   | `client/src/plugins/contacts/components/ContactList.tsx` — Select/Clear, `BulkActionRoundBar`, `RoundExpandableSearch`            |
+| Quick context panel           | `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx`                                                           |
+| List wiring (split + preview) | `client/src/plugins/contacts/components/ContactList.tsx`, `client/src/plugins/garments/components/GarmentList.tsx`                |
+| **Full detail (canonical)**   | `client/src/plugins/contacts/components/ContactView.tsx` — 2-col layout, header menus, no Information/Activity cards              |
+| Detail header menus           | `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx` (thin wrapper) + `client/src/core/ui/DetailHeaderMenus.tsx` |
+| List page shell               | `PLUGIN_PAGE_LIST_SHELL_CLASS` in `client/src/core/ui/pluginPageStyles.ts` (`overflow-x-clip`, not `hidden`)                      |
+| Provider list (search-only)   | `client/src/plugins/ai-providers/components/AIProvidersList.tsx` — `RoundExpandableSearch` in header, no Select                   |
+| Shared tokens                 | `client/src/core/ui/detailViewCardStyles.ts`                                                                                      |
+| Preview hook                  | `client/src/core/hooks/useQuickContextPreview.ts`                                                                                 |
 
 **Read alongside:**
 
@@ -37,11 +39,11 @@ Quick Context Panel (*QuickContextPanel)     ← sticky aside, preview + light e
   │  Open full profile / Edit
   ▼
 DetailPanel (core shell)
-  ├─ panelMode === 'view'  → *View.tsx   (DetailLayout + QuickActions)
+  ├─ panelMode === 'view'  → *View.tsx   (DetailLayout + DetailHeaderMenus in panel title)
   └─ panelMode === 'edit'|'create' → *Form.tsx  (same DetailLayout chrome)
 ```
 
-Delete, Duplicate, Export, and Activity Log belong in the **full view**, not in the quick context panel.
+Delete, Duplicate, and Export belong in the **full view header menus** (`DetailHeaderMenus`), not in the quick context panel or sidebar cards. Full views do **not** render the system Information card (ID/Created/Updated) or `DetailActivityLog` in the layout (canonical Contacts pattern).
 
 ---
 
@@ -174,37 +176,42 @@ const { previewItem, setPreviewItem, showQuickContext, markPendingAndOpen, activ
 
 ### Wiring in `*List.tsx`
 
-Keep `ListToolbar` **full width above** the split. Do **not** nest the toolbar inside `min-w-0 flex-1` (that shrinks search/bulk when the panel opens). Canonical pattern: Requests / Tasks / Teams / Matches.
+Use the **Contacts list header** (§4) — not `ListToolbar` — above the split. Outer page shell must use `PLUGIN_PAGE_LIST_SHELL_CLASS` (`overflow-x-clip` — `overflow-x-hidden` breaks sticky). Do **not** nest the header row inside a shrinking flex child.
+
+Canonical quick-context split (Contacts / Tasks / Notes / …): **50/50 grid**, sticky only in **list** view.
 
 ```tsx
-<div className="flex flex-col gap-0 md:gap-3">
-  <ListToolbar /* search + bulk — full page width */ />
-
-  <div className="flex items-start gap-4">
-    {showQuickContext && previewItem ? (
-      <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
-        <MyPluginQuickContextPanel
-          item={previewItem}
-          onClose={() => setPreviewItem(null)}
-          onOpenFullProfile={() =>
-            markPendingAndOpen(previewItem, () =>
-              attemptNavigation(() => openMyPluginForView(previewItem)),
-            )
-          }
-          onEdit={() =>
-            markPendingAndOpen(previewItem, () =>
-              attemptNavigation(() => openMyPluginForEdit(previewItem)),
-            )
-          }
-        />
-      </aside>
-    ) : null}
-    <div className="flex min-w-0 flex-1 flex-col gap-3">
-      {/* table or card grid only; pass activeId = previewItem?.id */}
-    </div>
+<div
+  className={cn(
+    'grid items-start gap-4',
+    showQuickContext && previewItem ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+  )}
+>
+  {showQuickContext && previewItem ? (
+    <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
+      <MyPluginQuickContextPanel
+        item={previewItem}
+        onClose={() => setPreviewItem(null)}
+        onOpenFullProfile={() =>
+          markPendingAndOpen(previewItem, () =>
+            attemptNavigation(() => openMyPluginForView(previewItem)),
+          )
+        }
+        onEdit={() =>
+          markPendingAndOpen(previewItem, () =>
+            attemptNavigation(() => openMyPluginForEdit(previewItem)),
+          )
+        }
+      />
+    </aside>
+  ) : null}
+  <div className="flex min-w-0 flex-col gap-3">
+    {/* table or card grid only; pass activeId = previewItem?.id */}
   </div>
 </div>
 ```
+
+Do **not** sticky the quick-context panel in full detail view — sticky is list-only.
 
 ### Active row highlight
 
@@ -218,9 +225,11 @@ Pass `active*Id={previewItem?.id ?? null}` into `*ListItem` / `*ListTable` so th
 - [ ] Header uses `QuickContextHeaderActions` (Open expanded; Edit hover-expand; Close icon-only)
 - [ ] Footer uses `QuickContextOpenFullFooter` when `variant !== 'full'`
 - [ ] No Delete / Duplicate / Export in the panel
-- [ ] List uses `useQuickContextPreview` + sticky `<aside className="w-[min(100%,36rem)] …">` (Contacts: legacy inline preview state — same UX rules apply)
+- [ ] List uses `useQuickContextPreview` + 50/50 `lg:grid-cols-2` with sticky `<aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">`
+- [ ] Outer list shell uses `PLUGIN_PAGE_LIST_SHELL_CLASS` (not hardcoded `overflow-x-hidden`)
 - [ ] Active row id synced to preview; bulk selection may run while panel is open
-- [ ] i18n: `common.open`, `common.openFullProfile`, `common.edit`, `common.close`; plugin keys for readMore / showLess in **en** and **sv**
+- [ ] i18n: `common.open`, `common.openFullProfile`, `common.edit`, `common.close`, `common.select`, `common.clear`; plugin keys for readMore / showLess in **en** and **sv**
+- [ ] List header follows §4 (Select/Clear + BulkActionRoundBar + RoundExpandableSearch) — not `ListToolbar`
 
 ---
 
@@ -232,10 +241,10 @@ Full view renders inside core `DetailPanel` (wired by `AppContent` + `pluginRegi
 
 ```tsx
 <DetailLayout
-  leftSidebar={/* identity + properties + description */}
-  sidebar={/* QuickActions → Export? → relations → Information → Activity */}
+  leftSidebar={/* identity + properties + description (quick context variant="full") */}
+  sidebar={/* optional: related entities / domain cards only — no QuickActions, Export, Information, Activity */}
 >
-  {/* optional main column: primary working content (e.g. variants) */}
+  {/* optional main column: primary working content (e.g. variants, linked items) */}
 </DetailLayout>
 ```
 
@@ -243,11 +252,11 @@ Full view renders inside core `DetailPanel` (wired by `AppContent` + `pluginRegi
 | ----------------- | ----------------------------------------------------- |
 | `leftSidebar`     | Identity header + details/properties cards            |
 | `children` (main) | Primary working content when a third column is needed |
-| `sidebar`         | Actions, metadata, activity                           |
+| `sidebar`         | Optional domain/relations cards only (when needed)    |
 
-**Contacts exception (verified):** full-view **Actions / Export / Time log** live in the detail **panel title** slot (`ContactProvider.getPanelTitle` → `ContactDetailHeaderMenus`), not as sidebar cards. `ContactView` currently omits the third sidebar column (Information + Activity temporarily removed from the layout until a new placement is chosen; `DetailActivityLog` and info-row patterns remain available to restore). See §4 “Contacts detail header menus”.
+**Detail header menus (platform):** full-view **Actions / Export** (and plugin-specific extras like Contacts **Time log**) live in the detail **panel title** slot via `pluginContext.getPanelTitle` → `DetailHeaderMenus` (or a thin `*DetailHeaderMenus` wrapper). Do **not** put Quick Actions / Export as sidebar cards. Do **not** render the system **Information** card (ID/Created/Updated) or **`DetailActivityLog`** in full view — canonical pattern matches Contacts. Sticky preview belongs on the **list** quick-context aside only.
 
-Desktop columns share the same top edge (`items-start`); sticky preview belongs on the **list** quick-context aside, not on `DetailLayout` columns. On phone, column 3 (`sidebar` / `rightSidebar`) stacks last via `order-*`.
+Desktop columns share the same top edge (`items-start`). On phone, column 3 (`sidebar` / `rightSidebar`) stacks last via `order-*`.
 
 **App right rail:** On desktop (`lg+`), when `AppRightSidebar` is **open**, `DetailLayout` portals the `sidebar` prop into that rail (plugin Views/Forms keep passing `sidebar` unchanged). When the rail is **closed**, or on phone/pad, `sidebar` stays inline in the detail grid. Do not special-case plugins for the rail. Helpers: `client/src/core/ui/detailLayoutPortal.ts`.
 
@@ -269,53 +278,29 @@ Do **not** put primary content properties only in the right sidebar — see §6 
 
 Match quick context: initials avatar (`h-11 w-11`) + `text-lg font-semibold` title inside a card header with `border-b border-border/50 px-4 py-3`.
 
-### Sidebar order (strict)
+### Sidebar order (when `sidebar` is used)
 
-Default (most plugins):
+Full views follow the **Contacts canonical layout**: Actions / Export / plugin extras in **header menus** (§4); **no** system Information card; **no** `DetailActivityLog`.
 
-1. **QuickActionsCard** — Edit, Delete, Duplicate (+ plugin-specific actions)
-2. **ExportOptionsCard** — only if the plugin supports export
-3. **Related entities** — mentions, assignees, links (`QuickContextLinkTile` when applicable)
-4. **Information** — System ID / Created / Updated (`DETAIL_INFO_ROW_CLASS`, collapsible OK)
-5. **DetailActivityLog** — required for CRUD plugins logged via `activityLogMiddleware` (`limit={30}`, `showClearButton`, `refreshKey` from `updatedAt`/id)
+When a plugin still passes `sidebar`, limit it to **domain content** only, for example:
 
-**Contacts full view:** skip items 1–2 (and Time log cards) in the sidebar — those are in the panel-title header menus (§4). Information + Activity are **temporarily not rendered** in Contacts until relocated; restore as sidebar items 4–5 (or header menus) when placement is decided.
+1. **Related entities** — mentions, assignees, links (`QuickContextLinkTile` when applicable)
+2. **Domain sections** — plugin-specific cards (not system metadata)
 
-Sidebar spacing: `space-y-4` (slots/garments) or `space-y-6` (tasks) — stay consistent within the plugin.
+Do **not** add sidebar QuickActions, ExportOptions, system Information (ID/Created/Updated), or DetailActivityLog to new work. Legacy sidebar quick-action cards are deprecated (§4).
 
-### Information card
+**Guides exception:** domain sections under `guides.information.*` (costs, generated languages) are **domain fields**, not the system Information card — they may remain in Guides full view.
 
-```tsx
-<Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-  <DetailSection
-    title={t('myPlugin.information')}
-    icon={Info}
-    subtleTitle
-    className="p-4"
-    collapsible
-  >
-    <div>
-      <div className={DETAIL_INFO_ROW_CLASS}>
-        <span className="text-slate-500 dark:text-slate-400">ID</span>
-        <span className="font-mono font-semibold text-foreground">
-          {formatDisplayNumber('my-plugin', item.id)}
-        </span>
-      </div>
-      {/* Created / Updated with t('common.created') / t('common.updated') */}
-    </div>
-  </DetailSection>
-</Card>
-```
+Sidebar spacing: `space-y-4` (Contacts/inventory) or `space-y-6` — stay consistent within the plugin.
 
 ### Checklist — Full View
 
-- [ ] Uses `DetailLayout` with correct column roles
+- [ ] Uses `DetailLayout` with correct column roles (Contacts-class: often 2-col, no `sidebar` or domain-only `sidebar`)
 - [ ] All content cards use `DETAIL_VIEW_CARD_CLASS`
-- [ ] Sidebar order matches the list above
-- [ ] QuickActions is a separate function component (or clear card block), not ad-hoc full-width buttons
-- [ ] Information uses `DETAIL_INFO_ROW_CLASS` + mono values
-- [ ] Activity log present when the plugin’s API uses activity middleware
-- [ ] Delete / Duplicate dialogs live in the view (see §5)
+- [ ] Actions / Export in `DetailHeaderMenus` via `getPanelTitle` — **not** sidebar QuickActions / Export cards
+- [ ] **No** system Information card (ID/Created/Updated) in layout
+- [ ] **No** `DetailActivityLog` in layout
+- [ ] Delete / Duplicate dialogs live in the view or header-menu wrapper (see §5)
 
 ---
 
@@ -325,17 +310,17 @@ Sidebar spacing: `space-y-4` (slots/garments) or `space-y-6` (tasks) — stay co
 
 ### Shared rules
 
-| Rule                                 | Detail                                                                                                                                                                                                                                                                                           |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Same `DetailLayout`                  | Same column structure as view (main + optional sidebar)                                                                                                                                                                                                                                          |
-| Same card tokens                     | `DETAIL_VIEW_CARD_CLASS` per section                                                                                                                                                                                                                                                             |
-| Same section titles/icons/order      | Details, variants, description, etc.                                                                                                                                                                                                                                                             |
-| No bleed shell                       | No `md:-mx-6`, no extra outer padding — content sits in DetailPanel (`px-2 sm:px-3` phone / `px-6` pad/desktop)                                                                                                                                                                                  |
-| No `PANEL_MAX_WIDTH` on form main    | Avoid constraining create/edit differently from view                                                                                                                                                                                                                                             |
-| No nested max-h scroll in form cards | Phone/desktop: form cards grow with content (same as view); page scroll only — do not use `max-h-[calc(100vh-…)]` + inner `overflow-y-auto` on identity cards                                                                                                                                    |
-| Edit sidebar                         | Prefer Contacts-class pattern: **2 columns** (`leftSidebar` content + main properties); **no** Information/Activity in edit (those stay in full view). Older “Information card only” row is superseded for Contacts / Tasks / Notes / Requests / Invoices — keep tokens/Save-Cancel rules below. |
-| Create                               | Same chrome as edit when the plugin uses 2-column edit (e.g. Contacts, Invoices); otherwise single column OK                                                                                                                                                                                     |
-| Field grids on phone                 | Prefer `grid-cols-1 … sm:grid-cols-2` / `md:grid-cols-2` so edit matches view stacking                                                                                                                                                                                                           |
+| Rule                                 | Detail                                                                                                                                                                             |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Same `DetailLayout`                  | Same column structure as view (main + optional sidebar)                                                                                                                            |
+| Same card tokens                     | `DETAIL_VIEW_CARD_CLASS` per section                                                                                                                                               |
+| Same section titles/icons/order      | Details, variants, description, etc.                                                                                                                                               |
+| No bleed shell                       | No `md:-mx-6`, no extra outer padding — content sits in DetailPanel (`px-2 sm:px-3` phone / `px-6` pad/desktop)                                                                    |
+| No `PANEL_MAX_WIDTH` on form main    | Avoid constraining create/edit differently from view                                                                                                                               |
+| No nested max-h scroll in form cards | Phone/desktop: form cards grow with content (same as view); page scroll only — do not use `max-h-[calc(100vh-…)]` + inner `overflow-y-auto` on identity cards                      |
+| Edit sidebar                         | Prefer Contacts-class pattern: **2 columns** (`leftSidebar` content + main properties); **no** system Information / Activity in edit or view. Keep tokens/Save-Cancel rules below. |
+| Create                               | Same chrome as edit when the plugin uses 2-column edit (e.g. Contacts, Invoices); otherwise single column OK                                                                       |
+| Field grids on phone                 | Prefer `grid-cols-1 … sm:grid-cols-2` / `md:grid-cols-2` so edit matches view stacking                                                                                             |
 
 ### Inline Save / Cancel (required)
 
@@ -381,7 +366,7 @@ Sidebar spacing: `space-y-4` (slots/garments) or `space-y-6` (tasks) — stay co
 - [ ] Side-by-side compare with `*View.tsx`: same cards, order, tokens
 - [ ] Inline Save/Cancel present; window globals **absent**
 - [ ] Button size `h-9 text-xs px-3`; Save uses green primary classes above
-- [ ] Edit mode has no QuickActions; Information/Activity stay in full view (Contacts-class 2-col edit) unless a plugin documents an exception
+- [ ] Edit mode has no QuickActions; no system Information / Activity cards (Contacts-class 2-col edit)
 - [ ] Create mode has no sidebar / full width
 - [ ] Unsaved-changes warning on navigate away when dirty
 
@@ -389,28 +374,91 @@ Sidebar spacing: `space-y-4` (slots/garments) or `space-y-6` (tasks) — stay co
 
 ## 4. Headers and buttons
 
+### List page header (canonical — CRUD lists)
+
+**Reference:** `ContactList.tsx`. Do **not** use `ListToolbar` as the default list header (`ListToolbar` is **legacy / exception only**, e.g. plugin template).
+
+Layout (desktop, `hidden md:block`):
+
+```
+flex items-start justify-between gap-6
+├── Left column (flex min-w-0 flex-1 flex-col gap-5)
+│   ├── PLUGIN_PAGE_TITLE_ROW_CLASS
+│   │     h2 (PLUGIN_PAGE_TITLE_CLASS) + Settings (soft) + Select|Clear (alwaysExpanded)
+│   └── BulkActionRoundBar (when selectionMode)
+└── PLUGIN_PAGE_HEADER_ACTIONS_CLASS
+      RoundExpandableSearch + Add (soft, alwaysExpanded)
+```
+
+**Select / Clear:** `ExpandableIconButton` — Select `variant="soft"`, Clear `variant="danger"`, both `alwaysExpanded`. Toggle `selectionMode` state; show only when the list has items.
+
+**Bulk actions:** `BulkActionRoundBar` below the title row when `selectionMode` is true. Gray secondary pills, count pill blue; message `text-sky-500`, email `text-red-800`, delete `tone: 'destructive'`.
+
+**Search:** `RoundExpandableSearch` in `PLUGIN_PAGE_HEADER_ACTIONS_CLASS` beside Add — not in a full-width toolbar row.
+
+**Table checkboxes:** pass `selectionEnabled={selectionMode}` into `*ListTable` / row components so checkbox columns appear only in select mode.
+
+**Provider / config lists without meaningful bulk:** search-only header — `RoundExpandableSearch` in `PLUGIN_PAGE_HEADER_ACTIONS_CLASS`, no Select/Clear. Reference: `AIProvidersList.tsx`.
+
+```tsx
+<div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.myPlugin')}</h2>
+  {/* Settings, etc. */}
+  {items.length > 0 ? (
+    selectionMode ? (
+      <ExpandableIconButton icon={XCircle} label={t('common.clear')} variant="danger" alwaysExpanded onClick={handleExitSelectionMode} />
+    ) : (
+      <ExpandableIconButton icon={CheckSquare} label={t('common.select')} variant="soft" alwaysExpanded onClick={handleEnterSelectionMode} />
+    )
+  ) : null}
+</div>
+{selectionMode ? <BulkActionRoundBar selectedCount={selectedCount} actions={bulkRoundActions} /> : null}
+{/* … */}
+<div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+  <RoundExpandableSearch value={searchTerm} onChange={setSearchTerm} placeholder={…} />
+  {/* optional sort controls */}
+  <ListColumnLayoutToggle
+    columnCount={columnCount}
+    listViewMode={listViewMode}
+    onSelectColumns={setColumnCount}
+    onSelectTable={() => setListViewMode('table')}
+    columnAriaLabel={(count) => t(`myPlugin.columns${count}`)}
+    tableAriaLabel={t('common.tableView')}
+  />
+  <ExpandableIconButton icon={Plus} label={t('myPlugin.add')} variant="soft" alwaysExpanded onClick={…} />
+</div>
+```
+
+**Layout toggle:** desktop only **3 | table** (`ListColumnLayoutToggle`). Persisted cards preference is always `columnCount: 3`. Pass `{ quickContextOpen }` into `useEffectiveColumnCount` / `useEffectiveCardColumnCount` so the card grid shows **2** columns while quick context is open (preference unchanged). Hidden on pad/phone (effective clamps apply).
+
+**Chrome:** shared shell tokens `LIST_LAYOUT_TOGGLE_SHELL_CLASS` / `LIST_LAYOUT_TOGGLE_DIVIDER_CLASS` in `pluginPageStyles.ts` — white pill (`bg-white` / `dark:bg-slate-950`), selected half uses `bg-primary/10 text-primary`.
+
+**Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only). Do **not** add a settings **View** tab for cards/table — that lives on the list header (`ListColumnLayoutToggle`).
+
 ### Panel / page titles
 
 - List page title and primary Add action come from `MainLayout` / content header wiring in context (`getPanelTitle`, content view keys).
 - Plugins with `contentFlush: true` own in-page padding and often render their own list header (title + count + Settings + Add).
 - Detail panel title/subtitle come from context helpers consumed by `AppContent` → `createPanelTitles` (`PanelTitles.tsx`).
-- **TopBar breadcrumb chip** must receive a **string** label (`detailPanelBreadcrumbLabel`). Never pass React action bars into `TopBar` / `TopBarBreadcrumbs` — if `getPanelTitle` returns a React node (Contacts), `AppContent` derives the chip from the item name / display number.
+- **TopBar breadcrumb chip** must receive a **string** label (`detailPanelBreadcrumbLabel`). Never pass React action bars into `TopBar` / `TopBarBreadcrumbs` — if `getPanelTitle` returns a React node (`DetailHeaderMenus`), `AppContent` derives the chip from the item name / display number.
 
-### Contacts detail header menus (reference)
+### Detail header menus (platform reference)
 
-Verified in `ContactDetailHeaderMenus` + `ContactProvider.getPanelTitle` + `PanelTitles` (contacts branch runs **before** the mobile “blank title” early-return so menus show on phone too).
+Shared primitive: `client/src/core/ui/DetailHeaderMenus.tsx`. Plugin wrappers (e.g. `ContactDetailHeaderMenus`, `TaskDetailHeaderMenus`) supply actions/export/extra menus + dialogs. Wire via `Provider.getPanelTitle` in view mode; `PanelTitles` prefers non-string React nodes **before** the mobile “blank title” early-return.
 
-| Trigger      | Idle / open                                                                                                          | Expanded row                                                                                                        |
-| ------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **Actions**  | `RoundIconLabelButton` `variant="soft"` / `primary` when open                                                        | Secondary pills: Edit (`soft`), Delete / Duplicate (colored icons), Message (`text-sky-500`), Mail (`text-red-800`) |
-| **Export**   | same soft/primary toggle                                                                                             | TXT / CSV / PDF secondary pills                                                                                     |
-| **Time log** | shown **only** when ≥1 entry; soft/primary + orange corner count badge (`-right-1 -top-1`, TrainingSchedule pattern) | Amber pills (duration + date + trash); delete via `ConfirmDialog`                                                   |
+**Phone layout:** trigger row (`Actions` / `Export` / extras) scrolls horizontally when needed. When a menu is open, its action pills render **inline beside the active trigger** (horizontal scroll), not on a separate full-width row below — keeps one compact header band on narrow viewports. **Desktop (`md+`):** triggers wrap; open submenu pills sit on a **second row** below the triggers.
 
-Delete contact / duplicate stay behind `ConfirmDialog` / `DuplicateDialog`. Remount menus with `key={contact.id}` when switching items.
+| Trigger     | Idle / open                                                                   | Expanded row                                                                                                        |
+| ----------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Actions** | `RoundIconLabelButton` `variant="soft"` / `primary` when open                 | Secondary pills: Edit (`soft`), Delete / Duplicate (colored icons), Message (`text-sky-500`), Mail (`text-red-800`) |
+| **Export**  | same soft/primary toggle                                                      | TXT / CSV / PDF (+ share) secondary pills                                                                           |
+| **Extras**  | optional (e.g. Contacts **Time log** only when ≥1 entry + orange count badge) | Plugin-specific content                                                                                             |
 
-### Quick actions — icon colors (strict)
+Delete / duplicate stay behind `ConfirmDialog` / `DuplicateDialog`. Remount menus with `key={item.id}` when switching items.
 
-**Default sidebar QuickActionsCard** (ghost rows):
+### Legacy sidebar quick actions — do not use for new work
+
+Older `*QuickActionsCard` / `*ExportOptionsCard` ghost-row sidebars are **deprecated**; migrate to `DetailHeaderMenus`. Icon color reference for any remaining ghost rows:
 
 | Action       | Icon CSS                               | Button / hover                                                 |
 | ------------ | -------------------------------------- | -------------------------------------------------------------- |
@@ -420,36 +468,28 @@ Delete contact / duplicate stay behind `ConfirmDialog` / `DuplicateDialog`. Remo
 | Send message | `text-violet-600 dark:text-violet-400` | muted hover                                                    |
 | Send email   | `text-red-600 dark:text-red-400`       | muted hover                                                    |
 
-All **sidebar** quick-action buttons:
+**Header Actions row** uses round pills: Message/Mail icon colors match **bulk** (`text-sky-500` / `text-red-800`).
 
-- `variant="ghost"` `size="sm"`
-- Prefer `DETAIL_QUICK_ACTION_ROW_CLASS` (`h-9 justify-start rounded-md px-3 text-xs …`)
-- **Never** full-width filled primary buttons inside Quick actions
+### List header action buttons (canonical)
 
-**Contacts header Actions row** uses round pills instead of ghost rows: Message/Mail icon colors match **bulk** (`text-sky-500` / `text-red-800`), not the violet/red ghost table above.
+Use **`ExpandableIconButton variant="soft"`** for Settings, Add, and routing shortcuts in the title row / `PLUGIN_PAGE_HEADER_ACTIONS_CLASS` — reference `ContactList.tsx`.
 
-### List toolbar buttons
-
-```tsx
-<Button variant="secondary" size="sm" icon={Settings} className="h-9 text-xs px-3">
-  {t('common.settings')}
-</Button>
-```
-
-Use `icon` prop + label for Settings / primary toolbar actions — not icon-only.
+**Legacy (`ListToolbar` / plain `Button` rows):** exception-only. When retained, use `Button variant="secondary" size="sm" icon={Settings} className="h-9 text-xs px-3"` with icon + label — not icon-only.
 
 ### Bulk selection actions
 
-**Default (ListToolbar):** neutral bulk actions hover `bg-primary/10` + `text-primary`; Clear selection and Delete use red hover language.
+**Default (`BulkActionRoundBar`):** gray secondary pills, `alwaysExpanded`; count pill blue; message icon `text-sky-500`, email `text-red-800`, delete `tone: 'destructive'`. Reference: `ContactList.tsx`.
 
-**Contacts (`BulkActionRoundBar`):** gray secondary pills, `alwaysExpanded`; count pill blue; message icon `text-sky-500`, email `text-red-800`, delete `tone: 'destructive'`. Reference: `ContactList.tsx`.
+**Legacy (`ListToolbar`):** exception-only — neutral bulk actions hover `bg-primary/10` + `text-primary`; Clear selection and Delete use red hover language. Do not use for new CRUD lists.
 
 ### Checklist — Buttons
 
-- [ ] Quick action icon colors match the table
-- [ ] Delete has red hover background
+- [ ] List header: Select/Clear (`alwaysExpanded`) + `BulkActionRoundBar` when `selectionMode` + `RoundExpandableSearch` in `PLUGIN_PAGE_HEADER_ACTIONS_CLASS`
+- [ ] `selectionEnabled={selectionMode}` on table/rows; no `ListToolbar` unless documented legacy exception
+- [ ] Quick action icon colors match the table (header menus §4)
+- [ ] Delete has red hover background (header menu pills)
 - [ ] No `variant="default"` full-width rows in Quick actions
-- [ ] List toolbar secondary buttons are `h-9 text-xs px-3` (or round `ExpandableIconButton` in custom headers — Contacts)
+- [ ] Header actions use `ExpandableIconButton variant="soft"` (Settings, Add) or round pattern above
 - [ ] Quick context header uses `QuickContextHeaderActions` (not ghost `h-8 w-8` icons)
 - [ ] Dialog footers use `DialogRoundButtons` / `AlertDialogRound*` with `alwaysExpanded`
 
@@ -481,7 +521,7 @@ const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 />;
 ```
 
-- QuickActions Delete → `setShowDeleteConfirm(true)` only (never delete immediately).
+- QuickActions Delete (header menus) → `setShowDeleteConfirm(true)` only (never delete immediately).
 - Panel close after delete is owned by context `delete*` when that is the plugin’s pattern.
 
 ### 5.2 Duplicate item — `DuplicateDialog`
@@ -543,7 +583,7 @@ Clear `recentlyDuplicated*Id` in every `open*ForView` / `open*ForEdit` / `open*P
 />
 ```
 
-Opened from list toolbar bulk Delete — not from the detail sidebar.
+Opened from list `BulkActionRoundBar` Delete action — not from the detail sidebar.
 
 ### 5.5 Sub-item delete (rows inside a form)
 
@@ -591,7 +631,7 @@ Radix alert dialogs: `AlertDialogRoundCancel`, `AlertDialogRoundSave`, `AlertDia
 - [ ] Duplicate: `DuplicateDialog` + order `closePanel` → highlight → close dialog
 - [ ] List green highlight after duplicate
 - [ ] Unsaved changes: warning variant / nav guard
-- [ ] Bulk delete: `BulkDeleteModal` from list selection
+- [ ] Bulk delete: `BulkDeleteModal` from list `BulkActionRoundBar`
 - [ ] Nested row delete: local danger confirm
 - [ ] Modal headers use `DialogHeading`; body/footer use `dialogStyles` tokens
 - [ ] Footer actions use `DialogRoundButtons` (not legacy filled `Button` pairs)
@@ -637,12 +677,12 @@ Keys in **both** `client/src/i18n/locales/en.json` and `sv.json`.
   "quickActions": "…",
   "exportOptions": "…",
   "title": "…",
-  "information": "…",
-  "activity": "…",
   "deleteConfirmThis": "…",
   "deleteConfirmNamed": "…"
 }
 ```
+
+`information` / `activity` keys are optional — full views no longer render system Information or Activity log cards (Contacts canonical). Domain keys (e.g. `guides.information.*`) are separate.
 
 ### Quick context
 
@@ -688,15 +728,15 @@ Walk in order. No “probably OK” — verify in the running app.
 
 ### Full view
 
-- [ ] Layout columns match reference (identity left, actions right — or Contacts: actions in panel title)
-- [ ] Quick actions: blue Edit, red Delete (+ red hover), green Duplicate — **or** Contacts header menus (§4)
+- [ ] Layout columns match Contacts reference (identity left + main; actions in panel title header menus)
+- [ ] Quick actions: blue Edit, red Delete (+ red hover), green Duplicate — via `DetailHeaderMenus` (§4)
 - [ ] Contacts: TopBar breadcrumb shows contact **name** string, not Actions UI
 - [ ] Contacts: Time log trigger hidden when there are zero entries; count badge when ≥1
 - [ ] Delete opens danger confirm; confirm deletes and closes as designed
 - [ ] Duplicate opens name dialog; after confirm: panel closes, green list row
 - [ ] Green highlight survives list refresh; clears when opening another item
-- [ ] Information shows ID / Created / Updated
-- [ ] Activity log present when required
+- [ ] **No** system Information card (ID/Created/Updated) in layout
+- [ ] **No** `DetailActivityLog` in layout
 
 ### View / edit sync
 
@@ -707,9 +747,10 @@ Walk in order. No “probably OK” — verify in the running app.
 
 ### List defaults
 
-- [ ] `ListToolbar` + cards/table toggle + empty state Create (Contacts: custom title row + `BulkActionRoundBar` instead)
-- [ ] Bulk delete uses `BulkDeleteModal`
-- [ ] Toolbar buttons `h-9 text-xs px-3` or round header pattern where documented
+- [ ] Contacts-class header: Select/Clear + `BulkActionRoundBar` + `RoundExpandableSearch` in `PLUGIN_PAGE_HEADER_ACTIONS_CLASS` (not `ListToolbar`)
+- [ ] `selectionEnabled={selectionMode}` on table; bulk delete uses `BulkDeleteModal`
+- [ ] Provider lists without bulk: search-only header (`AIProvidersList.tsx` pattern)
+- [ ] Empty state Create; cards/table toggle per plugin
 
 ### Quality gates
 
@@ -721,48 +762,51 @@ Walk in order. No “probably OK” — verify in the running app.
 
 ## What must not exist
 
-| Anti-pattern                                       | Replace with                                            |
-| -------------------------------------------------- | ------------------------------------------------------- |
-| Delete/Duplicate inside QuickContextPanel          | Full view QuickActions only                             |
-| `onDuplicate={() => executeDuplicate(item, '')}`   | Open `DuplicateDialog` first                            |
-| `setRecentlyDuplicatedId` before `closePanel()`    | closePanel → highlight → close dialog                   |
-| `window.submitXxxForm` in `*Form.tsx`              | Inline Save/Cancel (§3)                                 |
-| Form bleed `md:-mx-6` / mismatched padding vs view | Shared DetailPanel padding + `DETAIL_VIEW_CARD_CLASS`   |
-| Full-width filled buttons in Quick actions         | Ghost rows + colored icons                              |
-| Deep-link on `[items]` only                        | Pathname-based sync                                     |
-| Invented confirm modals for delete/duplicate/bulk  | `ConfirmDialog` / `DuplicateDialog` / `BulkDeleteModal` |
+| Anti-pattern                                           | Replace with                                            |
+| ------------------------------------------------------ | ------------------------------------------------------- |
+| Delete/Duplicate inside QuickContextPanel              | Full view header menus (`DetailHeaderMenus`)            |
+| Sidebar QuickActions / Export / Information / Activity | Header menus; domain cards only in sidebar when needed  |
+| `onDuplicate={() => executeDuplicate(item, '')}`       | Open `DuplicateDialog` first                            |
+| `setRecentlyDuplicatedId` before `closePanel()`        | closePanel → highlight → close dialog                   |
+| `window.submitXxxForm` in `*Form.tsx`                  | Inline Save/Cancel (§3)                                 |
+| Form bleed `md:-mx-6` / mismatched padding vs view     | Shared DetailPanel padding + `DETAIL_VIEW_CARD_CLASS`   |
+| Full-width filled buttons in Quick actions             | Ghost rows + colored icons                              |
+| Deep-link on `[items]` only                            | Pathname-based sync                                     |
+| Invented confirm modals for delete/duplicate/bulk      | `ConfirmDialog` / `DuplicateDialog` / `BulkDeleteModal` |
 
 ---
 
 ## Reference file map
 
-| File                                                                    | Shows                                                             |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `client/src/core/ui/QuickContextHeaderActions.tsx`                      | Shared quick context Open/Edit/Close + footer CTA                 |
-| `client/src/core/ui/dialogStyles.ts`                                    | Dialog header/body/footer layout tokens                           |
-| `client/src/core/ui/DialogHeading.tsx`                                  | Shared dialog title component                                     |
-| `client/src/core/ui/DialogRoundButtons.tsx`                             | Round dialog action buttons                                       |
-| `client/src/components/ui/round-icon-label-button.tsx`                  | Base round pill button                                            |
-| `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx`   | Contacts view: Actions / Export / Time log in panel title         |
-| `client/src/plugins/contacts/components/ContactView.tsx`                | Contacts full view (2-col; Information/Activity deferred)         |
-| `client/src/core/ui/PanelTitles.tsx`                                    | `createPanelTitles`; contacts `getPanelTitle` before mobile blank |
-| `client/src/core/ui/MainLayout.tsx` / `TopBar.tsx`                      | `detailPanelBreadcrumbLabel` string for breadcrumb chip           |
-| `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx` | Canonical quick context (header, facts, variants, footer)         |
-| `client/src/plugins/garments/components/GarmentList.tsx`                | Sticky aside + `useQuickContextPreview` + bulk delete             |
-| `client/src/plugins/garments/components/GarmentView.tsx`                | Full inventory detail, QuickActions, Confirm + Duplicate          |
-| `client/src/plugins/garments/components/GarmentForm.tsx`                | Form chrome, variant delete confirm, unsaved warning              |
-| `client/src/plugins/garments/context/GarmentProvider.tsx`               | `usePluginDuplicate`, `getDeleteMessage`, panel open helpers      |
-| `client/src/plugins/tasks/components/TaskQuickContextPanel.tsx`         | Rich quick context + link tiles                                   |
-| `client/src/plugins/matches/components/MatchQuickContextPanel.tsx`      | Sport entity quick context + contact/team link tiles              |
-| `client/src/plugins/slots/components/SlotQuickContextPanel.tsx`         | Booking slot quick context                                        |
-| `client/src/plugins/teams/components/TeamQuickContextPanel.tsx`         | Team quick context + responsibles link tiles                      |
-| `client/src/plugins/slots/components/SlotView.tsx`                      | Sidebar QuickActions + duplicate pattern                          |
-| `client/src/core/hooks/useQuickContextPreview.ts`                       | Desktop vs compact preview behavior                               |
-| `client/src/core/ui/detailViewCardStyles.ts`                            | Shared class tokens                                               |
-| `client/src/core/ui/ConfirmDialog.tsx`                                  | Danger / warning confirms                                         |
-| `client/src/core/ui/DuplicateDialog.tsx`                                | Rename-on-duplicate dialog                                        |
-| `client/src/core/ui/BulkDeleteModal.tsx`                                | Multi-select delete                                               |
-| `client/src/core/ui/DetailLayout.tsx`                                   | Multi-column detail shell                                         |
+| File                                                                    | Shows                                                                          |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `client/src/core/ui/QuickContextHeaderActions.tsx`                      | Shared quick context Open/Edit/Close + footer CTA                              |
+| `client/src/core/ui/dialogStyles.ts`                                    | Dialog header/body/footer layout tokens                                        |
+| `client/src/core/ui/DialogHeading.tsx`                                  | Shared dialog title component                                                  |
+| `client/src/core/ui/DialogRoundButtons.tsx`                             | Round dialog action buttons                                                    |
+| `client/src/components/ui/round-icon-label-button.tsx`                  | Base round pill button                                                         |
+| `client/src/plugins/contacts/components/ContactList.tsx`                | Canonical list header: Select/Clear, BulkActionRoundBar, RoundExpandableSearch |
+| `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx`   | Contacts view: Actions / Export / Time log in panel title                      |
+| `client/src/plugins/contacts/components/ContactView.tsx`                | Canonical full view (2-col; no Information/Activity cards)                     |
+| `client/src/plugins/ai-providers/components/AIProvidersList.tsx`        | Provider list: search-only header (no Select)                                  |
+| `client/src/core/ui/PanelTitles.tsx`                                    | `createPanelTitles`; contacts `getPanelTitle` before mobile blank              |
+| `client/src/core/ui/MainLayout.tsx` / `TopBar.tsx`                      | `detailPanelBreadcrumbLabel` string for breadcrumb chip                        |
+| `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx` | Canonical quick context (header, facts, variants, footer)                      |
+| `client/src/plugins/garments/components/GarmentList.tsx`                | Sticky aside + `useQuickContextPreview` + Contacts-class bulk header           |
+| `client/src/plugins/garments/components/GarmentView.tsx`                | Full inventory detail; header menus; no Information/Activity                   |
+| `client/src/plugins/garments/components/GarmentForm.tsx`                | Form chrome, variant delete confirm, unsaved warning                           |
+| `client/src/plugins/garments/context/GarmentProvider.tsx`               | `usePluginDuplicate`, `getDeleteMessage`, panel open helpers                   |
+| `client/src/plugins/tasks/components/TaskQuickContextPanel.tsx`         | Rich quick context + link tiles                                                |
+| `client/src/plugins/matches/components/MatchQuickContextPanel.tsx`      | Sport entity quick context + contact/team link tiles                           |
+| `client/src/plugins/slots/components/SlotQuickContextPanel.tsx`         | Booking slot quick context                                                     |
+| `client/src/plugins/teams/components/TeamQuickContextPanel.tsx`         | Team quick context + responsibles link tiles                                   |
+| `client/src/plugins/slots/components/SlotView.tsx`                      | Detail header menus + duplicate pattern                                        |
+| `client/src/core/hooks/useQuickContextPreview.ts`                       | Desktop vs compact preview behavior                                            |
+| `client/src/core/ui/detailViewCardStyles.ts`                            | Shared class tokens                                                            |
+| `client/src/core/ui/ConfirmDialog.tsx`                                  | Danger / warning confirms                                                      |
+| `client/src/core/ui/DuplicateDialog.tsx`                                | Rename-on-duplicate dialog                                                     |
+| `client/src/core/ui/BulkDeleteModal.tsx`                                | Multi-select delete                                                            |
+| `client/src/core/ui/DetailLayout.tsx`                                   | Multi-column detail shell                                                      |
 
 ---
 

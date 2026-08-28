@@ -28,6 +28,7 @@ export const NavSubItem = React.memo(function NavSubItem({
       type="button"
       onClick={handleClick}
       className={getNavItemButtonClass(isActive)}
+      aria-current={isActive ? 'page' : undefined}
     >
       <SubIcon className={getNavItemIconClass(isActive)} />
       <span className={getNavItemLabelClass(isActive)}>{item.label}</span>

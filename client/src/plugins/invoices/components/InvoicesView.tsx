@@ -1,32 +1,13 @@
-import {
-  Copy,
-  Download,
-  Edit,
-  Info,
-  Link2,
-  SlidersHorizontal,
-  Trash2,
-  Users,
-  Zap,
-} from 'lucide-react';
+import { Link2, SlidersHorizontal, Users } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import {
-  DETAIL_INFO_ROW_CLASS,
-  DETAIL_PROP_ROW_CLASS,
-  DETAIL_QUICK_ACTION_ROW_CLASS,
-  DETAIL_VIEW_CARD_CLASS,
-} from '@/core/ui/detailViewCardStyles';
-import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -45,93 +26,10 @@ import { useInvoiceStatusActions } from '../hooks/useInvoiceStatusActions';
 import type { Invoice as InvoiceRecord } from '../types/invoices';
 import { formatInvoiceDueDate, formatPaymentTermsLabel } from '../utils/invoiceDueDate';
 
-import { InvoiceActions } from './InvoiceActions';
 import { InvoiceQuickContextPanel } from './InvoiceQuickContextPanel';
-import {
-  InvoiceShareBlock,
-  InvoiceShareExportButton,
-  InvoiceShareProvider,
-} from './InvoiceShareBlock';
+import { InvoiceShareBlock } from './InvoiceShareBlock';
 import { InvoiceStatusModal } from './InvoiceStatusModal';
 import { InvoiceStatusSelect } from './InvoiceStatusSelect';
-
-function InvoiceQuickActionsCard({
-  invoice,
-  onEdit,
-  onDeleteClick,
-  onDuplicate,
-  canDuplicate,
-}: {
-  invoice: Invoice;
-  onEdit: (invoice: Invoice) => void;
-  onDeleteClick: () => void;
-  onDuplicate: () => void;
-  canDuplicate: boolean;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('invoices.quickActions')}
-        icon={Zap}
-        iconPlugin="invoices"
-        subtleTitle
-        className="p-4"
-      >
-        <div className="flex flex-col items-start gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Edit
-                {...props}
-                className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
-              />
-            )}
-            className={DETAIL_QUICK_ACTION_ROW_CLASS}
-            onClick={() => onEdit(invoice)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Trash2
-                {...props}
-                className={cn(props.className, 'text-red-600 dark:text-red-400')}
-              />
-            )}
-            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-            onClick={onDeleteClick}
-          >
-            {t('common.delete')}
-          </Button>
-          {canDuplicate ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={(props) => (
-                <Copy
-                  {...props}
-                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
-                />
-              )}
-              className={DETAIL_QUICK_ACTION_ROW_CLASS}
-              onClick={onDuplicate}
-            >
-              {t('common.duplicate')}
-            </Button>
-          ) : null}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
 
 interface InvoiceViewProps {
   invoice?: Invoice;
@@ -143,15 +41,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
   const navigate = useNavigate();
   const enabledPlugins = useEnabledPlugins();
   const { contacts } = useApp();
-  const {
-    openInvoiceForEdit,
-    deleteInvoice,
-    closeInvoicesPanel,
-    getDuplicateConfig,
-    executeDuplicate,
-    setRecentlyDuplicatedInvoiceId,
-    getDeleteMessage,
-  } = useInvoices();
+  const { openInvoiceForEdit } = useInvoices();
   const {
     showStatusModal,
     pendingStatus,
@@ -162,27 +52,18 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
   } = useInvoiceStatusActions();
 
   const actualItem = invoice || item;
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
 
   if (!actualItem) {
     return null;
   }
 
-  const created = actualItem.createdAt ? new Date(actualItem.createdAt) : null;
-  const updated = actualItem.updatedAt ? new Date(actualItem.updatedAt) : null;
   const issueDate = actualItem.issueDate ? new Date(actualItem.issueDate) : null;
   const dueDate = actualItem.dueDate ? new Date(actualItem.dueDate) : null;
   const status = actualItem.status ?? 'draft';
   const currency = actualItem.currency ?? 'SEK';
-  const invoiceNumberDisplay = formatDisplayNumber(
-    'invoices',
-    actualItem.invoiceNumber || actualItem.id,
-  );
   const dueDisplay = formatInvoiceDueDate(actualItem.dueDate);
   const showDueUrgency = status !== 'paid' && status !== 'canceled';
-  const canDuplicate = Boolean(getDuplicateConfig(actualItem));
   const contactRecord =
     actualItem.contactId && contacts
       ? contacts.find((c) => String(c.id) === String(actualItem.contactId))
@@ -194,12 +75,6 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
   const subtotal = Number(actualItem.subtotal ?? 0);
   const totalDiscount = Number(actualItem.totalDiscount ?? 0);
   const paymentTermsLabel = formatPaymentTermsLabel(actualItem.paymentTerms);
-
-  const handleConfirmDelete = async () => {
-    await deleteInvoice(actualItem.id);
-    setShowDeleteConfirm(false);
-    closeInvoicesPanel();
-  };
 
   const navigateToContact = (contact: Contact) => {
     navigate(`/contacts/${buildSlug(contact, contacts || [], 'companyName')}`);
@@ -247,10 +122,10 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
     ) : null;
 
   return (
-    <InvoiceShareProvider invoice={actualItem}>
+    <>
       <div className="plugin-invoices">
         <DetailLayout
-          gridClassName="grid-cols-1 lg:grid-cols-[1.3fr_1fr_260px]"
+          gridClassName="grid-cols-1 lg:grid-cols-2"
           leftSidebar={
             <div className="space-y-4">
               <InvoiceQuickContextPanel
@@ -368,77 +243,6 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
               </InvoiceQuickContextPanel>
             </div>
           }
-          sidebar={
-            <div className="space-y-4">
-              <InvoiceQuickActionsCard
-                invoice={actualItem}
-                onEdit={openInvoiceForEdit}
-                onDeleteClick={() => setShowDeleteConfirm(true)}
-                onDuplicate={() => setShowDuplicateDialog(true)}
-                canDuplicate={canDuplicate}
-              />
-
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('invoices.exportOptions', { defaultValue: 'Export options' })}
-                  icon={Download}
-                  iconPlugin="invoices"
-                  subtleTitle
-                  className="p-4"
-                >
-                  <div className="flex flex-col items-start gap-1">
-                    <InvoiceActions invoice={actualItem} exportOnly />
-                    <InvoiceShareExportButton />
-                  </div>
-                </DetailSection>
-              </Card>
-
-              <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-invoices')}>
-                <DetailSection
-                  title={t('invoices.information')}
-                  icon={Info}
-                  iconPlugin="invoices"
-                  subtleTitle
-                  className="p-4"
-                  collapsible
-                >
-                  <div>
-                    <div className={DETAIL_INFO_ROW_CLASS}>
-                      <span className="text-slate-500 dark:text-slate-400">ID</span>
-                      <span className="font-mono font-extrabold text-foreground">
-                        {invoiceNumberDisplay || '—'}
-                      </span>
-                    </div>
-                    <div className={DETAIL_INFO_ROW_CLASS}>
-                      <span className="text-slate-500 dark:text-slate-400">
-                        {t('common.created', { defaultValue: 'Created' })}
-                      </span>
-                      <span className="font-mono font-extrabold text-foreground">
-                        {created ? created.toLocaleDateString() : '—'}
-                      </span>
-                    </div>
-                    <div className={DETAIL_INFO_ROW_CLASS}>
-                      <span className="text-slate-500 dark:text-slate-400">
-                        {t('common.updated', { defaultValue: 'Updated' })}
-                      </span>
-                      <span className="font-mono font-extrabold text-foreground">
-                        {updated ? updated.toLocaleDateString() : '—'}
-                      </span>
-                    </div>
-                  </div>
-                </DetailSection>
-              </Card>
-
-              <DetailActivityLog
-                entityType="invoice"
-                entityId={actualItem.id}
-                limit={30}
-                title={t('invoices.activity', { defaultValue: 'Activity' })}
-                showClearButton
-                refreshKey={String(actualItem.updatedAt ?? actualItem.id)}
-              />
-            </div>
-          }
         >
           <div className="space-y-4">
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -533,17 +337,6 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
         }
       />
 
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title={t('invoices.deleteTitle')}
-        message={getDeleteMessage(actualItem)}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-        variant="danger"
-      />
-
       <InvoiceStatusModal
         isOpen={showStatusModal}
         onClose={handleModalCancel}
@@ -554,25 +347,6 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
           pendingInvoice?.invoiceNumber || pendingInvoice?.id || '',
         )}
       />
-
-      <DuplicateDialog
-        isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
-          executeDuplicate(actualItem, newName)
-            .then(({ closePanel, highlightId }) => {
-              closePanel();
-              if (highlightId) {
-                setRecentlyDuplicatedInvoiceId(highlightId);
-              }
-              setShowDuplicateDialog(false);
-            })
-            .catch(() => setShowDuplicateDialog(false));
-        }}
-        onCancel={() => setShowDuplicateDialog(false)}
-        defaultName={getDuplicateConfig(actualItem)?.defaultName ?? ''}
-        nameLabel={getDuplicateConfig(actualItem)?.nameLabel ?? t('nav.invoice')}
-        confirmOnly={Boolean(getDuplicateConfig(actualItem)?.confirmOnly)}
-      />
-    </InvoiceShareProvider>
+    </>
   );
 };

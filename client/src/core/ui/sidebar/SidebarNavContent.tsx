@@ -60,7 +60,7 @@ export const SidebarNavContent = React.memo(function SidebarNavContent({
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <nav className="flex flex-col items-stretch gap-[2px] pb-1">
+                <nav className="flex flex-col items-stretch gap-[2px] pb-1 pl-6">
                   {category.items.map((item) => {
                     const activeSubPage =
                       item.submenu?.some((s) => s.page === currentPage) === true

@@ -45,6 +45,7 @@ export type RequestsContextType = {
   isSelected: (id: string) => boolean;
 
   clearValidationErrors: () => void;
+  getPanelTitle: (mode: string, item: Request | null) => React.ReactNode;
   getDeleteMessage: (item: Request | null) => string;
 
   navigateToPrevItem: () => void;
@@ -97,6 +98,7 @@ const EMPTY_REQUESTS_CONTEXT: RequestsContextType = {
   selectedCount: 0,
   isSelected: () => false,
   clearValidationErrors: () => {},
+  getPanelTitle: () => null,
   getDeleteMessage: () => '',
   navigateToPrevItem: () => {},
   navigateToNextItem: () => {},

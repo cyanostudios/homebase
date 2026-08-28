@@ -5,7 +5,7 @@
 ## Aktuell kodrad
 
 - **`main`** — deploy till Railway (monolith API + SPA).
-- **`homebase-v3.7`** — aktiv utvecklingsbranch; merge till `main` för produktion.
+- **`homebase-v4.0`** — aktiv utvecklingsbranch; merge till `main` för produktion.
 - **Node:** `>=22.18 <23` (`package.json` → `engines`).
 
 ## Snabbstart (ny utvecklare)

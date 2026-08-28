@@ -18,11 +18,10 @@ Production / `--both` only when you explicitly request release (Release Discipli
 
 Sidebar submenu (Clubdesk-style), URL-driven:
 
-| View          | URL                   | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| ------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lists**     | `/garments`           | Clothing checklists: persons + spreadsheet (Betalt & Blankett Fogis per person; Beställt/Levererat/Utdelat per Shorts/Tröja/Strumpor); optional team link                                                                                                                                                                                                                                                                                                                          |
-| **Inventory** | `/garments/inventory` | Stock **articles** with product fields (name required; optional brand, description, material, purchase price). Each article has **variants** (optional audience + color and/or size + SKU + quantity) via a form repeater. Desktop: sticky quick-context (variant list with inline qty) + full view. Full view: platform prev/next when more than one article; closing the panel returns to `/garments/inventory`. Quick Actions include **Duplicate**. Not linked to lists in v1. |
-| **Settings**  | (in-plugin overlay)   | List layout (cards/table, column count)                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| View          | URL                   | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lists**     | `/garments`           | Clothing checklists: persons + spreadsheet (Paid per person; Ordered/Delivered/Handed out per **assigned** inventory article). List index: cards/table layout toggle + column count (persisted under user settings key `garments`). Optional team link. Person matrix shows only columns for inventory assigned to the list (legacy Shorts/Shirt/Socks groups and Blankett Fogis are hidden).                                                                                                                                                                                                   |
+| **Inventory** | `/garments/inventory` | Stock **articles** with product fields (name required; optional brand, description, material, purchase price). Each article has **variants** (optional audience + color and/or size + SKU + quantity) via a form repeater. Desktop: sticky quick-context (variant list with inline qty, assigned-list badges) + full view. Full view: **50/50** layout (`lg:grid-cols-2`) — details + **Show in lists** card beside variants; platform prev/next when more than one article. Assign articles to lists per item (see **Inventory ↔ lists**). Bulk assign/unassign via inventory list selection. |
 
 ### Inventory uniqueness and copy behaviour
 
@@ -49,8 +48,45 @@ Sidebar submenu (Clubdesk-style), URL-driven:
 | `150-garment-inventory-variant-sku-nonunique.sql`      | Drops SKU unique index so art.nr may repeat per item                                                        |
 | `151-garment-inventory-recommended-sale-price.sql`     | Adds nullable `recommended_price` + `sale_price` on inventory items                                         |
 | `152-garment-inventory-variant-identity-nonunique.sql` | Drops unique index on `(audience, color, size)` so identity may repeat                                      |
+| `153-garment-list-inventory.sql`                       | Join table `garment_list_inventory_items`; `ct_sizes` JSONB on `garment_list_persons`                       |
+| `154-garment-list-persons-ct-audiences.sql`            | `ct_audiences` JSONB on `garment_list_persons` (per-person audience per assigned inventory item)            |
 
-Run: `npm run migrate:garments`. Apply **`149`–`152` in the target environment** as needed. Apply **`140`** so existing lists get the current spreadsheet column set.
+Run: `npm run migrate:garments`. Apply **`149`–`154` in the target environment** as needed. Apply **`140`** so existing lists get the current spreadsheet column set.
+
+## Inventory ↔ lists (per article)
+
+From an inventory article **full view** or **edit form**, use the **Show in lists** card (`InventoryListAssignmentCheckboxes`) to assign the article to one or more garment lists. From the inventory **list**, select rows and use bulk **List visibility** (`InventoryBulkListsDialog`) to assign or unassign many articles to one list at a time. Quick context shows assigned list names as badges.
+
+Each assignment:
+
+1. Inserts a row in `garment_list_inventory_items` (`list_id`, `item_id`, `sort_order`).
+2. Appends three checkbox columns to the list’s `checkbox_columns` JSON (if not already present):
+
+   | Column id pattern         | Label (English) | Group        |
+   | ------------------------- | --------------- | ------------ |
+   | `inv_{itemId}_ordered`    | Ordered         | article name |
+   | `inv_{itemId}_delivered`  | Delivered       | article name |
+   | `inv_{itemId}_handed_out` | Handed out      | article name |
+
+3. Exposes a **size** field per person per assigned article in the persons matrix (see below).
+
+**Unassign** (checkbox off on the article or bulk unassign): blocked with **409** if any person on that list has a checked box for that article’s three columns. On success, removes the join row, strips the three column ids from `checkbox_columns`, and clears matching keys from each person’s `checkbox_values`, `ct_sizes`, and `ct_audiences`.
+
+The client applies **optimistic** assignment updates (`GarmentProvider.patchInventoryListAssignment`); failed unassign rolls back. Single-item inventory GET responses include `assignedListIds` via server-side enrichment (`enrichInventoryWithAssignments`).
+
+**Delete inventory article**: blocked with **409** while the article is assigned to any list (`ON DELETE RESTRICT` on the join FK is a second guard).
+
+### API (list ↔ inventory)
+
+All routes require garments plugin access + CSRF on mutations. List and inventory ownership enforced via `user_id` on parent rows.
+
+| Method   | Path                                                 | Body / notes                                                                                                                                                                                                             |
+| -------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST`   | `/api/garments/lists/:id/inventory-items/:itemId`    | Assign article to list; returns updated list                                                                                                                                                                             |
+| `DELETE` | `/api/garments/lists/:id/inventory-items/:itemId`    | Unassign; 409 if checked in list                                                                                                                                                                                         |
+| `PATCH`  | `/api/garments/lists/:id/persons/:personId/ct-sizes` | `{ "ctSizes": { "<itemId>": "M" }, "ctAudiences": { "<itemId>": "Men" } }` — partial merge; only keys for articles assigned to the list are applied. Values trimmed to 50 chars (`ctSizes`) / 100 chars (`ctAudiences`). |
+
+Lists and inventory items in API responses include `assignedInventoryItemIds` / `assignedListIds` respectively.
 
 ## Person rows (list detail)
 
@@ -58,13 +94,23 @@ Admin list full view uses a **Notes-style** layout: list name + persons spreadsh
 
 The persons matrix is a **spreadsheet table** with a single header row:
 
-| Namn | Namn på tröja | Initialer | Betalt | Blankett Fogis | Beställt | Levererat | Utdelat |
+| Namn | Namn på tröja | Initialer | Betalt | _(per assigned article)_ Audience · Size · Beställt · Levererat · Utdelat |
 
-_(UI working language is English: Name / Name on jersey / Initials / Paid / Fogis form / Ordered / Delivered / Handed out. Swedish remains in `sv.json`.)_
+_(UI working language is English: Name / Name on jersey / Initials / Paid / Audience / Size / Ordered / Delivered / Handed out. Swedish remains in `sv.json`.)_
 
-Each person is a **collapsible** parent row (jersey name, initials, Paid / Fogis on the person). Expanding shows child rows for **Shorts / Shirt / Socks** under the name, sharing the Ordered / Delivered / Handed out columns.
+Each person is a **collapsible** parent row (jersey name, initials, Paid on the person). Expanding shows **child rows per assigned inventory article** only (`filterMatrixColumns` — legacy Shorts/Shirt/Socks groups and Blankett Fogis are not shown). On phone/pad the matrix scrolls horizontally (`MATRIX_TABLE_SCROLL_CLASS`); the name column is not sticky.
 
 Checkboxes toggle immediately; name is editable via the row edit control. New persons are added below the table.
+
+### Per-person audience and size (assigned inventory)
+
+For child rows whose checkbox group maps to an assigned inventory article (`inv_{itemId}_*` column ids):
+
+- **Audience:** if the article’s variants define one or more distinct **audience** values → dropdown per person (stored in `garment_list_persons.ct_audiences`, keyed by inventory item id); otherwise free-text input.
+- **Size:** if the article’s variants define one or more **size** values → dropdown per person (stored in `garment_list_persons.ct_sizes`, keyed by inventory item id); otherwise free-text input.
+- Updates via `PATCH …/ct-sizes` with optional `ctSizes` and/or `ctAudiences` (partial merge; only assigned item ids accepted server-side).
+
+Legacy size columns (`shirt_size`, `shorts_size`, `socks_size`) remain on the person model for older layouts; inventory-linked sizes use `ct_sizes` / `ct_audiences` only.
 
 ### Import persons (names only)
 
@@ -87,7 +133,7 @@ Duplicate jersey numbers on the same list still show a non-blocking warning when
 
 Notes-style view-only link. Creates `garment_list_shares` + main-DB `public_share_routing` (`resource_type = garment_list`). Public page: `/public/garment-list/:token`.
 
-Public person blocks keep the older **two-row** `PersonBlock` layout, **read-only** (no Edit/Delete; checkboxes disabled). **Comments are hidden** (API clears `comment`; UI does not show the field).
+Public person blocks keep the older **two-row** `PersonBlock` layout, **read-only** (no Edit/Delete; checkboxes disabled). **Comments are hidden** (API clears `comment`; UI does not show the field). **`ct_sizes`** and **`ct_audiences`** (inventory-linked per-person fields) are included in the public payload, same exposure class as legacy size fields.
 
 ## Teams
 
@@ -104,6 +150,8 @@ Operator detail: [`REQUESTS_PLUGIN.md`](REQUESTS_PLUGIN.md). ADR: [`docs/ai/adr/
 Unauthenticated share links can expose youth names, sizes, jersey numbers, and checkbox status. Same residual class as Notes public shares. See [`docs/ai/security/GARMENTS_PUBLIC_SHARE_ETAPP1.md`](ai/security/GARMENTS_PUBLIC_SHARE_ETAPP1.md). Prefer short expiry and revoke after use. **Local first; no prod** without an explicit release.
 
 **Inventory (Gate 5, 2026-08-23):** No unacceptable risks. Hardening note (non-blocking): nested `variants[]` on item POST/PUT is validated mainly as an array (max 100); dedicated `/variants` routes use per-field length/int rules. Prefer aligning nested validators with `variantBody` in a follow-up. Ensure migrations **`149`** and **`150`** are applied in each target tenant DB (audience uniqueness; art.nr non-unique).
+
+**List ↔ inventory (Gate 5, 2026-08-28):** No unacceptable risks. `PATCH …/ct-sizes` trims `ctSizes` values to 50 chars and `ctAudiences` to 100 chars server-side.
 
 ## ADR
 

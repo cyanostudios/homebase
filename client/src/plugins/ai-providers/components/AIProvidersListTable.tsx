@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
 import { cn } from '@/lib/utils';
 
@@ -45,7 +46,7 @@ export function AIProvidersListTable({
   const { t } = useTranslation();
 
   return (
-    <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
+    <Card className={cn('overflow-hidden', DETAIL_VIEW_CARD_CLASS)}>
       <Table rowBorders={false}>
         <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
           <TableRow>
@@ -100,22 +101,6 @@ export function AIProvidersListTable({
             <TableHead className="hidden text-xs md:table-cell">
               {t('aiProviders.apiKey')}
             </TableHead>
-            <TableHead
-              className="hidden cursor-pointer select-none text-right text-xs hover:bg-muted/50 lg:table-cell"
-              onClick={() => onSort('updatedAt')}
-              aria-sort={
-                primarySort === 'updatedAt'
-                  ? sortOrder === 'asc'
-                    ? 'ascending'
-                    : 'descending'
-                  : 'none'
-              }
-            >
-              <div className="flex items-center justify-end gap-2">
-                <span>{t('common.updated')}</span>
-                <ListTableSortIcon active={primarySort === 'updatedAt'} order={sortOrder} />
-              </div>
-            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -124,7 +109,7 @@ export function AIProvidersListTable({
             return (
               <TableRow
                 key={provider.providerKey}
-                className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/80"
+                className="group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/80"
                 onClick={() => onRowClick(provider)}
                 data-list-item={JSON.stringify(provider)}
                 data-plugin-name="ai-providers"
@@ -132,7 +117,9 @@ export function AIProvidersListTable({
                 aria-label={t('aiProviders.openProvider', { provider: title })}
               >
                 <TableCell>
-                  <span className="font-medium text-foreground">{title}</span>
+                  <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+                    {title}
+                  </span>
                   <div className="text-xs text-muted-foreground">{provider.providerKey}</div>
                 </TableCell>
                 <TableCell>
@@ -149,9 +136,6 @@ export function AIProvidersListTable({
                   {provider.hasApiKey
                     ? t('aiProviders.keyConfigured')
                     : t('aiProviders.keyMissing')}
-                </TableCell>
-                <TableCell className="hidden text-right text-xs text-muted-foreground lg:table-cell">
-                  {provider.updatedAt ? new Date(provider.updatedAt).toLocaleDateString() : '—'}
                 </TableCell>
               </TableRow>
             );

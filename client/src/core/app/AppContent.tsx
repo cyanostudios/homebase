@@ -24,7 +24,7 @@ import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getSingularCap } from '@/core/pluginSingular';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
 import { isClubdeskSubRoute } from '@/core/routing/clubdeskRoutes';
-import { isGarmentsSubRoute } from '@/core/routing/garmentsRoutes';
+import { isGarmentsNavPage, isGarmentsSubRoute } from '@/core/routing/garmentsRoutes';
 import { isInvoicesSubRoute } from '@/core/routing/invoicesRoutes';
 import { navPageToPath, pathToNavPage } from '@/core/routing/routeMap';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
@@ -202,7 +202,12 @@ export function AppContent() {
       }
       const closeSettingsFn = context[`close${cap}SettingsView` as keyof typeof context];
       if (typeof closeSettingsFn === 'function') {
-        (closeSettingsFn as () => void)();
+        const keepGarmentsContentView =
+          plugin.name === 'garments' && isGarmentsNavPage(currentPage);
+        const keepContactsSettingsView = plugin.name === 'contacts' && currentPage === 'contacts';
+        if (!keepGarmentsContentView && !keepContactsSettingsView) {
+          (closeSettingsFn as () => void)();
+        }
       }
       const closeStatisticsFn = context[`close${cap}StatisticsView` as keyof typeof context];
       if (typeof closeStatisticsFn === 'function') {

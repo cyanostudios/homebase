@@ -25,6 +25,7 @@ export type MatchListTableProps = {
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedMatchId: string | null;
   activeMatchId?: string | number | null;
+  selectionEnabled?: boolean;
 };
 
 function formatStart(value: string | null | undefined): string {
@@ -47,6 +48,7 @@ export function MatchListTable({
   onHeaderCheckboxChange,
   recentlyDuplicatedMatchId,
   activeMatchId = null,
+  selectionEnabled = true,
 }: MatchListTableProps) {
   useTimeFormat();
   const { t } = useTranslation();
@@ -59,7 +61,7 @@ export function MatchListTable({
         className: 'md:hidden',
         sortable: false,
         cell: (match) => (
-          <span className="min-w-0 truncate font-medium text-foreground">
+          <span className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary">
             {match.home_team || '—'} – {match.away_team || '—'}
           </span>
         ),
@@ -139,16 +141,20 @@ export function MatchListTable({
           : undefined
       }
       isRowActive={(match) => activeMatchId != null && String(match.id) === String(activeMatchId)}
-      selection={{
-        isSelected,
-        onCheckboxMouseDown,
-        onCheckboxChange,
-        allVisibleSelected,
-        onHeaderCheckboxChange,
-        selectAllAriaLabel: t('common.selectAllVisible'),
-        selectRowAriaLabel: (selected) =>
-          selected ? t('common.unselectRow') : t('common.selectRow'),
-      }}
+      selection={
+        selectionEnabled
+          ? {
+              isSelected,
+              onCheckboxMouseDown,
+              onCheckboxChange,
+              allVisibleSelected,
+              onHeaderCheckboxChange,
+              selectAllAriaLabel: t('common.selectAllVisible'),
+              selectRowAriaLabel: (selected) =>
+                selected ? t('common.unselectRow') : t('common.selectRow'),
+            }
+          : undefined
+      }
       pluginName="matches"
       dataListItem={(match) => match}
     />

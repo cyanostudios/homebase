@@ -15,6 +15,7 @@ import { formatDateTime } from '@/core/utils/dateFormat';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { matchesApi } from '../api/matchesApi';
+import { MatchDetailHeaderMenus } from '../components/MatchDetailHeaderMenus';
 import { Match, MatchMention, ValidationError } from '../types/match';
 
 import { MatchContext } from './MatchContext';
@@ -419,7 +420,7 @@ export function MatchProvider({
   const getPanelTitle = useCallback(
     (mode: string, item: Match | null) => {
       if (mode === 'view' && item) {
-        return item.name?.trim() || `${item.home_team} – ${item.away_team}`;
+        return <MatchDetailHeaderMenus key={String(item.id)} match={item} />;
       }
       if (mode === 'edit') {
         return t('matches.editMatch');

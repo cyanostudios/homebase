@@ -20,6 +20,7 @@ export type ClubdeskListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedClubdeskId: string | null;
+  selectionEnabled?: boolean;
 };
 
 export function ClubdeskListTable({
@@ -34,6 +35,7 @@ export function ClubdeskListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyDuplicatedClubdeskId,
+  selectionEnabled = true,
 }: ClubdeskListTableProps) {
   const { t } = useTranslation();
 
@@ -42,7 +44,11 @@ export function ClubdeskListTable({
       {
         field: 'title',
         header: t('clubdesk.sort.title'),
-        cell: (row) => <span className="font-medium text-foreground">{row.title}</span>,
+        cell: (row) => (
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+            {row.title}
+          </span>
+        ),
       },
       {
         field: 'publicationStatus',
@@ -62,26 +68,6 @@ export function ClubdeskListTable({
             </Badge>
           );
         },
-      },
-      {
-        field: 'updatedAt',
-        header: t('common.updated'),
-        className: 'hidden sm:table-cell',
-        cell: (row) => (
-          <span className="text-xs text-muted-foreground">
-            {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString() : '—'}
-          </span>
-        ),
-      },
-      {
-        field: 'createdAt',
-        header: t('common.created'),
-        className: 'hidden md:table-cell',
-        cell: (row) => (
-          <span className="text-xs text-muted-foreground">
-            {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—'}
-          </span>
-        ),
       },
     ],
     [t],
@@ -104,16 +90,20 @@ export function ClubdeskListTable({
       }
       pluginName="clubdesk"
       dataListItem={(row) => row}
-      selection={{
-        isSelected,
-        onCheckboxMouseDown,
-        onCheckboxChange,
-        allVisibleSelected,
-        onHeaderCheckboxChange,
-        selectAllAriaLabel: t('common.selectAllVisible'),
-        selectRowAriaLabel: (selected) =>
-          selected ? t('common.unselectRow') : t('common.selectRow'),
-      }}
+      selection={
+        selectionEnabled
+          ? {
+              isSelected,
+              onCheckboxMouseDown,
+              onCheckboxChange,
+              allVisibleSelected,
+              onHeaderCheckboxChange,
+              selectAllAriaLabel: t('common.selectAllVisible'),
+              selectRowAriaLabel: (selected) =>
+                selected ? t('common.unselectRow') : t('common.selectRow'),
+            }
+          : undefined
+      }
     />
   );
 }

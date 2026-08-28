@@ -17,8 +17,9 @@ export type BulkActionRoundItem = {
 };
 
 const bulkContentToneClass = {
-  default: 'text-foreground',
-  destructive: 'text-red-600 dark:text-red-400',
+  default: 'text-foreground group-hover:text-primary',
+  destructive:
+    'text-red-600 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300',
 } as const;
 
 const countPillClass =

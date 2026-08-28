@@ -9,11 +9,13 @@ import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
-import { CLUBDESK_SUBPAGE_SET } from '@/core/routing/clubdeskRoutes';
+import { CLUBDESK_SUBPAGE_SET, resolveClubdeskPanelClosePath } from '@/core/routing/clubdeskRoutes';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { buildSlug, resolveSlug, slugify } from '@/core/utils/slugUtils';
 
 import { clubdeskApi } from '../api/clubdeskApi';
+import { ClubdeskDetailHeaderMenus } from '../components/ClubdeskDetailHeaderMenus';
+import { PriceListDetailHeaderMenus } from '../components/PriceListDetailHeaderMenus';
 import type {
   Clubdesk,
   ClubdeskCategory,
@@ -116,8 +118,7 @@ export function ClubdeskProvider({
   const navigate = useNavigate();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/clubdesk');
-  const { navigateToItem: navigateToPriceListItem, navigateToBase: navigateToPriceListBase } =
-    useItemUrl('/clubdesk/price-list');
+  const { navigateToItem: navigateToPriceListItem } = useItemUrl('/clubdesk/price-list');
 
   const [isClubdeskPanelOpen, setIsClubdeskPanelOpen] = useState(false);
   const [currentClubdesk, setCurrentClubdesk] = useState<Clubdesk | null>(null);
@@ -134,7 +135,7 @@ export function ClubdeskProvider({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [clubdeskContentView, setClubdesksContentView] = useState<ClubdeskContentView>('list');
-  const [clubdeskSettingsTab, setClubdesksSettingsTab] = useState<ClubdeskSettingsTab>('view');
+  const [clubdeskSettingsTab, setClubdesksSettingsTab] = useState<ClubdeskSettingsTab>('');
   const [recentlyDuplicatedClubdeskId, setRecentlyDuplicatedClubdeskId] = useState<string | null>(
     null,
   );
@@ -163,24 +164,20 @@ export function ClubdeskProvider({
   } = useBulkSelection();
 
   const closeClubdeskPanel = useCallback(() => {
+    // Prefer window.location: handlePageChange navigates first, then closes
+    // panels in the same tick — React's location is still the item URL.
+    const pathname = window.location.pathname;
     setIsClubdeskPanelOpen(false);
     setCurrentClubdesk(null);
     setCurrentPriceList(null);
     setPriceListCategories([]);
     setPanelMode('create');
     setValidationErrors([]);
-    if (activeDomain === 'priceLists' || location.pathname.startsWith('/clubdesk/price-list')) {
-      navigateToPriceListBase();
-    } else {
-      navigateToBase();
+    const target = resolveClubdeskPanelClosePath(pathname);
+    if (target) {
+      navigate(target);
     }
-  }, [
-    activeDomain,
-    location.pathname,
-    navigateToBase,
-    navigateToPriceListBase,
-    setValidationErrors,
-  ]);
+  }, [navigate, setValidationErrors]);
 
   useEffect(() => {
     registerPanelCloseFunction('clubdesk', closeClubdeskPanel);
@@ -309,7 +306,7 @@ export function ClubdeskProvider({
       setActiveDomain('guides');
       setPanelMode('create');
       setValidationErrors([]);
-      setClubdesksSettingsTab(options?.tab ?? 'view');
+      setClubdesksSettingsTab(options?.tab ?? '');
       setClubdesksContentView('settings');
       onCloseOtherPanels();
       navigateToBase();
@@ -1485,6 +1482,23 @@ export function ClubdeskProvider({
   const getPriceListDeleteMessage = (item: ClubdeskPriceList | null) =>
     buildDeleteMessage(t, 'clubdesk.priceList', item?.title || undefined);
 
+  const getPanelTitle = useCallback(
+    (mode?: string) => {
+      if (mode !== 'view') {
+        return null;
+      }
+      if (isPriceListUi) {
+        return currentPriceList ? (
+          <PriceListDetailHeaderMenus key={currentPriceList.id} priceList={currentPriceList} />
+        ) : null;
+      }
+      return currentClubdesk ? (
+        <ClubdeskDetailHeaderMenus key={currentClubdesk.id} clubdesk={currentClubdesk} />
+      ) : null;
+    },
+    [currentClubdesk, currentPriceList, isPriceListUi],
+  );
+
   const value = useMemo<ClubdeskContextType>(
     () => ({
       isClubdeskPanelOpen,
@@ -1576,6 +1590,7 @@ export function ClubdeskProvider({
       hasNextItem: nav.hasNextItem,
       currentItemIndex: nav.currentItemIndex,
       totalItems: nav.totalItems,
+      getPanelTitle,
     }),
     [
       isClubdeskPanelOpen,
@@ -1654,6 +1669,7 @@ export function ClubdeskProvider({
       nav.currentItemIndex,
       nav.totalItems,
       t,
+      getPanelTitle,
     ],
   );
 

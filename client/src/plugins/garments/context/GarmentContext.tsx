@@ -35,10 +35,16 @@ export interface GarmentContextType {
   openInventoryForEdit: (item: InventoryItem) => void;
   openInventoryForView: (item: InventoryItem) => void;
 
-  openGarmentsSettings: () => void;
-  closeGarmentSettingsView: () => void;
   openGarmentsInventory: () => void;
   openGarmentsLists: () => void;
+
+  assignInventoryItemToList: (listId: string, itemId: string) => Promise<boolean>;
+  unassignInventoryItemFromList: (listId: string, itemId: string) => Promise<boolean>;
+  updatePersonCtSizes: (
+    listId: string,
+    personId: string,
+    patch: { ctSizes?: Record<string, string>; ctAudiences?: Record<string, string> },
+  ) => Promise<GarmentPerson | null>;
 
   saveGarment: (data: GarmentListPayload | InventoryItemPayload) => Promise<boolean>;
   deleteGarment: (id: string) => Promise<void>;
@@ -128,10 +134,11 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   openInventoryPanel: () => {},
   openInventoryForEdit: () => {},
   openInventoryForView: () => {},
-  openGarmentsSettings: () => {},
-  closeGarmentSettingsView: () => {},
   openGarmentsInventory: () => {},
   openGarmentsLists: () => {},
+  assignInventoryItemToList: async () => false,
+  unassignInventoryItemFromList: async () => false,
+  updatePersonCtSizes: async () => null,
   saveGarment: async () => false,
   deleteGarment: async () => {},
   deleteGarments: async () => {},

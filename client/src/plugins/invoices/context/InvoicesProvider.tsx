@@ -15,10 +15,22 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
+import { InvoiceDetailHeaderMenus } from '../components/InvoiceDetailHeaderMenus';
 import { computeDueDateFromPaymentTerms } from '../utils/invoiceDueDate';
 
 import { InvoicesContext } from './InvoicesContext';
-import type { Invoice, InvoicesContextType, ValidationError } from './InvoicesContext';
+import type {
+  Invoice,
+  InvoiceShare,
+  InvoicesContextType,
+  ValidationError,
+} from './InvoicesContext';
+
+function defaultShareValidUntilDate(): string {
+  const thirtyDaysFromNow = new Date();
+  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+  return thirtyDaysFromNow.toISOString().split('T')[0];
+}
 
 interface ProviderProps {
   children: ReactNode;
@@ -47,6 +59,13 @@ export function InvoicesProvider({
   const [recentlyDuplicatedInvoiceId, setRecentlyDuplicatedInvoiceId] = useState<string | null>(
     null,
   );
+
+  const [invoiceShare, setInvoiceShare] = useState<InvoiceShare | null>(null);
+  const [isCreatingInvoiceShare, setIsCreatingInvoiceShare] = useState(false);
+  const [showCreateInvoiceShareModal, setShowCreateInvoiceShareModal] = useState(false);
+  const [showInvoiceShareDialog, setShowInvoiceShareDialog] = useState(false);
+  const [shareValidUntil, setShareValidUntil] = useState(defaultShareValidUntilDate);
+  const [shareTargetInvoice, setShareTargetInvoice] = useState<Invoice | null>(null);
 
   const {
     selectedIds: selectedInvoiceIds,
@@ -339,6 +358,116 @@ export function InvoicesProvider({
       item ? formatDisplayNumber('invoices', item.invoiceNumber || item.id) : undefined,
     );
 
+  useEffect(() => {
+    if (!currentInvoice?.id) {
+      setInvoiceShare(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .getShares(currentInvoice.id)
+      .then((shares: InvoiceShare[]) => {
+        if (cancelled) {
+          return;
+        }
+        const activeShare = shares.find((share) => new Date(share.validUntil) > new Date());
+        setInvoiceShare(activeShare || null);
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to load existing shares:', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, currentInvoice?.id]);
+
+  const openInvoiceShareForItem = useCallback(
+    async (invoice: Invoice) => {
+      setShareTargetInvoice(invoice);
+      setIsCreatingInvoiceShare(true);
+      try {
+        const shares = await api.getShares(invoice.id);
+        const activeShare = (shares as InvoiceShare[]).find(
+          (share) => new Date(share.validUntil) > new Date(),
+        );
+        if (activeShare) {
+          setInvoiceShare(activeShare);
+          setShowInvoiceShareDialog(true);
+          return;
+        }
+        setShareValidUntil(defaultShareValidUntilDate());
+        setShowCreateInvoiceShareModal(true);
+      } catch (error) {
+        console.error('Failed to open invoice share:', error);
+        alert(error instanceof Error ? error.message : 'Failed to open share');
+      } finally {
+        setIsCreatingInvoiceShare(false);
+      }
+    },
+    [api],
+  );
+
+  const openCreateInvoiceShare = useCallback(() => {
+    if (!currentInvoice) {
+      return;
+    }
+    void openInvoiceShareForItem(currentInvoice);
+  }, [currentInvoice, openInvoiceShareForItem]);
+
+  const openInvoiceShareDialog = useCallback(() => {
+    if (invoiceShare) {
+      setShowInvoiceShareDialog(true);
+    }
+  }, [invoiceShare]);
+
+  const handleCreateInvoiceShare = useCallback(async () => {
+    const invoiceId = shareTargetInvoice?.id ?? currentInvoice?.id;
+    if (!invoiceId || !shareValidUntil) {
+      return;
+    }
+    try {
+      setIsCreatingInvoiceShare(true);
+      const share = await api.createShare(invoiceId, shareValidUntil);
+      setInvoiceShare(share);
+      setShowCreateInvoiceShareModal(false);
+      setShowInvoiceShareDialog(true);
+    } catch (error) {
+      console.error('Failed to create share:', error);
+      alert(error instanceof Error ? error.message : 'Failed to create share link');
+    } finally {
+      setIsCreatingInvoiceShare(false);
+    }
+  }, [api, currentInvoice?.id, shareTargetInvoice?.id, shareValidUntil]);
+
+  const handleCopyInvoiceShareUrl = useCallback(() => {
+    if (!invoiceShare) {
+      return;
+    }
+    const url = `${window.location.origin}/public/invoice/${invoiceShare.shareToken}`;
+    void navigator.clipboard.writeText(url);
+  }, [invoiceShare]);
+
+  const handleRevokeInvoiceShare = useCallback(async () => {
+    if (!invoiceShare) {
+      return;
+    }
+    try {
+      await api.revokeShare(invoiceShare.id);
+      setInvoiceShare(null);
+      setShowInvoiceShareDialog(false);
+    } catch (error) {
+      console.error('Failed to revoke share:', error);
+      alert('Failed to revoke share link');
+    }
+  }, [api, invoiceShare]);
+
+  const getPanelTitle = useCallback((mode: string, item: Invoice | null) => {
+    if (mode === 'view' && item) {
+      return <InvoiceDetailHeaderMenus key={String(item.id)} invoice={item} />;
+    }
+    return null;
+  }, []);
+
   const duplicateInvoice = useCallback(
     async (original: Invoice, _newName: string): Promise<Invoice | null> => {
       try {
@@ -421,8 +550,24 @@ export function InvoicesProvider({
     clearInvoiceSelection: clearInvoiceSelectionCore,
     selectedCount,
     isSelected,
+    getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+    invoiceShare,
+    isCreatingInvoiceShare,
+    showCreateInvoiceShareModal,
+    setShowCreateInvoiceShareModal,
+    showInvoiceShareDialog,
+    setShowInvoiceShareDialog,
+    shareValidUntil,
+    setShareValidUntil,
+    openCreateInvoiceShare,
+    openInvoiceShareForItem,
+    openInvoiceShareDialog,
+    handleCreateInvoiceShare,
+    handleCopyInvoiceShareUrl,
+    handleRevokeInvoiceShare,
+    shareTargetInvoice,
     getDuplicateConfig,
     executeDuplicate,
     recentlyDuplicatedInvoiceId,

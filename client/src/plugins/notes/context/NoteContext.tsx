@@ -42,6 +42,7 @@ export interface NoteContextType {
   selectedCount: number;
   isSelected: (id: string) => boolean;
   importNotes: (data: any[]) => Promise<{ successCount: number; failureCount: number }>;
+  getPanelTitle: (mode: string, item: Note | null) => React.ReactNode;
   getDeleteMessage: (item: Note | null) => string;
   recentlyDuplicatedNoteId: string | null;
   setRecentlyDuplicatedNoteId: (id: string | null) => void;
@@ -68,6 +69,7 @@ export interface NoteContextType {
   noteShareShowDialog: boolean;
   setNoteShareShowDialog: (show: boolean) => void;
   noteShareIsCreatingShare: boolean;
+  handleNoteShareClick: (note: Note) => Promise<void>;
   handleNoteCopyShareUrl: () => void;
   handleNoteRevokeShare: () => void;
   navigateToPrevItem: () => void;
@@ -116,6 +118,7 @@ const EMPTY_NOTE_CONTEXT: NoteContextType = {
   selectedCount: 0,
   isSelected: () => false,
   importNotes: async () => ({ successCount: 0, failureCount: 0 }),
+  getPanelTitle: () => null,
   getDeleteMessage: () => '',
   recentlyDuplicatedNoteId: null,
   setRecentlyDuplicatedNoteId: () => {},
@@ -127,6 +130,7 @@ const EMPTY_NOTE_CONTEXT: NoteContextType = {
   noteShareShowDialog: false,
   setNoteShareShowDialog: () => {},
   noteShareIsCreatingShare: false,
+  handleNoteShareClick: async () => {},
   handleNoteCopyShareUrl: () => {},
   handleNoteRevokeShare: () => {},
   navigateToPrevItem: () => {},

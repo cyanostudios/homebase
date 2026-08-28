@@ -58,6 +58,53 @@ function normalizeCheckboxValues(raw, allowedIds) {
   return out;
 }
 
+function parseCtSizes(raw) {
+  const src = parseJsonb(raw, {});
+  if (!src || typeof src !== 'object' || Array.isArray(src)) return {};
+  const out = {};
+  for (const [key, value] of Object.entries(src)) {
+    if (typeof value === 'string') {
+      out[String(key)] = value;
+    }
+  }
+  return out;
+}
+
+function parseCtAudiences(raw) {
+  const src = parseJsonb(raw, {});
+  if (!src || typeof src !== 'object' || Array.isArray(src)) return {};
+  const out = {};
+  for (const [key, value] of Object.entries(src)) {
+    if (typeof value === 'string') {
+      out[String(key)] = value;
+    }
+  }
+  return out;
+}
+
+const INVENTORY_CHECKBOX_STATUSES = [
+  { suffix: 'ordered', label: 'Ordered' },
+  { suffix: 'delivered', label: 'Delivered' },
+  { suffix: 'handed_out', label: 'Handed out' },
+];
+
+function inventoryCheckboxPrefix(itemId) {
+  return `inv_${itemId}_`;
+}
+
+function buildInventoryCheckboxColumns(itemId, articleName, startSortOrder) {
+  return INVENTORY_CHECKBOX_STATUSES.map((status, index) => ({
+    id: `inv_${itemId}_${status.suffix}`,
+    label: status.label,
+    group: articleName,
+    sortOrder: startSortOrder + index,
+  }));
+}
+
+function inventoryColumnIdsForItem(itemId) {
+  return INVENTORY_CHECKBOX_STATUSES.map((status) => `inv_${itemId}_${status.suffix}`);
+}
+
 function parseOptionalContactId(data) {
   const raw = data?.contactId ?? data?.contact_id;
   if (raw === null || raw === undefined || raw === '') {
@@ -102,7 +149,8 @@ class GarmentsModel {
       }
       sql += ` ORDER BY gl.updated_at DESC`;
       const rows = await db.query(sql, params);
-      return rows.map((row) => this.transformListRow(row));
+      const lists = rows.map((row) => this.transformListRow(row));
+      return this.enrichListsWithInventoryAssignments(req, lists);
     } catch (error) {
       Logger.error('Failed to fetch garment lists', error);
       throw new AppError('Failed to fetch lists', 500, AppError.CODES.DATABASE_ERROR);
@@ -133,7 +181,8 @@ class GarmentsModel {
         `,
         [db.getUserId(), cid],
       );
-      return rows.map((row) => this.transformListRow(row));
+      const lists = rows.map((row) => this.transformListRow(row));
+      return this.enrichListsWithInventoryAssignments(req, lists);
     } catch (error) {
       Logger.error('Failed to fetch garment lists for contact', error, { contactId });
       throw new AppError('Failed to fetch lists', 500, AppError.CODES.DATABASE_ERROR);
@@ -158,10 +207,11 @@ class GarmentsModel {
       );
       if (!rows.length) return null;
       const list = this.transformListRow(rows[0]);
+      const [enriched] = await this.enrichListsWithInventoryAssignments(req, [list]);
       if (includePersons) {
-        list.persons = await this.getPersonsForList(req, id);
+        enriched.persons = await this.getPersonsForList(req, id);
       }
-      return list;
+      return enriched;
     } catch (error) {
       Logger.error('Failed to get garment list', error, { listId });
       throw new AppError('Failed to get list', 500, AppError.CODES.DATABASE_ERROR);
@@ -694,7 +744,12 @@ class GarmentsModel {
         if (!byItem.has(key)) byItem.set(key, []);
         byItem.get(key).push(this.transformVariantRow(row));
       }
-      return items.map((item) => this.attachVariants(item, byItem.get(item.id) || []));
+      const assignmentsByItem = await this.loadAssignedListsByItemIds(pool, ids);
+      return items.map((item) => {
+        const enriched = this.attachVariants(item, byItem.get(item.id) || []);
+        enriched.assignedListIds = assignmentsByItem.get(item.id) ?? [];
+        return enriched;
+      });
     } catch (error) {
       Logger.error('Failed to fetch garment inventory', error);
       throw new AppError('Failed to fetch inventory', 500, AppError.CODES.DATABASE_ERROR);
@@ -710,7 +765,7 @@ class GarmentsModel {
       if (!rows.length) return null;
       const item = this.transformInventoryRow(rows[0]);
       const variants = await this.getVariantsForItem(req, id);
-      return this.attachVariants(item, variants);
+      return this.enrichInventoryWithAssignments(req, this.attachVariants(item, variants));
     } catch (error) {
       Logger.error('Failed to get inventory item', error, { itemId });
       throw new AppError('Failed to get inventory item', 500, AppError.CODES.DATABASE_ERROR);
@@ -1122,7 +1177,19 @@ class GarmentsModel {
   async deleteInventoryItem(req, itemId) {
     try {
       const db = Database.get(req);
+      const pool = this._pool(req);
       const id = parseInt(String(itemId), 10);
+      const assigned = await pool.query(
+        `SELECT 1 FROM garment_list_inventory_items WHERE item_id = $1 LIMIT 1`,
+        [id],
+      );
+      if (assigned.rows.length) {
+        throw new AppError(
+          'Cannot delete inventory item assigned to garment lists',
+          409,
+          AppError.CODES.CONFLICT,
+        );
+      }
       const rows = await db.query(
         `DELETE FROM garment_inventory_items WHERE id = $1 RETURNING id`,
         [id],
@@ -1138,6 +1205,339 @@ class GarmentsModel {
     }
   }
 
+  // ─── List ↔ inventory assignments ────────────────────────────────────────
+
+  async loadAssignedInventoryByListIds(pool, listIds) {
+    if (!listIds.length) return new Map();
+    const result = await pool.query(
+      `
+      SELECT list_id, item_id
+      FROM garment_list_inventory_items
+      WHERE list_id = ANY($1::int[])
+      ORDER BY sort_order ASC, id ASC
+      `,
+      [listIds],
+    );
+    const map = new Map();
+    for (const row of result.rows) {
+      const listKey = String(row.list_id);
+      if (!map.has(listKey)) map.set(listKey, []);
+      map.get(listKey).push(String(row.item_id));
+    }
+    return map;
+  }
+
+  async loadAssignedListsByItemIds(pool, itemIds) {
+    if (!itemIds.length) return new Map();
+    const result = await pool.query(
+      `
+      SELECT item_id, list_id
+      FROM garment_list_inventory_items
+      WHERE item_id = ANY($1::int[])
+      ORDER BY sort_order ASC, id ASC
+      `,
+      [itemIds],
+    );
+    const map = new Map();
+    for (const row of result.rows) {
+      const itemKey = String(row.item_id);
+      if (!map.has(itemKey)) map.set(itemKey, []);
+      map.get(itemKey).push(String(row.list_id));
+    }
+    return map;
+  }
+
+  async enrichInventoryWithAssignments(req, item) {
+    if (!item) return item;
+    const pool = this._pool(req);
+    const id = parseInt(String(item.id), 10);
+    if (Number.isNaN(id)) return item;
+    const map = await this.loadAssignedListsByItemIds(pool, [id]);
+    return {
+      ...item,
+      assignedListIds: map.get(String(item.id)) ?? [],
+    };
+  }
+
+  async enrichListsWithInventoryAssignments(req, lists) {
+    if (!lists.length) return lists;
+    const pool = this._pool(req);
+    const listIds = lists
+      .map((list) => parseInt(String(list.id), 10))
+      .filter((id) => !Number.isNaN(id));
+    const map = await this.loadAssignedInventoryByListIds(pool, listIds);
+    return lists.map((list) => ({
+      ...list,
+      assignedInventoryItemIds: map.get(String(list.id)) ?? [],
+    }));
+  }
+
+  async isInventoryItemUsedInList(pool, listId, itemId) {
+    const prefix = inventoryCheckboxPrefix(itemId);
+    const rows = await pool.query(
+      `SELECT checkbox_values FROM garment_list_persons WHERE list_id = $1`,
+      [listId],
+    );
+    for (const row of rows.rows) {
+      const values = parseJsonb(row.checkbox_values, {});
+      for (const [key, value] of Object.entries(values)) {
+        if (key.startsWith(prefix) && value === true) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  async assignInventoryItemToList(req, listId, itemId) {
+    try {
+      const db = Database.get(req);
+      const pool = this._pool(req);
+      const lid = parseInt(String(listId), 10);
+      const iid = parseInt(String(itemId), 10);
+      const list = await this.getListById(req, lid, { includePersons: false });
+      if (!list) {
+        throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const inventory = await this.getInventoryById(req, iid);
+      if (!inventory) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const existingJoin = await pool.query(
+        `SELECT id FROM garment_list_inventory_items WHERE list_id = $1 AND item_id = $2`,
+        [lid, iid],
+      );
+      if (existingJoin.rows.length) {
+        return this.getListById(req, lid);
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const maxOrderResult = await client.query(
+          `SELECT COALESCE(MAX(sort_order), -1) AS m FROM garment_list_inventory_items WHERE list_id = $1`,
+          [lid],
+        );
+        const nextSort = (maxOrderResult.rows[0]?.m ?? -1) + 1;
+        await client.query(
+          `INSERT INTO garment_list_inventory_items (list_id, item_id, sort_order) VALUES ($1, $2, $3)`,
+          [lid, iid, nextSort],
+        );
+
+        let checkboxColumns = [...list.checkboxColumns];
+        const existingIds = new Set(checkboxColumns.map((col) => col.id));
+        const maxColSort = checkboxColumns.reduce(
+          (max, col) => Math.max(max, col.sortOrder ?? 0),
+          -1,
+        );
+        const newColumns = buildInventoryCheckboxColumns(
+          iid,
+          inventory.articleName,
+          maxColSort + 1,
+        ).filter((col) => !existingIds.has(col.id));
+        if (newColumns.length) {
+          checkboxColumns = [...checkboxColumns, ...newColumns];
+          await client.query(
+            `
+            UPDATE garment_lists
+            SET checkbox_columns = $1::jsonb, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            `,
+            [JSON.stringify(checkboxColumns), lid],
+          );
+        }
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        client.release();
+      }
+
+      return this.getListById(req, lid);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to assign inventory item to list', error, { listId, itemId });
+      throw new AppError('Failed to assign inventory item', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async unassignInventoryItemFromList(req, listId, itemId) {
+    try {
+      const pool = this._pool(req);
+      const lid = parseInt(String(listId), 10);
+      const iid = parseInt(String(itemId), 10);
+      const list = await this.getListById(req, lid, { includePersons: false });
+      if (!list) {
+        throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const join = await pool.query(
+        `SELECT id FROM garment_list_inventory_items WHERE list_id = $1 AND item_id = $2`,
+        [lid, iid],
+      );
+      if (!join.rows.length) {
+        return this.getListById(req, lid);
+      }
+
+      if (await this.isInventoryItemUsedInList(pool, lid, iid)) {
+        throw new AppError(
+          'Cannot unassign inventory item with checked values in this list',
+          409,
+          AppError.CODES.CONFLICT,
+        );
+      }
+
+      const removeIds = new Set(inventoryColumnIdsForItem(iid));
+      const checkboxColumns = list.checkboxColumns.filter((col) => !removeIds.has(col.id));
+      const itemKey = String(iid);
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `DELETE FROM garment_list_inventory_items WHERE list_id = $1 AND item_id = $2`,
+          [lid, iid],
+        );
+        await client.query(
+          `
+          UPDATE garment_lists
+          SET checkbox_columns = $1::jsonb, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+          `,
+          [JSON.stringify(checkboxColumns), lid],
+        );
+
+        const persons = await client.query(
+          `SELECT id, checkbox_values, ct_sizes, ct_audiences FROM garment_list_persons WHERE list_id = $1`,
+          [lid],
+        );
+        for (const person of persons.rows) {
+          const values = parseJsonb(person.checkbox_values, {});
+          let valuesChanged = false;
+          for (const rid of removeIds) {
+            if (Object.prototype.hasOwnProperty.call(values, rid)) {
+              delete values[rid];
+              valuesChanged = true;
+            }
+          }
+          const ctSizes = parseCtSizes(person.ct_sizes);
+          const ctChanged = Object.prototype.hasOwnProperty.call(ctSizes, itemKey);
+          if (ctChanged) {
+            delete ctSizes[itemKey];
+          }
+          const ctAudiences = parseCtAudiences(person.ct_audiences);
+          const audienceChanged = Object.prototype.hasOwnProperty.call(ctAudiences, itemKey);
+          if (audienceChanged) {
+            delete ctAudiences[itemKey];
+          }
+          if (valuesChanged || ctChanged || audienceChanged) {
+            await client.query(
+              `
+              UPDATE garment_list_persons
+              SET checkbox_values = $1::jsonb,
+                  ct_sizes = $2::jsonb,
+                  ct_audiences = $3::jsonb,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = $4
+              `,
+              [
+                JSON.stringify(values),
+                JSON.stringify(ctSizes),
+                JSON.stringify(ctAudiences),
+                person.id,
+              ],
+            );
+          }
+        }
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        client.release();
+      }
+
+      return this.getListById(req, lid);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to unassign inventory item from list', error, { listId, itemId });
+      throw new AppError('Failed to unassign inventory item', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async updatePersonCtSizes(req, listId, personId, ctSizesInput, ctAudiencesInput = undefined) {
+    try {
+      const pool = this._pool(req);
+      const lid = parseInt(String(listId), 10);
+      const pid = parseInt(String(personId), 10);
+      const list = await this.getListById(req, lid, { includePersons: false });
+      if (!list) {
+        throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const assignedIds = new Set(list.assignedInventoryItemIds ?? []);
+      const existingResult = await pool.query(
+        `SELECT * FROM garment_list_persons WHERE id = $1 AND list_id = $2`,
+        [pid, lid],
+      );
+      if (!existingResult.rows.length) {
+        throw new AppError('Person not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const existing = existingResult.rows[0];
+      const allowedIds = list.checkboxColumns.map((col) => col.id);
+      const nextCtSizes = parseCtSizes(existing.ct_sizes);
+      const nextCtAudiences = parseCtAudiences(existing.ct_audiences);
+
+      if (ctSizesInput !== undefined) {
+        const input = parseCtSizes(ctSizesInput);
+        for (const [itemId, size] of Object.entries(input)) {
+          if (!assignedIds.has(String(itemId))) continue;
+          const trimmed = size.trim();
+          if (trimmed) {
+            nextCtSizes[String(itemId)] = trimmed.slice(0, 50);
+          } else {
+            delete nextCtSizes[String(itemId)];
+          }
+        }
+      }
+
+      if (ctAudiencesInput !== undefined) {
+        const input = parseCtAudiences(ctAudiencesInput);
+        for (const [itemId, audience] of Object.entries(input)) {
+          if (!assignedIds.has(String(itemId))) continue;
+          const trimmed = audience.trim();
+          if (trimmed) {
+            nextCtAudiences[String(itemId)] = trimmed.slice(0, 100);
+          } else {
+            delete nextCtAudiences[String(itemId)];
+          }
+        }
+      }
+
+      const rows = await pool.query(
+        `
+        UPDATE garment_list_persons
+        SET ct_sizes = $1::jsonb,
+            ct_audiences = $2::jsonb,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3 AND list_id = $4
+        RETURNING *
+        `,
+        [JSON.stringify(nextCtSizes), JSON.stringify(nextCtAudiences), pid, lid],
+      );
+      await pool.query(`UPDATE garment_lists SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [
+        lid,
+      ]);
+      return this.transformPersonRow(rows.rows[0], allowedIds);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to update person clothing sizes', error, { listId, personId });
+      throw new AppError('Failed to update person sizes', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   // ─── Transforms ──────────────────────────────────────────────────────────
 
   transformListRow(row) {
@@ -1146,6 +1546,7 @@ class GarmentsModel {
       name: row.name ?? '',
       teamId: row.team_id != null ? String(row.team_id) : null,
       checkboxColumns: normalizeCheckboxColumns(parseJsonb(row.checkbox_columns, [])),
+      assignedInventoryItemIds: [],
       personCount: row.person_count != null ? Number(row.person_count) : undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -1169,6 +1570,8 @@ class GarmentsModel {
       comment: row.comment ?? null,
       contactId: row.contact_id != null ? String(row.contact_id) : null,
       checkboxValues: normalizeCheckboxValues(row.checkbox_values, ids),
+      ctSizes: parseCtSizes(row.ct_sizes),
+      ctAudiences: parseCtAudiences(row.ct_audiences),
       sortOrder: row.sort_order != null ? Number(row.sort_order) : 0,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -1233,6 +1636,7 @@ class GarmentsModel {
       variants: [],
       totalQuantity: 0,
       variantCount: 0,
+      assignedListIds: [],
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

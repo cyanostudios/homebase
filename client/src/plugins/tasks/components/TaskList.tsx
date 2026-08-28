@@ -1,9 +1,13 @@
 import {
+  AlertCircle,
+  CheckCircle2,
   CheckSquare,
   ArrowDown,
   ArrowUp,
+  Circle,
   FileSpreadsheet,
   FileText,
+  LayoutGrid,
   Plus,
   Settings,
   SlidersHorizontal,
@@ -14,6 +18,9 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableQuickAdd } from '@/components/ui/round-expandable-quick-add';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -29,16 +36,22 @@ import {
 } from '@/core/list/effectiveListViewMode';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
@@ -57,6 +70,8 @@ import {
 import { getTasksExportConfig } from '../utils/taskExportConfig';
 import {
   TASK_LIST_FILTER_INITIAL,
+  taskIsOpen,
+  taskIsOverdue,
   taskMatchesListFilters,
   toggleTaskListFilter,
   type TaskListFilter,
@@ -80,10 +95,15 @@ import {
 import { TaskBulkStatusDialog } from './TaskBulkStatusDialog';
 import { TaskListItem } from './TaskListItem';
 import { TaskListTable } from './TaskListTable';
-import { TaskQuickAdd } from './TaskQuickAdd';
 import { TaskQuickContextPanel } from './TaskQuickContextPanel';
 import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 
 type SortField = TaskSortField;
 type SortOrder = TaskSortOrder;
@@ -134,9 +154,14 @@ export function TaskList() {
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const { teams } = useTeams();
   const [searchTerm, setSearchTerm] = useState('');
+  useRegisterMobileSearch({
+    value: searchTerm,
+    onChange: setSearchTerm,
+    placeholder: t('tasks.searchPlaceholder', { count: tasks.length }),
+  });
+  const [selectionMode, setSelectionMode] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
@@ -147,7 +172,7 @@ export function TaskList() {
   );
   const [activeFilters, setActiveFilters] =
     useState<TaskListFilterSelection>(TASK_LIST_FILTER_INITIAL);
-  const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('view');
+  const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('import');
 
   useEffect(() => {
     let cancelled = false;
@@ -156,10 +181,14 @@ export function TaskList() {
         if (cancelled) {
           return;
         }
-        const next = resolveTaskColumnCount(settings);
+        const resolved = resolveTaskColumnCount(settings);
+        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as TaskColumnCount;
         setColumnCountState(next);
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(TASKS_COLUMN_COUNT_STORAGE_KEY, String(next));
+        }
+        if (next !== resolved) {
+          updateSettings(TASKS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
         }
         const nextView = resolveTaskListViewMode(settings);
         setListViewModeState(nextView);
@@ -172,14 +201,15 @@ export function TaskList() {
   }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback(
-    (count: TaskColumnCount) => {
-      setColumnCountState(count);
+    (_count: TaskColumnCount) => {
+      const next = 3 as TaskColumnCount;
+      setColumnCountState(next);
       setListViewModeState('cards');
       persistTaskListViewModeSession('cards');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(TASKS_COLUMN_COUNT_STORAGE_KEY, String(count));
+        window.sessionStorage.setItem(TASKS_COLUMN_COUNT_STORAGE_KEY, String(next));
       }
-      updateSettings(TASKS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+      updateSettings(TASKS_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
         () => {},
       );
     },
@@ -214,8 +244,6 @@ export function TaskList() {
   );
 
   const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
   const getAssignedContacts = useCallback(
     (task: Task) => {
       const ids = Array.isArray(task.assignedToIds)
@@ -299,21 +327,16 @@ export function TaskList() {
   };
 
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
-  const stats = useMemo(
-    () => ({
+
+  const stats = useMemo(() => {
+    const now = Date.now();
+    return {
       total: tasks.length,
-      open: tasks.filter((task) => task.status !== 'completed' && task.status !== 'cancelled')
-        .length,
+      open: tasks.filter((task) => taskIsOpen(task)).length,
       completed: tasks.filter((task) => task.status === 'completed').length,
-      overdue: tasks.filter((task) => {
-        if (!task.dueDate || task.status === 'completed' || task.status === 'cancelled') {
-          return false;
-        }
-        return new Date(task.dueDate).getTime() < Date.now();
-      }).length,
-    }),
-    [tasks],
-  );
+      overdue: tasks.filter((task) => taskIsOverdue(task, now)).length,
+    };
+  }, [tasks]);
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
@@ -406,13 +429,67 @@ export function TaskList() {
     getItemId: (task) => String(task.id),
   });
 
+  const quickContextOpen = Boolean(showQuickContext && previewTask);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
+
   const handleOpenForView = (task: Task) => {
     markPendingAndOpen(task, () => attemptNavigation(() => openTaskForView(task)));
   };
 
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearTaskSelection();
+    setSelectionMode(false);
+  };
+
   const handleRowActivate = (task: Task) => {
+    if (selectionMode) {
+      toggleTaskSelected(String(task.id));
+      return;
+    }
     activateRow(task, (item) => attemptNavigation(() => openTaskForView(item)));
   };
+
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    const disabled = selectedCount === 0;
+    return [
+      {
+        key: 'status',
+        label: t('tasks.bulkStatusAction'),
+        icon: SlidersHorizontal,
+        disabled,
+        onClick: () => setShowBulkStatusDialog(true),
+      },
+      {
+        key: 'csv',
+        label: 'Export CSV',
+        icon: FileSpreadsheet,
+        disabled,
+        onClick: handleExportCSV,
+      },
+      {
+        key: 'pdf',
+        label: 'Export PDF',
+        icon: FileText,
+        disabled,
+        onClick: () => {
+          void handleExportPDF();
+        },
+      },
+      {
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      },
+    ];
+  }, [selectedCount, t, handleExportCSV, handleExportPDF]);
 
   const handleListQuickFieldChange = useCallback(
     async (
@@ -473,65 +550,188 @@ export function TaskList() {
   }
 
   return (
-    <div className="plugin-tasks min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.tasks')}</h2>
-            <p className="text-sm text-muted-foreground">{t('tasks.listDescription')}</p>
-          </div>
-          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={() => openTaskSettings()}
-              title={t('common.settings')}
-            >
-              {t('common.settings')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(() => openTaskPanel(null))}
-            >
-              {t('tasks.addTask')}
-            </Button>
+    <div className={cn('plugin-tasks', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.tasks')}</h2>
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('common.settings')}
+                    variant="soft"
+                    onClick={() => openTaskSettings()}
+                  />
+                  {sortedTasks.length > 0 ? (
+                    selectionMode ? (
+                      <ExpandableIconButton
+                        icon={XCircle}
+                        label={t('common.clear')}
+                        variant="danger"
+                        alwaysExpanded
+                        onClick={handleExitSelectionMode}
+                      />
+                    ) : (
+                      <ExpandableIconButton
+                        icon={CheckSquare}
+                        label={t('common.select')}
+                        variant="soft"
+                        alwaysExpanded
+                        onClick={handleEnterSelectionMode}
+                      />
+                    )
+                  ) : null}
+                  <RoundExpandableQuickAdd
+                    label={t('tasks.quickAdd')}
+                    placeholder={t('tasks.quickAddPlaceholder')}
+                    onCreate={handleQuickCreate}
+                    defaultExpanded
+                    variant={quickContextOpen ? 'soft' : 'primary'}
+                  />
+                </div>
+              </div>
+              {selectionMode ? (
+                <BulkActionRoundBar
+                  selectedCount={selectedCount}
+                  actions={bulkRoundActions}
+                  className="gap-2"
+                />
+              ) : null}
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t('tasks.searchPlaceholder', { count: tasks.length })}
+              />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => t(`tasks.columns${count}`)}
+                tableAriaLabel={t('common.tableView')}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('tasks.addTask')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => attemptNavigation(() => openTaskPanel(null))}
+              />
+            </div>
           </div>
         </div>
 
-        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
-          <ListFilterStatCard
-            label="Total"
-            value={stats.total}
-            dotClassName="bg-blue-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label="Open"
-            value={stats.open}
-            dotClassName="bg-amber-500"
-            active={isFilterActive('open')}
-            onClick={() => toggleFilter('open')}
-          />
-          <ListFilterStatCard
-            label="Completed"
-            value={stats.completed}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('completed')}
-            onClick={() => toggleFilter('completed')}
-          />
-          <ListFilterStatCard
-            label="Overdue"
-            value={stats.overdue}
-            dotClassName="bg-rose-500"
-            active={isFilterActive('overdue')}
-            onClick={() => toggleFilter('overdue')}
-          />
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFilters([])}
+              className={cn(
+                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                {t('tasks.filter.total')}{' '}
+                <span className="tabular-nums font-semibold">({stats.total})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('open')}
+              className={cn(
+                isFilterActive('open') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Circle className="h-3.5 w-3.5" />
+              <span>
+                {t('tasks.filter.open')}{' '}
+                <span className="tabular-nums font-semibold">({stats.open})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('completed')}
+              className={cn(
+                isFilterActive('completed')
+                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                  : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>
+                {t('tasks.filter.completed')}{' '}
+                <span className="tabular-nums font-semibold">({stats.completed})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('overdue')}
+              className={cn(
+                isFilterActive('overdue') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <AlertCircle className="h-3.5 w-3.5" />
+              <span>
+                {t('tasks.filter.overdue')}{' '}
+                <span className="tabular-nums font-semibold">({stats.overdue})</span>
+              </span>
+            </Button>
+          </div>
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label="Sort by"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
 
         <BulkDeleteModal
@@ -552,165 +752,14 @@ export function TaskList() {
         />
 
         <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={sortedTasks.length > 0}
-            quickAddOpen={quickAddOpen}
-            quickAddExpanded={
-              quickAddOpen ? (
-                <TaskQuickAdd
-                  viewMode="grid"
-                  layout="toolbar"
-                  open={quickAddOpen}
-                  onOpenChange={setQuickAddOpen}
-                  onCreate={handleQuickCreate}
-                />
-              ) : null
-            }
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={handleHeaderCheckboxChange}
-              >
-                Select all
-              </Button>
-            }
-            leadingActions={
-              quickAddOpen ? null : (
-                <TaskQuickAdd
-                  viewMode="grid"
-                  layout="toolbar"
-                  open={quickAddOpen}
-                  onOpenChange={setQuickAddOpen}
-                  onCreate={handleQuickCreate}
-                />
-              )
-            }
-            search={
-              <ListSearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('tasks.searchPlaceholder', { count: tasks.length })}
-              />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t(`tasks.columns${count}`)}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearTaskSelection}
-                  type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: selectedCount })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={SlidersHorizontal}
-                  onClick={() => setShowBulkStatusDialog(true)}
-                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                >
-                  {t('tasks.bulkStatusAction')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={FileSpreadsheet}
-                  onClick={handleExportCSV}
-                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                >
-                  Export CSV
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={FileText}
-                  onClick={handleExportPDF}
-                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                >
-                  Export PDF
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                >
-                  {t('common.delete')}
-                </Button>
-              </>
-            }
-          />
-
-          <div className="flex items-start gap-4">
+          <div
+            className={cn(
+              'grid items-start gap-4',
+              showQuickContext && previewTask ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+            )}
+          >
             {showQuickContext && previewTask ? (
-              <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
+              <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
                 <TaskQuickContextPanel
                   task={previewTask}
                   onClose={() => setPreviewTask(null)}
@@ -730,7 +779,7 @@ export function TaskList() {
                 />
               </aside>
             ) : null}
-            <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-3">
               {sortedTasks.length === 0 ? (
                 <ListEmptyState
                   message={searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
@@ -752,7 +801,7 @@ export function TaskList() {
                   allVisibleSelected={allVisibleSelected}
                   onHeaderCheckboxChange={handleHeaderCheckboxChange}
                   recentlyDuplicatedTaskId={recentlyDuplicatedTaskId}
-                  selectionEnabled
+                  selectionEnabled={selectionMode}
                   activeTaskId={previewTask?.id ?? null}
                 />
               ) : (
@@ -780,15 +829,17 @@ export function TaskList() {
                         onStatusChange={(status) => handleListStatusChange(task, status)}
                         columnCount={effectiveCardColumnCount}
                         checkbox={
-                          <input
-                            type="checkbox"
-                            checked={taskIsSelected}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onChange={() => onVisibleRowCheckboxChange(task.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-4 w-4 cursor-pointer"
-                            aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
-                          />
+                          selectionMode ? (
+                            <input
+                              type="checkbox"
+                              checked={taskIsSelected}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(task.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="h-4 w-4 cursor-pointer"
+                              aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
+                            />
+                          ) : undefined
                         }
                       />
                     );

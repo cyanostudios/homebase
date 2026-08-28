@@ -14,16 +14,10 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
-import { cn } from '@/lib/utils';
 
 import { useSlotSettings } from '../hooks/useSlotSettings';
-import type { SlotColumnCount } from '../utils/slotColumnCount';
-import type { SlotListViewMode } from '../utils/slotListViewMode';
 
-const COLUMN_OPTIONS: SlotColumnCount[] = [1, 2, 3];
-const VIEW_MODE_OPTIONS: SlotListViewMode[] = ['cards', 'table'];
-
-type SlotsSettingsCategory = 'view' | 'categories';
+export type SlotsSettingsCategory = 'categories';
 
 interface SlotsSettingsViewProps {
   selectedCategory?: SlotsSettingsCategory;
@@ -39,32 +33,15 @@ export function SlotsSettingsView({
   onClose,
 }: SlotsSettingsViewProps = {}) {
   const { t } = useTranslation();
-  const {
-    columnCount,
-    setColumnCount,
-    listViewMode,
-    setListViewMode,
-    tags,
-    setTags,
-    isDirty,
-    isLoading,
-    isSaving,
-    save,
-  } = useSlotSettings();
+  const { tags, setTags, isDirty, isLoading, isSaving, save } = useSlotSettings();
   const [internalSelectedCategory, setInternalSelectedCategory] =
-    useState<SlotsSettingsCategory>('view');
+    useState<SlotsSettingsCategory>('categories');
   const [newTag, setNewTag] = useState('');
   const activeCategory = selectedCategory ?? internalSelectedCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalSelectedCategory;
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
-      {
-        id: 'view',
-        label: t('slots.settingsCategories.view'),
-        description: t('slots.settingsCategories.viewDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.view,
-      },
       {
         id: 'categories',
         label: t('slots.settingsCategories.categories'),
@@ -116,65 +93,6 @@ export function SlotsSettingsView({
         ) : null
       }
     >
-      {activeCategory === 'view' && (
-        <>
-          <DetailSection title={t('common.defaultListView')} className="pt-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              {VIEW_MODE_OPTIONS.map((mode) => {
-                const isActive = listViewMode === mode;
-                return (
-                  <Button
-                    key={mode}
-                    variant="ghost"
-                    onClick={() => setListViewMode(mode)}
-                    className={cn(
-                      'h-9 text-xs px-3 rounded-lg font-medium',
-                      'flex items-center gap-1.5',
-                      isActive
-                        ? 'bg-primary/10 text-primary border border-primary'
-                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                    )}
-                    aria-label={mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
-                    aria-pressed={isActive}
-                  >
-                    <span>{mode === 'cards' ? t('common.cardsView') : t('common.tableView')}</span>
-                  </Button>
-                );
-              })}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">{t('common.listViewHelp')}</p>
-          </DetailSection>
-          {listViewMode === 'cards' ? (
-            <DetailSection title={t('slots.defaultColumns')}>
-              <div className="flex items-center gap-2 flex-wrap">
-                {COLUMN_OPTIONS.map((count) => {
-                  const isActive = columnCount === count;
-                  return (
-                    <Button
-                      key={count}
-                      variant="ghost"
-                      onClick={() => setColumnCount(count)}
-                      className={cn(
-                        'h-9 text-xs px-3 rounded-lg font-medium',
-                        'flex items-center gap-1.5',
-                        isActive
-                          ? 'bg-primary/10 text-primary border border-primary'
-                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                      )}
-                      aria-label={t(`slots.columns${count}`)}
-                      aria-pressed={isActive}
-                    >
-                      <span>{count}</span>
-                    </Button>
-                  );
-                })}
-              </div>
-              <p className="text-sm text-muted-foreground mt-2">{t('slots.columnsHelp')}</p>
-            </DetailSection>
-          ) : null}
-        </>
-      )}
-
       {activeCategory === 'categories' && (
         <DetailSection title="Categories" className="pt-0">
           <div className="space-y-3">

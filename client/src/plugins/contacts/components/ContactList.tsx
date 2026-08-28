@@ -1,5 +1,10 @@
 import {
   CheckSquare,
+  ArrowDown,
+  ArrowUp,
+  Building2,
+  Clock,
+  LayoutGrid,
   Mail,
   MessageSquare,
   Trash2,
@@ -8,15 +13,29 @@ import {
   Plus,
   Settings,
   Tag,
+  User,
   UserCheck,
   XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/button';
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import {
@@ -30,8 +49,16 @@ import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActi
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
+} from '@/core/ui/detailViewCardStyles';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { exportItems } from '@/core/utils/exportUtils';
@@ -48,8 +75,20 @@ import {
   type ContactListFilter,
   type ContactListFilterSelection,
 } from '../utils/contactListFilter';
-import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
+import {
+  CONTACTS_COLUMN_COUNT_STORAGE_KEY,
+  CONTACTS_SETTINGS_KEY,
+  getInitialContactColumnCount,
+  resolveContactColumnCount,
+  type ContactColumnCount,
+} from '../utils/contactColumnCount';
 import { contactExportConfig } from '../utils/contactExportConfig';
+import {
+  getInitialContactListViewMode,
+  persistContactListViewModeSession,
+  resolveContactListViewMode,
+  type ContactListViewMode,
+} from '../utils/contactListViewMode';
 import {
   compareContactsByField,
   isContactAscDefaultField,
@@ -59,12 +98,23 @@ import {
 
 import { ContactBulkAssignableDialog } from './ContactBulkAssignableDialog';
 import { ContactBulkTagsDialog } from './ContactBulkTagsDialog';
+import { ContactListItem } from './ContactListItem';
 import { ContactListTable } from './ContactListTable';
 import { ContactQuickContextPanel } from './ContactQuickContextPanel';
 import { ContactSettingsView, type ContactSettingsCategory } from './ContactSettingsView';
 
 type SortField = ContactSortField;
 type SortOrder = ContactSortOrder;
+
+const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
+  { value: 'name', labelKey: 'contacts.table.name' },
+  { value: 'type', labelKey: 'contacts.table.type' },
+  { value: 'tags', labelKey: 'contacts.table.tags' },
+  { value: 'assignable', labelKey: 'contacts.table.assignable' },
+  { value: 'time', labelKey: 'contacts.table.time' },
+  { value: 'updatedAt', labelKey: 'contacts.table.updated' },
+  { value: 'createdAt', labelKey: 'common.created' },
+];
 
 // Remembers which contact was open in the full-profile view (module-scoped since
 // ContactList unmounts while the full profile panel is shown). Consumed once on the
@@ -95,7 +145,7 @@ export const ContactList: React.FC = () => {
     recentlyDuplicatedContactId,
     contactIdsWithTimeEntries,
   } = useContacts();
-  const { getSettings, settingsVersion, user } = useApp();
+  const { getSettings, updateSettings, settingsVersion, user } = useApp();
   const activeTimeTrackingContactId = useOptionalActiveTimeTrackingContactId();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
@@ -127,6 +177,12 @@ export const ContactList: React.FC = () => {
 
   const [primarySort, setPrimarySort] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [columnCount, setColumnCountState] = useState<ContactColumnCount>(
+    getInitialContactColumnCount,
+  );
+  const [listViewMode, setListViewModeState] = useState<ContactListViewMode>(
+    getInitialContactListViewMode,
+  );
   const [activeFilters, setActiveFilters] = useState<ContactListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('tags');
   const [selectionMode, setSelectionMode] = useState(false);
@@ -160,12 +216,59 @@ export const ContactList: React.FC = () => {
             )
           : [];
         setAvailableTags(tags);
+        const next = resolveContactColumnCount(settings);
+        setColumnCountState(next);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY, String(next));
+        }
+        const nextView = resolveContactListViewMode(settings);
+        setListViewModeState(nextView);
+        persistContactListViewModeSession(nextView);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [getSettings, settingsVersion]);
+
+  const setColumnCount = useCallback(
+    (count: ContactColumnCount) => {
+      setColumnCountState(count);
+      setListViewModeState('cards');
+      persistContactListViewModeSession('cards');
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY, String(count));
+      }
+      updateSettings(CONTACTS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+        () => {},
+      );
+    },
+    [updateSettings],
+  );
+
+  const setListViewMode = useCallback(
+    (mode: ContactListViewMode) => {
+      setListViewModeState(mode);
+      persistContactListViewModeSession(mode);
+      updateSettings(CONTACTS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
+    },
+    [updateSettings],
+  );
+
+  const showQuickContext = Boolean(previewContact) && !isCompactViewport;
+  const quickContextOpen = Boolean(showQuickContext && previewContact);
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
+
+  const handlePrimarySortChange = (field: SortField) => {
+    setPrimarySort(field);
+    setSortOrder(isContactAscDefaultField(field) ? 'asc' : 'desc');
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  };
 
   const handleTableSort = useCallback(
     (field: SortField) => {
@@ -341,8 +444,6 @@ export const ContactList: React.FC = () => {
     setPreviewContact(contact);
   };
 
-  const showQuickContext = Boolean(previewContact) && !isCompactViewport;
-
   const bulkMessageRecipients = useMemo(
     () =>
       contacts
@@ -412,7 +513,7 @@ export const ContactList: React.FC = () => {
     if (canSendMessages) {
       actions.push({
         key: 'message',
-        label: t('bulk.sendMessageTitle'),
+        label: t('bulk.message'),
         icon: MessageSquare,
         disabled,
         contentClassName: 'text-sky-500 dark:text-sky-400',
@@ -422,7 +523,7 @@ export const ContactList: React.FC = () => {
     if (canSendEmail) {
       actions.push({
         key: 'email',
-        label: t('bulk.sendEmailTitle'),
+        label: t('bulk.email'),
         icon: Mail,
         disabled,
         contentClassName: 'text-red-800 dark:text-red-500',
@@ -519,6 +620,14 @@ export const ContactList: React.FC = () => {
                 onChange={setSearchTerm}
                 placeholder={t('contacts.searchPlaceholder', { count: contacts.length })}
               />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => t(`contacts.columns${count}`)}
+                tableAriaLabel={t('common.tableView')}
+              />
               <ExpandableIconButton
                 icon={Plus}
                 label={t('contacts.addContact')}
@@ -530,47 +639,128 @@ export const ContactList: React.FC = () => {
           </div>
         </div>
 
-        <div
-          className={cn(
-            LIST_FILTER_STAT_ROW_CLASS,
-            'md:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-5',
-          )}
-        >
-          <ListFilterStatCard
-            label={t('contacts.stats.total')}
-            value={stats.total}
-            dotClassName="bg-blue-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label={t('contacts.stats.companies')}
-            value={stats.companies}
-            dotClassName="bg-amber-500"
-            active={isFilterActive('company')}
-            onClick={() => toggleFilter('company')}
-          />
-          <ListFilterStatCard
-            label={t('contacts.stats.private')}
-            value={stats.private}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('private')}
-            onClick={() => toggleFilter('private')}
-          />
-          <ListFilterStatCard
-            label={t('contacts.stats.withTags')}
-            value={stats.withTags}
-            dotClassName="bg-orange-500"
-            active={isFilterActive('withTags')}
-            onClick={() => toggleFilter('withTags')}
-          />
-          <ListFilterStatCard
-            label={t('contacts.stats.timeLogged')}
-            value={stats.timeLogged}
-            dotClassName="bg-amber-600"
-            active={isFilterActive('timeLogged')}
-            onClick={() => toggleFilter('timeLogged')}
-          />
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFilters([])}
+              className={cn(
+                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                {t('contacts.stats.total')}{' '}
+                <span className="tabular-nums font-semibold">({stats.total})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('company')}
+              className={cn(
+                isFilterActive('company') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Building2 className="h-3.5 w-3.5" />
+              <span>
+                {t('contacts.stats.companies')}{' '}
+                <span className="tabular-nums font-semibold">({stats.companies})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('private')}
+              className={cn(
+                isFilterActive('private') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <User className="h-3.5 w-3.5" />
+              <span>
+                {t('contacts.stats.private')}{' '}
+                <span className="tabular-nums font-semibold">({stats.private})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('withTags')}
+              className={cn(
+                isFilterActive('withTags') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Tag className="h-3.5 w-3.5" />
+              <span>
+                {t('contacts.stats.withTags')}{' '}
+                <span className="tabular-nums font-semibold">({stats.withTags})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('timeLogged')}
+              className={cn(
+                isFilterActive('timeLogged')
+                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                  : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              <span>
+                {t('contacts.stats.timeLogged')}{' '}
+                <span className="tabular-nums font-semibold">({stats.timeLogged})</span>
+              </span>
+            </Button>
+          </div>
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label="Sort by"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {t(option.labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
 
         <BulkMessageDialog
@@ -644,7 +834,7 @@ export const ContactList: React.FC = () => {
                     !searchTerm ? () => attemptNavigation(() => openContactPanel(null)) : undefined
                   }
                 />
-              ) : (
+              ) : isTableView ? (
                 <ContactListTable
                   contacts={sortedContacts}
                   primarySort={primarySort}
@@ -662,6 +852,53 @@ export const ContactList: React.FC = () => {
                   recentlyDuplicatedContactId={recentlyDuplicatedContactId}
                   activeContactId={previewContact?.id ?? null}
                 />
+              ) : (
+                <div
+                  className={cn(
+                    'grid gap-3',
+                    effectiveColumnCount === 1 && 'grid-cols-1',
+                    effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                    effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                  )}
+                >
+                  {sortedContacts.map((contact, index) => {
+                    const contactIsSelected = isSelected(contact.id);
+                    const timeTrackingActive =
+                      activeTimeTrackingContactId !== null &&
+                      String(contact.id) === activeTimeTrackingContactId;
+                    const hasTimeLogged =
+                      contactIdsWithTimeEntries.has(contact.id) ||
+                      contactIdsWithTimeEntries.has(String(contact.id));
+                    return (
+                      <ContactListItem
+                        key={contact.id}
+                        contact={contact}
+                        selected={contactIsSelected}
+                        highlighted={recentlyDuplicatedContactId === String(contact.id)}
+                        active={
+                          previewContact != null && String(previewContact.id) === String(contact.id)
+                        }
+                        onClick={() => handleRowActivate(contact)}
+                        hasTimeLogged={hasTimeLogged}
+                        timeTrackingActive={timeTrackingActive}
+                        columnCount={effectiveCardColumnCount}
+                        checkbox={
+                          selectionMode ? (
+                            <input
+                              type="checkbox"
+                              checked={contactIsSelected}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(contact.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="h-4 w-4 cursor-pointer"
+                              aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+                            />
+                          ) : undefined
+                        }
+                      />
+                    );
+                  })}
+                </div>
               )}
 
               <ListFooterBar

@@ -1,8 +1,20 @@
-import { ArrowDown, ArrowUp, History, Plus, Route } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  History,
+  Key,
+  LayoutGrid,
+  Plus,
+  Route,
+  XCircle,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -18,11 +30,23 @@ import {
 } from '@/core/list/effectiveListViewMode';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -57,7 +81,6 @@ import {
 import { MailProvidersListItem } from './MailProvidersListItem';
 import { MailProvidersListTable } from './MailProvidersListTable';
 import { MailProvidersRouting } from './MailProvidersRouting';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 function providerTitle(
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -88,6 +111,14 @@ export const MailProvidersList: React.FC = () => {
   } = useMail();
 
   const [searchTerm, setSearchTerm] = useState('');
+  useRegisterMobileSearch({
+    value: searchTerm,
+    onChange: setSearchTerm,
+    placeholder: t('mail.searchProviders', {
+      defaultValue: 'Search providers ({{count}})',
+      count: providers.length,
+    }),
+  });
   const [primarySort, setPrimarySort] = useState<MailProviderSortField>('providerKey');
   const [sortOrder, setSortOrder] = useState<MailProviderSortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<MailColumnCount>(getInitialMailColumnCount);
@@ -103,10 +134,14 @@ export const MailProvidersList: React.FC = () => {
         if (cancelled) {
           return;
         }
-        const next = resolveMailColumnCount(settings);
+        const resolved = resolveMailColumnCount(settings);
+        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as MailColumnCount;
         setColumnCountState(next);
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(MAIL_COLUMN_COUNT_STORAGE_KEY, String(next));
+        }
+        if (next !== resolved) {
+          updateSettings(MAIL_SETTINGS_KEY, { columnCount: next }).catch(() => {});
         }
         const nextView = resolveMailListViewMode(settings);
         setListViewModeState(nextView);
@@ -119,14 +154,15 @@ export const MailProvidersList: React.FC = () => {
   }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback(
-    (count: MailColumnCount) => {
-      setColumnCountState(count);
+    (_count: MailColumnCount) => {
+      const next = 3 as MailColumnCount;
+      setColumnCountState(next);
       setListViewModeState('cards');
       persistMailListViewModeSession('cards');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(MAIL_COLUMN_COUNT_STORAGE_KEY, String(count));
+        window.sessionStorage.setItem(MAIL_COLUMN_COUNT_STORAGE_KEY, String(next));
       }
-      updateSettings(MAIL_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+      updateSettings(MAIL_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
         () => {},
       );
     },
@@ -213,85 +249,31 @@ export const MailProvidersList: React.FC = () => {
   }
 
   return (
-    <div className="plugin-mail min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.mail', { defaultValue: 'Mail' })}</h2>
-            <p className="text-sm text-muted-foreground">
-              {t('mail.listDescription', {
-                defaultValue:
-                  'Add and manage email providers. Route delivery per plugin and review send history.',
-              })}
-            </p>
-          </div>
-          <div className="flex w-full flex-shrink-0 flex-wrap items-center gap-2 md:w-auto">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={History}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(openHistoryView)}
-            >
-              {t('mail.historyTitle', { defaultValue: 'Mail history' })}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Route}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(openRoutingView)}
-            >
-              {t('mail.routing.open', { defaultValue: 'Routing' })}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(() => openMailPanel(null))}
-            >
-              {t('mail.addProvider', { defaultValue: 'Add provider' })}
-            </Button>
-          </div>
-        </div>
-
-        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
-          <ListFilterStatCard
-            label={t('mail.total', { defaultValue: 'Total' })}
-            value={stats.total}
-            dotClassName="bg-blue-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label={t('mail.statusEnabled', { defaultValue: 'Enabled' })}
-            value={stats.enabled}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('enabled')}
-            onClick={() => toggleFilter('enabled')}
-          />
-          <ListFilterStatCard
-            label={t('mail.statusDisabled', { defaultValue: 'Disabled' })}
-            value={stats.disabled}
-            dotClassName="bg-amber-500"
-            active={isFilterActive('disabled')}
-            onClick={() => toggleFilter('disabled')}
-          />
-          <ListFilterStatCard
-            label={t('mail.keyConfigured', { defaultValue: 'Configured' })}
-            value={stats.configured}
-            dotClassName="bg-rose-500"
-            active={isFilterActive('configured')}
-            onClick={() => toggleFilter('configured')}
-          />
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={0}
-            search={
-              <ListSearchInput
+    <div className={cn('plugin-mail', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="min-w-0">
+              <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
+                  {t('nav.mail', { defaultValue: 'Mail' })}
+                </h2>
+                <ExpandableIconButton
+                  icon={History}
+                  label={t('mail.historyTitle', { defaultValue: 'Mail history' })}
+                  variant="soft"
+                  onClick={() => attemptNavigation(openHistoryView)}
+                />
+                <ExpandableIconButton
+                  icon={Route}
+                  label={t('mail.routing.open', { defaultValue: 'Routing' })}
+                  variant="soft"
+                  onClick={() => attemptNavigation(openRoutingView)}
+                />
+              </div>
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
                 value={searchTerm}
                 onChange={setSearchTerm}
                 placeholder={t('mail.searchProviders', {
@@ -299,69 +281,137 @@ export const MailProvidersList: React.FC = () => {
                   count: providers.length,
                 })}
               />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) =>
-                        handlePrimarySortChange(value as MailProviderSortField)
-                      }
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) =>
-                    t(`mail.columns${count}`, { defaultValue: `${count} columns` })
-                  }
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-          />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) =>
+                  t(`mail.columns${count}`, { defaultValue: `${count} columns` })
+                }
+                tableAriaLabel={t('common.tableView')}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('mail.addProvider', { defaultValue: 'Add provider' })}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => attemptNavigation(() => openMailPanel(null))}
+              />
+            </div>
+          </div>
+        </div>
 
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFilters([])}
+              className={cn(
+                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                {t('mail.total', { defaultValue: 'Total' })}{' '}
+                <span className="tabular-nums font-semibold">({stats.total})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('enabled')}
+              className={cn(
+                isFilterActive('enabled') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>
+                {t('mail.statusEnabled', { defaultValue: 'Enabled' })}{' '}
+                <span className="tabular-nums font-semibold">({stats.enabled})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('disabled')}
+              className={cn(
+                isFilterActive('disabled') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              <span>
+                {t('mail.statusDisabled', { defaultValue: 'Disabled' })}{' '}
+                <span className="tabular-nums font-semibold">({stats.disabled})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('configured')}
+              className={cn(
+                isFilterActive('configured')
+                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                  : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Key className="h-3.5 w-3.5" />
+              <span>
+                {t('mail.keyConfigured', { defaultValue: 'Configured' })}{' '}
+                <span className="tabular-nums font-semibold">({stats.configured})</span>
+              </span>
+            </Button>
+          </div>
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as MailProviderSortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label="Sort by"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
           {loading && providers.length === 0 ? (
             <div className="rounded-xl bg-white p-6 text-center text-sm text-muted-foreground shadow-sm dark:bg-slate-950">
               {t('common.loading')}

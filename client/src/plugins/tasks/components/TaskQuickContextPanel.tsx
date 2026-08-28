@@ -6,12 +6,15 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
+import { BADGE_CHIP_CLASS, QC_TASK_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { QuickContextActiveShareLink } from '@/core/ui/QuickContextActiveShareLink';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import {
   QuickContextHeaderActions,
   QuickContextOpenFullFooter,
 } from '@/core/ui/QuickContextHeaderActions';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { htmlToPlainTextWithBreaks } from '@/core/utils/textUtils';
@@ -31,14 +34,13 @@ import { useTeams } from '@/plugins/teams/hooks/useTeams';
 import type { Team } from '@/plugins/teams/types/teams';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
+import { taskShareApi } from '../api/tasksApi';
 import type { Task } from '../types/tasks';
-import { TASK_PRIORITY_COLORS, TASK_STATUS_COLORS, formatStatusForDisplay } from '../types/tasks';
+import { TASK_PRIORITY_COLORS, formatStatusForDisplay } from '../types/tasks';
 
 import { TaskDueDatePicker } from './TaskDueDatePicker';
 import { TaskPrioritySelect } from './TaskPrioritySelect';
 import { TaskStatusSelect } from './TaskStatusSelect';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 /** Visible plain-text budget in list quick context (same as Notes). */
 const LIST_CONTENT_PREVIEW_CHARS = 1200;
@@ -165,6 +167,7 @@ export function TaskQuickContextPanel({
   const [contentExpanded, setContentExpanded] = useState(false);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
   const [showTeamQuickInfo, setShowTeamQuickInfo] = useState(false);
+  const [listShareUrl, setListShareUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setContentExpanded(false);
@@ -172,6 +175,31 @@ export function TaskQuickContextPanel({
     setShowTeamQuickInfo(false);
   }, [task.id]);
 
+  useEffect(() => {
+    if (isFullView) {
+      setListShareUrl(null);
+      return;
+    }
+    let cancelled = false;
+    setListShareUrl(null);
+    taskShareApi
+      .getShares(task.id)
+      .then((shares) => {
+        if (cancelled) {
+          return;
+        }
+        const active = shares.find((s) => new Date(s.validUntil) > new Date());
+        setListShareUrl(active ? taskShareApi.generateShareUrl(active.shareToken) : null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setListShareUrl(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFullView, task.id]);
   const contactById = useMemo(() => {
     const map = new Map<string, Contact>();
     for (const contact of contacts ?? []) {
@@ -276,14 +304,7 @@ export function TaskQuickContextPanel({
       >
         {taskInitials(task.title)}
       </div>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <h3 className="truncate text-lg font-semibold tracking-tight text-foreground">
-          {task.title || '—'}
-        </h3>
-        <Badge className={cn('shrink-0', BADGE_CLASS, TASK_STATUS_COLORS[task.status])}>
-          {formatStatusForDisplay(task.status)}
-        </Badge>
-      </div>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{task.title || '—'}</h3>
       <QuickContextHeaderActions
         onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
         onEdit={onEdit}
@@ -293,11 +314,10 @@ export function TaskQuickContextPanel({
       />
     </div>
   );
-
   return (
     <>
       <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
-        <div className="border-b border-border/50 px-4 py-2.5">{identityHeader}</div>
+        <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
 
         <div
           className={cn(
@@ -305,11 +325,27 @@ export function TaskQuickContextPanel({
             isFullView ? 'space-y-4' : 'space-y-6',
           )}
         >
-          {updatedLabel ? (
-            <p className="text-xs text-muted-foreground">
-              {t('common.updated')} {updatedLabel}
-            </p>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {updatedLabel ? (
+              <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                {t('common.updated')} {updatedLabel}
+              </p>
+            ) : (
+              <div className="min-w-0 flex-1" />
+            )}
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+              <Badge
+                className={cn(
+                  'shrink-0',
+                  BADGE_CHIP_CLASS,
+                  QC_TASK_STATUS_BADGE_COLORS[task.status] ??
+                    QC_TASK_STATUS_BADGE_COLORS['not started'],
+                )}
+              >
+                {formatStatusForDisplay(task.status)}
+              </Badge>
+            </div>
+          </div>
 
           {!isFullView && displayedContentHtml ? (
             <div className="min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [&_.rich-text-content]:break-words [&_.rich-text-content]:[overflow-wrap:anywhere] [&_.rich-text-content_pre]:whitespace-pre-wrap [&_.rich-text-content_pre]:break-words [&_.rich-text-content_pre]:overflow-x-hidden">
@@ -378,7 +414,7 @@ export function TaskQuickContextPanel({
           ) : (
             <QuickContextLinkTileGrid>
               <QuickContextLinkTile label={t('tasks.propertyPriority')} icon={Flag}>
-                <Badge className={cn(BADGE_CLASS, TASK_PRIORITY_COLORS[task.priority])}>
+                <Badge className={cn(BADGE_CHIP_CLASS, TASK_PRIORITY_COLORS[task.priority])}>
                   {task.priority}
                 </Badge>
               </QuickContextLinkTile>
@@ -466,6 +502,15 @@ export function TaskQuickContextPanel({
             </div>
           ) : null}
         </div>
+
+        {!isFullView && listShareUrl ? (
+          <div className="px-4 pb-4">
+            <QuickContextActiveShareLink
+              shareUrl={listShareUrl}
+              activeLabel={t('tasks.activeShareLink')}
+            />
+          </div>
+        ) : null}
 
         {!isFullView && onOpenFullProfile ? (
           <QuickContextOpenFullFooter onOpen={onOpenFullProfile} />

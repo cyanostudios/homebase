@@ -20,9 +20,9 @@ describe('resolveContactColumnCount', () => {
     expect(resolveContactColumnCount({ columnCount: 1, viewMode: 'grid' })).toBe(1);
   });
 
-  it('defaults to 1', () => {
-    expect(resolveContactColumnCount(null)).toBe(1);
-    expect(resolveContactColumnCount({})).toBe(1);
+  it('defaults to 3', () => {
+    expect(resolveContactColumnCount(null)).toBe(3);
+    expect(resolveContactColumnCount({})).toBe(3);
   });
 });
 
@@ -36,7 +36,7 @@ describe('isContactColumnCount / parseStoredContactColumnCount', () => {
 });
 
 describe('getInitialContactColumnCount', () => {
-  it('defaults to 1 when window is unavailable', () => {
-    expect(getInitialContactColumnCount()).toBe(1);
+  it('defaults to 3 when window is unavailable', () => {
+    expect(getInitialContactColumnCount()).toBe(3);
   });
 });

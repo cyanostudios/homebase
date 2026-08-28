@@ -2,7 +2,10 @@ import {
   CheckSquare,
   ArrowDown,
   ArrowUp,
+  Circle,
   Inbox,
+  LayoutGrid,
+  Link2Off,
   Plus,
   Settings,
   SlidersHorizontal,
@@ -13,6 +16,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableQuickAdd } from '@/components/ui/round-expandable-quick-add';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -29,19 +35,20 @@ import {
   useEffectiveColumnCount,
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
@@ -83,10 +90,15 @@ import {
 import { RequestBulkStatusDialog } from './RequestBulkStatusDialog';
 import { RequestListItem } from './RequestListItem';
 import { RequestListTable } from './RequestListTable';
-import { RequestQuickAdd } from './RequestQuickAdd';
 import { RequestQuickContextPanel } from './RequestQuickContextPanel';
 import { RequestsSettingsView } from './RequestsSettingsView';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 
 type TypeFilter = 'all' | string;
 type TeamFilter = 'all' | 'unlinked';
@@ -101,7 +113,6 @@ const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'status', labelKey: 'requests.form.status' },
   { value: 'priority', labelKey: 'requests.form.priority' },
   { value: 'type', labelKey: 'requests.form.requestType' },
-  { value: 'source', labelKey: 'requests.view.source' },
 ];
 
 export function RequestList() {
@@ -136,6 +147,12 @@ export function RequestList() {
   });
 
   const [search, setSearch] = useState('');
+  useRegisterMobileSearch({
+    value: search,
+    onChange: setSearch,
+    placeholder: t('requests.searchPlaceholder', { count: requests.length }),
+  });
+  const [selectionMode, setSelectionMode] = useState(false);
   const [activeFilters, setActiveFilters] = useState<RequestListFilterSelection>(
     REQUEST_LIST_FILTER_INITIAL,
   );
@@ -143,10 +160,10 @@ export function RequestList() {
   const [teamFilter, setTeamFilter] = useState<TeamFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
-  const [columnCount, setColumnCountState] = useState<RequestColumnCount>(
-    getInitialRequestColumnCount,
-  );
+  const [columnCount, setColumnCountState] = useState<RequestColumnCount>(() => {
+    const initial = getInitialRequestColumnCount();
+    return (initial === 1 || initial === 2 ? 3 : initial) as RequestColumnCount;
+  });
   const [listViewMode, setListViewModeState] = useState<RequestListViewMode>(
     getInitialRequestListViewMode,
   );
@@ -154,12 +171,13 @@ export function RequestList() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [recentlyQuickAddedId, setRecentlyQuickAddedId] = useState<string | null>(null);
 
-  const setColumnCount = useCallback((count: RequestColumnCount) => {
-    setColumnCountState(count);
+  const setColumnCount = useCallback((_count: RequestColumnCount) => {
+    const next = 3 as RequestColumnCount;
+    setColumnCountState(next);
     setListViewModeState('cards');
     persistRequestListViewModeSession('cards');
     if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(REQUESTS_COLUMN_COUNT_STORAGE_KEY, String(count));
+      window.sessionStorage.setItem(REQUESTS_COLUMN_COUNT_STORAGE_KEY, String(next));
     }
   }, []);
 
@@ -169,8 +187,6 @@ export function RequestList() {
   }, []);
 
   const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const teamById = useMemo(() => {
     const map = new Map<number, string>();
@@ -227,8 +243,6 @@ export function RequestList() {
       all: requests.length,
       active: requests.filter((r) => r.status === 'not started' || r.status === 'in progress')
         .length,
-      completed: requests.filter((r) => r.status === 'completed').length,
-      external: requests.filter((r) => r.source === 'external').length,
       unlinked: requests.filter((r) => r.teamId == null).length,
     }),
     [requests],
@@ -297,13 +311,51 @@ export function RequestList() {
     getItemId: (request) => String(request.id),
   });
 
+  const quickContextOpen = Boolean(showQuickContext && previewRequest);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
+
   const handleOpenForView = (request: Request) => {
     markPendingAndOpen(request, () => attemptNavigation(() => openRequestForView(request)));
   };
 
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearRequestSelection();
+    setSelectionMode(false);
+  };
+
   const handleRowActivate = (request: Request) => {
+    if (selectionMode) {
+      toggleRequestSelected(String(request.id));
+      return;
+    }
     activateRow(request, (item) => attemptNavigation(() => openRequestForView(item)));
   };
+
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    const disabled = selectedCount === 0;
+    return [
+      {
+        key: 'status',
+        label: t('requests.bulkStatusAction'),
+        icon: SlidersHorizontal,
+        disabled,
+        onClick: () => setShowBulkStatusDialog(true),
+      },
+      {
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      },
+    ];
+  }, [selectedCount, t]);
 
   useEffect(() => {
     if (previewRequest && showQuickContext) {
@@ -382,77 +434,128 @@ export function RequestList() {
   }
 
   return (
-    <div className="plugin-requests min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.requests')}</h2>
-            <p className="text-sm text-muted-foreground">
-              {t('requests.listDescription', { count: requests.length })}
-            </p>
+    <div className={cn('plugin-requests', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.requests')}</h2>
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('common.settings')}
+                    variant="soft"
+                    onClick={openRequestSettings}
+                  />
+                  {sorted.length > 0 ? (
+                    selectionMode ? (
+                      <ExpandableIconButton
+                        icon={XCircle}
+                        label={t('common.clear')}
+                        variant="danger"
+                        alwaysExpanded
+                        onClick={handleExitSelectionMode}
+                      />
+                    ) : (
+                      <ExpandableIconButton
+                        icon={CheckSquare}
+                        label={t('common.select')}
+                        variant="soft"
+                        alwaysExpanded
+                        onClick={handleEnterSelectionMode}
+                      />
+                    )
+                  ) : null}
+                  <RoundExpandableQuickAdd
+                    label={t('requests.quickAdd')}
+                    placeholder={t('requests.quickAddPlaceholder')}
+                    onCreate={handleQuickCreate}
+                    defaultExpanded
+                    variant={quickContextOpen ? 'soft' : 'primary'}
+                  />
+                </div>
+              </div>
+              {selectionMode ? (
+                <BulkActionRoundBar
+                  selectedCount={selectedCount}
+                  actions={bulkRoundActions}
+                  className="gap-2"
+                />
+              ) : null}
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
+                value={search}
+                onChange={setSearch}
+                placeholder={t('requests.searchPlaceholder', { count: requests.length })}
+              />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => t(`requests.columns${count}`)}
+                tableAriaLabel={t('common.tableView')}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('requests.addRequest')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => attemptNavigation(() => openRequestPanel(null))}
+              />
+            </div>
           </div>
-          <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-2 md:w-auto md:gap-1">
+        </div>
+
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
             <Button
+              type="button"
               variant="ghost"
               size="sm"
-              icon={Settings}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={openRequestSettings}
-              title={t('common.settings')}
+              onClick={() => setActiveFilters([])}
+              className={cn(
+                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
             >
-              {t('common.settings')}
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                {t('requests.filterAll')}{' '}
+                <span className="tabular-nums font-semibold">({stats.all})</span>
+              </span>
             </Button>
             <Button
-              variant="primary"
+              type="button"
+              variant="ghost"
               size="sm"
-              icon={Plus}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(() => openRequestPanel(null))}
+              onClick={() => toggleFilter('active')}
+              className={cn(
+                isFilterActive('active') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
             >
-              {t('requests.addRequest')}
+              <Circle className="h-3.5 w-3.5" />
+              <span>
+                {t('requests.statActive')}{' '}
+                <span className="tabular-nums font-semibold">({stats.active})</span>
+              </span>
             </Button>
-          </div>
-        </div>
-
-        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-3 lg:grid-cols-5')}>
-          <ListFilterStatCard
-            label={t('requests.filterAll')}
-            value={stats.all}
-            dotClassName="bg-slate-400"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label={t('requests.statActive')}
-            value={stats.active}
-            dotClassName="bg-blue-500"
-            active={isFilterActive('active')}
-            onClick={() => toggleFilter('active')}
-          />
-          <ListFilterStatCard
-            label={t('requests.statCompleted')}
-            value={stats.completed}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('completed')}
-            onClick={() => toggleFilter('completed')}
-          />
-          <ListFilterStatCard
-            label={t('requests.statExternal')}
-            value={stats.external}
-            dotClassName="bg-purple-500"
-            active={false}
-          />
-          <ListFilterStatCard
-            label={t('requests.statNotRelated')}
-            value={stats.unlinked}
-            dotClassName="bg-slate-500"
-            active={teamFilter === 'unlinked'}
-            onClick={() => setTeamFilter(teamFilter === 'unlinked' ? 'all' : 'unlinked')}
-          />
-        </div>
-
-        {requestTypes.length > 0 && (
-          <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setTeamFilter(teamFilter === 'unlinked' ? 'all' : 'unlinked')}
+              className={cn(
+                teamFilter === 'unlinked' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Link2Off className="h-3.5 w-3.5" />
+              <span>
+                {t('requests.statNotRelated')}{' '}
+                <span className="tabular-nums font-semibold">({stats.unlinked})</span>
+              </span>
+            </Button>
             {requestTypes.map((type) => {
               const typeKey = type.key;
               const isActive = typeFilter === typeKey;
@@ -474,7 +577,49 @@ export function RequestList() {
               );
             })}
           </div>
-        )}
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label="Sort by"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {t(option.labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
+        </div>
 
         <BulkDeleteModal
           isOpen={showBulkDeleteModal}
@@ -495,147 +640,14 @@ export function RequestList() {
         />
 
         <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={sorted.length > 0}
-            quickAddOpen={quickAddOpen}
-            quickAddExpanded={
-              quickAddOpen ? (
-                <RequestQuickAdd
-                  viewMode="grid"
-                  layout="toolbar"
-                  open={quickAddOpen}
-                  onOpenChange={setQuickAddOpen}
-                  onCreate={handleQuickCreate}
-                />
-              ) : null
-            }
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={handleHeaderCheckboxChange}
-              >
-                {t('common.selectAll')}
-              </Button>
-            }
-            leadingActions={
-              quickAddOpen ? null : (
-                <RequestQuickAdd
-                  viewMode="grid"
-                  layout="toolbar"
-                  open={quickAddOpen}
-                  onOpenChange={setQuickAddOpen}
-                  onCreate={handleQuickCreate}
-                />
-              )
-            }
-            search={
-              <ListSearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder={t('requests.searchPlaceholder', { count: requests.length })}
-              />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {t(option.labelKey)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t(`requests.columns${count}`)}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearRequestSelection}
-                  type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: selectedCount })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={SlidersHorizontal}
-                  onClick={() => setShowBulkStatusDialog(true)}
-                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                >
-                  {t('requests.bulkStatusAction')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                >
-                  {t('common.delete')}
-                </Button>
-              </>
-            }
-          />
-
-          <div className="flex items-start gap-4">
+          <div
+            className={cn(
+              'grid items-start gap-4',
+              showQuickContext && previewRequest ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+            )}
+          >
             {showQuickContext && previewRequest ? (
-              <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
+              <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
                 <RequestQuickContextPanel
                   request={previewRequest}
                   onClose={() => setPreviewRequest(null)}
@@ -658,7 +670,7 @@ export function RequestList() {
                 />
               </aside>
             ) : null}
-            <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-3">
               {sorted.length === 0 ? (
                 <ListEmptyState
                   message={requests.length === 0 ? t('requests.noYet') : t('requests.noMatchTitle')}
@@ -683,7 +695,7 @@ export function RequestList() {
                   onHeaderCheckboxChange={handleHeaderCheckboxChange}
                   recentlyQuickAddedId={recentlyQuickAddedId}
                   isRequestHighlighted={isRequestHighlighted}
-                  selectionEnabled
+                  selectionEnabled={selectionMode}
                   activeRequestId={previewRequest?.id ?? null}
                 />
               ) : (
@@ -715,15 +727,17 @@ export function RequestList() {
                         }
                         columnCount={effectiveCardColumnCount}
                         checkbox={
-                          <input
-                            type="checkbox"
-                            checked={requestIsSelected}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onChange={() => onVisibleRowCheckboxChange(request.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-4 w-4 cursor-pointer"
-                            aria-label={requestIsSelected ? 'Unselect request' : 'Select request'}
-                          />
+                          selectionMode ? (
+                            <input
+                              type="checkbox"
+                              checked={requestIsSelected}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(request.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="h-4 w-4 cursor-pointer"
+                              aria-label={requestIsSelected ? 'Unselect request' : 'Select request'}
+                            />
+                          ) : undefined
                         }
                       />
                     );

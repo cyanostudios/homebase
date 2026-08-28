@@ -34,6 +34,7 @@ describe('pathToNavPage', () => {
 
   it('maps garments sub-routes without colliding with list slugs', () => {
     expect(pathToNavPage('/garments/inventory')).toBe('garments-inventory');
+    expect(pathToNavPage('/garments/settings')).toBe('garments-lists');
   });
 
   it('maps garments list and list slug to Lists tab', () => {

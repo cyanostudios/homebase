@@ -59,6 +59,7 @@ export type FileListTableProps = {
   onCheckboxChange: (id: string) => void;
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
+  selectionEnabled?: boolean;
 };
 
 export function FileListTable({
@@ -72,6 +73,7 @@ export function FileListTable({
   onCheckboxChange,
   allVisibleSelected,
   onHeaderCheckboxChange,
+  selectionEnabled = true,
 }: FileListTableProps) {
   const { t } = useTranslation();
 
@@ -80,7 +82,11 @@ export function FileListTable({
       {
         field: 'name',
         header: t('files.columnName'),
-        cell: (file) => <span className="font-medium text-foreground">{file.name}</span>,
+        cell: (file) => (
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+            {file.name}
+          </span>
+        ),
       },
       {
         field: 'mimeType',
@@ -104,29 +110,22 @@ export function FileListTable({
           <span className="text-xs tabular-nums text-muted-foreground">{humanSize(file.size)}</span>
         ),
       },
-      {
-        field: 'updatedAt',
-        header: t('files.columnUpdated'),
-        className: 'hidden md:table-cell',
-        cell: (file) => (
-          <span className="text-xs text-muted-foreground">
-            {file.updatedAt ? new Date(file.updatedAt).toLocaleDateString() : '—'}
-          </span>
-        ),
-      },
     ],
     [t],
   );
 
-  const selection: SortableListTableSelection = {
-    isSelected,
-    onCheckboxMouseDown,
-    onCheckboxChange,
-    allVisibleSelected,
-    onHeaderCheckboxChange,
-    selectAllAriaLabel: t('common.selectAllVisible'),
-    selectRowAriaLabel: (selected) => (selected ? t('common.unselectRow') : t('common.selectRow')),
-  };
+  const selection: SortableListTableSelection | undefined = selectionEnabled
+    ? {
+        isSelected,
+        onCheckboxMouseDown,
+        onCheckboxChange,
+        allVisibleSelected,
+        onHeaderCheckboxChange,
+        selectAllAriaLabel: t('common.selectAllVisible'),
+        selectRowAriaLabel: (selected) =>
+          selected ? t('common.unselectRow') : t('common.selectRow'),
+      }
+    : undefined;
 
   return (
     <SortableListTable

@@ -1,4 +1,4 @@
-import { CalendarClock, Check, ChevronDown, Plus, Settings, Users } from 'lucide-react';
+import { CalendarClock, Check, Plus, Settings, Users, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -14,13 +14,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { AlertDialogRoundCancel, DialogSaveButton } from '@/core/ui/DialogRoundButtons';
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -61,7 +57,13 @@ import { ScheduleSlotDetailDialog } from './ScheduleSlotDetailDialog';
 import { ScheduleTimeGrid } from './ScheduleTimeGrid';
 import { ScheduleWeekView } from './ScheduleWeekView';
 import { ScheduleTrainingDialog } from './ScheduleTrainingDialog';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 
 export function ScheduleList() {
   const { t } = useTranslation();
@@ -114,6 +116,7 @@ export function ScheduleList() {
   const [newScheduleName, setNewScheduleName] = useState('');
   const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
   const [createScheduleError, setCreateScheduleError] = useState<string | null>(null);
+  const [chooseScheduleOpen, setChooseScheduleOpen] = useState(false);
 
   useMobileActions({
     onAdd: () => {
@@ -168,9 +171,13 @@ export function ScheduleList() {
   const handleSelectSchedule = useCallback(
     (scheduleId: string) => {
       if (scheduleId === activeScheduleId) {
+        setChooseScheduleOpen(false);
         return;
       }
-      attemptNavigation(() => setActiveScheduleId(scheduleId));
+      attemptNavigation(() => {
+        setActiveScheduleId(scheduleId);
+        setChooseScheduleOpen(false);
+      });
     },
     [activeScheduleId, attemptNavigation, setActiveScheduleId],
   );
@@ -325,105 +332,121 @@ export function ScheduleList() {
 
   if (scheduleContentView === 'settings') {
     return (
-      <div className="plugin-schedule min-h-full bg-background">
-        <div className="px-4 py-4 md:px-6">
-          <ScheduleSettingsView
-            schedulePlans={schedulePlans}
-            defaultScheduleDirty={isDirty}
-            onDiscardDefaultChanges={discard}
-            onClose={() => attemptNavigation(closeScheduleSettingsView)}
-          />
-        </div>
+      <div className={cn('plugin-schedule', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+        <ScheduleSettingsView
+          schedulePlans={schedulePlans}
+          defaultScheduleDirty={isDirty}
+          onDiscardDefaultChanges={discard}
+          onClose={() => attemptNavigation(closeScheduleSettingsView)}
+        />
       </div>
     );
   }
 
   return (
-    <div className="plugin-schedule min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
-          <div className="hidden min-w-0 space-y-1 md:block">
-            <div className="flex items-center gap-2">
-              <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.schedule')}</h2>
+    <div className={cn('plugin-schedule', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{activeScheduleName}</h2>
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('common.settings')}
+                    variant="soft"
+                    onClick={() => attemptNavigation(openScheduleSettings)}
+                  />
+                  <RoundIconLabelButton
+                    icon={CalendarClock}
+                    label={t('schedule.chooseSchedule')}
+                    variant={chooseScheduleOpen ? 'primary' : 'soft'}
+                    alwaysExpanded
+                    aria-expanded={chooseScheduleOpen}
+                    onClick={() => setChooseScheduleOpen((open) => !open)}
+                  />
+                  <ScheduleLockToggle
+                    locked={isLocked}
+                    disabled={isTogglingLock}
+                    onToggle={(nextLocked) => setLockedForSchedule(activeScheduleId, nextLocked)}
+                  />
+                  {isDefaultSchedule && isDirty && !isLocked ? (
+                    <>
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={X}
+                        label={t('common.cancel')}
+                        variant="secondary"
+                        alwaysExpanded
+                        disabled={isSaving}
+                        onClick={() => setShowDiscardDialog(true)}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={Check}
+                        label={isSaving ? t('common.saving') : t('common.update')}
+                        variant="success"
+                        alwaysExpanded
+                        disabled={isSaving}
+                        onClick={() => void handleCommit()}
+                      />
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              {chooseScheduleOpen ? (
+                <div className="flex flex-wrap items-center gap-1">
+                  <RoundIconLabelButton
+                    icon={CalendarClock}
+                    label={t('schedule.defaultScheduleName')}
+                    variant={isDefaultSchedule ? 'primary' : 'secondary'}
+                    alwaysExpanded
+                    contentClassName={
+                      isDefaultSchedule ? undefined : 'text-foreground group-hover:text-primary'
+                    }
+                    onClick={() => handleSelectSchedule(DEFAULT_SCHEDULE_ID)}
+                  />
+                  {plans.map((plan) => {
+                    const isActive = !isDefaultSchedule && plan.id === activeScheduleId;
+                    return (
+                      <RoundIconLabelButton
+                        key={plan.id}
+                        icon={CalendarClock}
+                        label={plan.name}
+                        variant={isActive ? 'primary' : 'secondary'}
+                        alwaysExpanded
+                        contentClassName={
+                          isActive ? undefined : 'text-foreground group-hover:text-primary'
+                        }
+                        onClick={() => handleSelectSchedule(plan.id)}
+                      />
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
-            <p className="text-sm text-muted-foreground">{t('schedule.listDescription')}</p>
-          </div>
-          <div className="flex w-full shrink-0 items-center gap-2 md:w-auto md:gap-1">
-            {isDefaultSchedule && isDirty && !isLocked ? (
-              <>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="h-9 flex-1 md:flex-initial px-3 text-xs"
-                  disabled={isSaving}
-                  onClick={() => setShowDiscardDialog(true)}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleCommit}
-                  variant="primary"
-                  size="sm"
-                  icon={Check}
-                  disabled={isSaving}
-                  className="h-9 flex-1 md:flex-initial border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700"
-                >
-                  {isSaving ? t('common.saving') : t('common.update')}
-                </Button>
-              </>
-            ) : null}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 flex-1 md:flex-initial gap-1.5 px-3 text-xs font-semibold"
-                >
-                  <span className="truncate">{activeScheduleName}</span>
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[12rem]">
-                <DropdownMenuItem onClick={() => handleSelectSchedule(DEFAULT_SCHEDULE_ID)}>
-                  <span>{t('schedule.defaultScheduleName')}</span>
-                </DropdownMenuItem>
-                {plans.map((plan) => (
-                  <DropdownMenuItem key={plan.id} onClick={() => handleSelectSchedule(plan.id)}>
-                    <span className="truncate">{plan.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              className="hidden h-9 px-2.5 text-xs md:inline-flex md:flex-initial"
-              onClick={() => attemptNavigation(openScheduleSettings)}
-              aria-label={t('schedule.settings.title')}
-              title={t('schedule.settings.title')}
-            >
-              <span className="hidden sm:inline">{t('schedule.settings.title')}</span>
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="hidden h-9 px-3 text-xs md:inline-flex md:flex-initial"
-              onClick={() => {
-                setShowCreateDialog(true);
-                setCreateScheduleError(null);
-                setNewScheduleName('');
-              }}
-              aria-label={t('schedule.newSchedule')}
-            >
-              <span className="hidden sm:inline">{t('schedule.newSchedule')}</span>
-            </Button>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <ScheduleDaySpanToggle
+                daySpan={daySpan}
+                onSelect={setDaySpan}
+                canGoPrev={canGoPrev}
+                canGoNext={canGoNext}
+                onPrev={goPrev}
+                onNext={goNext}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('schedule.newSchedule')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => {
+                  setShowCreateDialog(true);
+                  setCreateScheduleError(null);
+                  setNewScheduleName('');
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -465,28 +488,15 @@ export function ScheduleList() {
 
         {isDefaultSchedule ? (
           <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <h3 className="truncate text-2xl font-semibold tracking-tight text-foreground">
-                  {activeScheduleName}
-                </h3>
+            {isMobile ? (
+              <div className="mb-3 flex items-center gap-2">
                 <ScheduleLockToggle
                   locked={isLocked}
                   disabled={isTogglingLock}
                   onToggle={(nextLocked) => setLockedForSchedule(activeScheduleId, nextLocked)}
                 />
               </div>
-              {!isMobile ? (
-                <ScheduleDaySpanToggle
-                  daySpan={daySpan}
-                  onSelect={setDaySpan}
-                  canGoPrev={canGoPrev}
-                  canGoNext={canGoNext}
-                  onPrev={goPrev}
-                  onNext={goNext}
-                />
-              ) : null}
-            </div>
+            ) : null}
             {saveError ? <p className="mb-2 text-xs text-destructive">{saveError}</p> : null}
             {isGridSettingsLoading ? (
               <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
@@ -522,14 +532,8 @@ export function ScheduleList() {
             scheduleName={activeScheduleName}
             teamFilter={teamFilter}
             schedulePlans={schedulePlans}
-            daySpan={daySpan}
-            onDaySpanChange={setDaySpan}
             visibleDays={visibleDays}
             isStackedView={isStackedView}
-            canGoPrev={canGoPrev}
-            canGoNext={canGoNext}
-            onPrevDaySpan={goPrev}
-            onNextDaySpan={goNext}
           />
         )}
       </div>

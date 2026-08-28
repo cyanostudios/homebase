@@ -58,16 +58,29 @@ export const createPanelTitles = (
       return '';
     }
 
-    // Contacts full view: Quick Actions bar replaces the text title (desktop + mobile).
-    // Must run before the mobile early-return that blanks other plugins' titles.
-    if (
-      currentPlugin.name === 'contacts' &&
-      currentMode === 'view' &&
-      pluginContext?.getPanelTitle
-    ) {
-      const custom = pluginContext.getPanelTitle(currentMode, currentItem);
-      if (custom != null) {
-        return custom;
+    // Full view: prefer plugin getPanelTitle when it returns a React node (e.g. DetailHeaderMenus).
+    // Must run before the mobile early-return that blanks plain text titles.
+    if (currentMode === 'view' && pluginContext?.getPanelTitle) {
+      if (currentPlugin.name === 'estimates') {
+        const estimateTitle = pluginContext.getPanelTitle(
+          currentMode,
+          currentItem,
+          isMobileView,
+          handleEstimateContactClick,
+        );
+        if (estimateTitle != null) {
+          return estimateTitle;
+        }
+      } else {
+        const item =
+          currentPlugin.name === 'ai-providers'
+            ? (currentItem ?? pluginContext.currentAIProvider ?? null)
+            : currentItem;
+        const custom = pluginContext.getPanelTitle(currentMode, item);
+        // React nodes (header menus) win; string titles fall through to mobile blank / defaults.
+        if (custom != null && typeof custom !== 'string') {
+          return custom;
+        }
       }
     }
 
@@ -75,16 +88,6 @@ export const createPanelTitles = (
     // Desktop keeps the panel title next to the header actions.
     if (currentMode === 'view' && isMobileView) {
       return '';
-    }
-
-    // Only Estimates uses custom title (JSX); all others use central title from item.
-    if (currentPlugin.name === 'estimates' && pluginContext?.getPanelTitle) {
-      return pluginContext.getPanelTitle(
-        currentMode,
-        currentItem,
-        isMobileView,
-        handleEstimateContactClick,
-      );
     }
 
     if (currentPlugin.name === 'matches' && pluginContext?.getPanelTitle) {

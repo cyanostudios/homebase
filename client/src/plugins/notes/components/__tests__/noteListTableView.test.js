@@ -5,11 +5,13 @@ const listSrc = fs.readFileSync(path.join(__dirname, '../NoteList.tsx'), 'utf8')
 const tableSrc = fs.readFileSync(path.join(__dirname, '../NoteListTable.tsx'), 'utf8');
 
 describe('NoteList table view wiring', () => {
-  test('toolbar includes table mode control and hides sort dropdown in table mode', () => {
+  test('toolbar uses ListColumnLayoutToggle and always-visible sort row', () => {
     expect(listSrc).toMatch(/setListViewMode\('table'\)/);
     expect(listSrc).toMatch(/ListColumnLayoutToggle/);
-    expect(listSrc).toMatch(/!isTableView \? \(/);
+    expect(listSrc).toMatch(/aria-label="Sort by"/);
+    expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
     expect(listSrc).toMatch(/NoteListTable/);
+    expect(listSrc).not.toMatch(/!isTableView \?/);
   });
 
   test('table uses SortableListTable with sortable columns and selection', () => {
@@ -18,7 +20,7 @@ describe('NoteList table view wiring', () => {
     expect(tableSrc).toMatch(/selection=\{/);
     expect(tableSrc).toMatch(/field: 'title'/);
     expect(tableSrc).toMatch(/field: 'mentions'/);
-    expect(tableSrc).toMatch(/field: 'updatedAt'/);
-    expect(tableSrc).toMatch(/field: 'createdAt'/);
+    expect(tableSrc).not.toMatch(/field: 'updatedAt'/);
+    expect(tableSrc).not.toMatch(/field: 'createdAt'/);
   });
 });

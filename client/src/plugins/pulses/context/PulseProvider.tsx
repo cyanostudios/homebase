@@ -5,6 +5,7 @@ import { useApp } from '@/core/api/AppContext';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 
 import { pulseApi } from '../api/pulseApi';
+import { PulseProviderDetailHeaderMenus } from '../components/PulseProviderDetailHeaderMenus';
 import type {
   PulseCatalogEntry,
   PulseLogEntry,
@@ -361,6 +362,9 @@ export function PulseProvider({
       const key = provider?.providerKey || pendingProviderKey;
       if (mode === 'create' || (!provider && !key)) {
         return t('pulses.addProvider', { defaultValue: 'Add provider' });
+      }
+      if (mode === 'view' && provider) {
+        return <PulseProviderDetailHeaderMenus key={provider.providerKey} provider={provider} />;
       }
       return t(`pulses.providers.${key}.title`, { defaultValue: key || t('pulses.panelTitle') });
     },

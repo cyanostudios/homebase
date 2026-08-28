@@ -5,6 +5,7 @@ import { useApp } from '@/core/api/AppContext';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 
 import { aiProvidersApi } from '../api/aiProvidersApi';
+import { AIProviderDetailHeaderMenus } from '../components/AIProviderDetailHeaderMenus';
 import type {
   AIProvidersContentView,
   AIProvidersPanelMode,
@@ -45,6 +46,9 @@ export function AIProvidersProvider({
   const [routing, setRouting] = useState<ProviderRoutingResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [routingLoading, setRoutingLoading] = useState(false);
+  const [testingProviderKey, setTestingProviderKey] = useState<string | null>(null);
+  const [testResultMessage, setTestResultMessage] = useState<string | null>(null);
+  const [testResultError, setTestResultError] = useState<string | null>(null);
 
   const closeAIProviderPanel = useCallback(() => {
     setIsAIProvidersPanelOpen(false);
@@ -263,6 +267,31 @@ export function AIProvidersProvider({
     [isAuthenticated],
   );
 
+  const handleTestConnection = useCallback(
+    async (provider: ProviderSettings) => {
+      setTestingProviderKey(provider.providerKey);
+      setTestResultMessage(null);
+      setTestResultError(null);
+      try {
+        const result = await testConnection(provider.providerKey, { useSaved: true });
+        setTestResultMessage(
+          t('aiProviders.testSuccess', {
+            defaultValue: 'Connection OK ({{model}})',
+            model: result.model,
+          }),
+        );
+      } catch (err: unknown) {
+        setTestResultError(
+          (err as Error)?.message ||
+            t('aiProviders.testError', { defaultValue: 'Connection test failed' }),
+        );
+      } finally {
+        setTestingProviderKey(null);
+      }
+    },
+    [t, testConnection],
+  );
+
   const getProviderTitle = useCallback(
     (providerKey?: string | null) => {
       if (!providerKey) {
@@ -279,6 +308,9 @@ export function AIProvidersProvider({
     (mode?: string, item?: ProviderSettings | null) => {
       if (mode === 'create') {
         return t('aiProviders.addProvider', { defaultValue: 'Add provider' });
+      }
+      if (mode === 'view' && item) {
+        return <AIProviderDetailHeaderMenus key={item.providerKey} provider={item} />;
       }
       const providerKey = item?.providerKey || currentAIProvider?.providerKey || pendingProviderKey;
       return (
@@ -344,6 +376,10 @@ export function AIProvidersProvider({
     saveAIProvider,
     deleteProvider,
     testConnection,
+    testingProviderKey,
+    testResultMessage,
+    testResultError,
+    handleTestConnection,
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,

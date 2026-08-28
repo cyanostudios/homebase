@@ -15,7 +15,8 @@ import type {
 
 export type ClubdeskPanelMode = 'create' | 'edit' | 'view';
 export type ClubdeskContentView = 'list' | 'settings';
-export type ClubdeskSettingsTab = 'view';
+/** No settings categories remain; list view prefs live on the list header. */
+export type ClubdeskSettingsTab = '';
 export type ClubdeskActiveDomain = 'guides' | 'priceLists';
 
 export interface ClubdeskContextType {
@@ -113,6 +114,7 @@ export interface ClubdeskContextType {
   isPriceListSelected: (id: string) => boolean;
   getDeleteMessage: (item: Clubdesk | null) => string;
   getPriceListDeleteMessage: (item: ClubdeskPriceList | null) => string;
+  getPanelTitle: (mode?: string, item?: Clubdesk | null) => React.ReactNode;
   recentlyDuplicatedClubdeskId: string | null;
   setRecentlyDuplicatedClubdeskId: (id: string | null) => void;
   recentlyDuplicatedPriceListId: string | null;
@@ -153,7 +155,7 @@ const EMPTY_CLUBDESK_CONTEXT: ClubdeskContextType = {
   refreshPriceListCategories: async () => {},
   isSaving: false,
   clubdeskContentView: 'list',
-  clubdeskSettingsTab: 'view',
+  clubdeskSettingsTab: '',
   openClubdeskSettings: () => {},
   closeClubdeskSettingsView: () => {},
   openClubdeskPanel: () => {},
@@ -202,6 +204,7 @@ const EMPTY_CLUBDESK_CONTEXT: ClubdeskContextType = {
   isPriceListSelected: () => false,
   getDeleteMessage: () => '',
   getPriceListDeleteMessage: () => '',
+  getPanelTitle: () => null,
   recentlyDuplicatedClubdeskId: null,
   setRecentlyDuplicatedClubdeskId: () => {},
   recentlyDuplicatedPriceListId: null,

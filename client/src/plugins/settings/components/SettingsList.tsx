@@ -130,11 +130,8 @@ export function SettingsList() {
     <div className="min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
-          <div className="hidden min-w-0 space-y-1 md:block">
+          <div className="hidden min-w-0 md:block">
             <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.settings')}</h2>
-            <p className="text-sm text-muted-foreground">
-              Manage preferences, account profile, team, and activity.
-            </p>
           </div>
           <div className="hidden w-full flex-shrink-0 items-center justify-end gap-2 md:flex md:w-auto md:gap-1">
             <RoundIconLabelButton

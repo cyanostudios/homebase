@@ -1,37 +1,17 @@
-import {
-  Copy,
-  Download,
-  Edit,
-  Info,
-  Link2,
-  SlidersHorizontal,
-  Trash2,
-  Users,
-  Zap,
-} from 'lucide-react';
-import React, { useMemo, useState, useEffect } from 'react';
+import { Edit, Link2, SlidersHorizontal, Users } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { apiFetch } from '@/core/api/apiFetch';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import {
-  DETAIL_INFO_ROW_CLASS,
-  DETAIL_PROP_ROW_CLASS,
-  DETAIL_QUICK_ACTION_ROW_CLASS,
-  DETAIL_VIEW_CARD_CLASS,
-} from '@/core/ui/detailViewCardStyles';
-import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { RichTextContent } from '@/core/ui/RichTextContent';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { buildSlug } from '@/core/utils/slugUtils';
-import type { ExportFormat } from '@/core/utils/exportUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 import { ContactQuickInfoDialog } from '@/plugins/contacts/components/ContactQuickInfoDialog';
@@ -41,7 +21,6 @@ import {
   CONTACT_TYPE_COLORS,
   type Contact,
 } from '@/plugins/contacts/types/contacts';
-import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
 import { useTasks } from '../hooks/useTasks';
 import { buildTaskListQuickFieldsSavePayload } from '../utils/taskListSave';
@@ -57,190 +36,6 @@ interface TaskViewProps {
   task: any;
 }
 
-interface TaskQuickActionsCardProps {
-  task: any;
-  onEdit: (task: any) => void;
-  onDeleteClick: () => void;
-  onDuplicate: (task: any) => void;
-  getDuplicateConfig: (
-    item: any | null,
-  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
-}
-
-function TaskQuickActionsCard({
-  task,
-  onEdit,
-  onDeleteClick,
-  onDuplicate,
-  getDuplicateConfig,
-}: TaskQuickActionsCardProps) {
-  const { t } = useTranslation();
-  const canDuplicate = Boolean(getDuplicateConfig(task));
-
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('tasks.quickActions')}
-        icon={Zap}
-        iconPlugin="tasks"
-        subtleTitle
-        className="p-4"
-      >
-        <div className="flex flex-col items-start gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Edit
-                {...props}
-                className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
-              />
-            )}
-            className={DETAIL_QUICK_ACTION_ROW_CLASS}
-            onClick={() => onEdit(task)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Trash2
-                {...props}
-                className={cn(props.className, 'text-red-600 dark:text-red-400')}
-              />
-            )}
-            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-            onClick={onDeleteClick}
-          >
-            {t('common.delete')}
-          </Button>
-          {canDuplicate && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={(props) => (
-                <Copy
-                  {...props}
-                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
-                />
-              )}
-              className={DETAIL_QUICK_ACTION_ROW_CLASS}
-              onClick={() => onDuplicate(task)}
-            >
-              {t('common.duplicate')}
-            </Button>
-          )}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
-
-interface TaskExportOptionsCardProps {
-  task: any;
-  exportFormats: ExportFormat[];
-  onExportItem: (format: ExportFormat, item: any) => void;
-  shareActions?: Array<{
-    id: string;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    onClick: (item: any) => void;
-    className?: string;
-    disabled?: boolean;
-  }>;
-}
-
-function getTaskExportShareIconColorClass(actionId: string): string {
-  if (actionId === 'view-share') {
-    return 'text-blue-600 dark:text-blue-400';
-  }
-  if (actionId === 'share') {
-    return 'text-violet-600 dark:text-violet-400';
-  }
-  return '';
-}
-
-function TaskExportOptionsCard({
-  task,
-  exportFormats,
-  onExportItem,
-  shareActions,
-}: TaskExportOptionsCardProps) {
-  const { t } = useTranslation();
-  const hasFormats = Array.isArray(exportFormats) && exportFormats.length > 0;
-  const hasShareButtons = Array.isArray(shareActions) && shareActions.length > 0;
-  if (!hasFormats && !hasShareButtons) {
-    return null;
-  }
-
-  const exportLabelByFormat: Record<ExportFormat, string> = {
-    txt: t('common.exportTxt'),
-    csv: t('common.exportCsv'),
-    pdf: t('common.exportPdf'),
-  };
-
-  return (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('tasks.exportOptions')}
-        icon={Download}
-        iconPlugin="tasks"
-        subtleTitle
-        className="p-4"
-      >
-        <div className="flex flex-col items-start gap-1">
-          {hasFormats
-            ? exportFormats.map((format) => (
-                <Button
-                  key={format}
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={Download}
-                  className={DETAIL_QUICK_ACTION_ROW_CLASS}
-                  onClick={() => onExportItem(format, task)}
-                >
-                  {exportLabelByFormat[format]}
-                </Button>
-              ))
-            : null}
-          {hasShareButtons ? (
-            <>
-              {hasFormats ? <div className="w-full border-t border-border/60 pt-2 mt-0.5" /> : null}
-              {shareActions!.map((action) => {
-                const Icon = action.icon;
-                const iconTint = getTaskExportShareIconColorClass(action.id);
-                return (
-                  <Button
-                    key={action.id}
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={(props) => <Icon {...props} className={cn(props.className, iconTint)} />}
-                    disabled={action.disabled}
-                    className={cn(
-                      DETAIL_QUICK_ACTION_ROW_CLASS,
-                      'disabled:opacity-50',
-                      action.className,
-                    )}
-                    onClick={() => action.onClick(task)}
-                  >
-                    {action.label}
-                  </Button>
-                );
-              })}
-            </>
-          ) : null}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
-
 export function TaskView({ task }: TaskViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -248,59 +43,18 @@ export function TaskView({ task }: TaskViewProps) {
   const {
     closeTaskPanel,
     openTaskForEdit,
-    deleteTask,
     saveTask,
     validationErrors,
     clearValidationErrors,
-    getDuplicateConfig,
-    executeDuplicate,
-    setRecentlyDuplicatedTaskId,
-    getDeleteMessage,
-    exportFormats,
-    onExportItem,
-    exportShareActions,
     quickEditDraft,
     setQuickEditField,
     showDiscardQuickEditDialog,
     setShowDiscardQuickEditDialog,
     onDiscardQuickEditAndClose,
   } = useTasks();
-  const { openNoteForView } = useNotes();
   const enabledPlugins = useEnabledPlugins();
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
-
-  const [sourceNote, setSourceNote] = useState<any>(null);
-  const [noteLoaded, setNoteLoaded] = useState(false);
-  const [showDeleteTaskConfirm, setShowDeleteTaskConfirm] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-
-  useEffect(() => {
-    const fetchSourceNote = async () => {
-      if (!task?.createdFromNote) {
-        setNoteLoaded(true);
-        return;
-      }
-
-      try {
-        const response = await apiFetch('/api/notes');
-        if (response.ok) {
-          const notesData = await response.json();
-          const note = notesData.find(
-            (n: any) =>
-              n.id === task.createdFromNote || n.id.toString() === task.createdFromNote.toString(),
-          );
-          setSourceNote(note);
-        }
-      } catch (error) {
-        console.error('Failed to load source note:', error);
-      }
-
-      setNoteLoaded(true);
-    };
-
-    fetchSourceNote();
-  }, [task?.createdFromNote]);
 
   const contactById = useMemo(() => {
     const map = new Map<string, Contact>();
@@ -322,23 +76,6 @@ export function TaskView({ task }: TaskViewProps) {
       return;
     }
     setViewingContact(contact);
-  };
-
-  const handleNoteClick = async () => {
-    if (!sourceNote) {
-      return;
-    }
-    closeTaskPanel();
-    openNoteForView(sourceNote);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!task) {
-      return;
-    }
-    await deleteTask(task.id);
-    setShowDeleteTaskConfirm(false);
-    closeTaskPanel();
   };
 
   const handleStatusChange = (newStatus: string) => {
@@ -456,85 +193,7 @@ export function TaskView({ task }: TaskViewProps) {
 
   return (
     <>
-      <DetailLayout
-        gridClassName="grid-cols-1 lg:grid-cols-[1.3fr_1fr_260px]"
-        leftSidebar={contentColumn}
-        sidebar={
-          <div className="space-y-6">
-            <TaskQuickActionsCard
-              task={task}
-              onEdit={openTaskForEdit}
-              onDeleteClick={() => setShowDeleteTaskConfirm(true)}
-              onDuplicate={() => setShowDuplicateDialog(true)}
-              getDuplicateConfig={getDuplicateConfig}
-            />
-            <TaskExportOptionsCard
-              task={task}
-              exportFormats={exportFormats}
-              onExportItem={onExportItem}
-              shareActions={exportShareActions}
-            />
-
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('tasks.information')}
-                icon={Info}
-                iconPlugin="tasks"
-                subtleTitle
-                className="p-4"
-                collapsible
-              >
-                <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDisplayNumber('tasks', task.id)}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Created</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {new Date(task.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Updated</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {new Date(task.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {task.createdFromNote && noteLoaded && (
-                    <div className="flex items-center justify-between border-t border-border/50 pt-2 text-xs">
-                      <span className="text-slate-500 dark:text-slate-400">Source Note</span>
-                      {sourceNote ? (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          onClick={handleNoteClick}
-                          className="h-auto max-w-[150px] truncate p-0 text-[10px] plugin-notes text-plugin"
-                        >
-                          {sourceNote.title}
-                        </Button>
-                      ) : (
-                        <span className="italic text-muted-foreground">Deleted Note</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </DetailSection>
-            </Card>
-
-            <DetailActivityLog
-              entityType="task"
-              entityId={task.id}
-              limit={30}
-              title={t('tasks.activity')}
-              showClearButton
-              refreshKey={String(task.updatedAt ?? task.id)}
-            />
-          </div>
-        }
-      >
+      <DetailLayout gridClassName="grid-cols-1 lg:grid-cols-2" leftSidebar={contentColumn}>
         <div className="space-y-6">
           {blockingValidationErrors.length > 0 ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
@@ -682,16 +341,6 @@ export function TaskView({ task }: TaskViewProps) {
       />
 
       <ConfirmDialog
-        isOpen={showDeleteTaskConfirm}
-        title={t('dialog.deleteItem', { label: t('nav.task') })}
-        message={task ? getDeleteMessage(task) : ''}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setShowDeleteTaskConfirm(false)}
-        variant="danger"
-      />
-      <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}
         title={t('dialog.unsavedChanges')}
         message={t('tasks.quickEditDiscardMessage')}
@@ -700,27 +349,6 @@ export function TaskView({ task }: TaskViewProps) {
         onConfirm={onDiscardQuickEditAndClose}
         onCancel={() => setShowDiscardQuickEditDialog(false)}
         variant="warning"
-      />
-
-      <DuplicateDialog
-        isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
-          executeDuplicate(task, newName)
-            .then(({ closePanel, highlightId }) => {
-              closePanel();
-              if (highlightId) {
-                setRecentlyDuplicatedTaskId(highlightId);
-              }
-              setShowDuplicateDialog(false);
-            })
-            .catch(() => {
-              setShowDuplicateDialog(false);
-            });
-        }}
-        onCancel={() => setShowDuplicateDialog(false)}
-        defaultName={getDuplicateConfig(task)?.defaultName ?? ''}
-        nameLabel={getDuplicateConfig(task)?.nameLabel ?? t('tasks.title')}
-        confirmOnly={Boolean(getDuplicateConfig(task)?.confirmOnly)}
       />
     </>
   );

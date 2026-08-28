@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
+import { BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { QuickContextSection } from '@/core/ui/QuickContextSection';
 import {
@@ -17,6 +18,7 @@ import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
@@ -32,7 +34,6 @@ import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 const LIST_CONTENT_PREVIEW_CHARS = 1200;
@@ -144,16 +145,7 @@ export function SlotQuickContextPanel({
       >
         {slotInitials(slot)}
       </div>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <h3 className="min-w-0 truncate text-lg font-semibold tracking-tight text-foreground">
-          {title}
-        </h3>
-        {category ? (
-          <Badge className={cn('shrink-0', BADGE_CLASS, 'bg-muted text-muted-foreground')}>
-            {category}
-          </Badge>
-        ) : null}
-      </div>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{title}</h3>
       <QuickContextHeaderActions
         onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
         onEdit={onEdit}
@@ -167,7 +159,7 @@ export function SlotQuickContextPanel({
   return (
     <>
       <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
-        <div className="border-b border-border/50 px-4 py-2.5">{identityHeader}</div>
+        <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
 
         <div
           className={cn(
@@ -175,11 +167,25 @@ export function SlotQuickContextPanel({
             isFullView ? 'space-y-4' : 'space-y-6',
           )}
         >
-          {updatedLabel ? (
-            <p className="text-xs text-muted-foreground">
-              {t('common.updated')} {updatedLabel}
-            </p>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {updatedLabel ? (
+              <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                {t('common.updated')} {updatedLabel}
+              </p>
+            ) : (
+              <div className="min-w-0 flex-1" />
+            )}
+            {category ? (
+              <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className={cn('shrink-0', BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS.muted)}
+                >
+                  {category}
+                </Badge>
+              </div>
+            ) : null}
+          </div>
 
           {!isFullView ? (
             <QuickContextSection title={t('slots.information')} icon={Info} iconPlugin="slots">

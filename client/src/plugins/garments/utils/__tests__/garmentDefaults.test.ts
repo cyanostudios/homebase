@@ -10,38 +10,13 @@ import {
 } from '../garmentListFilter';
 
 describe('createDefaultCheckboxColumns', () => {
-  it('includes person-level Paid/Fogis plus 3 statuses per garment group (English labels)', () => {
+  it('includes only person-level Paid (inventory groups added via Settings)', () => {
     const cols = createDefaultCheckboxColumns();
-    expect(cols).toHaveLength(11);
-    expect(cols.map((c) => c.id)).toEqual([
-      'person_betalt',
-      'person_blankett_fogis',
-      'shorts_bestallt',
-      'shorts_levererat',
-      'shorts_utdelat',
-      'troja_bestallt',
-      'troja_levererat',
-      'troja_utdelat',
-      'strumpor_bestallt',
-      'strumpor_levererat',
-      'strumpor_utdelat',
-    ]);
-    expect(cols[0].group).toBeUndefined();
-    expect(cols[1].group).toBeUndefined();
-    expect(cols[0].label).toBe('Paid');
-    expect(cols[1].label).toBe('Fogis form');
-    expect(cols.map((c) => c.group)).toEqual([
-      undefined,
-      undefined,
-      ...Array(3).fill('Shorts'),
-      ...Array(3).fill('Shirt'),
-      ...Array(3).fill('Socks'),
-    ]);
-    expect(cols.slice(2, 5).map((c) => c.label)).toEqual(['Ordered', 'Delivered', 'Handed out']);
-    const ids = new Set(cols.map((c) => c.id));
-    expect(ids.size).toBe(11);
-    cols.forEach((col, index) => {
-      expect(col.sortOrder).toBe(index);
+    expect(cols).toHaveLength(1);
+    expect(cols[0]).toEqual({
+      id: 'person_betalt',
+      label: 'Paid',
+      sortOrder: 0,
     });
   });
 });

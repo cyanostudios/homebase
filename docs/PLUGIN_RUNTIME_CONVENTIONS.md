@@ -118,9 +118,11 @@ The **Add** / **Close** button on list pages is resolved in `resolvePrimaryActio
 
 `PanelTitles.tsx` still contains a **legacy** config only for the `import` plugin. **Do not extend** that pattern for new plugins; use `getPanelTitle` / `getPanelSubtitle` on context instead.
 
-### `getPanelTitle` as React node (Contacts)
+### `getPanelTitle` as React node (DetailHeaderMenus)
 
-Contacts view mode may return JSX (`ContactDetailHeaderMenus`) from `getPanelTitle`. That node is the **DetailPanel** title only.
+View mode may return JSX from `getPanelTitle` — typically a thin `*DetailHeaderMenus` wrapper around shared `DetailHeaderMenus` (`client/src/core/ui/DetailHeaderMenus.tsx`). That node is the **DetailPanel** title only (Actions / Export / extras).
 
-- Wire it in `PanelTitles` **before** the mobile view early-return that blanks other plugins’ titles (so menus appear on phone).
+- **Mobile:** open Actions/Export submenu pills appear inline beside the trigger with horizontal scroll; desktop (`md+`) uses a second row below triggers. See [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) § Detail header menus.
+- `PanelTitles` prefers non-string React nodes from `pluginContext.getPanelTitle` **before** the mobile view early-return that blanks plain text titles (so menus appear on phone).
 - Pass a separate **string** `detailPanelBreadcrumbLabel` into `MainLayout` → `TopBar` (never the React menus). `AppContent` derives the label from item name / `formatDisplayNumber` when the title is not a string.
+- Remount with `key={item.id}` when switching items so open-menu state resets.

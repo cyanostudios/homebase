@@ -6,10 +6,12 @@ const tableSrc = fs.readFileSync(path.join(__dirname, '../InstructionListTable.t
 const settingsSrc = fs.readFileSync(path.join(__dirname, '../InstructionSettingsView.tsx'), 'utf8');
 
 describe('InstructionList table view wiring', () => {
-  test('toolbar includes table mode control and hides sort dropdown in table mode', () => {
+  test('toolbar includes table mode control and always-visible sort row', () => {
     expect(listSrc).toMatch(/setListViewMode\('table'\)/);
     expect(listSrc).toMatch(/ListColumnLayoutToggle/);
-    expect(listSrc).toMatch(/!isTableView \? \(/);
+    expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
+    expect(listSrc).toMatch(/instructions\.sortBy/);
+    expect(listSrc).not.toMatch(/!isTableView \? \(/);
     expect(listSrc).toMatch(/InstructionListTable/);
   });
 
@@ -22,14 +24,12 @@ describe('InstructionList table view wiring', () => {
     expect(tableSrc).toMatch(/SortableListTable/);
     expect(tableSrc).toMatch(/field: 'title'/);
     expect(tableSrc).toMatch(/field: 'publicationStatus'/);
-    expect(tableSrc).toMatch(/field: 'updatedAt'/);
-    expect(tableSrc).toMatch(/field: 'createdAt'/);
+    expect(tableSrc).not.toMatch(/field: 'updatedAt'/);
+    expect(tableSrc).not.toMatch(/field: 'createdAt'/);
   });
 
-  test('settings expose cards/table default list view', () => {
-    expect(settingsSrc).toMatch(/common\.defaultListView/);
-    expect(settingsSrc).toMatch(/common\.cardsView/);
-    expect(settingsSrc).toMatch(/common\.tableView/);
-    expect(settingsSrc).toMatch(/listViewMode/);
+  test('settings do not expose cards/table default list view', () => {
+    expect(settingsSrc).not.toMatch(/common\.defaultListView/);
+    expect(settingsSrc).not.toMatch(/SettingsListViewModeToggle/);
   });
 });

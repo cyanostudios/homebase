@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 
 import {
   REQUEST_PRIORITY_COLORS,
-  REQUEST_SOURCE_COLORS,
   REQUEST_STATUS_COLORS,
   RESPONSE_DUE_URGENCY_COLORS,
   formatRequestStatusForDisplay,
@@ -89,7 +88,9 @@ export function RequestListTable({
         field: 'title',
         header: t('requests.form.title'),
         cell: (request) => (
-          <span className="font-medium text-foreground">{request.title || '—'}</span>
+          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+            {request.title || '—'}
+          </span>
         ),
       },
       {
@@ -118,18 +119,6 @@ export function RequestListTable({
           <span className="text-xs text-muted-foreground">
             {getTypeLabel(request.requestType, t)}
           </span>
-        ),
-      },
-      {
-        field: 'source',
-        header: t('requests.view.source'),
-        className: 'hidden md:table-cell',
-        cell: (request) => (
-          <Badge className={cn(BADGE_CLASS, REQUEST_SOURCE_COLORS[request.source])}>
-            {request.source === 'external'
-              ? t('requests.sourceExternal')
-              : t('requests.sourceInternal')}
-          </Badge>
         ),
       },
       {

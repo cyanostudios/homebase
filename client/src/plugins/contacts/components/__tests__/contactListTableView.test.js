@@ -9,18 +9,26 @@ const quickContextActionsSrc = fs.readFileSync(
 );
 
 describe('ContactList table view wiring', () => {
-  test('list always renders ContactListTable (no card grid or layout toggle)', () => {
+  test('list supports card grid and table via layout toggle with always-visible sort row', () => {
     expect(listSrc).toMatch(/ContactListTable/);
-    expect(listSrc).not.toMatch(/ListColumnLayoutToggle/);
-    expect(listSrc).not.toMatch(/ContactListItem/);
-    expect(listSrc).not.toMatch(/isTableView/);
+    expect(listSrc).toMatch(/ListColumnLayoutToggle/);
+    expect(listSrc).toMatch(/ContactListItem/);
+    expect(listSrc).toMatch(/isTableView/);
+    expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
+    expect(listSrc).toMatch(/aria-label="Sort by"/);
+    expect(listSrc).toMatch(/handlePrimarySortChange/);
+    expect(listSrc).not.toMatch(/!isTableView \? \(/);
   });
 
-  test('table renders sortable headers and checkbox column', () => {
-    expect(tableSrc).toMatch(/rowBorders=\{false\}/);
-    expect(tableSrc).toMatch(/onSort\(col\.field\)/);
-    expect(tableSrc).toMatch(/w-8/);
-    expect(tableSrc).toMatch(/SORTABLE_COLUMNS/);
+  test('table uses SortableListTable with expected columns', () => {
+    expect(tableSrc).toMatch(/SortableListTable/);
+    expect(tableSrc).toMatch(/contacts\.table\.name/);
+    expect(tableSrc).toMatch(/contacts\.table\.type/);
+    expect(tableSrc).toMatch(/contacts\.table\.tags/);
+    expect(tableSrc).toMatch(/contacts\.table\.assignable/);
+    expect(tableSrc).toMatch(/contacts\.table\.time/);
+    expect(tableSrc).toMatch(/selectionEnabled/);
+    expect(tableSrc).toMatch(/activeContactId/);
     expect(tableSrc).not.toMatch(/contacts\.table\.updated/);
   });
 

@@ -16,6 +16,7 @@ import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { noteShareApi, notesApi } from '../api/notesApi';
+import { NoteDetailHeaderMenus } from '../components/NoteDetailHeaderMenus';
 import { Note, NoteShare, ValidationError } from '../types/notes';
 import { getNoteExportBaseFilename, notesExportConfig } from '../utils/noteExportConfig';
 
@@ -466,12 +467,15 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const handleNoteShareClick = useCallback(
     async (note: Note) => {
-      if (noteShareExistingShare) {
-        setNoteShareShowDialog(true);
-        return;
-      }
       setNoteShareIsCreatingShare(true);
       try {
+        const shares = await noteShareApi.getShares(note.id);
+        const active = shares.find((s) => new Date(s.validUntil) > new Date());
+        if (active) {
+          setNoteShareExistingShare(active);
+          setNoteShareShowDialog(true);
+          return;
+        }
         const share = await noteShareApi.createShare({
           noteId: note.id,
           validUntil: defaultNoteShareValidUntil(),
@@ -485,7 +489,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         setNoteShareIsCreatingShare(false);
       }
     },
-    [noteShareExistingShare, defaultNoteShareValidUntil],
+    [defaultNoteShareValidUntil],
   );
 
   const handleNoteCopyShareUrl = useCallback(() => {
@@ -605,6 +609,13 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const getDeleteMessage = (item: Note | null) =>
     buildDeleteMessage(t, 'notes', item?.title || undefined);
 
+  const getPanelTitle = (mode: string, item: Note | null) => {
+    if (mode === 'view' && item) {
+      return <NoteDetailHeaderMenus key={String(item.id)} note={item} />;
+    }
+    return null;
+  };
+
   const value: NoteContextType = {
     isNotePanelOpen,
     currentNote,
@@ -649,6 +660,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       }
       return { successCount, failureCount };
     },
+    getPanelTitle,
     getDeleteMessage,
     recentlyDuplicatedNoteId,
     setRecentlyDuplicatedNoteId,
@@ -660,6 +672,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     noteShareShowDialog,
     setNoteShareShowDialog,
     noteShareIsCreatingShare,
+    handleNoteShareClick,
     handleNoteCopyShareUrl,
     handleNoteRevokeShare,
     navigateToPrevItem,

@@ -51,7 +51,9 @@ export function TaskListTable({
         field: 'title' as const,
         header: t('tasks.title'),
         cell: (task: Task) => (
-          <span className="font-medium leading-4 text-foreground">{task.title}</span>
+          <span className="font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary">
+            {task.title}
+          </span>
         ),
       },
       {
@@ -84,16 +86,6 @@ export function TaskListTable({
         cell: (task: Task) => (
           <span className="text-xs text-muted-foreground">
             {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '—'}
-          </span>
-        ),
-      },
-      {
-        field: 'updatedAt' as const,
-        header: t('common.updated'),
-        className: 'hidden md:table-cell',
-        cell: (task: Task) => (
-          <span className="text-xs text-muted-foreground">
-            {task.updatedAt ? new Date(task.updatedAt).toLocaleDateString() : '—'}
           </span>
         ),
       },

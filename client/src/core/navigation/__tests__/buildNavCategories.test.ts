@@ -13,9 +13,9 @@ describe('buildNavCategories', () => {
   it('includes enabled plugins in correct categories', () => {
     const categories = buildNavCategories(new Set(['contacts', 'cups']), t);
     const main = categories.find((c) => c.id === 'Main');
-    const sport = categories.find((c) => c.id === 'Sport');
+    const apps = categories.find((c) => c.id === 'Apps');
     expect(main?.items.map((i) => i.page)).toEqual(['dashboard', 'contacts']);
-    expect(sport?.items.map((i) => i.page)).toEqual(['cups']);
+    expect(apps?.items.map((i) => i.page)).toEqual(['cups']);
   });
 
   it('sorts items by order within a category', () => {
@@ -45,5 +45,36 @@ describe('buildNavCategories', () => {
     const categories = buildNavCategories(new Set(['contacts']), t);
     expect(categories[0].id).toBe('Main');
     expect(categories[0].title).toBe('nav.main');
+  });
+
+  it('places Beta last with guides and instructions', () => {
+    const categories = buildNavCategories(new Set(['contacts', 'guides', 'instructions']), t);
+    expect(categories[categories.length - 1].id).toBe('Beta');
+    expect(categories[categories.length - 1].items.map((i) => i.page)).toEqual([
+      'guides',
+      'instructions',
+    ]);
+    expect(categories.some((c) => c.id === 'Content')).toBe(false);
+  });
+
+  it('puts clubdesk and cups in Apps (after Tools), requests in Main, slots in Beta', () => {
+    const categories = buildNavCategories(
+      new Set(['clubdesk', 'cups', 'requests', 'teams', 'slots', 'files']),
+      t,
+    );
+    expect(categories.some((c) => c.id === 'Content')).toBe(false);
+    expect(categories.some((c) => c.id === 'Booking')).toBe(false);
+    const ids = categories.map((c) => c.id);
+    expect(ids.indexOf('Tools')).toBeLessThan(ids.indexOf('Apps'));
+    expect(categories.find((c) => c.id === 'Apps')?.items.map((i) => i.page)).toEqual([
+      'cups',
+      'clubdesk',
+    ]);
+    expect(categories.find((c) => c.id === 'Sport')?.items.map((i) => i.page)).toEqual(['teams']);
+    expect(categories.find((c) => c.id === 'Main')?.items.map((i) => i.page)).toEqual([
+      'dashboard',
+      'requests',
+    ]);
+    expect(categories.find((c) => c.id === 'Beta')?.items.map((i) => i.page)).toEqual(['slots']);
   });
 });

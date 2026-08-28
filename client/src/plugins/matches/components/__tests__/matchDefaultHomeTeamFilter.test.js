@@ -16,14 +16,15 @@ describe('MatchList default home team filter wiring', () => {
     expect(settingsSrc).toMatch(/matches\.defaultHomeTeam/);
   });
 
-  test('list loads defaultHomeTeam and shows conditional homeTeam filter card', () => {
-    expect(listSrc).toMatch(/resolveMatchDefaultHomeTeam/);
+  test('list wires homeTeam filter chips when defaultHomeTeam is set', () => {
     expect(listSrc).toMatch(/showHomeTeamFilter/);
     expect(listSrc).toMatch(/isFilterActive\('homeTeam'\)/);
-    expect(listSrc).toMatch(/lg:grid-cols-5/);
     expect(listSrc).toMatch(/toggleFilter\('homeTeam'\)/);
-    expect(listSrc).toMatch(/toggleMatchListFilter/);
     expect(listSrc).toMatch(/matchMatchesListFilters/);
+    expect(listSrc).toMatch(/resolveMatchDefaultHomeTeam/);
+    expect(listSrc).toMatch(/withoutHomeTeamFilter/);
+    expect(listSrc).not.toMatch(/ListFilterStatCard/);
+    expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
     expect(listSrc).not.toMatch(/filterAllTeams|teamFilter/);
   });
 

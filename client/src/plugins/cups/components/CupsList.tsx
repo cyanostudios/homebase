@@ -1,12 +1,16 @@
 import {
   BarChart2,
+  Calendar,
   CheckSquare,
   ArrowDown,
   ArrowUp,
   Download,
+  Eye,
+  LayoutGrid,
   Plus,
   Settings,
   SlidersHorizontal,
+  Star,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -14,6 +18,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import {
   Select,
   SelectContent,
@@ -22,21 +28,34 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
-import { nextListTableSort } from '@/core/list/listViewMode';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import {
   useEffectiveCardColumnCount,
   useEffectiveColumnCount,
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
-import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
+import { nextListTableSort } from '@/core/list/listViewMode';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+  LIST_FILTER_SORT_CLUSTER_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useMobileActions } from '@/core/ui/MobileActionsContext';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
+import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
@@ -70,16 +89,15 @@ import {
 } from '../utils/cupListViewMode';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
-import { CupListItem } from './CupListItem';
-import { CupListTable } from './CupListTable';
 import {
   CupIngestImportResultDialog,
   type CupIngestImportResultVariant,
 } from './CupIngestImportResultDialog';
 import { CupIngestPickSourceDialog } from './CupIngestPickSourceDialog';
+import { CupListItem } from './CupListItem';
+import { CupListTable } from './CupListTable';
 import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView';
 import { CupsStatisticsView } from './CupsStatisticsView';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 type SortField = CupSortField;
 type SortOrder = CupSortOrder;
@@ -126,12 +144,20 @@ export function CupsList() {
   });
 
   const [search, setSearch] = useState('');
+  const [selectionMode, setSelectionMode] = useState(false);
+
+  useRegisterMobileSearch({
+    value: search,
+    onChange: setSearch,
+    placeholder: t('cups.searchPlaceholder', { count: cups.length }),
+  });
+
   const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [columnCount, setColumnCountState] = useState<CupColumnCount>(getInitialCupColumnCount);
   const [listViewMode, setListViewModeState] = useState<CupListViewMode>(getInitialCupListViewMode);
   const [activeFilters, setActiveFilters] = useState<CupListFilterSelection>([]);
-  const [settingsCategory, setSettingsCategory] = useState<CupsSettingsCategory>('view');
+  const [settingsCategory, setSettingsCategory] = useState<CupsSettingsCategory>('appearance');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkPropertiesDialog, setShowBulkPropertiesDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -204,10 +230,14 @@ export function CupsList() {
         if (cancelled) {
           return;
         }
-        const next = resolveCupColumnCount(settings);
+        const resolved = resolveCupColumnCount(settings);
+        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as CupColumnCount;
         setColumnCountState(next);
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(CUPS_COLUMN_COUNT_STORAGE_KEY, String(next));
+        }
+        if (next !== resolved) {
+          updateSettings(CUPS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
         }
         const nextView = resolveCupListViewMode(settings);
         setListViewModeState(nextView);
@@ -220,14 +250,15 @@ export function CupsList() {
   }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback(
-    (count: CupColumnCount) => {
-      setColumnCountState(count);
+    (_count: CupColumnCount) => {
+      const next = 3 as CupColumnCount;
+      setColumnCountState(next);
       setListViewModeState('cards');
       persistCupListViewModeSession('cards');
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(CUPS_COLUMN_COUNT_STORAGE_KEY, String(count));
+        window.sessionStorage.setItem(CUPS_COLUMN_COUNT_STORAGE_KEY, String(next));
       }
-      updateSettings(CUPS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+      updateSettings(CUPS_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
         () => {},
       );
     },
@@ -353,6 +384,44 @@ export function CupsList() {
     }
   };
 
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearCupSelection();
+    setSelectionMode(false);
+  };
+
+  const handleRowActivate = (cup: (typeof cups)[0]) => {
+    if (selectionMode) {
+      toggleCupSelected(cup.id);
+      return;
+    }
+    attemptNavigation(() => openCupForView(cup));
+  };
+
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    const disabled = selectedCount === 0;
+    return [
+      {
+        key: 'properties',
+        label: t('slots.properties'),
+        icon: SlidersHorizontal,
+        disabled,
+        onClick: () => setShowBulkPropertiesDialog(true),
+      },
+      {
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      },
+    ];
+  }, [selectedCount, t]);
+
   const openImportPicker = useCallback(async () => {
     const settings = await getSettings('cups').catch(
       () => ({}) as { defaultIngestSourceId?: string; allowedIngestSourceIds?: string[] },
@@ -460,99 +529,205 @@ export function CupsList() {
   }
 
   return (
-    <div className="plugin-cups min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="hidden items-start justify-between gap-4 md:flex">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.cups')}</h2>
-            <p className="text-sm text-muted-foreground">{t('cups.listDescription')}</p>
-          </div>
-          <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-2 md:w-auto md:gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Download}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={openImportPicker}
-            >
-              {t('cups.importFromIngest')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={BarChart2}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={() => openCupStatistics()}
-              title={t('common.statistics')}
-            >
-              {t('common.statistics')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
-              onClick={openCupSettings}
-              title={t('common.settings')}
-            >
-              {t('common.settings')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="h-9 flex-1 md:flex-initial px-3 text-xs"
-              onClick={() => attemptNavigation(() => openCupPanel(null))}
-            >
-              {t('cups.addCup')}
-            </Button>
+    <div className={cn('plugin-cups', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
+      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+        <div className="hidden md:block">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-5">
+              <div className="min-w-0">
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.cups')}</h2>
+                  <ExpandableIconButton
+                    icon={Download}
+                    label={t('cups.importFromIngest')}
+                    variant="soft"
+                    onClick={openImportPicker}
+                  />
+                  <ExpandableIconButton
+                    icon={BarChart2}
+                    label={t('common.statistics')}
+                    variant="soft"
+                    onClick={() => openCupStatistics()}
+                  />
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('common.settings')}
+                    variant="soft"
+                    onClick={openCupSettings}
+                  />
+                  {filteredAndSorted.length > 0 ? (
+                    selectionMode ? (
+                      <ExpandableIconButton
+                        icon={XCircle}
+                        label={t('common.clear')}
+                        variant="danger"
+                        alwaysExpanded
+                        onClick={handleExitSelectionMode}
+                      />
+                    ) : (
+                      <ExpandableIconButton
+                        icon={CheckSquare}
+                        label={t('common.select')}
+                        variant="soft"
+                        alwaysExpanded
+                        onClick={handleEnterSelectionMode}
+                      />
+                    )
+                  ) : null}
+                </div>
+              </div>
+              {selectionMode ? (
+                <BulkActionRoundBar
+                  selectedCount={selectedCount}
+                  actions={bulkRoundActions}
+                  className="gap-2"
+                />
+              ) : null}
+            </div>
+            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+              <RoundExpandableSearch
+                value={search}
+                onChange={setSearch}
+                placeholder={t('cups.searchPlaceholder', { count: cups.length })}
+              />
+              <ListColumnLayoutToggle
+                columnCount={columnCount}
+                listViewMode={listViewMode}
+                onSelectColumns={setColumnCount}
+                onSelectTable={() => setListViewMode('table')}
+                columnAriaLabel={(count) => t(`cups.columns${count}`)}
+                tableAriaLabel={t('common.tableView')}
+              />
+              <ExpandableIconButton
+                icon={Plus}
+                label={t('cups.addCup')}
+                variant="soft"
+                alwaysExpanded
+                onClick={() => attemptNavigation(() => openCupPanel(null))}
+              />
+            </div>
           </div>
         </div>
 
-        <div
-          className={cn(
-            LIST_FILTER_STAT_ROW_CLASS,
-            'md:grid-cols-2 md:gap-3',
-            stats.removed > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4',
-          )}
-        >
-          <ListFilterStatCard
-            label="Total"
-            value={stats.total}
-            dotClassName="bg-blue-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label="Visible"
-            value={stats.visible}
-            dotClassName="bg-emerald-500"
-            active={isFilterActive('visible')}
-            onClick={() => toggleFilter('visible')}
-          />
-          <ListFilterStatCard
-            label="Featured"
-            value={stats.featured}
-            dotClassName="bg-amber-500"
-            active={isFilterActive('featured')}
-            onClick={() => toggleFilter('featured')}
-          />
-          <ListFilterStatCard
-            label="Upcoming"
-            value={stats.upcoming}
-            dotClassName="bg-violet-500"
-            active={isFilterActive('upcoming')}
-            onClick={() => toggleFilter('upcoming')}
-          />
-          {stats.removed > 0 && (
-            <ListFilterStatCard
-              label="Removed"
-              value={stats.removed}
-              dotClassName="bg-red-400"
-              active={isFilterActive('removed')}
-              onClick={() => toggleFilter('removed')}
-            />
-          )}
+        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFilters([])}
+              className={cn(
+                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>
+                Total <span className="tabular-nums font-semibold">({stats.total})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('visible')}
+              className={cn(
+                isFilterActive('visible') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              <span>
+                Visible <span className="tabular-nums font-semibold">({stats.visible})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('featured')}
+              className={cn(
+                isFilterActive('featured') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Star className="h-3.5 w-3.5" />
+              <span>
+                Featured <span className="tabular-nums font-semibold">({stats.featured})</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleFilter('upcoming')}
+              className={cn(
+                isFilterActive('upcoming') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              )}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              <span>
+                Upcoming <span className="tabular-nums font-semibold">({stats.upcoming})</span>
+              </span>
+            </Button>
+            {stats.removed > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleFilter('removed')}
+                className={cn(
+                  isFilterActive('removed')
+                    ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                    : LIST_FILTER_CHIP_CLASS,
+                )}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>
+                  Removed <span className="tabular-nums font-semibold">({stats.removed})</span>
+                </span>
+              </Button>
+            ) : null}
+          </div>
+          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            <Select
+              value={primarySort}
+              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+            >
+              <SelectTrigger
+                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                aria-label="Sort by"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="item-aligned"
+                className="rounded-xl border-border/50 shadow-xl"
+              >
+                {SORT_FIELD_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="rounded-md text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 px-0 text-xs"
+              onClick={toggleSortOrder}
+              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
 
         <BulkDeleteModal
@@ -604,121 +779,6 @@ export function CupsList() {
         )}
 
         <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={filteredAndSorted.length > 0}
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={handleHeaderCheckboxChange}
-              >
-                Select all
-              </Button>
-            }
-            search={
-              <ListSearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder={t('cups.searchPlaceholder', { count: cups.length })}
-              />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t(`cups.columns${count}`)}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearCupSelection}
-                  type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: selectedCount })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={SlidersHorizontal}
-                  onClick={() => setShowBulkPropertiesDialog(true)}
-                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                >
-                  {t('slots.properties')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                >
-                  {t('common.delete')}
-                </Button>
-              </>
-            }
-          />
-
           {filteredAndSorted.length === 0 ? (
             <ListEmptyState
               message={search.trim() ? t('cups.noMatch') : t('cups.noYet')}
@@ -735,11 +795,12 @@ export function CupsList() {
               onSort={handleTableSort}
               ingestTitleForCup={ingestTitleForCup}
               isSelected={isSelected}
-              onRowClick={(cup) => attemptNavigation(() => openCupForView(cup))}
+              onRowClick={handleRowActivate}
               onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
               onCheckboxChange={onVisibleRowCheckboxChange}
               allVisibleSelected={allVisibleSelected}
               onHeaderCheckboxChange={handleHeaderCheckboxChange}
+              selectionEnabled={selectionMode}
             />
           ) : (
             <div
@@ -755,19 +816,21 @@ export function CupsList() {
                   key={cup.id}
                   cup={cup}
                   selected={isSelected(cup.id)}
-                  onClick={() => attemptNavigation(() => openCupForView(cup))}
+                  onClick={() => handleRowActivate(cup)}
                   ingestTitle={ingestTitleForCup(cup.ingest_source_id) || null}
                   columnCount={effectiveCardColumnCount}
                   checkbox={
-                    <input
-                      type="checkbox"
-                      checked={isSelected(cup.id)}
-                      onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                      onChange={() => onVisibleRowCheckboxChange(cup.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="h-4 w-4 cursor-pointer"
-                      aria-label={isSelected(cup.id) ? 'Unselect cup' : 'Select cup'}
-                    />
+                    selectionMode ? (
+                      <input
+                        type="checkbox"
+                        checked={isSelected(cup.id)}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(cup.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label={isSelected(cup.id) ? 'Unselect cup' : 'Select cup'}
+                      />
+                    ) : undefined
                   }
                 />
               ))}
@@ -777,8 +840,7 @@ export function CupsList() {
           <ListFooterBar
             meta={
               <>
-                Showing {filteredAndSorted.length} of{' '}
-                {isFilterActive('removed') ? stats.removed : stats.total} Cups
+                Showing {filteredAndSorted.length} of {cups.length} Cups
               </>
             }
           />

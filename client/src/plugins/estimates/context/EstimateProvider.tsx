@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
@@ -14,17 +13,12 @@ import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
 import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
-import {
-  Estimate,
-  EstimateShare,
-  ValidationError,
-  calculateEstimateTotals,
-} from '../types/estimate';
+import { EstimateDetailHeaderMenus } from '../components/EstimateDetailHeaderMenus';
+import { Estimate, EstimateShare, ValidationError } from '../types/estimate';
 
 import { EstimateContext } from './EstimateContext';
 import type { EstimateContextType } from './EstimateContext';
@@ -683,58 +677,11 @@ export function EstimateProvider({
   const getPanelTitle = (
     mode: string,
     item: Estimate | null,
-    isMobileView: boolean,
-    handleEstimateContactClick: (contactId: string) => void,
+    _isMobileView: boolean,
+    _handleEstimateContactClick: (contactId: string) => void,
   ) => {
     if (mode === 'view' && item) {
-      const totals = calculateEstimateTotals(item.lineItems || [], item.estimateDiscount || 0);
-      const estimateNumber = formatDisplayNumber('estimates', item.estimateNumber || item.id);
-      const total = totals.total.toFixed(2);
-      const currency = item.currency || 'SEK';
-      const contactId = item.contactId;
-      const contactName = item.contactName;
-
-      const ContactChunk =
-        typeof contactId === 'string' && contactId ? (
-          <Button
-            variant="link"
-            size="sm"
-            onClick={() => handleEstimateContactClick(contactId)}
-            className="h-auto p-0 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-          >
-            @{contactName}
-          </Button>
-        ) : (
-          <span className="text-gray-600 dark:text-gray-400">
-            @{contactName || t('nav.contact')}
-          </span>
-        );
-
-      if (isMobileView) {
-        return (
-          <div className={PLUGIN_PAGE_TITLE_CLASS}>
-            <div className="flex items-center gap-2">
-              <span>{estimateNumber} • </span>
-              {ContactChunk}
-            </div>
-            <div className="mt-1 text-sm font-normal text-gray-600 dark:text-gray-400">
-              {total} {currency}
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div className={cn(PLUGIN_PAGE_TITLE_CLASS, 'flex items-center gap-2')}>
-          <span>{estimateNumber}</span>
-          <span className="mx-1 font-light text-muted-foreground/30">|</span>
-          {ContactChunk}
-          <span className="mx-1 font-light text-muted-foreground/30">|</span>
-          <span className="whitespace-nowrap text-muted-foreground">
-            {total} {currency}
-          </span>
-        </div>
-      );
+      return <EstimateDetailHeaderMenus key={String(item.id)} estimate={item} />;
     }
 
     switch (mode) {
