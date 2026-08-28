@@ -17,8 +17,13 @@ import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { contactsApi } from '../api/contactsApi';
-import { ContactDetailHeaderMenus } from '../components/ContactDetailHeaderMenus';
 import { Contact, ValidationError } from '../types/contacts';
+
+const ContactDetailHeaderMenus = React.lazy(() =>
+  import('../components/ContactDetailHeaderMenus').then((m) => ({
+    default: m.ContactDetailHeaderMenus,
+  })),
+);
 import { contactExportConfig, getContactExportBaseFilename } from '../utils/contactExportConfig';
 import {
   buildContactTagsSavePayload,
@@ -746,7 +751,11 @@ export function ContactProvider({
 
   const getPanelTitle = (mode: string, item: Contact | null) => {
     if (mode === 'view' && item) {
-      return <ContactDetailHeaderMenus key={String(item.id)} contact={item} />;
+      return (
+        <React.Suspense fallback={null}>
+          <ContactDetailHeaderMenus key={String(item.id)} contact={item} />
+        </React.Suspense>
+      );
     }
     return null;
   };

@@ -26,7 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 
 import { ContactCopyableLink, mailtoHref, telHref } from './ContactCopyableLink';
-import { ContactLinkedItemsSection } from './ContactLinkedItemsSection';
+import { ContactLinkedItemsSectionLazy as ContactLinkedItemsSection } from './ContactLinkedItemsSectionLazy';
 import { ContactQuickContextPanel } from './ContactQuickContextPanel';
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';

@@ -25,7 +25,7 @@ import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
 import { ContactCopyableLink, mailtoHref, telHref, websiteHref } from './ContactCopyableLink';
-import { ContactLinkedItemsSection } from './ContactLinkedItemsSection';
+import { ContactLinkedItemsSectionLazy as ContactLinkedItemsSection } from './ContactLinkedItemsSectionLazy';
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
 import { formatCompanyTypeLabel } from '../types/contacts';

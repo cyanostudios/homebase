@@ -143,6 +143,12 @@ export default defineConfig({
 
           // ── Plugin UI chunks ──────────────────────────────────────────────────
           // Each plugin's List/Form/View components in a separate cacheable chunk.
+          // Split heavy cross-plugin contact modules so plugin-contacts init does not
+          // pull matches/garments/teams (avoids chunk-level circular TDZ in prod).
+          if (id.includes('/plugins/contacts/components/ContactLinkedItemsSection'))
+            return 'plugin-contacts-linked';
+          if (id.includes('/plugins/contacts/components/ContactDetailHeaderMenus'))
+            return 'plugin-contacts-detail-menus';
           if (id.includes('/plugins/contacts/')) return 'plugin-contacts';
           if (id.includes('/plugins/notes/')) return 'plugin-notes';
           if (id.includes('/plugins/tasks/')) return 'plugin-tasks';
