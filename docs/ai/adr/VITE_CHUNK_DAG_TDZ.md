@@ -31,7 +31,7 @@ plugin providers / route UI (Rollup-split; not forced into one chunk per plugin)
 Rules:
 
 1. **`vendor-shared` must never import** `app-shell`, `app-context`, or any `plugin-*` chunk.
-2. Modules that import `AppContext` / navigation / `pluginRegistry` belong in **`app-shell`** or **`app-context`**, not `vendor-shared` (e.g. Sidebar, Login, TimeTrackingWidget).
+2. Modules that import `AppContext` / navigation / `pluginRegistry` belong in **`app-shell`** or **`app-context`**, not `vendor-shared` (e.g. Sidebar, Login, `rightSidebar/*`, TimeTrackingWidget, `widgets/index`).
 3. **`node_modules` shared by plugins and core** (e.g. `react-day-picker`, `date-fns`) get an explicit vendor chunk so they never land inside a plugin chunk.
 4. **Do not** assign entire `/plugins/<name>/` trees to one manual chunk — that forces cross-plugin UI into circular chunks (e.g. garments ↔ teams). Isolate full `*Provider` files only; let Rollup split the rest.
 5. Put Vite’s preload helper in **`vendor-shared`** (`\0vite/preload-helper`) so it does not create a fake `vendor-shared` ↔ `app-shell` cycle.
@@ -39,11 +39,15 @@ Rules:
 
 ## Verification
 
-```bash
-npm run build:ui && npm run check:chunk-cycles
-```
+`npm run build:ui` runs Vite production build **and** `scripts/check-chunk-cycles.mjs` (also invoked alone via `npm run check:chunk-cycles`).
 
-`scripts/check-chunk-cycles.mjs` fails if `vendor-shared` has a mutual import with `app-shell`, `app-context`, or `plugin-*`.
+The check fails if `vendor-shared` has a mutual import with `app-shell`, `app-context`, or `plugin-*`.
+
+**Enforcement:**
+
+- Husky **pre-push**: `npm run build:ui`
+- Railway / `npm run build`: includes `build:ui`
+- Docs: [`FRONTEND_BUNDLE_ANALYSIS.md`](../FRONTEND_BUNDLE_ANALYSIS.md), [`DEVELOPMENT_GUIDE_V2.md`](../DEVELOPMENT_GUIDE_V2.md), [`DEPLOYMENT_V2.md`](../DEPLOYMENT_V2.md)
 
 ## Consequences
 

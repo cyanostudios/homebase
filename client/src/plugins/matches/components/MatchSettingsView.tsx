@@ -4,7 +4,7 @@ import { CloudDownload } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
@@ -213,16 +213,16 @@ export function MatchSettingsView({
               <p className="text-xs text-muted-foreground">{t('matches.apiKeyHint')}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button
+              <RoundIconLabelButton
                 type="button"
-                variant="secondary"
-                size="sm"
                 icon={CloudDownload}
+                label={isImporting ? t('matches.importing') : t('matches.importNow')}
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
                 disabled={isImporting || !hasStoredApiKey}
                 onClick={() => void handleImport()}
-              >
-                {isImporting ? t('matches.importing') : t('matches.importNow')}
-              </Button>
+              />
             </div>
             {importMessage ? (
               <p className="text-sm text-emerald-700 dark:text-emerald-400">{importMessage}</p>

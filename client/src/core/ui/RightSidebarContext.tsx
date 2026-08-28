@@ -7,50 +7,46 @@ import React, {
   type ReactNode,
 } from 'react';
 
-/** DOM id for the plugin detail-column portal target inside AppRightSidebar. */
-export const RIGHT_SIDEBAR_PLUGIN_SLOT_ID = 'right-sidebar-plugin-slot';
+/** Fixed narrow rail width (desktop). Panel does not expand. */
+export const RIGHT_SIDEBAR_WIDTH_PX = 48;
 
-export const RIGHT_SIDEBAR_EXPANDED_WIDTH_PX = 280;
-export const RIGHT_SIDEBAR_COLLAPSED_WIDTH_PX = 40;
+/** Slide-out panel width, anchored to the rail’s inner edge. */
+export const RIGHT_SIDEBAR_FLYOUT_WIDTH_PX = 320;
+
+export type RightSidebarPanelId = 'pomodoro' | 'timer' | 'user';
 
 interface RightSidebarContextValue {
-  isOpen: boolean;
-  toggle: () => void;
-  open: () => void;
-  close: () => void;
-  /** Portal target for plugin DetailLayout `sidebar` content; null when closed or unmounted. */
-  pluginSlotElement: HTMLElement | null;
-  setPluginSlotElement: (el: HTMLElement | null) => void;
+  activePanel: RightSidebarPanelId | null;
+  openPanel: (id: RightSidebarPanelId) => void;
+  closePanel: () => void;
+  togglePanel: (id: RightSidebarPanelId) => void;
 }
 
 const RightSidebarContext = createContext<RightSidebarContextValue | null>(null);
 
 export function RightSidebarProvider({ children }: { children: ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [pluginSlotElement, setPluginSlotElement] = useState<HTMLElement | null>(null);
+  const [activePanel, setActivePanel] = useState<RightSidebarPanelId | null>(null);
 
-  const toggle = useCallback(() => {
-    setIsOpen((prev) => !prev);
+  const openPanel = useCallback((id: RightSidebarPanelId) => {
+    setActivePanel(id);
   }, []);
 
-  const open = useCallback(() => {
-    setIsOpen(true);
+  const closePanel = useCallback(() => {
+    setActivePanel(null);
   }, []);
 
-  const close = useCallback(() => {
-    setIsOpen(false);
+  const togglePanel = useCallback((id: RightSidebarPanelId) => {
+    setActivePanel((current) => (current === id ? null : id));
   }, []);
 
   const value = useMemo(
     () => ({
-      isOpen,
-      toggle,
-      open,
-      close,
-      pluginSlotElement,
-      setPluginSlotElement,
+      activePanel,
+      openPanel,
+      closePanel,
+      togglePanel,
     }),
-    [isOpen, toggle, open, close, pluginSlotElement],
+    [activePanel, openPanel, closePanel, togglePanel],
   );
 
   return <RightSidebarContext.Provider value={value}>{children}</RightSidebarContext.Provider>;

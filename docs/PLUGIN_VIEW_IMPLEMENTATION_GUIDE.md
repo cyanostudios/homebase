@@ -258,9 +258,9 @@ Full view renders inside core `DetailPanel` (wired by `AppContent` + `pluginRegi
 
 Desktop columns share the same top edge (`items-start`). On phone, column 3 (`sidebar` / `rightSidebar`) stacks last via `order-*`.
 
-**App right rail:** On desktop (`lg+`), when `AppRightSidebar` is **open**, `DetailLayout` portals the `sidebar` prop into that rail (plugin Views/Forms keep passing `sidebar` unchanged). When the rail is **closed**, or on phone/pad, `sidebar` stays inline in the detail grid. Do not special-case plugins for the rail. Helpers: `client/src/core/ui/detailLayoutPortal.ts`.
+**App right rail:** Fixed narrow tool strip with slide-out flyouts (User / Theme / Settings → `/settings` / Pomodoro / Timer). Plugin `sidebar` content stays inline in the detail grid — it is not portaled into the rail.
 
-**Limits (verified):** widgets are desktop-rail-only (unavailable on phone/pad); Settings category shortcuts call `openSettingsPanel` and close other panels; Form sidebars portal the same way as View sidebars when the rail is open.
+**Limits (verified):** tools/flyouts are desktop-rail-only (unavailable on phone/pad); Settings navigates to Core Settings (`navigateToSettings`) rather than an in-rail settings panel; Form/View `sidebar` columns stay inline (no `detailLayoutPortal`).
 
 Do **not** put primary content properties only in the right sidebar — see §6 in `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`.
 

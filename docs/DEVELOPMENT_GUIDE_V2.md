@@ -134,10 +134,13 @@ curl http://localhost:3002/api/plugins
 npm run check          # tsc
 npm run lint           # eslint (flat config: eslint.config.cjs)
 npm test               # jest (server/plugins tests)
-npm run build          # production UI + API
+npm run build          # production UI + API (UI includes chunk-cycle check)
+npm run build:ui       # vite build + check:chunk-cycles (see ADR VITE_CHUNK_DAG_TDZ)
 ```
 
-Pre-commit: **lint-staged** runs `eslint --fix --quiet` and Prettier on staged TS/TSX. Pre-push (husky): `tsc` + `jest`.
+Pre-commit: **lint-staged** runs `eslint --fix --quiet` and Prettier on staged TS/TSX. Pre-push (husky): `tsc` + `jest` + `build:ui` (chunk-cycle gate).
+
+**Vite / chunks:** Ändra aldrig `manualChunks` eller core↔plugin-imports utan att `npm run build:ui` är grönt. Se [`ai/adr/VITE_CHUNK_DAG_TDZ.md`](ai/adr/VITE_CHUNK_DAG_TDZ.md) och [`FRONTEND_BUNDLE_ANALYSIS.md`](FRONTEND_BUNDLE_ANALYSIS.md).
 
 ---
 
@@ -205,7 +208,7 @@ Se canonical guider — duplicera inte Railway/Neon-steg här.
 
 - [`DEPLOYMENT_V2.md`](DEPLOYMENT_V2.md)
 - [`RAILWAY_HOMEBASE_SETUP.md`](RAILWAY_HOMEBASE_SETUP.md) (CSRF, rate limit, konsol)
-- [`FRONTEND_BUNDLE_ANALYSIS.md`](FRONTEND_BUNDLE_ANALYSIS.md) (`npm run build:ui:analyze`)
+- [`FRONTEND_BUNDLE_ANALYSIS.md`](FRONTEND_BUNDLE_ANALYSIS.md) (`npm run build:ui:analyze`; chunk DAG: `npm run build:ui`)
 
 ---
 

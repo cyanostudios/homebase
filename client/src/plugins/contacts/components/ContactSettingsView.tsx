@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
@@ -194,17 +195,16 @@ export function ContactSettingsView({
                     }
                   }}
                 />
-                <Button
+                <RoundIconLabelButton
                   type="button"
-                  variant="secondary"
-                  size="sm"
                   icon={Plus}
+                  label="Add"
+                  variant="secondary"
+                  size="xs"
+                  alwaysExpanded
                   onClick={addTag}
                   disabled={!newTag.trim()}
-                  className="h-9 text-xs px-3"
-                >
-                  Add
-                </Button>
+                />
               </div>
               {tags.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No tags yet.</p>
@@ -235,10 +235,13 @@ export function ContactSettingsView({
           <DetailSection title={t('contacts.import')} className="pt-0">
             <p className="mb-4 text-sm text-muted-foreground">{t('contacts.importDescription')}</p>
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
+              <RoundIconLabelButton
+                type="button"
                 icon={Download}
+                label={t('importWizard.downloadTemplate')}
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
                 onClick={() =>
                   downloadImportCsvTemplate({
                     schema: getContactImportSchema(),
@@ -246,19 +249,16 @@ export function ContactSettingsView({
                     exampleRow: CONTACT_IMPORT_EXAMPLE_ROW,
                   })
                 }
-                className="h-9 text-xs px-3"
-              >
-                {t('importWizard.downloadTemplate')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
+              />
+              <RoundIconLabelButton
+                type="button"
                 icon={Upload}
+                label={t('contacts.import')}
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
                 onClick={() => setIsImportWizardOpen(true)}
-                className="h-9 text-xs px-3"
-              >
-                {t('contacts.import')}
-              </Button>
+              />
             </div>
           </DetailSection>
         )}

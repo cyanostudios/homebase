@@ -10,6 +10,7 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { DetailSection } from '@/core/ui/DetailSection';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { LIST_SEARCH_FIELD_PROPS } from '@/core/ui/listSearchFieldProps';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 import { ContactQuickInfoDialog } from '@/plugins/contacts/components/ContactQuickInfoDialog';
@@ -94,6 +95,8 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
         <div className="relative w-full min-w-0 sm:max-w-[220px] sm:shrink-0">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            {...LIST_SEARCH_FIELD_PROPS}
+            name="homebase-assignee-search"
             value={contactSearch}
             onChange={(event) => {
               setContactSearch(event.target.value);

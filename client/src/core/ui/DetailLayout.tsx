@@ -1,15 +1,6 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
 
-import { useIsDesktopLayout } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
-
-import {
-  resolveDetailLayoutGridClass,
-  shouldPortalDetailSidebar,
-  shouldPreferDetailSidebarPortal,
-} from './detailLayoutPortal';
-import { useRightSidebarOptional } from './RightSidebarContext';
 
 /** Shared max width for detail panel forms (main column). */
 export const PANEL_MAX_WIDTH = 'max-w-[920px]';
@@ -40,20 +31,8 @@ export function DetailLayout({
   mainClassName,
   gridClassName,
 }: DetailLayoutProps) {
-  const isDesktopLayout = useIsDesktopLayout();
-  const rightSidebarCtx = useRightSidebarOptional();
-  const portalTarget = rightSidebarCtx?.pluginSlotElement ?? null;
-  // Only portal on desktop when the app right rail is open — phone/pad keep the inline column.
-  const preferPortal = shouldPreferDetailSidebarPortal({
-    isDesktopLayout,
-    isRightSidebarOpen: Boolean(rightSidebarCtx?.isOpen),
-    hasSidebar: Boolean(sidebar),
-  });
-  const usePortal = shouldPortalDetailSidebar(preferPortal, portalTarget);
-
-  const layoutSidebar = preferPortal ? undefined : sidebar;
   const hasLeft = Boolean(leftSidebar);
-  const hasSidebar = Boolean(layoutSidebar);
+  const hasSidebar = Boolean(sidebar);
   const hasRight = Boolean(rightSidebar);
   const defaultGridColsClass = hasLeft
     ? hasSidebar || hasRight
@@ -65,22 +44,12 @@ export function DetailLayout({
         ? 'grid-cols-1 lg:grid-cols-[1fr_320px]'
         : 'grid-cols-1';
 
-  const resolvedGridClass = resolveDetailLayoutGridClass({
-    preferPortal,
-    hasLeft,
-    gridClassName,
-    defaultGridColsClass,
-  });
-
   return (
-    <>
-      <div className={cn('grid items-start gap-4', resolvedGridClass, className)}>
-        {leftSidebar && <aside className="order-1 min-w-0 space-y-4">{leftSidebar}</aside>}
-        <div className={cn('order-2 min-w-0 space-y-4', mainClassName)}>{children}</div>
-        {layoutSidebar && <aside className="order-3 min-w-0 space-y-4">{layoutSidebar}</aside>}
-        {rightSidebar && <aside className="order-4 min-w-0 space-y-4">{rightSidebar}</aside>}
-      </div>
-      {usePortal && portalTarget ? createPortal(sidebar, portalTarget) : null}
-    </>
+    <div className={cn('grid items-start gap-4', gridClassName ?? defaultGridColsClass, className)}>
+      {leftSidebar && <aside className="order-1 min-w-0 space-y-4">{leftSidebar}</aside>}
+      <div className={cn('order-2 min-w-0 space-y-4', mainClassName)}>{children}</div>
+      {sidebar && <aside className="order-3 min-w-0 space-y-4">{sidebar}</aside>}
+      {rightSidebar && <aside className="order-4 min-w-0 space-y-4">{rightSidebar}</aside>}
+    </div>
   );
 }

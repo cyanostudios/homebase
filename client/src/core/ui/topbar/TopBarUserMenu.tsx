@@ -1,7 +1,6 @@
-import { Moon, Sun } from 'lucide-react';
-import React, { useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,39 +9,43 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Switch } from '@/components/ui/switch';
+import { useApp } from '@/core/api/AppContext';
+import { UserAvatarButton } from '@/core/ui/rightSidebar/UserAvatarButton';
 
-import { getUserColor, getUserInitials } from './helpers';
-
+/** Phone/pad account menu. Desktop uses the right-rail user flyout. */
 export const TopBarUserMenu = React.memo(function TopBarUserMenu({
-  user,
-  profileSettings,
   onOpenSettings,
-  theme,
-  toggleTheme,
-  onLogout,
 }: {
-  user: { email?: string; role?: string } | null | undefined;
-  profileSettings: { name?: string; title?: string } | null;
   onOpenSettings: () => void;
-  theme: 'light' | 'dark';
-  toggleTheme: () => void;
-  onLogout: () => void;
 }) {
-  const onThemeRowSelect = useCallback((e: Event) => {
-    e.preventDefault();
-  }, []);
+  const { t } = useTranslation();
+  const { user, logout, getSettings } = useApp();
+  const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const loadProfileSettings = async () => {
+      try {
+        const settings = await getSettings('profile');
+        setProfileSettings({
+          name: settings?.name,
+          title: settings?.title,
+        });
+      } catch (error) {
+        console.error('Failed to load profile settings:', error);
+      }
+    };
+
+    if (user) {
+      void loadProfileSettings();
+    }
+  }, [user, getSettings]);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="User menu" className="rounded-full h-7 w-7">
-          <div
-            className={`${getUserColor(user?.email)} text-white text-xs font-semibold rounded-full w-6 h-6 flex items-center justify-center`}
-          >
-            {getUserInitials(profileSettings?.name, user?.email)}
-          </div>
-        </Button>
+        <UserAvatarButton className="h-7 w-7 min-w-7 text-xs" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56 min-w-[200px]">
         <DropdownMenuLabel>
@@ -52,31 +55,20 @@ export const TopBarUserMenu = React.memo(function TopBarUserMenu({
               {profileSettings.title && (
                 <div className="text-xs text-muted-foreground">{profileSettings.title}</div>
               )}
-              <div className="text-xs text-muted-foreground mt-1">{user?.email}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{user?.email}</div>
             </>
           ) : (
             <>
               <div className="text-sm font-medium">{user?.email || 'User'}</div>
-              <div className="text-xs text-muted-foreground capitalize">{user?.role || 'user'}</div>
+              <div className="text-xs capitalize text-muted-foreground">{user?.role || 'user'}</div>
             </>
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onOpenSettings}>Settings</DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={onThemeRowSelect}
-          className="flex items-center justify-between cursor-default"
-        >
-          <div className="flex items-center gap-2">
-            <Sun className="h-4 w-4 text-muted-foreground" />
-            <span>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</span>
-            <Moon className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onOpenSettings}>{t('nav.settings')}</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onLogout} className="text-destructive">
-          Log out
+        <DropdownMenuItem onClick={logout} className="text-destructive">
+          {t('rightSidebar.logOut', { defaultValue: 'Log out' })}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   PluginSettingsPageShell,
@@ -112,17 +113,16 @@ export function SlotsSettingsView({
                   }
                 }}
               />
-              <Button
+              <RoundIconLabelButton
                 type="button"
-                variant="secondary"
-                size="sm"
                 icon={Plus}
+                label="Add"
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
                 onClick={addTag}
                 disabled={!newTag.trim()}
-                className="h-9 text-xs px-3"
-              >
-                Add
-              </Button>
+              />
             </div>
             {tags.length === 0 ? (
               <p className="text-sm text-muted-foreground">No categories yet.</p>

@@ -1,10 +1,9 @@
 import { Menu } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/core/api/AppContext';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
-import { useTheme } from '@/hooks/useTheme';
 
 import type { NavPage } from '@/core/navigation/navTypes';
 import { TopBarBreadcrumbs } from './topbar/TopBarBreadcrumbs';
@@ -28,32 +27,10 @@ function TopBarInner({
   onDetailPanelClose,
   detailPanelPluginName,
 }: TopBarProps) {
-  const { user, logout, getSettings, organizationName, organizationLogoUrl } = useApp();
-  const { theme, toggleTheme } = useTheme();
-  const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(
-    null,
-  );
+  const { organizationName, organizationLogoUrl } = useApp();
 
   const brandName = organizationName.trim() || 'Homebase';
   const brandInitial = (brandName.charAt(0) || 'H').toUpperCase();
-
-  useEffect(() => {
-    const loadProfileSettings = async () => {
-      try {
-        const settings = await getSettings('profile');
-        setProfileSettings({
-          name: settings?.name,
-          title: settings?.title,
-        });
-      } catch (error) {
-        console.error('Failed to load profile settings:', error);
-      }
-    };
-
-    if (user) {
-      void loadProfileSettings();
-    }
-  }, [user, getSettings]);
 
   const pageLabel = useMemo(() => {
     if (currentPage === 'dashboard') {
@@ -150,15 +127,9 @@ function TopBarInner({
             />
           </div>
 
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            <TopBarUserMenu
-              user={user}
-              profileSettings={profileSettings}
-              onOpenSettings={handleOpenSettings}
-              theme={theme}
-              toggleTheme={toggleTheme}
-              onLogout={logout}
-            />
+          {/* User menu: phone/pad only — desktop uses AppRightSidebar */}
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2 lg:hidden">
+            <TopBarUserMenu onOpenSettings={handleOpenSettings} />
           </div>
         </div>
       </header>

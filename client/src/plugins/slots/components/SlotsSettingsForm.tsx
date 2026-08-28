@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -87,17 +88,16 @@ export const SlotsSettingsForm = React.forwardRef<PanelFormHandle, SlotsSettings
                   }
                 }}
               />
-              <Button
+              <RoundIconLabelButton
                 type="button"
+                icon={Plus}
+                label="Add"
                 variant="secondary"
-                size="sm"
+                size="xs"
+                alwaysExpanded
                 onClick={addTag}
                 disabled={!newTag.trim()}
-                icon={Plus}
-                className="h-9 text-xs px-3"
-              >
-                Add
-              </Button>
+              />
             </div>
 
             {tags.length === 0 ? (

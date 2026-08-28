@@ -1,73 +1,27 @@
-// Core Settings: Contacts-style page shell — header, category cards, detail content card.
+// Core Settings: PluginSettingsPageShell (same chrome as plugin settings pages).
 
-import { Building2, Check, Globe, History, Users, X } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import { Building2, Globe, History, Users } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
-import { Card } from '@/components/ui/card';
 import { navPageToPath } from '@/core/routing/routeMap';
+import {
+  clearSettingsReturnPath,
+  isSafeSettingsReturnPath,
+  readSettingsReturnPath,
+  rememberSettingsReturnPath,
+} from '@/core/routing/settingsReturnTo';
 import type { SettingsCategory as SettingsCategoryType } from '@/core/settings/types';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { useMobileBarOverride } from '@/core/ui/MobileActionsContext';
-import { SettingsCategoryCard } from '@/core/ui/SettingsCategoryCard';
+import {
+  PluginSettingsPageShell,
+  SettingsHeaderSaveButton,
+  type PluginSettingsCategory,
+} from '@/core/ui/PluginSettingsPageShell';
 
 import { useSettingsContext } from '../context/SettingsContext';
 
 import { SettingsForm } from './SettingsForm';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
-
-const SETTINGS_RETURN_TO_KEY = 'homebase:settings-return-to';
-
-interface SettingsCategory {
-  id: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  category: SettingsCategoryType;
-  description: string;
-}
-
-const settingsCategories: SettingsCategory[] = [
-  {
-    id: 'preferences',
-    label: 'Preferences',
-    icon: Globe,
-    category: 'preferences',
-    description: 'Theme, language, and timezone',
-  },
-  {
-    id: 'profile',
-    label: 'Account profile',
-    icon: Building2,
-    category: 'profile',
-    description: 'Shared account identity and billing',
-  },
-  {
-    id: 'team',
-    label: 'Team',
-    icon: Users,
-    category: 'team',
-    description: 'Your profile, members, and roles',
-  },
-  {
-    id: 'activity-log',
-    label: 'Activity Log',
-    icon: History,
-    category: 'activity-log',
-    description: 'Account activity history',
-  },
-];
-
-function isSafeReturnPath(path: string | null | undefined): path is string {
-  return Boolean(
-    path &&
-      path.startsWith('/') &&
-      !path.startsWith('//') &&
-      path !== navPageToPath.settings &&
-      !path.startsWith(`${navPageToPath.settings}?`),
-  );
-}
 
 export function SettingsList() {
   const { t } = useTranslation();
@@ -76,7 +30,45 @@ export function SettingsList() {
   const { submitSave, isSaving, hasChanges } = useSettingsContext();
   const returnToRef = useRef<string | null>(null);
 
-  const [selectedCategory, setSelectedCategory] = useState<string>(settingsCategories[0].id);
+  const categories: PluginSettingsCategory[] = useMemo(
+    () => [
+      {
+        id: 'preferences',
+        label: t('preferences.title', { defaultValue: 'Preferences' }),
+        description: t('preferences.description', {
+          defaultValue: 'Theme, language, and timezone',
+        }),
+        icon: Globe,
+      },
+      {
+        id: 'profile',
+        label: t('profile.title', { defaultValue: 'Account profile' }),
+        description: t('profile.description', {
+          defaultValue: 'Shared account identity and billing',
+        }),
+        icon: Building2,
+      },
+      {
+        id: 'team',
+        label: t('team.title', { defaultValue: 'Team' }),
+        description: t('team.description', {
+          defaultValue: 'Your profile, members, and roles',
+        }),
+        icon: Users,
+      },
+      {
+        id: 'activity-log',
+        label: t('activityLog.title', { defaultValue: 'Activity Log' }),
+        description: t('activityLog.description', {
+          defaultValue: 'Account activity history',
+        }),
+        icon: History,
+      },
+    ],
+    [t],
+  );
+
+  const [selectedCategory, setSelectedCategory] = useState<string>('preferences');
 
   const isReadOnlyCategory = selectedCategory === 'activity-log';
   const usesOwnCards = selectedCategory === 'profile' || selectedCategory === 'team';
@@ -84,102 +76,49 @@ export function SettingsList() {
 
   useEffect(() => {
     const fromState = (location.state as { from?: string } | null)?.from;
-    if (isSafeReturnPath(fromState)) {
+    if (isSafeSettingsReturnPath(fromState)) {
       returnToRef.current = fromState;
-      try {
-        sessionStorage.setItem(SETTINGS_RETURN_TO_KEY, fromState);
-      } catch {
-        // ignore quota / private mode
-      }
+      rememberSettingsReturnPath(fromState);
       return;
     }
     if (returnToRef.current) {
       return;
     }
-    try {
-      const stored = sessionStorage.getItem(SETTINGS_RETURN_TO_KEY);
-      if (isSafeReturnPath(stored)) {
-        returnToRef.current = stored;
-      }
-    } catch {
-      // ignore
-    }
+    returnToRef.current = readSettingsReturnPath();
   }, [location.state]);
 
   const handleClose = () => {
-    const target = returnToRef.current;
-    try {
-      sessionStorage.removeItem(SETTINGS_RETURN_TO_KEY);
-    } catch {
-      // ignore
-    }
-    if (isSafeReturnPath(target)) {
+    const target = returnToRef.current ?? readSettingsReturnPath();
+    clearSettingsReturnPath();
+    if (isSafeSettingsReturnPath(target)) {
       navigate(target);
       return;
     }
     navigate(navPageToPath.dashboard);
   };
 
-  useMobileBarOverride({
-    onClose: handleClose,
-    onSave: showSave ? () => void submitSave() : undefined,
-    isSaving,
-  });
-
   return (
     <div className="min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
-          <div className="hidden min-w-0 md:block">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.settings')}</h2>
-          </div>
-          <div className="hidden w-full flex-shrink-0 items-center justify-end gap-2 md:flex md:w-auto md:gap-1">
-            <RoundIconLabelButton
-              type="button"
-              icon={X}
-              label={t('common.close')}
-              variant="secondary"
-              alwaysExpanded
-              onClick={handleClose}
-            />
-            {showSave ? (
-              <RoundIconLabelButton
-                type="button"
-                onClick={() => submitSave()}
-                icon={Check}
-                label={isSaving ? t('common.saving') : t('common.save')}
-                variant="success"
-                alwaysExpanded
-                disabled={isSaving}
-              />
-            ) : null}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          {settingsCategories.map((category) => (
-            <SettingsCategoryCard
-              key={category.id}
-              id={category.id}
-              label={category.label}
-              description={category.description}
-              icon={category.icon}
-              active={selectedCategory === category.id}
-              onSelect={() => setSelectedCategory(category.id)}
-            />
-          ))}
-        </div>
-
-        {usesOwnCards ? (
-          <SettingsForm currentItem={{ category: selectedCategory }} onCancel={() => {}} />
-        ) : (
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <div className="p-4">
-              <SettingsForm currentItem={{ category: selectedCategory }} onCancel={() => {}} />
-            </div>
-          </Card>
-        )}
-      </div>
+      <PluginSettingsPageShell
+        title={t('nav.settings')}
+        categories={categories}
+        activeCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
+        onClose={handleClose}
+        onSave={showSave ? () => void submitSave() : undefined}
+        isSaving={isSaving}
+        saveAction={
+          showSave ? (
+            <SettingsHeaderSaveButton onClick={() => void submitSave()} isSaving={isSaving} />
+          ) : null
+        }
+        wrapContentInCard={!usesOwnCards}
+      >
+        <SettingsForm
+          currentItem={{ category: selectedCategory as SettingsCategoryType }}
+          onCancel={() => {}}
+        />
+      </PluginSettingsPageShell>
     </div>
   );
 }

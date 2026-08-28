@@ -27,8 +27,8 @@ import {
   DETAIL_INFO_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
-  LIST_FILTER_CHIP_LG_ACTIVE_CLASS,
-  LIST_FILTER_CHIP_LG_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -668,12 +668,12 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                   key={tab.id}
                   type="button"
                   variant="ghost"
+                  size="sm"
+                  aria-pressed={isActive}
                   onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    isActive ? LIST_FILTER_CHIP_LG_ACTIVE_CLASS : LIST_FILTER_CHIP_LG_CLASS,
-                  )}
+                  className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
                 >
-                  <TabIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <TabIcon className="h-3.5 w-3.5" />
                   <span>
                     {tab.label}
                     {tab.count != null ? (

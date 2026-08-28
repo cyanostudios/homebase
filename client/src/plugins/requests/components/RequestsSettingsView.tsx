@@ -2,7 +2,7 @@ import { Check, ChevronDown, Grip, Link2, Plus, Settings2, Trash2, X } from 'luc
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
@@ -400,22 +400,19 @@ export function RequestsSettingsView({ onClose }: RequestsSettingsViewProps = {}
 
                     <div className="flex items-center gap-1">
                       {garmentsEnabled ? (
-                        <Button
+                        <RoundIconLabelButton
                           type="button"
-                          variant="ghost"
-                          size="sm"
                           icon={ChevronDown}
-                          className={cn(
-                            'h-7 px-2 text-xs text-muted-foreground',
-                            isExpanded && 'bg-muted/60',
-                          )}
+                          label={t('requests.settings.linkSection')}
+                          variant="secondary"
+                          size="xs"
+                          alwaysExpanded
+                          className={cn(isExpanded && 'bg-primary/20')}
                           aria-expanded={isExpanded}
                           onClick={() =>
                             setExpandedLinkKey((prev) => (prev === type.key ? null : type.key))
                           }
-                        >
-                          {t('requests.settings.linkSection')}
-                        </Button>
+                        />
                       ) : null}
 
                       {isConfirming ? (
@@ -423,37 +420,35 @@ export function RequestsSettingsView({ onClose }: RequestsSettingsViewProps = {}
                           <span className="mr-1 text-xs text-muted-foreground">
                             {t('requests.settings.confirmRemove')}
                           </span>
-                          <Button
+                          <RoundIconLabelButton
                             type="button"
-                            variant="destructive"
-                            size="sm"
                             icon={Check}
-                            className="h-7 px-2 text-xs"
+                            label={t('common.yes')}
+                            variant="danger"
+                            size="xs"
+                            alwaysExpanded
                             disabled={isSaving}
                             onClick={() => void handleRemove(type.key)}
-                          >
-                            {t('common.yes')}
-                          </Button>
-                          <Button
+                          />
+                          <RoundIconLabelButton
                             type="button"
-                            variant="ghost"
-                            size="sm"
                             icon={X}
-                            className="h-7 px-2 text-xs"
+                            label={t('common.cancel')}
+                            variant="secondary"
+                            size="xs"
+                            alwaysExpanded
                             onClick={() => setConfirmDeleteKey(null)}
-                          >
-                            {t('common.cancel')}
-                          </Button>
+                          />
                         </div>
                       ) : (
-                        <Button
+                        <RoundIconLabelButton
                           type="button"
-                          variant="ghost"
-                          size="sm"
                           icon={Trash2}
-                          className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                          label={t('common.remove')}
+                          variant="dangerSoft"
+                          size="xs"
+                          expandOnHover={false}
                           onClick={() => setConfirmDeleteKey(type.key)}
-                          title={t('common.remove')}
                         />
                       )}
                     </div>
@@ -498,25 +493,25 @@ export function RequestsSettingsView({ onClose }: RequestsSettingsViewProps = {}
                       {isUnlinkConfirming ? (
                         <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
                           <span>{t('requests.settings.unlinkConfirm')}</span>
-                          <Button
+                          <RoundIconLabelButton
                             type="button"
+                            icon={Check}
+                            label={t('common.yes')}
                             variant="secondary"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
+                            size="xs"
+                            alwaysExpanded
                             disabled={isSaving}
                             onClick={() => void unlinkPlugin(type.key)}
-                          >
-                            {t('common.yes')}
-                          </Button>
-                          <Button
+                          />
+                          <RoundIconLabelButton
                             type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
+                            icon={X}
+                            label={t('common.cancel')}
+                            variant="secondary"
+                            size="xs"
+                            alwaysExpanded
                             onClick={() => setConfirmUnlinkKey(null)}
-                          >
-                            {t('common.cancel')}
-                          </Button>
+                          />
                         </div>
                       ) : null}
 
@@ -557,17 +552,16 @@ export function RequestsSettingsView({ onClose }: RequestsSettingsViewProps = {}
               placeholder={t('requests.settings.addTypePlaceholder')}
               className="h-8 max-w-xs text-xs"
             />
-            <Button
+            <RoundIconLabelButton
               type="button"
-              variant="secondary"
-              size="sm"
               icon={Plus}
-              className="h-8 px-2.5 text-xs"
+              label={t('requests.settings.addType')}
+              variant="secondary"
+              size="xs"
+              alwaysExpanded
               disabled={!newTypeLabel.trim() || isSaving}
               onClick={() => void handleAdd()}
-            >
-              {t('requests.settings.addType')}
-            </Button>
+            />
           </div>
         </div>
       </DetailSection>

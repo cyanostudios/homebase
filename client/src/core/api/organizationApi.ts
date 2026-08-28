@@ -164,7 +164,7 @@ function formatWebsiteLabel(raw: string): string {
   return raw.replace(/^https?:\/\//i, '').replace(/\/$/, '');
 }
 
-/** Pure mapping used by sidebar footer (and covered by unit tests). */
+/** Pure mapping for account org contact lines (user prefs panel; covered by unit tests). */
 export function getSidebarOrganizationLines(
   profile: OrganizationProfile | unknown,
 ): SidebarOrganizationLines {

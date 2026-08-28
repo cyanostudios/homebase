@@ -27,6 +27,7 @@ import { isClubdeskSubRoute } from '@/core/routing/clubdeskRoutes';
 import { isGarmentsNavPage, isGarmentsSubRoute } from '@/core/routing/garmentsRoutes';
 import { isInvoicesSubRoute } from '@/core/routing/invoicesRoutes';
 import { navPageToPath, pathToNavPage } from '@/core/routing/routeMap';
+import { navigateToSettings, rememberSettingsReturnPath } from '@/core/routing/settingsReturnTo';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Dashboard } from '@/core/ui/Dashboard';
@@ -260,16 +261,18 @@ export function AppContent() {
 
   const validationErrors = currentPluginContext?.validationErrors || [];
 
+  // Keep last non-settings route so Close can return even if an entry point forgets `state.from`.
+  useEffect(() => {
+    rememberSettingsReturnPath(`${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
+
   // Protected page change – navigates to the URL for the given page
   const handlePageChange = useCallback(
     (page: NavPage) => {
       const path = navPageToPath[page];
       const go = () => {
         if (page === 'settings') {
-          const from = `${location.pathname}${location.search}`;
-          navigate(path, {
-            state: from !== path ? { from } : undefined,
-          });
+          navigateToSettings(navigate, `${location.pathname}${location.search}`);
           return;
         }
         navigate(path);

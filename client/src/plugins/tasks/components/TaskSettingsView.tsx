@@ -4,7 +4,7 @@ import { Download, Upload } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
 import {
@@ -82,10 +82,13 @@ export function TaskSettingsView({
           <DetailSection title={t('common.import')} className="pt-0">
             <p className="mb-4 text-sm text-muted-foreground">{t('tasks.importDescription')}</p>
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
+              <RoundIconLabelButton
+                type="button"
                 icon={Download}
+                label={t('importWizard.downloadTemplate')}
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
                 onClick={() =>
                   downloadImportCsvTemplate({
                     schema: getTaskImportSchema(),
@@ -93,19 +96,16 @@ export function TaskSettingsView({
                     exampleRow: TASK_IMPORT_EXAMPLE_ROW,
                   })
                 }
-                className="h-9 text-xs px-3"
-              >
-                {t('importWizard.downloadTemplate')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
+              />
+              <RoundIconLabelButton
+                type="button"
                 icon={Upload}
+                label={t('common.import')}
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
                 onClick={() => setIsImportWizardOpen(true)}
-                className="h-9 text-xs px-3"
-              >
-                {t('common.import')}
-              </Button>
+              />
             </div>
           </DetailSection>
         )}

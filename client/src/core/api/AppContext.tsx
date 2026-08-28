@@ -154,7 +154,7 @@ interface AppContextType {
   /** Shared account (tenant) display name from Settings → Account profile. */
   organizationName: string;
   organizationLogoUrl: string;
-  /** Full shared account organization profile (sidebar footer, settings, etc.). */
+  /** Full shared account organization profile (user prefs panel, settings, etc.). */
   organizationProfile: OrganizationProfile;
   refreshOrganization: () => Promise<void>;
 

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailCard } from '@/core/ui/DetailCard';
@@ -121,17 +122,16 @@ export const ContactSettingsForm = React.forwardRef<PanelFormHandle, ContactSett
                   }
                 }}
               />
-              <Button
+              <RoundIconLabelButton
                 type="button"
-                variant="secondary"
-                size="sm"
                 icon={Plus}
+                label="Add"
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
                 onClick={addTag}
                 disabled={!newTag.trim()}
-                className="h-9 text-xs px-3"
-              >
-                Add
-              </Button>
+              />
             </div>
 
             {tags.length === 0 ? (
@@ -160,17 +160,16 @@ export const ContactSettingsForm = React.forwardRef<PanelFormHandle, ContactSett
 
         {isDirty && (
           <div className="flex justify-end pt-2">
-            <Button
+            <RoundIconLabelButton
               type="button"
-              onClick={handleSave}
-              variant="primary"
-              size="sm"
               icon={Check}
+              label={isSaving ? t('common.saving') : t('common.save')}
+              variant="success"
+              size="xs"
+              alwaysExpanded
+              onClick={handleSave}
               disabled={isSaving}
-              className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-            >
-              {isSaving ? t('common.saving') : t('common.save')}
-            </Button>
+            />
           </div>
         )}
       </div>

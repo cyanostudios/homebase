@@ -3,7 +3,7 @@ import { Check, Cloud, ExternalLink, Key, X } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -174,27 +174,27 @@ export const CloudStorageSettings: React.FC = () => {
 
         {isConnected ? (
           <div className="flex flex-wrap gap-2">
-            <Button
+            <RoundIconLabelButton
               type="button"
+              icon={ExternalLink}
+              label={
+                openingService === selectedService ? t('files.cloudOpening') : t('files.cloudOpen')
+              }
               variant="secondary"
-              size="sm"
-              className="h-9 text-xs"
+              size="xs"
+              alwaysExpanded
               onClick={() => void handleOpenFileManager(selectedService)}
               disabled={openingService === selectedService}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              {openingService === selectedService ? t('files.cloudOpening') : t('files.cloudOpen')}
-            </Button>
-            <Button
+            />
+            <RoundIconLabelButton
               type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+              icon={X}
+              label={t('files.cloudDisconnect')}
+              variant="dangerSoft"
+              size="xs"
+              expandOnHover={false}
               onClick={() => void handleDisconnect(selectedService)}
-              title={t('files.cloudDisconnect')}
-            >
-              <X className="h-3.5 w-3.5" />
-            </Button>
+            />
           </div>
         ) : (
           <>
@@ -244,27 +244,29 @@ export const CloudStorageSettings: React.FC = () => {
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button
+              <RoundIconLabelButton
                 type="button"
-                size="sm"
-                className="h-9 text-xs"
+                icon={Cloud}
+                label={t('files.cloudConnect')}
+                variant="primary"
+                size="xs"
+                alwaysExpanded
                 onClick={() => void handleConnect(selectedService)}
-              >
-                <Cloud className="h-3.5 w-3.5" />
-                {t('files.cloudConnect')}
-              </Button>
-              <Button
+              />
+              <RoundIconLabelButton
                 type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 text-xs"
+                icon={Key}
+                label={
+                  savingCredentials
+                    ? t('files.cloudSavingCredentials')
+                    : t('files.cloudSaveCredentials')
+                }
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
                 onClick={() => void handleSaveCredentials(selectedService)}
                 disabled={savingCredentials}
-              >
-                {savingCredentials
-                  ? t('files.cloudSavingCredentials')
-                  : t('files.cloudSaveCredentials')}
-              </Button>
+              />
             </div>
           </>
         )}

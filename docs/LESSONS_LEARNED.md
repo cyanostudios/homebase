@@ -349,7 +349,7 @@ I JavaScript/React gäller "Temporal Dead Zone" (TDZ): en variabel får inte anv
 Aggresiv `manualChunks` som lade leaf-UI i `vendor-shared` samtidigt som samma chunk (via Sidebar/navigation eller delad `react-day-picker`) importerade `app-shell` / `plugin-*`, och tvärtom. Konsolen: `Cannot access 'X' before initialization` i `vendor-shared` — blank page efter deploy.
 
 ✅ **What we do instead (that works):**
-Håll chunk-DAG acyklisk (`vendor-shared` → `app-context` → `app-shell` → plugins). Tvinga aldrig hela `/plugins/<name>/` in i en chunk. Kör `npm run check:chunk-cycles` efter UI-build. Se `docs/ai/adr/VITE_CHUNK_DAG_TDZ.md`.
+Håll chunk-DAG acyklisk (`vendor-shared` → `app-context` → `app-shell` → plugins). Tvinga aldrig hela `/plugins/<name>/` in i en chunk. Kör `npm run build:ui` (inkluderar `check:chunk-cycles`; även pre-push). Se `docs/ai/adr/VITE_CHUNK_DAG_TDZ.md`.
 
 ---
 

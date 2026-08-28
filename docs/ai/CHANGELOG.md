@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## App right rail + settings return-to — docs sync (2026-08-28)
+
+Docs efter **QA Approved** + **Security Approved** för fixed right rail (flyouts, ingen expand/portal), settings `RoundIconLabelButton`-actions, Core Settings Close return-to (`settingsReturnTo.ts`), Teams compact tab chips. Operator: `UI_AND_UX_STANDARDS_V3.md` §0 / §3 / §3.2; `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` (rail limits). Stale “preferring portal” / `openSettingsPanel`-formuleringar rättade. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-08-28 – App right rail rebuild.
+
+---
+
 ## UI v3.7 round buttons — docs sync (2026-08-27)
 
 Docs efter **QA Approved** + **Security Approved** för UI v3.7: round pill buttons (`RoundIconLabelButton`, `DialogRoundButtons`, `QuickContextHeaderActions`, `BulkActionRoundBar`), dialog chrome tokens (`dialogStyles.ts`, `DialogHeading`), Contacts table select mode (header Select/Clear + bulk bar; quick context stays open), Mulish typography, round checkboxes (`.hb-checkbox`), `ItemNavigation` gray pills. Operator: `UI_AND_UX_STANDARDS_V3.md` §4.0–4.0.1, §0.1 List toolbar (Contacts exception), `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` quick context + §5.6 dialog chrome. **Local-first; ej prod-release.**

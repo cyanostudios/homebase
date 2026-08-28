@@ -2,7 +2,7 @@ import { Download, RefreshCw } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -320,17 +320,16 @@ export function CupsSettingsView({
                   <p className="text-sm text-muted-foreground">
                     {allowedIngestSourceIds.length} ingest source(s) selected.
                   </p>
-                  <Button
+                  <RoundIconLabelButton
                     type="button"
-                    variant="primary"
-                    size="sm"
                     icon={Download}
-                    className="h-9 px-3 text-xs"
+                    label={isImporting ? 'Importing...' : 'Import selected'}
+                    variant="primary"
+                    size="xs"
+                    alwaysExpanded
                     onClick={handleImportSelected}
                     disabled={isImporting}
-                  >
-                    {isImporting ? 'Importing...' : 'Import selected'}
-                  </Button>
+                  />
                 </div>
               )}
               <label className="text-sm font-medium">Default ingest source id</label>

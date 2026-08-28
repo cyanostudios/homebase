@@ -2,7 +2,7 @@ import { Check, MapPin, Pencil, Plus, Trash2, X } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 
@@ -127,23 +127,23 @@ export function TeamsVenuesSettingsSection() {
                         placeholder={t('matches.mapLinkPlaceholder')}
                       />
                       <div className="flex items-center gap-1">
-                        <Button
+                        <RoundIconLabelButton
                           type="button"
-                          variant="ghost"
-                          size="sm"
                           icon={Check}
-                          className="h-7 px-2"
+                          label={t('common.save')}
+                          variant="success"
+                          size="xs"
+                          expandOnHover={false}
                           disabled={isSaving || !editName.trim()}
-                          aria-label={t('common.save')}
                           onClick={() => void handleSaveEdit()}
                         />
-                        <Button
+                        <RoundIconLabelButton
                           type="button"
-                          variant="ghost"
-                          size="sm"
                           icon={X}
-                          className="h-7 px-2"
-                          aria-label={t('common.cancel')}
+                          label={t('common.cancel')}
+                          variant="secondary"
+                          size="xs"
+                          expandOnHover={false}
                           onClick={() => setEditingId(null)}
                         />
                       </div>
@@ -162,24 +162,24 @@ export function TeamsVenuesSettingsSection() {
                       ) : null}
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button
+                      <RoundIconLabelButton
                         type="button"
-                        variant="ghost"
-                        size="sm"
                         icon={Pencil}
-                        className="h-7 px-2"
+                        label={t('common.edit')}
+                        variant="secondary"
+                        size="xs"
+                        expandOnHover={false}
                         disabled={isSaving}
-                        aria-label={t('common.edit')}
                         onClick={() => startEdit(venue.id)}
                       />
-                      <Button
+                      <RoundIconLabelButton
                         type="button"
-                        variant="ghost"
-                        size="sm"
                         icon={Trash2}
-                        className="h-7 px-2 text-destructive hover:text-destructive"
+                        label={t('common.delete')}
+                        variant="dangerSoft"
+                        size="xs"
+                        expandOnHover={false}
                         disabled={isSaving}
-                        aria-label={t('common.delete')}
                         onClick={() => setDeleteId(venue.id)}
                       />
                     </div>
@@ -223,16 +223,16 @@ export function TeamsVenuesSettingsSection() {
               }
             }}
           />
-          <Button
+          <RoundIconLabelButton
             type="button"
-            variant="outline"
-            size="sm"
             icon={Plus}
+            label={t('teams.settings.venuesAdd')}
+            variant="secondary"
+            size="xs"
+            alwaysExpanded
             disabled={atCap || isSaving || !newName.trim()}
             onClick={() => void handleAdd()}
-          >
-            {t('teams.settings.venuesAdd')}
-          </Button>
+          />
         </div>
         {addError ? <p className="text-xs text-destructive">{addError}</p> : null}
         {atCap ? (

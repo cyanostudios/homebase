@@ -3,7 +3,8 @@
  * Fails if client/dist has mutual static import cycles involving vendor-shared
  * with app-shell, app-context, or any plugin-* chunk (ES-module TDZ / white screen).
  *
- * Usage: npm run build:ui && node scripts/check-chunk-cycles.mjs
+ * Usage: npm run build:ui   (preferred — vite build then this check)
+ *         npm run check:chunk-cycles   (requires existing client/dist)
  */
 import fs from 'fs';
 import path from 'path';

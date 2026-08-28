@@ -1,9 +1,9 @@
 // Team settings: personal member profile + list/add/update/remove members (admin only for roster).
 
-import { Trash2 } from 'lucide-react';
+import { Trash2, UserPlus } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -366,9 +366,15 @@ export function TeamSettingsForm({ onCancel }: TeamSettingsFormProps) {
                     </NativeSelect>
                   </div>
                   <div className="flex items-end">
-                    <Button type="submit" disabled={isAdding}>
-                      {isAdding ? 'Adding...' : 'Add member'}
-                    </Button>
+                    <RoundIconLabelButton
+                      type="submit"
+                      icon={UserPlus}
+                      label={isAdding ? 'Adding...' : 'Add member'}
+                      variant="primary"
+                      size="xs"
+                      alwaysExpanded
+                      disabled={isAdding}
+                    />
                   </div>
                 </form>
               </div>
@@ -421,16 +427,15 @@ export function TeamSettingsForm({ onCancel }: TeamSettingsFormProps) {
                         <TableCell>{member.status}</TableCell>
                         {isAdmin && (
                           <TableCell>
-                            <Button
+                            <RoundIconLabelButton
                               type="button"
-                              variant="ghost"
-                              size="sm"
                               icon={Trash2}
-                              className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400"
+                              label="Remove"
+                              variant="dangerSoft"
+                              size="xs"
+                              alwaysExpanded
                               onClick={() => openRemoveConfirm(member)}
-                            >
-                              Remove
-                            </Button>
+                            />
                           </TableCell>
                         )}
                       </TableRow>

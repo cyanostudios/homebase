@@ -169,7 +169,8 @@ export default defineConfig({
               id.includes('/core/ui/Sidebar.') ||
               id.includes('/core/ui/sidebar/') ||
               id.includes('/core/ui/LoginComponent.') ||
-              id.includes('/core/ui/ResetPasswordPage.')
+              id.includes('/core/ui/ResetPasswordPage.') ||
+              id.includes('/core/ui/rightSidebar/')
             ) {
               return 'app-shell';
             }
@@ -177,7 +178,8 @@ export default defineConfig({
             if (id.includes('/core/ui/SettingsForms/')) return 'settings-forms';
             return 'vendor-shared';
           }
-          // Time-tracking widget UI needs AppContext (shell). Registry stays leaf in vendor-shared.
+          // Widget registration + TimeTrackingWidget need AppContext / shell chrome.
+          // TimeTrackingActivityContext stays under core/widgets/ → vendor-shared (leaf).
           if (
             id.includes('/core/widgets/time-tracking/TimeTrackingWidget') ||
             id.includes('/core/widgets/time-tracking/index') ||

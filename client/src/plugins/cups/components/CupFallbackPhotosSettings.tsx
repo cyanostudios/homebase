@@ -2,7 +2,7 @@ import { ImagePlus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { filesApi } from '@/plugins/files/api/filesApi';
@@ -181,16 +181,16 @@ export function CupFallbackPhotosSettings({
               className="relative rounded-lg border border-border overflow-hidden bg-muted/30"
             >
               <img src={url} alt="" className="h-28 w-full object-cover" loading="lazy" />
-              <Button
+              <RoundIconLabelButton
                 type="button"
+                icon={Trash2}
+                label={t('cups.fallbackPhotos.remove')}
                 variant="secondary"
-                size="sm"
-                className="absolute top-1.5 right-1.5 h-8 px-2"
+                size="xs"
+                expandOnHover={false}
+                className="absolute top-1.5 right-1.5"
                 onClick={() => handleRemove(index)}
-                aria-label={t('cups.fallbackPhotos.remove')}
-              >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden />
-              </Button>
+              />
             </li>
           ))}
         </ul>

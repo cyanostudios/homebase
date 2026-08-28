@@ -10,7 +10,6 @@ import {
   SidebarNavContent,
   type SidebarNavContentProps,
 } from '@/core/ui/sidebar/SidebarNavContent';
-import { SidebarAccountFooter } from '@/core/ui/sidebar/SidebarAccountFooter';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useIsDesktopLayout } from '@/hooks/useMediaQuery';
 import { toggleSetItem } from '@/lib/setUtils';
@@ -121,7 +120,6 @@ export function Sidebar({
       <aside className="fixed left-0 top-0 z-10 hidden h-screen w-[252px] flex-shrink-0 bg-workspace lg:flex">
         <div className="flex h-full flex-col pt-14">
           <SidebarNavContent {...navContentProps} />
-          <SidebarAccountFooter />
         </div>
       </aside>
 
@@ -132,7 +130,6 @@ export function Sidebar({
           </SheetHeader>
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-0 pt-2">
             <SidebarNavContent {...navContentProps} />
-            <SidebarAccountFooter />
           </div>
         </SheetContent>
       </Sheet>

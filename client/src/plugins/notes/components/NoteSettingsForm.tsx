@@ -2,7 +2,7 @@ import { Download, Upload } from 'lucide-react';
 import React, { useImperativeHandle, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
@@ -44,10 +44,13 @@ export const NoteSettingsForm = React.forwardRef<PanelFormHandle, NoteSettingsFo
           <DetailSection title={t('common.import')} className="pt-0">
             <p className="mb-4 text-sm text-muted-foreground">{t('notes.importDescription')}</p>
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
+              <RoundIconLabelButton
+                type="button"
                 icon={Download}
+                label={t('importWizard.downloadTemplate')}
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
                 onClick={() =>
                   downloadImportCsvTemplate({
                     schema: getNoteImportSchema(t),
@@ -58,19 +61,16 @@ export const NoteSettingsForm = React.forwardRef<PanelFormHandle, NoteSettingsFo
                     },
                   })
                 }
-                className="h-9 text-xs px-3"
-              >
-                {t('importWizard.downloadTemplate')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
+              />
+              <RoundIconLabelButton
+                type="button"
                 icon={Upload}
+                label={t('notes.importTitle') || t('common.import')}
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
                 onClick={() => setIsImportWizardOpen(true)}
-                className="h-9 text-xs px-3"
-              >
-                {t('notes.importTitle') || t('common.import')}
-              </Button>
+              />
             </div>
           </DetailSection>
         </div>

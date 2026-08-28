@@ -1,12 +1,12 @@
 // client/src/core/ui/SettingsForms/ActivityLogForm.tsx
 // Activity log form component
 
-import { ChevronDown, FilterX, Trash2 } from 'lucide-react';
+import { ChevronDown, FilterX, MoreHorizontal, RotateCcw, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { NativeSelect } from '@/components/ui/select';
 import {
   Table,
@@ -210,25 +210,25 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
             <option value="settings">Settings</option>
           </NativeSelect>
         </div>
-        <div className="flex items-end gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
+        <div className="flex flex-wrap items-end gap-2">
+          <RoundIconLabelButton
+            type="button"
             icon={FilterX}
+            label="Clear Filters"
+            variant="secondary"
+            size="xs"
+            alwaysExpanded
             onClick={() => setFilters({ limit: 50, offset: 0 })}
-            className="h-9 text-xs px-3"
-          >
-            Clear Filters
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+          />
+          <RoundIconLabelButton
+            type="button"
             icon={Trash2}
+            label="Delete Logs"
+            variant="dangerSoft"
+            size="xs"
+            alwaysExpanded
             onClick={() => setDeleteConfirmOpen(true)}
-            className="h-9 text-xs px-3 text-red-600 dark:text-red-400"
-          >
-            Delete Logs
-          </Button>
+          />
         </div>
       </div>
 
@@ -296,16 +296,16 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
+                          <RoundIconLabelButton
+                            type="button"
+                            icon={ChevronDown}
+                            label={isExpanded ? 'Collapse' : 'Expand'}
+                            variant="secondary"
+                            size="xs"
+                            expandOnHover={false}
+                            className={isExpanded ? '[&_svg]:rotate-180' : undefined}
                             onClick={() => toggleRowExpansion(log.id)}
-                          >
-                            <ChevronDown
-                              className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                            />
-                          </Button>
+                          />
                         </TableCell>
                       </TableRow>
                       {isExpanded && (
@@ -355,14 +355,15 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
                               {(log.metadata.backup || log.metadata.backups) &&
                                 log.action === 'delete' && (
                                   <div className="pt-2">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 text-xs border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                                    <RoundIconLabelButton
+                                      type="button"
+                                      icon={RotateCcw}
+                                      label={`Restore ${formatValue(log.entityType)}`}
+                                      variant="success"
+                                      size="xs"
+                                      alwaysExpanded
                                       onClick={() => handleRestore(log)}
-                                    >
-                                      Restore {formatValue(log.entityType)}
-                                    </Button>
+                                    />
                                   </div>
                                 )}
                             </div>
@@ -375,10 +376,17 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
               </TableBody>
             </Table>
             {hasMore && (
-              <div className="p-3 text-center border-t">
-                <Button variant="outline" size="sm" onClick={handleLoadMore} disabled={isLoading}>
-                  {isLoading ? 'Loading...' : `Load More (${total - logs.length} remaining)`}
-                </Button>
+              <div className="flex justify-center border-t p-3">
+                <RoundIconLabelButton
+                  type="button"
+                  icon={MoreHorizontal}
+                  label={isLoading ? 'Loading...' : `Load More (${total - logs.length} remaining)`}
+                  variant="secondary"
+                  size="xs"
+                  alwaysExpanded
+                  disabled={isLoading}
+                  onClick={handleLoadMore}
+                />
               </div>
             )}
             <div className="px-3 py-2 text-center border-t text-sm text-muted-foreground">

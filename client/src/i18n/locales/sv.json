@@ -3091,15 +3091,15 @@
     "createSlot": "Skapa slot"
   },
   "rightSidebar": {
-    "toggle": "Visa eller dölj höger sidopanel",
-    "widgets": "Widgets",
+    "rail": "Verktyg",
+    "pomodoro": "Pomodoro",
+    "timer": "Timer",
     "settings": "Inställningar",
-    "details": "Detaljer",
-    "noWidgets": "Inga widgets aktiverade",
-    "settingsPreferences": "Preferenser",
-    "settingsProfile": "Kontoprofil",
-    "settingsTeam": "Team",
-    "settingsActivityLog": "Aktivitetslogg"
+    "userPrefs": "Konto",
+    "userMenu": "Användarmeny",
+    "darkMode": "Mörkt läge",
+    "lightMode": "Ljust läge",
+    "logOut": "Logga ut"
   },
   "garments": {
     "listDescription": "Storlekslistor och inventarie för lagkläder.",

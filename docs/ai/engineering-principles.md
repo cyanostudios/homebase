@@ -30,7 +30,7 @@ Undvik teknisk skuld utan medveten avvägning. Dokumentera icke-uppenbara arkite
 
 ## Testning & verifiering
 
-Nya och ändrade beteenden ska ha eller uppdatera tester. Verifiera genom att faktiskt köra dem – anta aldrig att de är gröna.
+Nya och ändrade beteenden ska ha eller uppdatera tester. Verifiera genom att faktiskt köra dem – anta aldrig att de är gröna. När produktionsnära byggsteg finns (t.ex. bundle-/chunk-graf) ska de köras när sådana ytor ändras — inte bara “det kompilerar lokalt i dev”.
 
 ## Root cause före patch
 

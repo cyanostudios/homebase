@@ -1,8 +1,9 @@
 // Account profile settings: shared tenant organization cards (identity, contact, billing).
 
+import { Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -229,14 +230,15 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
                 className="h-20 w-20 rounded-md border border-border object-contain bg-muted/30"
               />
               {!readOnlyOrg ? (
-                <Button
+                <RoundIconLabelButton
                   type="button"
-                  variant="outline"
-                  size="sm"
+                  icon={Trash2}
+                  label="Remove logo"
+                  variant="dangerSoft"
+                  size="xs"
+                  alwaysExpanded
                   onClick={() => setOrganization({ ...organization, logoUrl: '' })}
-                >
-                  Remove logo
-                </Button>
+                />
               ) : null}
             </div>
           ) : null}

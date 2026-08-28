@@ -82,14 +82,6 @@ export const LIST_FILTER_AND_SORT_ROW_CLASS =
 export const LIST_FILTER_SORT_CLUSTER_CLASS =
   'flex shrink-0 items-center gap-1 self-end lg:self-auto';
 
-/**
- * Large select-style chips (e.g. Teams detail tabs: Overview / Schedule) —
- * same pill language as the small chips, larger padding/type.
- */
-export const LIST_FILTER_CHIP_LG_CLASS = `h-auto shrink-0 gap-1.5 rounded-full px-3 py-2 text-xs ${LINK_BUTTON_FONT_CLASS} transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground lg:gap-2 lg:px-5 lg:py-3 lg:text-sm`;
-
-export const LIST_FILTER_CHIP_LG_ACTIVE_CLASS = `h-auto shrink-0 gap-1.5 rounded-full px-3 py-2 text-xs ${LINK_BUTTON_FONT_CLASS} bg-primary/10 text-primary transition-colors hover:bg-primary/10 hover:text-primary lg:gap-2 lg:px-5 lg:py-3 lg:text-sm`;
-
 /** Dashboard plugin widget card — same surface/hover language as select-style filter chips. */
 export const DASHBOARD_WIDGET_CARD_CLASS =
   'relative flex min-h-[160px] cursor-pointer flex-col rounded-xl border-0 bg-white p-4 shadow-sm transition-shadow hover:bg-primary/10 hover:shadow-md dark:bg-slate-950';

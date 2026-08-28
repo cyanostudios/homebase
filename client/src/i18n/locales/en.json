@@ -3097,15 +3097,15 @@
     "createSlot": "Create slot"
   },
   "rightSidebar": {
-    "toggle": "Toggle right sidebar",
-    "widgets": "Widgets",
+    "rail": "Tools",
+    "pomodoro": "Pomodoro",
+    "timer": "Timer",
     "settings": "Settings",
-    "details": "Details",
-    "noWidgets": "No widgets enabled",
-    "settingsPreferences": "Preferences",
-    "settingsProfile": "Account profile",
-    "settingsTeam": "Team",
-    "settingsActivityLog": "Activity log"
+    "userPrefs": "Account",
+    "userMenu": "User menu",
+    "darkMode": "Dark mode",
+    "lightMode": "Light mode",
+    "logOut": "Log out"
   },
   "garments": {
     "listDescription": "Size lists and inventory for team clothing.",

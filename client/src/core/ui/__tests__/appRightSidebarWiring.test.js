@@ -18,39 +18,53 @@ describe('App right sidebar wiring', () => {
     expect(mainLayout).toMatch(/<AppRightSidebar\s*\/>/);
   });
 
-  test('RightSidebarContext defaults closed', () => {
-    expect(context).toMatch(/useState\(false\)/);
-    expect(context).toMatch(/RIGHT_SIDEBAR_PLUGIN_SLOT_ID/);
+  test('RightSidebarContext is fixed-rail flyout state (no expand)', () => {
+    expect(context).toMatch(/RIGHT_SIDEBAR_WIDTH_PX/);
+    expect(context).toMatch(/RightSidebarPanelId/);
+    expect(context).toMatch(/activePanel/);
+    expect(context).not.toMatch(/RIGHT_SIDEBAR_EXPANDED/);
+    expect(context).not.toMatch(/RIGHT_SIDEBAR_PLUGIN_SLOT/);
+    expect(context).not.toMatch(/isOpen/);
   });
 
-  test('AppRightSidebar is desktop-only and hosts the plugin slot', () => {
-    expect(appRightSidebar).toMatch(/hidden h-full shrink-0[\s\S]*lg:flex/);
-    expect(appRightSidebar).toMatch(/RIGHT_SIDEBAR_PLUGIN_SLOT_ID/);
-    expect(appRightSidebar).toMatch(/getTopBarWidgets/);
-    expect(appRightSidebar).toMatch(/openSettingsPanel/);
+  test('AppRightSidebar is a fixed rail with four tools and a slide-out', () => {
+    expect(appRightSidebar).toMatch(/hidden[\s\S]*lg:block/);
+    expect(appRightSidebar).toMatch(/RIGHT_SIDEBAR_WIDTH_PX/);
+    expect(appRightSidebar).toMatch(/RightSidebarFlyout/);
+    expect(appRightSidebar).toMatch(/PomodoroPanel/);
+    expect(appRightSidebar).toMatch(/PomodoroRailButton/);
+    expect(appRightSidebar).toMatch(/PomodoroProvider/);
+    expect(appRightSidebar).toMatch(/TimerPanel/);
+    expect(appRightSidebar).toMatch(/UserPrefsPanel/);
+    expect(appRightSidebar).toMatch(/UserAvatarButton/);
+    expect(appRightSidebar).toMatch(/RoundIconLabelButton/);
+    expect(appRightSidebar).toMatch(/navigateToSettings/);
+    expect(appRightSidebar).not.toMatch(/SettingsPanel/);
+    expect(appRightSidebar).not.toMatch(/getTopBarWidgets/);
+    expect(appRightSidebar).not.toMatch(/PanelRightOpen/);
+    expect(appRightSidebar).not.toMatch(/RIGHT_SIDEBAR_PLUGIN_SLOT/);
   });
 
-  test('DetailLayout portals via helpers when right rail is open', () => {
-    expect(detailLayout).toMatch(/shouldPreferDetailSidebarPortal/);
-    expect(detailLayout).toMatch(/shouldPortalDetailSidebar/);
-    expect(detailLayout).toMatch(/createPortal/);
-    expect(detailLayout).toMatch(/useRightSidebarOptional/);
-    expect(detailLayout).toMatch(/useIsDesktopLayout/);
+  test('DetailLayout keeps plugin sidebar inline (no app-rail portal)', () => {
+    expect(detailLayout).not.toMatch(/createPortal/);
+    expect(detailLayout).not.toMatch(/useRightSidebar/);
+    expect(detailLayout).not.toMatch(/detailLayoutPortal/);
   });
 
-  test('TopBar no longer renders TopBar widgets', () => {
+  test('TopBar user menu is phone/pad only', () => {
+    expect(topBar).toMatch(/TopBarUserMenu/);
+    expect(topBar).toMatch(/lg:hidden/);
     expect(topBar).not.toMatch(/getTopBarWidgets/);
-    expect(topBar).not.toMatch(/openWidgetId/);
-    expect(topBar).not.toMatch(/pomodoroClockEnabled/);
   });
 
   test('i18n keys exist in en and sv', () => {
     for (const locale of [en, sv]) {
       expect(locale).toMatch(/"rightSidebar"\s*:/);
-      expect(locale).toMatch(/"toggle"\s*:/);
-      expect(locale).toMatch(/"widgets"\s*:/);
+      expect(locale).toMatch(/"rail"\s*:/);
+      expect(locale).toMatch(/"pomodoro"\s*:/);
+      expect(locale).toMatch(/"timer"\s*:/);
       expect(locale).toMatch(/"settings"\s*:/);
-      expect(locale).toMatch(/"details"\s*:/);
+      expect(locale).toMatch(/"userPrefs"\s*:/);
     }
   });
 });

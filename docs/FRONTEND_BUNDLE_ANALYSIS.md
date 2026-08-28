@@ -9,8 +9,12 @@ Produktionsbygget använder `manualChunks` i `vite.config.ts` med en **acyklisk*
 Se ADR: [`docs/ai/adr/VITE_CHUNK_DAG_TDZ.md`](ai/adr/VITE_CHUNK_DAG_TDZ.md).
 
 ```bash
-npm run build:ui && npm run check:chunk-cycles
+npm run build:ui
 ```
+
+Kör Vite-produktionbuild och failar vid cirkulär `vendor-shared` ↔ `app-shell` / `app-context` / `plugin-*` (TDZ / vit skärm). Enforcement: Husky **pre-push** + Railway `npm run build`.
+
+Frivilligt ensamt: `npm run check:chunk-cycles` (kräver att `client/dist` redan finns).
 
 ## Kommando (storleksanalys)
 

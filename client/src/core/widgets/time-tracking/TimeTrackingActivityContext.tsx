@@ -44,7 +44,7 @@ export function useOptionalActiveTimeTrackingContactId(): string | null {
   return ctx?.activeTrackingContactId ?? null;
 }
 
-/** Safe for TimeTrackingWidget when provider may be absent (e.g. isolated tests). */
+/** Safe when TimeTrackingActivityProvider may be absent (e.g. isolated tests). */
 export function useOptionalTimeTrackingActivityDispatch(): (id: string | null) => void {
   const ctx = useContext(TimeTrackingActivityContext);
   return ctx?.setActiveTrackingContactId ?? noopSetActiveTrackingContactId;

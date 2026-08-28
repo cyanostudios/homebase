@@ -4,6 +4,41 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-28 – App right rail rebuild; settings round actions; Close return-to
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** enhancement / UX / frontend  
+**Scope:** `AppRightSidebar`, `RightSidebarContext`, `client/src/core/ui/rightSidebar/*`, `DetailLayout`, `settingsReturnTo.ts`, Core + plugin settings forms, Teams `TeamView` tab chips, `vite.config.ts` chunk rule, i18n `rightSidebar.*`
+
+**Sammanfattning:** Högerrail är en fast smal strip (~48px) med runda verktyg och slide-out-flyouts (ingen expand/portal). Settings-kategori- och body-actions använder `RoundIconLabelButton`. Close på Core Settings återgår till föregående sida (inte alltid Dashboard). Teams detail-flikar använder samma kompakta filterchip-tokens som listfilter.
+
+**Beteende (verifierat i kod)**
+
+- **Rail (desktop `lg+`):** User → Theme → Settings → gap → Pomodoro → Timer. User/Pomodoro/Timer öppnar flyout (~320px) från railens inneryta; Settings anropar `navigateToSettings` → `/settings`; Theme växlar light/dark. Phone/pad: rail dold; användarmeny i TopBar.
+- **Borttaget:** expand-rail, `detailLayoutPortal`, TopBar-widgets (`PomodoroTimer` / `TimeTrackingWidget` / `ClockDisplay` / `widgets/registry`), `SidebarAccountFooter` (org-rader flyttade till `UserPrefsPanel`).
+- **DetailLayout:** `sidebar` / `rightSidebar` alltid inline i detail-grid.
+- **Settings Close return-to:** `client/src/core/routing/settingsReturnTo.ts` — `state.from` + `sessionStorage` (`homebase:settings-return-to`); `AppContent` minns senaste säkra path; allowlist blockerar `//` och `/settings`; fallback Dashboard.
+- **Settings actions:** Core (Profile/Team/Activity) och plugin settings-vyer/forms — action-knappar som `RoundIconLabelButton` (`xs`); täta badge-X kan förbli kompakt `Button`.
+- **Teams:** detail-tabbar = `LIST_FILTER_CHIP_*` (inte LG-varianter).
+
+**Begränsningar / residual (Security):** return-path är same-origin SPA-navigering; allowlist är relativ path (inte full URL-allowlist). Org website-länkar: `noopener noreferrer`; icke-http(s)-värden prefixas med `https://` i `formatWebsiteHref`.
+
+**Guides:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0 / §3 App right sidebar / §3.2; [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) DetailLayout / app right rail; [`PLUGIN_RUNTIME_CONVENTIONS.md`](PLUGIN_RUNTIME_CONVENTIONS.md)
+
+---
+
+## 2026-08-28 – Gate: chunk-cycle check in build:ui + pre-push
+
+**Status:** Implementerat. Docs Updated. Push/merge till main vid behov.
+
+**Typ:** process / build  
+**Scope:** `package.json` `build:ui`, `.husky/pre-push`, deploy/dev guides, engineering principles, ADR
+
+**Sammanfattning:** `npm run build:ui` kör alltid `check:chunk-cycles` efter Vite-build. Husky pre-push kör `build:ui`. Dokumenterat i DEVELOPMENT_GUIDE, DEPLOYMENT_V2 och ADR VITE_CHUNK_DAG_TDZ så vit-skärm-TDZ inte återkommer tyst.
+
+---
+
 ## 2026-08-28 – Fix: vit skärm efter deploy (Vite chunk TDZ)
 
 **Status:** Implementerat lokalt. **Cykelcheck grön.** **Docs Updated.** **Ej prod-release** utan explicit beslut.

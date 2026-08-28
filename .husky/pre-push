@@ -3,3 +3,5 @@
 
 npm run check
 npm test -- --passWithNoTests
+# Prod UI chunk DAG — fails on vendor-shared ↔ app-shell/plugin cycles (white screen TDZ).
+npm run build:ui

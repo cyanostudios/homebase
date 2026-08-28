@@ -9,6 +9,16 @@ This guide covers deployment of Homebase with the service abstraction architectu
 - Environment variables configured
 - SSL certificate (for production)
 
+## Pre-release gates (Homebase UI)
+
+Before merging to `main` / deploying Homebase:
+
+1. `npm run check` and `npm test` green.
+2. **`npm run build:ui` green** — production Vite build **and** `check:chunk-cycles` (baked into `build:ui`). Circular `vendor-shared` ↔ `app-shell` / `plugin-*` chunks cause a blank screen in production (`ReferenceError: Cannot access '…' before initialization`).
+3. ADR: [`ai/adr/VITE_CHUNK_DAG_TDZ.md`](ai/adr/VITE_CHUNK_DAG_TDZ.md).
+
+Husky **pre-push** runs the same UI build gate locally. Railway `npm run build` also runs `build:ui`, so a cyclic chunk graph fails the deploy build.
+
 ## Environment Setup
 
 ### 1. Copy Environment Template

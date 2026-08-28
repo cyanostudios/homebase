@@ -13,7 +13,7 @@
     "dev:public-instructions": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; if command -v php >/dev/null 2>&1; then php -S 0.0.0.0:3010 -t public-instructions public-instructions/router.php; else echo \"php not found; using static serve fallback (detail routes will 404)\"; npx serve public-instructions -p 3010; fi'",
     "dev:public-clubdesk": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; if command -v php >/dev/null 2>&1; then php -S 0.0.0.0:3011 -t public-clubdesk public-clubdesk/router.php; else echo \"php not found; using static serve fallback (detail routes will 404)\"; npx serve public-clubdesk -p 3011; fi'",
     "build": "npm run build:ui && npm run build:api && npm run copy:ui",
-    "build:ui": "vite build",
+    "build:ui": "vite build && node scripts/check-chunk-cycles.mjs",
     "build:ui:analyze": "cross-env ANALYZE=1 vite build",
     "check:chunk-cycles": "node scripts/check-chunk-cycles.mjs",
     "build:api": "tsc server/index.ts --outDir dist --target es2020 --module commonjs && cp -r server/migrations dist/migrations && cp -r server/core dist/core",
