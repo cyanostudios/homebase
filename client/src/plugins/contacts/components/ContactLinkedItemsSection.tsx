@@ -31,7 +31,6 @@ import type { Estimate } from '@/plugins/estimates/types/estimate';
 import { garmentsApi } from '@/plugins/garments/api/garmentsApi';
 import { useGarments } from '@/plugins/garments/hooks/useGarments';
 import type { GarmentList } from '@/plugins/garments/types/garments';
-import { MatchQuickInfoDialog } from '@/plugins/matches/components/MatchQuickInfoDialog';
 import type { Match } from '@/plugins/matches/types/match';
 import type { Note } from '@/plugins/notes/types/notes';
 import type { Slot } from '@/plugins/slots/types/slots';
@@ -53,6 +52,13 @@ import {
   AssignmentQuickInfoDialog,
   type AssignmentQuickInfoDetail,
 } from './AssignmentQuickInfoDialog';
+
+/** Lazy: keep MatchView/MatchQuickContextPanel out of this module's static graph. */
+const MatchQuickInfoDialog = React.lazy(() =>
+  import('@/plugins/matches/components/MatchQuickInfoDialog').then((m) => ({
+    default: m.MatchQuickInfoDialog,
+  })),
+);
 
 const BADGE_CLASS = LINKED_SECTION_BADGE_CLASS;
 
@@ -664,18 +670,19 @@ export function ContactLinkedItemsSection({
         onOpen={() => genericPreview?.onOpen()}
       />
 
-      <MatchQuickInfoDialog
-        isOpen={matchPreview !== null}
-        match={matchPreview}
-        onClose={() => setPreview(null)}
-        onOpenMatch={() => {
-          if (!matchPreview) {
-            return;
-          }
-          openMatchForView?.(matchPreview);
-          setPreview(null);
-        }}
-      />
+      {matchPreview !== null ? (
+        <React.Suspense fallback={null}>
+          <MatchQuickInfoDialog
+            isOpen
+            match={matchPreview}
+            onClose={() => setPreview(null)}
+            onOpenMatch={() => {
+              openMatchForView?.(matchPreview);
+              setPreview(null);
+            }}
+          />
+        </React.Suspense>
+      ) : null}
     </>
   );
 }

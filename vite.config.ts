@@ -112,15 +112,20 @@ export default defineConfig({
           if (id.includes('/node_modules/@radix-ui/')) return 'vendor-radix';
           if (id.includes('/node_modules/lucide-react/')) return 'vendor-lucide';
 
-          // Shared UI/utils used by many plugins — never hoist into plugin-contacts only.
+          // Shared UI/utils used by many plugins — never hoist into a single plugin-* chunk.
+          // Do NOT match /plugins/*/hooks (that dumped useTeams etc. into vendor-shared and
+          // created vendor-shared ↔ plugin cycles / TDZ in prod).
+          // Exclude Dashboard: it imports plugin hooks/types and must not live in vendor-shared.
           if (
             id.includes('/components/ui/') ||
-            id.includes('/core/ui/') ||
+            (id.includes('/core/ui/') &&
+              !id.includes('/core/ui/dashboard/') &&
+              !id.includes('/core/ui/Dashboard.')) ||
             id.includes('/core/hooks/') ||
             id.includes('/core/api/') ||
             id.includes('/core/utils/') ||
             id.includes('/core/types/') ||
-            id.includes('/hooks/') ||
+            (id.includes('/hooks/') && !id.includes('/plugins/')) ||
             id.includes('/lib/utils')
           )
             return 'vendor-shared';
@@ -142,13 +147,17 @@ export default defineConfig({
           if (id.includes('/plugins/pulses/context/PulseProvider')) return 'plugin-pulses-provider';
 
           // ── Plugin UI chunks ──────────────────────────────────────────────────
-          // Each plugin's List/Form/View components in a separate cacheable chunk.
-          // Split heavy cross-plugin contact modules so plugin-contacts init does not
-          // pull matches/garments/teams (avoids chunk-level circular TDZ in prod).
-          if (id.includes('/plugins/contacts/components/ContactLinkedItemsSection'))
+          // ContactLinkedItemsSection.tsx only (NOT Lazy) — Lazy stays in plugin-contacts.
+          // teams/garments have their own chunks so shared utils are not owned by linked.
+          if (/\/plugins\/contacts\/components\/ContactLinkedItemsSection\.[tj]sx?$/.test(id)) {
             return 'plugin-contacts-linked';
+          }
           if (id.includes('/plugins/contacts/components/ContactDetailHeaderMenus'))
             return 'plugin-contacts-detail-menus';
+          // MatchQuickInfoDialog is imported by contacts linked-items; keep it out of
+          // plugin-matches so loading it does not evaluate MatchView (imports contacts).
+          if (id.includes('/plugins/matches/components/MatchQuickInfoDialog'))
+            return 'plugin-matches-quick-info';
           if (id.includes('/plugins/contacts/')) return 'plugin-contacts';
           if (id.includes('/plugins/notes/')) return 'plugin-notes';
           if (id.includes('/plugins/tasks/')) return 'plugin-tasks';
@@ -162,6 +171,10 @@ export default defineConfig({
           if (id.includes('/plugins/mail/')) return 'plugin-mail';
           if (id.includes('/plugins/pulses/')) return 'plugin-pulses';
           if (id.includes('/plugins/settings/')) return 'plugin-settings';
+          if (id.includes('/plugins/teams/')) return 'plugin-teams';
+          if (id.includes('/plugins/garments/')) return 'plugin-garments';
+          if (id.includes('/plugins/schedule/')) return 'plugin-schedule';
+          if (id.includes('/plugins/requests/')) return 'plugin-requests';
 
           // ── Heavy vendor chunks ───────────────────────────────────────────────
           if (id.includes('@tiptap') || id.includes('tippy')) return 'vendor-tiptap';
