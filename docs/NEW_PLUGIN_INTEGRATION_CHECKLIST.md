@@ -33,7 +33,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - **Register in `client/src/core/pluginRegistry.ts`:**
   - Required: `name`, `Provider`, `hook`, `panelKey`, `components.List`, `components.Form`, `components.View`.
   - Usually: `providerLoader`, `NullProvider`, `navigation`.
-  - Optional: `dashboardWidget`, `displayPrefix`, `contentFlush`, `slugField`, `contentViewKey`, `noPrimaryAction`, `getViewExtraProps`, `getFormExtraProps` (see JSDoc on `PluginRegistryEntry` in that file).
+  - Optional: `dashboardWidget`, `displayPrefix`, `contentFlush`, `slugField`, `contentViewKey`, `noPrimaryAction`, `getViewExtraProps`, `getFormExtraProps`, `canOpenAsCompanionFor` (desktop Companion Panel; see JSDoc on `PluginRegistryEntry` in that file).
   - **Home dashboard (v1):** den sammansatta startsidan (`client/src/core/ui/Dashboard.tsx` + `dashboard/*`) läser **inte** `dashboardWidget`. Nya översiktsytor läggs i core-dashboard-sektionerna (villkorligt via `useEnabledPlugins`). Se [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md). `dashboardWidget` / `*DashboardWidget.tsx` kan finnas kvar i registret men är legacy för den shellen.
 - **`panelKey`:** must match the boolean the hook exposes (e.g. `isContactPanelOpen`). Template plugin `your-items` uses `isYourItemPanelOpen` (`pluginSingular.ts`).
 - **`NullProvider`:** copy `YourItemsNullProvider` from the template context; register it as eager `Provider` / `NullProvider` with `providerLoader` for the real provider.

@@ -1,9 +1,11 @@
-import { Moon, Settings2, Sun, Timer } from 'lucide-react';
+import { CalendarDays, Moon, Settings2, Sun, Timer } from 'lucide-react';
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { useCompanionPanel } from '@/core/app/CompanionPanelContext';
+import { pathToNavPage } from '@/core/routing/routeMap';
 import { navigateToSettings } from '@/core/routing/settingsReturnTo';
 import {
   RIGHT_SIDEBAR_WIDTH_PX,
@@ -17,6 +19,7 @@ import { RightSidebarFlyout } from '@/core/ui/rightSidebar/RightSidebarFlyout';
 import { TimerPanel } from '@/core/ui/rightSidebar/TimerPanel';
 import { UserAvatarButton } from '@/core/ui/rightSidebar/UserAvatarButton';
 import { UserPrefsPanel } from '@/core/ui/rightSidebar/UserPrefsPanel';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useTheme } from '@/hooks/useTheme';
 import type { AppIcon } from '@/types/icons';
 
@@ -26,11 +29,21 @@ export function AppRightSidebar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { activePanel, togglePanel, closePanel } = useRightSidebar();
+  const { companionPlugin, toggleCompanionPanel } = useCompanionPanel();
+  const enabledPlugins = useEnabledPlugins();
+  const currentPage = useMemo(() => pathToNavPage(location.pathname), [location.pathname]);
+  const showScheduleCompanion = currentPage === 'teams' && enabledPlugins.has('schedule');
+  const scheduleCompanionOpen = companionPlugin === 'schedule';
 
   const handleOpenSettingsPage = useCallback(() => {
     closePanel();
     navigateToSettings(navigate, `${location.pathname}${location.search}`);
   }, [closePanel, navigate, location.pathname, location.search]);
+
+  const handleToggleScheduleCompanion = useCallback(() => {
+    closePanel();
+    toggleCompanionPanel('schedule');
+  }, [closePanel, toggleCompanionPanel]);
 
   const isDark = theme === 'dark';
 
@@ -120,6 +133,19 @@ export function AppRightSidebar() {
             />
             {toolButton('timer', Timer, t('rightSidebar.timer'))}
           </div>
+          {showScheduleCompanion ? (
+            <div className="flex flex-col items-start gap-2 pt-4">
+              <RoundIconLabelButton
+                icon={CalendarDays}
+                label={t('rightSidebar.openScheduleCompanion')}
+                variant={scheduleCompanionOpen ? 'soft' : 'secondary'}
+                size="xs"
+                expandOnHover={false}
+                aria-pressed={scheduleCompanionOpen}
+                onClick={handleToggleScheduleCompanion}
+              />
+            </div>
+          ) : null}
         </aside>
       </div>
     </PomodoroProvider>

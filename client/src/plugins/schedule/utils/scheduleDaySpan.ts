@@ -11,6 +11,13 @@ export type ScheduleDaySpan = 1 | 3 | 7 | 'stacked';
 
 export const SCHEDULE_DAY_SPAN_GRID_OPTIONS: readonly (1 | 3 | 7)[] = [1, 3, 7];
 
+export const SCHEDULE_DAY_SPAN_COMPANION_GRID_OPTIONS: readonly (1 | 3)[] = [1, 3];
+
+/** Companion Panel never uses dense 7-day grid; coerce to stacked. */
+export function coerceCompanionDaySpan(span: ScheduleDaySpan): ScheduleDaySpan {
+  return span === 7 ? 'stacked' : span;
+}
+
 export const SCHEDULE_DAY_SPAN_STORAGE_KEY = 'schedule:daySpan';
 
 export const DEFAULT_SCHEDULE_DAY_SPAN: ScheduleDaySpan = 7;

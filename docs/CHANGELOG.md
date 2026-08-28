@@ -4,6 +4,19 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-28 – Companion Panel (Teams → Schedule)
+
+**Status:** Implementerat lokalt. **Ej prod-release** utan explicit beslut. QA/Security pending.
+
+**Typ:** feature / UX / frontend  
+**Scope:** `CompanionPanel`, `CompanionPanelContext`, `MainLayout`, `AppContent`, `Sidebar`/`NavItem`, Teams `TeamList`, Schedule companion compact day-span, `canOpenAsCompanionFor` on plugin registry
+
+**Sammanfattning:** Desktop (`lg+`) kan öppna Schedule som Companion Panel (~40%) bredvid Teams (lista eller detail). Samexisterar med `AppRightSidebar`. Trigger: kalender-ikon i högerrailen under widgets (endast när Teams är aktivt + schedule enabled). Vänsternav navigera alltid till plugin-sidan (öppnar inte companion). Schedule i companion tvingar compact/stacked (1–3 dagar, default stacked). Teams quick-context stängs när companion öppnas.
+
+**Guides:** [`ai/adr/VIEWPORT_TIER_PAD_SPLIT.md`](ai/adr/VIEWPORT_TIER_PAD_SPLIT.md); [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)
+
+---
+
 ## 2026-08-28 – App right rail rebuild; settings round actions; Close return-to
 
 **Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.

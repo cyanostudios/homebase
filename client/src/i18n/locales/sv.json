@@ -3099,7 +3099,8 @@
     "userMenu": "Användarmeny",
     "darkMode": "Mörkt läge",
     "lightMode": "Ljust läge",
-    "logOut": "Logga ut"
+    "logOut": "Logga ut",
+    "openScheduleCompanion": "Öppna schema"
   },
   "garments": {
     "listDescription": "Storlekslistor och inventarie för lagkläder.",

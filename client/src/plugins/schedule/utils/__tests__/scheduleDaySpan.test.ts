@@ -2,10 +2,12 @@ import { WEEK_DAYS } from '@/plugins/teams/types/teams';
 
 import {
   canShiftScheduleAnchor,
+  coerceCompanionDaySpan,
   getTodayWeekDay,
   isScheduleDaySpan,
   parseStoredScheduleDaySpan,
   resolveVisibleWeekDays,
+  SCHEDULE_DAY_SPAN_COMPANION_GRID_OPTIONS,
   shiftScheduleAnchor,
 } from '../scheduleDaySpan';
 
@@ -28,6 +30,25 @@ describe('scheduleDaySpan', () => {
       expect(parseStoredScheduleDaySpan('2')).toBeNull();
       expect(parseStoredScheduleDaySpan(null)).toBeNull();
       expect(parseStoredScheduleDaySpan('')).toBeNull();
+    });
+  });
+
+  describe('coerceCompanionDaySpan', () => {
+    it('maps dense 7-day span to stacked', () => {
+      expect(coerceCompanionDaySpan(7)).toBe('stacked');
+    });
+
+    it('keeps compact 1, 3, and stacked unchanged', () => {
+      expect(coerceCompanionDaySpan(1)).toBe(1);
+      expect(coerceCompanionDaySpan(3)).toBe(3);
+      expect(coerceCompanionDaySpan('stacked')).toBe('stacked');
+    });
+  });
+
+  describe('SCHEDULE_DAY_SPAN_COMPANION_GRID_OPTIONS', () => {
+    it('exposes only 1 and 3 (no 7)', () => {
+      expect(SCHEDULE_DAY_SPAN_COMPANION_GRID_OPTIONS).toEqual([1, 3]);
+      expect(SCHEDULE_DAY_SPAN_COMPANION_GRID_OPTIONS).not.toContain(7);
     });
   });
 

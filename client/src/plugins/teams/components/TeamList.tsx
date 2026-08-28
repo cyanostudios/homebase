@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useCompanionPanel } from '@/core/app/CompanionPanelContext';
 import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
@@ -177,6 +178,15 @@ export function TeamList() {
     getItemId: (team) => String(team.id),
   });
 
+  const { companionPlugin } = useCompanionPanel();
+  const scheduleCompanionOpen = companionPlugin === 'schedule';
+
+  useEffect(() => {
+    if (scheduleCompanionOpen) {
+      setPreviewTeam(null);
+    }
+  }, [scheduleCompanionOpen, setPreviewTeam]);
+
   useEffect(() => {
     let cancelled = false;
     getSettings(TEAMS_SETTINGS_KEY)
@@ -247,7 +257,7 @@ export function TeamList() {
   );
 
   const isTableView = useIsEffectiveTableView(listViewMode);
-  const quickContextOpen = Boolean(showQuickContext && previewTeam);
+  const quickContextOpen = Boolean(showQuickContext && previewTeam && !scheduleCompanionOpen);
   const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
   const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
 
@@ -637,10 +647,12 @@ export function TeamList() {
           <div
             className={cn(
               'grid items-start gap-4',
-              showQuickContext && previewTeam ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+              showQuickContext && previewTeam && !scheduleCompanionOpen
+                ? 'grid-cols-1 lg:grid-cols-2'
+                : 'grid-cols-1',
             )}
           >
-            {showQuickContext && previewTeam ? (
+            {showQuickContext && previewTeam && !scheduleCompanionOpen ? (
               <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
                 <TeamQuickContextPanel
                   team={previewTeam}

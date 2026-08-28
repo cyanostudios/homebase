@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import {
   canShiftScheduleAnchor,
+  coerceCompanionDaySpan,
   getInitialScheduleDaySpan,
   getTodayWeekDay,
   persistScheduleDaySpanSession,
@@ -11,7 +12,9 @@ import {
   type WeekDay,
 } from '../utils/scheduleDaySpan';
 
-export function useScheduleDaySpan(): {
+const COMPANION_DEFAULT_DAY_SPAN: ScheduleDaySpan = 'stacked';
+
+export function useScheduleDaySpan(options?: { companion?: boolean }): {
   daySpan: ScheduleDaySpan;
   setDaySpan: (span: ScheduleDaySpan) => void;
   visibleDays: readonly WeekDay[];
@@ -21,14 +24,23 @@ export function useScheduleDaySpan(): {
   goPrev: () => void;
   goNext: () => void;
 } {
-  const [daySpan, setDaySpanState] = useState<ScheduleDaySpan>(getInitialScheduleDaySpan);
+  const companion = options?.companion ?? false;
+  const [daySpan, setDaySpanState] = useState<ScheduleDaySpan>(() =>
+    companion ? COMPANION_DEFAULT_DAY_SPAN : getInitialScheduleDaySpan(),
+  );
   const [anchorDay, setAnchorDay] = useState<WeekDay>(getTodayWeekDay);
 
-  const setDaySpan = useCallback((span: ScheduleDaySpan) => {
-    setDaySpanState(span);
-    persistScheduleDaySpanSession(span);
-    setAnchorDay(getTodayWeekDay());
-  }, []);
+  const setDaySpan = useCallback(
+    (span: ScheduleDaySpan) => {
+      const next = companion ? coerceCompanionDaySpan(span) : span;
+      setDaySpanState(next);
+      if (!companion) {
+        persistScheduleDaySpanSession(next);
+      }
+      setAnchorDay(getTodayWeekDay());
+    },
+    [companion],
+  );
 
   const isStackedView = daySpan === 'stacked';
 

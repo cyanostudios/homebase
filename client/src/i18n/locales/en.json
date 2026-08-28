@@ -3105,7 +3105,8 @@
     "userMenu": "User menu",
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
-    "logOut": "Log out"
+    "logOut": "Log out",
+    "openScheduleCompanion": "Open schedule"
   },
   "garments": {
     "listDescription": "Size lists and inventory for team clothing.",

@@ -18,6 +18,7 @@ import {
 import React from 'react';
 
 import type { AppIcon } from '@/types/icons';
+import type { NavPage } from '@/core/navigation/navTypes';
 
 export interface PluginNavigationSubItem {
   label: string;
@@ -106,6 +107,11 @@ export interface PluginRegistryEntry {
   getViewExtraProps?: (context: any) => Record<string, unknown>;
   /** Optional provider for extra props passed to plugin Form component. */
   getFormExtraProps?: (context: any) => Record<string, unknown>;
+  /**
+   * When set, this plugin's List can open as a Companion Panel beside these primary pages
+   * (desktop only). Sidebar clicks on those primaries toggle companion instead of navigating.
+   */
+  canOpenAsCompanionFor?: NavPage[];
 }
 
 // ─── Static imports: NullProviders + hooks (lean, eager – used at app init) ──
@@ -727,6 +733,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentFlush: true,
     noPrimaryAction: true,
     contentViewKey: 'scheduleContentView',
+    canOpenAsCompanionFor: ['teams'],
   },
   {
     name: 'matches',

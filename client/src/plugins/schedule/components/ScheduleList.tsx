@@ -65,7 +65,7 @@ import {
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
 
-export function ScheduleList() {
+export function ScheduleList({ isCompanion = false }: { isCompanion?: boolean } = {}) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -94,7 +94,7 @@ export function ScheduleList() {
   const isDefaultSchedule = activeScheduleId === DEFAULT_SCHEDULE_ID;
   const isLocked = isLockedForSchedule(activeScheduleId);
   const { daySpan, setDaySpan, visibleDays, isStackedView, canGoPrev, canGoNext, goPrev, goNext } =
-    useScheduleDaySpan();
+    useScheduleDaySpan({ companion: isCompanion });
   const {
     displayTeams,
     isDirty,
@@ -119,12 +119,14 @@ export function ScheduleList() {
   const [chooseScheduleOpen, setChooseScheduleOpen] = useState(false);
 
   useMobileActions({
-    onAdd: () => {
-      setShowCreateDialog(true);
-      setCreateScheduleError(null);
-      setNewScheduleName('');
-    },
-    onSettings: () => attemptNavigation(openScheduleSettings),
+    onAdd: isCompanion
+      ? undefined
+      : () => {
+          setShowCreateDialog(true);
+          setCreateScheduleError(null);
+          setNewScheduleName('');
+        },
+    onSettings: isCompanion ? undefined : () => attemptNavigation(openScheduleSettings),
   });
 
   const activeScheduleName = useMemo(() => {
@@ -330,7 +332,7 @@ export function ScheduleList() {
 
   const preferredTeamId = getPreferredTeamIdFromFilter(teamFilter);
 
-  if (scheduleContentView === 'settings') {
+  if (scheduleContentView === 'settings' && !isCompanion) {
     return (
       <div className={cn('plugin-schedule', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
         <ScheduleSettingsView
@@ -346,18 +348,26 @@ export function ScheduleList() {
   return (
     <div className={cn('plugin-schedule', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
       <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
-        <div className="hidden md:block">
+        <div className={isCompanion ? 'block' : 'hidden md:block'}>
           <div className="flex items-start justify-between gap-6">
             <div className="flex min-w-0 flex-1 flex-col gap-5">
               <div className="min-w-0">
                 <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
-                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{activeScheduleName}</h2>
-                  <ExpandableIconButton
-                    icon={Settings}
-                    label={t('common.settings')}
-                    variant="soft"
-                    onClick={() => attemptNavigation(openScheduleSettings)}
-                  />
+                  {isCompanion ? (
+                    <p className="truncate text-sm font-medium text-muted-foreground">
+                      {activeScheduleName}
+                    </p>
+                  ) : (
+                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{activeScheduleName}</h2>
+                  )}
+                  {!isCompanion ? (
+                    <ExpandableIconButton
+                      icon={Settings}
+                      label={t('common.settings')}
+                      variant="soft"
+                      onClick={() => attemptNavigation(openScheduleSettings)}
+                    />
+                  ) : null}
                   <RoundIconLabelButton
                     icon={CalendarClock}
                     label={t('schedule.chooseSchedule')}
@@ -434,18 +444,21 @@ export function ScheduleList() {
                 canGoNext={canGoNext}
                 onPrev={goPrev}
                 onNext={goNext}
+                companion={isCompanion}
               />
-              <ExpandableIconButton
-                icon={Plus}
-                label={t('schedule.newSchedule')}
-                variant="soft"
-                alwaysExpanded
-                onClick={() => {
-                  setShowCreateDialog(true);
-                  setCreateScheduleError(null);
-                  setNewScheduleName('');
-                }}
-              />
+              {!isCompanion ? (
+                <ExpandableIconButton
+                  icon={Plus}
+                  label={t('schedule.newSchedule')}
+                  variant="soft"
+                  alwaysExpanded
+                  onClick={() => {
+                    setShowCreateDialog(true);
+                    setCreateScheduleError(null);
+                    setNewScheduleName('');
+                  }}
+                />
+              ) : null}
             </div>
           </div>
         </div>
@@ -503,24 +516,26 @@ export function ScheduleList() {
             ) : isMobile || isStackedView ? (
               <ScheduleWeekView slots={weekSlots} onSlotClick={handleSlotClick} />
             ) : (
-              <ScheduleTimeGrid
-                slots={weekSlots}
-                gridSettings={defaultGridSettings}
-                savingSlotId={null}
-                readOnly={isLocked}
-                visibleDays={visibleDays}
-                columnOrdersByDay={columnOrdersByDay}
-                onColumnOrderChange={isLocked ? undefined : handleColumnOrderChange}
-                getSlotHighlight={isLocked ? undefined : getSlotHighlight}
-                onSlotClick={handleSlotClick}
-                onEditSlot={isLocked ? undefined : handleEditSlot}
-                onCopySlot={isLocked ? undefined : handleCopySlot}
-                onAddSlot={isLocked ? undefined : handleAddSlot}
-                onUnlock={
-                  isLocked ? () => setLockedForSchedule(activeScheduleId, false) : undefined
-                }
-                onSlotMove={handleSlotMove}
-              />
+              <div className={isCompanion ? 'overflow-x-auto' : undefined}>
+                <ScheduleTimeGrid
+                  slots={weekSlots}
+                  gridSettings={defaultGridSettings}
+                  savingSlotId={null}
+                  readOnly={isLocked}
+                  visibleDays={visibleDays}
+                  columnOrdersByDay={columnOrdersByDay}
+                  onColumnOrderChange={isLocked ? undefined : handleColumnOrderChange}
+                  getSlotHighlight={isLocked ? undefined : getSlotHighlight}
+                  onSlotClick={handleSlotClick}
+                  onEditSlot={isLocked ? undefined : handleEditSlot}
+                  onCopySlot={isLocked ? undefined : handleCopySlot}
+                  onAddSlot={isLocked ? undefined : handleAddSlot}
+                  onUnlock={
+                    isLocked ? () => setLockedForSchedule(activeScheduleId, false) : undefined
+                  }
+                  onSlotMove={handleSlotMove}
+                />
+              </div>
             )}
             {!isGridSettingsLoading ? (
               <ScheduleFooter slots={capacitySlots} availableHours={defaultAvailableHours} />

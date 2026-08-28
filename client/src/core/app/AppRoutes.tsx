@@ -59,6 +59,7 @@ class PluginErrorBoundary extends React.Component<
 import { ActionProvider } from '@/core/api/ActionContext';
 import { AppProvider } from '@/core/api/AppContext';
 import { AppContent } from '@/core/app/AppContent';
+import { CompanionPanelProvider } from '@/core/app/CompanionPanelContext';
 import { PluginProviders } from '@/core/app/PluginProviders';
 import { TimeTrackingActivityProvider } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { GlobalNavigationGuardProvider } from '@/hooks/useGlobalNavigationGuard';
@@ -147,7 +148,9 @@ export function AppRoutes() {
                 <ActionProvider>
                   <GlobalNavigationGuardProvider>
                     <PluginProviders>
-                      <AppContent />
+                      <CompanionPanelProvider>
+                        <AppContent />
+                      </CompanionPanelProvider>
                     </PluginProviders>
                   </GlobalNavigationGuardProvider>
                 </ActionProvider>

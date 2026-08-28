@@ -16,7 +16,7 @@ UI/UX design (etapp 1) requires three surfaces: phone (&lt;768), pad (768–1023
 4. **Detail presentation:**
    - phone → full-height panel in `main` under TopBar (`DetailPanel` `isMobile`; bottom actions bar)
    - pad → list and detail mounted together (split ~38% / remainder, list `min-w-[280px]`)
-   - desktop → detail replaces list (unchanged)
+   - desktop → detail replaces list; optional **Companion Panel** (secondary plugin List ~40% beside primary list or detail) when opened from a primary page that declares a companion target (MVP: Teams → Schedule). Companion lives inside `<main>`, left of `AppRightSidebar`; not shown on phone/pad.
 5. **List display overrides** (`effectiveListViewMode.ts`) take `ViewportTier`:
    - phone: cards, 1 grid column, card content as column-2
    - pad: cards, clamp grid columns to max 2; card content follows clamped count
@@ -28,8 +28,9 @@ UI/UX design (etapp 1) requires three surfaces: phone (&lt;768), pad (768–1023
 
 - Call sites that used `md:` for “desktop chrome” (sidebar offset, hamburger) must use `lg:` where the design means permanent rail.
 - List headers / filter grids that used `hidden md:*` already appear on pad; filter grids prefer `grid-cols-2` until `lg`.
-- Desktop split is explicitly out of scope (future).
+- Desktop **plugin** Companion Panel (secondary List beside primary) is in scope; pad list|detail split remains separate.
 
 ## Non-goals
 
-- Per-plugin visual redesign, dashboard, desktop split, native apps.
+- Per-plugin visual redesign, dashboard, native apps.
+- Resizable companion divider, URL-synced companion state, nested detail panels inside companion (MVP).

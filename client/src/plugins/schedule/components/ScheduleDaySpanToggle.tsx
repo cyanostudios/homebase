@@ -5,7 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { cn } from '@/lib/utils';
 
-import { SCHEDULE_DAY_SPAN_GRID_OPTIONS, type ScheduleDaySpan } from '../utils/scheduleDaySpan';
+import {
+  SCHEDULE_DAY_SPAN_COMPANION_GRID_OPTIONS,
+  SCHEDULE_DAY_SPAN_GRID_OPTIONS,
+  type ScheduleDaySpan,
+} from '../utils/scheduleDaySpan';
 
 export type ScheduleDaySpanToggleProps = {
   daySpan: ScheduleDaySpan;
@@ -14,6 +18,8 @@ export type ScheduleDaySpanToggleProps = {
   canGoNext?: boolean;
   onPrev?: () => void;
   onNext?: () => void;
+  /** Hide 7-day option (Companion Panel). */
+  companion?: boolean;
 };
 
 const segmentClass = cn(
@@ -23,7 +29,7 @@ const segmentClass = cn(
 
 /**
  * Segmented control: 1 | 3 | 7 | stacked — round pill like ListColumnLayoutToggle.
- * Prev/next browse within the week for span 1 and 3 only.
+ * Companion mode omits 7. Prev/next browse within the week for span 1 and 3 only.
  */
 export function ScheduleDaySpanToggle({
   daySpan,
@@ -32,10 +38,14 @@ export function ScheduleDaySpanToggle({
   canGoNext = false,
   onPrev,
   onNext,
+  companion = false,
 }: ScheduleDaySpanToggleProps) {
   const { t } = useTranslation();
   const showBrowse = daySpan === 1 || daySpan === 3;
   const isStacked = daySpan === 'stacked';
+  const gridOptions = companion
+    ? SCHEDULE_DAY_SPAN_COMPANION_GRID_OPTIONS
+    : SCHEDULE_DAY_SPAN_GRID_OPTIONS;
 
   return (
     <div className="flex items-center gap-1.5">
@@ -56,7 +66,7 @@ export function ScheduleDaySpanToggle({
         aria-label={t('schedule.daySpanGroup')}
         className="inline-flex h-11 items-center gap-0.5 rounded-full bg-primary/10 p-0.5"
       >
-        {SCHEDULE_DAY_SPAN_GRID_OPTIONS.map((span) => {
+        {gridOptions.map((span) => {
           const selected = !isStacked && daySpan === span;
           return (
             <button
