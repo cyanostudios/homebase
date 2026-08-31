@@ -1281,17 +1281,24 @@ class GarmentsModel {
       const db = Database.get(req);
       const pool = this._pool(req);
       const id = parseInt(String(itemId), 10);
-      const assigned = await pool.query(
-        `SELECT 1 FROM garment_list_inventory_items WHERE item_id = $1 LIMIT 1`,
+
+      const assignments = await pool.query(
+        `
+        SELECT gl.id AS list_id, gl.name AS list_name
+        FROM garment_list_inventory_items j
+        JOIN garment_lists gl ON gl.id = j.list_id
+        WHERE j.item_id = $1
+        ORDER BY gl.name ASC, gl.id ASC
+        `,
         [id],
       );
-      if (assigned.rows.length) {
-        throw new AppError(
-          'Cannot delete inventory item assigned to garment lists',
-          409,
-          AppError.CODES.CONFLICT,
-        );
+
+      // Delete cascades: force-unassign from every list (clears this article's
+      // checkbox / size / audience keys), then remove the inventory row.
+      for (const row of assignments.rows) {
+        await this.unassignInventoryItemFromList(req, row.list_id, id, { force: true });
       }
+
       const rows = await db.query(
         `DELETE FROM garment_inventory_items WHERE id = $1 RETURNING id`,
         [id],
@@ -1465,7 +1472,7 @@ class GarmentsModel {
     }
   }
 
-  async unassignInventoryItemFromList(req, listId, itemId) {
+  async unassignInventoryItemFromList(req, listId, itemId, { force = false } = {}) {
     try {
       const pool = this._pool(req);
       const lid = parseInt(String(listId), 10);
@@ -1483,7 +1490,7 @@ class GarmentsModel {
         return this.getListById(req, lid);
       }
 
-      if (await this.isInventoryItemUsedInList(pool, lid, iid)) {
+      if (!force && (await this.isInventoryItemUsedInList(pool, lid, iid))) {
         throw new AppError(
           'Cannot unassign inventory item with checked values in this list',
           409,

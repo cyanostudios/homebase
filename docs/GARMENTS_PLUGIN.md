@@ -75,7 +75,7 @@ Each assignment:
 
 The client applies **optimistic** assignment updates (`GarmentProvider.patchInventoryListAssignment`); failed unassign rolls back. Single-item inventory GET responses include `assignedListIds` via server-side enrichment (`enrichInventoryWithAssignments`).
 
-**Delete inventory article**: blocked with **409** while the article is assigned to any list (`ON DELETE RESTRICT` on the join FK is a second guard).
+**Delete inventory article**: removes list assignments first (force-unassign: strips that article’s Ordered/Delivered/Handed out columns and per-person size/audience keys), then deletes the item. Confirm dialog warns when the article is shown on lists.
 
 ### API (list ↔ inventory)
 

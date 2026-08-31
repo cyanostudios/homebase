@@ -56,7 +56,7 @@ export interface GarmentContextType {
     variantId: string,
     quantity: number,
   ) => Promise<boolean>;
-  deleteInventoryItem: (id: string) => Promise<void>;
+  deleteInventoryItem: (id: string) => Promise<string | null>;
   deleteInventoryItems: (ids: string[]) => Promise<void>;
 
   getDuplicateConfig: (
@@ -144,7 +144,7 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   deleteGarments: async () => {},
   saveInventoryItem: async () => false,
   updateInventoryVariantQuantity: async () => false,
-  deleteInventoryItem: async () => {},
+  deleteInventoryItem: async () => null,
   deleteInventoryItems: async () => {},
   getDuplicateConfig: () => null,
   executeDuplicate: async () => ({ closePanel: () => {} }),

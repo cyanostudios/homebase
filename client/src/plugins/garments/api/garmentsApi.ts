@@ -27,10 +27,18 @@ function mapValidationDetails(err: ApiError): ApiError {
       }),
     );
   } else if (err.status === 409 && !err.errors?.length) {
+    const isDeleteAssigned =
+      typeof err.message === 'string' &&
+      (err.message.includes('checked on lists') ||
+        err.message.includes('assigned to garment lists'));
     err.errors = [
       {
-        field: 'articleName',
-        message: err.message || 'An inventory item with this article and brand already exists',
+        field: isDeleteAssigned ? 'general' : 'articleName',
+        message:
+          err.message ||
+          (isDeleteAssigned
+            ? 'Cannot delete inventory item while it is used on garment lists'
+            : 'An inventory item with this article and brand already exists'),
       },
     ];
   }

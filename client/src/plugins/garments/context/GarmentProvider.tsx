@@ -703,18 +703,47 @@ export function GarmentProvider({
     ],
   );
 
+  const deleteInventoryItem = useCallback(
+    async (id: string): Promise<string | null> => {
+      try {
+        await garmentsApi.deleteInventoryItem(id);
+        setInventoryItems((prev) => prev.filter((i) => i.id !== id));
+        if (currentInventoryItem?.id === id) {
+          closeGarmentPanel();
+        }
+        try {
+          const lists = await garmentsApi.getLists();
+          setGarmentLists(lists);
+        } catch {
+          // Item deleted; list refresh is best-effort.
+        }
+        return null;
+      } catch (err: any) {
+        console.error('Failed to delete inventory item:', err);
+        const message =
+          err?.status === 409
+            ? err?.message || t('garments.deleteInventoryAssigned')
+            : t('garments.deleteInventoryFailed');
+        setValidationErrors([{ field: 'general', message }]);
+        return message;
+      }
+    },
+    [closeGarmentPanel, currentInventoryItem?.id, setValidationErrors, t],
+  );
+
+  const deleteInventoryItems = useCallback(
+    async (ids: string[]) => {
+      for (const id of ids) {
+        await deleteInventoryItem(id);
+      }
+    },
+    [deleteInventoryItem],
+  );
+
   const deleteGarment = useCallback(
     async (id: string) => {
       if (panelKind === 'inventory') {
-        try {
-          await garmentsApi.deleteInventoryItem(id);
-          setInventoryItems((prev) => prev.filter((i) => i.id !== id));
-          if (currentInventoryItem?.id === id) {
-            closeGarmentPanel();
-          }
-        } catch (err) {
-          console.error('Failed to delete inventory item:', err);
-        }
+        await deleteInventoryItem(id);
         return;
       }
       try {
@@ -727,7 +756,7 @@ export function GarmentProvider({
         console.error('Failed to delete garment list:', err);
       }
     },
-    [closeGarmentPanel, currentGarment?.id, currentInventoryItem?.id, panelKind],
+    [closeGarmentPanel, currentGarment?.id, deleteInventoryItem, panelKind],
   );
 
   const deleteGarments = useCallback(
@@ -737,30 +766,6 @@ export function GarmentProvider({
       }
     },
     [deleteGarment],
-  );
-
-  const deleteInventoryItem = useCallback(
-    async (id: string) => {
-      try {
-        await garmentsApi.deleteInventoryItem(id);
-        setInventoryItems((prev) => prev.filter((i) => i.id !== id));
-        if (currentInventoryItem?.id === id) {
-          closeGarmentPanel();
-        }
-      } catch (err) {
-        console.error('Failed to delete inventory item:', err);
-      }
-    },
-    [closeGarmentPanel, currentInventoryItem?.id],
-  );
-
-  const deleteInventoryItems = useCallback(
-    async (ids: string[]) => {
-      for (const id of ids) {
-        await deleteInventoryItem(id);
-      }
-    },
-    [deleteInventoryItem],
   );
 
   const refreshGarmentList = useCallback(async (listId: string) => {
@@ -1095,7 +1100,12 @@ export function GarmentProvider({
   const getDeleteMessage = useCallback(
     (item: GarmentList | InventoryItem | null) => {
       if (panelKind === 'inventory') {
-        const name = currentInventoryItem?.articleName || (item as InventoryItem)?.articleName;
+        const inv = (item as InventoryItem) || currentInventoryItem;
+        const name = inv?.articleName;
+        const assignedCount = inv?.assignedListIds?.length ?? 0;
+        if (name && assignedCount > 0) {
+          return t('garments.deleteInventoryConfirmAssigned', { name, count: assignedCount });
+        }
         if (name) {
           return t('garments.deleteInventoryConfirm', { name });
         }
@@ -1107,7 +1117,7 @@ export function GarmentProvider({
       }
       return t('garments.deleteListConfirmGeneric');
     },
-    [currentGarment?.name, currentInventoryItem?.articleName, panelKind, t],
+    [currentGarment?.name, currentInventoryItem, panelKind, t],
   );
 
   const value = useMemo<GarmentContextType>(

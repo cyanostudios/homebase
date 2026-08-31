@@ -20,10 +20,12 @@ export function InventoryDetailHeaderMenus({ item }: { item: InventoryItem }) {
     getDuplicateConfig,
     executeDuplicate,
     setRecentlyDuplicatedInventoryId,
+    clearValidationErrors,
   } = useGarments();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const duplicateConfig = getDuplicateConfig(item);
   const canDuplicate = Boolean(duplicateConfig);
@@ -43,7 +45,11 @@ export function InventoryDetailHeaderMenus({ item }: { item: InventoryItem }) {
         label: t('common.delete'),
         variant: 'secondary',
         contentClassName: 'text-red-600 dark:text-red-400',
-        onClick: () => setShowDeleteConfirm(true),
+        onClick: () => {
+          setDeleteError(null);
+          clearValidationErrors();
+          setShowDeleteConfirm(true);
+        },
       },
     ];
 
@@ -59,7 +65,9 @@ export function InventoryDetailHeaderMenus({ item }: { item: InventoryItem }) {
     }
 
     return buttons;
-  }, [canDuplicate, item, openInventoryForEdit, t]);
+  }, [canDuplicate, clearValidationErrors, item, openInventoryForEdit, t]);
+
+  const confirmMessage = deleteError || getDeleteMessage(item);
 
   return (
     <DetailHeaderMenus
@@ -70,14 +78,24 @@ export function InventoryDetailHeaderMenus({ item }: { item: InventoryItem }) {
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title={t('dialog.deleteItem', { label: t('garments.inventoryItem') })}
-        message={getDeleteMessage(item)}
+        message={confirmMessage}
         confirmText={t('common.delete')}
         cancelText={t('common.cancel')}
         onConfirm={() => {
-          void deleteInventoryItem(item.id);
-          setShowDeleteConfirm(false);
+          void (async () => {
+            setDeleteError(null);
+            const errorMessage = await deleteInventoryItem(item.id);
+            if (!errorMessage) {
+              setShowDeleteConfirm(false);
+              return;
+            }
+            setDeleteError(errorMessage);
+          })();
         }}
-        onCancel={() => setShowDeleteConfirm(false)}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeleteError(null);
+        }}
         variant="danger"
       />
 
