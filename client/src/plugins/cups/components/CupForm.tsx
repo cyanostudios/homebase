@@ -1,4 +1,4 @@
-import { Info } from 'lucide-react';
+import { Info, SlidersHorizontal, Trash2, Trophy } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -170,7 +170,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
       >
         <div className="space-y-3">
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title="Cup details" className="p-4">
+            <DetailSection title="Cup information" icon={Trophy} subtleTitle className="p-6">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="md:col-span-2">
                   <Label>Name</Label>
@@ -284,10 +284,14 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
           </Card>
 
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <div className="space-y-2 p-6">
+            <DetailSection
+              title={t('cups.cupProperties')}
+              icon={SlidersHorizontal}
+              subtleTitle
+              className="p-6"
+            >
               <CupPropertiesFields
                 variant="form"
-                showSectionHeader
                 values={{
                   visible: form.visible,
                   sanctioned: form.sanctioned,
@@ -297,7 +301,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                 onSanctionedChange={(value) => onFieldChange('sanctioned', value)}
                 onFeaturedChange={(value) => onFieldChange('featured', value)}
               />
-              <div className="rounded-lg border border-border p-4 space-y-2">
+              <div className="mt-4 space-y-2 rounded-lg border border-border p-4">
                 <div>
                   <Label>Hero image (Cupappen featured cards)</Label>
                   <p className="text-xs text-muted-foreground">
@@ -316,6 +320,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                       type="button"
                       variant="outline"
                       size="sm"
+                      icon={Trash2}
                       onClick={() => {
                         onFieldChange('featured_image_url', '');
                       }}
@@ -359,7 +364,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                   <p className="text-xs text-destructive">{imageUploadError}</p>
                 ) : null}
               </div>
-            </div>
+            </DetailSection>
           </Card>
         </div>
       </DetailLayout>

@@ -6,6 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
@@ -198,17 +199,19 @@ export function FileAttachmentsSection({
                     {t('files.attachmentsSectionHelp')}
                   </p>
                 </div>
-                <Button
+                <RoundIconLabelButton
                   type="button"
-                  variant="outline"
-                  size="sm"
                   icon={Upload}
+                  label={
+                    uploading ? t('files.attachmentsUploading') : t('files.attachmentsUploadButton')
+                  }
+                  variant="soft"
+                  size="xs"
+                  alwaysExpanded
                   disabled={disabled || busy}
                   onClick={onPickFiles}
-                  className="h-9 shrink-0"
-                >
-                  {uploading ? t('files.attachmentsUploading') : t('files.attachmentsUploadButton')}
-                </Button>
+                  className="shrink-0"
+                />
               </div>
             </div>
 

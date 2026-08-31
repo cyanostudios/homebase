@@ -1,7 +1,7 @@
 # Security review notes — Garments Etapp 1 (public share)
 
-**Date:** 2026-08-14 (Etapp 1) · **Layout delta:** 2026-08-17  
-**Scope:** Unauthenticated read-only share of garment lists (names, sizes, jersey numbers, checkboxes).  
+**Date:** 2026-08-14 (Etapp 1) · **Layout delta:** 2026-08-17 · **Person teamId:** 2026-08-31  
+**Scope:** Unauthenticated read-only share of garment lists (names, sizes, jersey numbers, checkboxes; later: `ct_sizes` / `ct_audiences`; person `teamId` numeric metadata).  
 **Class:** Same residual class as Notes/tasks public shares.
 
 ## Controls (implemented)
@@ -22,13 +22,17 @@
 
 Person rows on admin list detail and the public page are two-row blocks with wrapping labeled checkboxes (`PersonBlock`). **No new API fields, tokens, or write endpoints.** Public still hides comments. Residual class **unchanged** (Security Approved 2026-08-17).
 
+## Person teamId (2026-08-31)
+
+Admin person matrix may store optional `team_id` on `garment_list_persons` (migration **155**). Public `getListByShareToken` still clears only `comment`; transformed persons retain **`teamId`** when set. Public UI remains `PersonBlock` (no Team column). Residual class **unchanged** — numeric team id is additional link metadata within the same share-exposure class (Security Approved Gate 5, 2026-08-31).
+
 ## Residual risks (accepted for Etapp 1 / local)
 
-1. **Minor / youth PII** — List may include children's names and clothing sizes. Anyone with the link can read until expiry/revoke. Operators should use short validity and revoke when done. Two-row layout makes checkbox **labels** easier to read; it does not add fields.
+1. **Minor / youth PII** — List may include children's names and clothing sizes. Anyone with the link can read until expiry/revoke. Operators should use short validity and revoke when done. Two-row layout makes checkbox **labels** easier to read; it does not add fields. Later fields in the same class: inventory-linked sizes/audiences and optional numeric person `teamId`.
 2. **Link leakage** — Same as Notes: treat URL as secret; no password gate in v1.
 3. **No edit on public** — v2 editable links are out of scope (reduces write abuse surface for now).
 
-TPM accepted these residuals for Etapp 1 / local. The 2026-08-17 layout delta does not expand the class.
+TPM accepted these residuals for Etapp 1 / local. The 2026-08-17 layout delta and 2026-08-31 person-`teamId` public metadata do not expand the residual **class**.
 
 ## Recommendations for operators
 

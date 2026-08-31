@@ -1,4 +1,4 @@
-import { Upload, File as FileIcon, Trash2, AlertTriangle, Info } from 'lucide-react';
+import { Upload, File as FileIcon, Trash2, AlertTriangle } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -223,7 +223,6 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('files.viewInformation')}
-          icon={Info}
           iconPlugin="files"
           subtleTitle
           className="p-4"
@@ -337,11 +336,11 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
                       <Button
                         variant="ghost"
                         size="sm"
+                        icon={Trash2}
                         onClick={() => remove(id)}
                         title="Remove"
                         className="h-8 text-muted-foreground hover:text-destructive"
                       >
-                        <Trash2 className="mr-1 h-4 w-4" />
                         Remove
                       </Button>
                     </div>

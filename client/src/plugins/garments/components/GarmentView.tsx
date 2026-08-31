@@ -1,8 +1,7 @@
-import { Edit, Layers, SlidersHorizontal, Users } from 'lucide-react';
+import { Layers, SlidersHorizontal, Users } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -61,7 +60,7 @@ function formatPurchasePrice(price: number | null | undefined, currency: string)
 
 function InventoryDetailView({ item }: { item: InventoryItem }) {
   const { t } = useTranslation();
-  const { openInventoryForEdit, updateInventoryVariantQuantity, isSaving } = useGarments();
+  const { updateInventoryVariantQuantity, isSaving } = useGarments();
 
   const description = item.description?.trim() || '';
   const comment = item.comment?.trim() || '';
@@ -116,16 +115,6 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
                 <h2 className={cn('min-w-0 flex-1', PLUGIN_PAGE_TITLE_CLASS)}>
                   {item.articleName || '—'}
                 </h2>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={Edit}
-                  className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
-                  onClick={() => openInventoryForEdit(item)}
-                  aria-label={t('common.edit')}
-                  title={t('common.edit')}
-                />
               </div>
             </div>
             <DetailSection

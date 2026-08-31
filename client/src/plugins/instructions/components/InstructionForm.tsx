@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -748,16 +749,15 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                         }
                       }}
                     />
-                    <Button
+                    <RoundIconLabelButton
                       type="button"
-                      variant="secondary"
-                      size="sm"
                       icon={Plus}
-                      className="h-9 px-3 text-xs"
+                      label={t('instructions.addInstructionCategory')}
+                      variant="soft"
+                      size="xs"
+                      alwaysExpanded
                       onClick={() => void handleAddCategory()}
-                    >
-                      {t('instructions.addInstructionCategory')}
-                    </Button>
+                    />
                   </div>
                 </DetailSection>
               </Card>
@@ -780,16 +780,16 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                       <p className="text-sm text-muted-foreground">
                         {t('instructions.noStepsYet')}
                       </p>
-                      <Button
+                      <RoundIconLabelButton
                         type="button"
-                        variant="primary"
-                        size="sm"
                         icon={Plus}
-                        className="mt-3 h-9 px-3 text-xs"
+                        label={t('instructions.addStep')}
+                        variant="soft"
+                        size="xs"
+                        alwaysExpanded
+                        className="mt-3"
                         onClick={addStep}
-                      >
-                        {t('instructions.addStep')}
-                      </Button>
+                      />
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -887,16 +887,15 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                           </div>
                         </div>
                       ))}
-                      <Button
+                      <RoundIconLabelButton
                         type="button"
-                        variant="secondary"
-                        size="sm"
                         icon={Plus}
-                        className="h-9 px-3 text-xs"
+                        label={t('instructions.addStep')}
+                        variant="soft"
+                        size="xs"
+                        alwaysExpanded
                         onClick={addStep}
-                      >
-                        {t('instructions.addStep')}
-                      </Button>
+                      />
                     </div>
                   )}
                 </DetailSection>

@@ -50,6 +50,8 @@ export interface GarmentPerson {
   comment: string | null;
   /** Linked Contacts id when imported/linked from Contacts. */
   contactId: string | null;
+  /** Optional Teams id when the person belongs to a team. */
+  teamId: string | null;
   checkboxValues: Record<string, boolean>;
   /** Selected size per assigned inventory item id. */
   ctSizes?: Record<string, string>;
@@ -70,6 +72,7 @@ export interface GarmentPersonPayload {
   initials?: string | null;
   comment?: string | null;
   contactId?: string | null;
+  teamId?: string | null;
   checkboxValues?: Record<string, boolean>;
   sortOrder?: number;
 }

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   Select,
   SelectContent,
@@ -617,22 +618,22 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                       type="button"
                       variant="ghost"
                       size="sm"
+                      icon={Trash2}
                       className="h-9 px-2 text-destructive hover:text-destructive"
                       onClick={() => removeSeriesTeam(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      aria-label={t('common.delete')}
+                    />
                   </div>
                 ))}
-                <Button
+                <RoundIconLabelButton
                   type="button"
-                  variant="outline"
-                  size="sm"
                   icon={Plus}
+                  label={t('teams.form.addSeriesTeam')}
+                  variant="soft"
+                  size="xs"
+                  alwaysExpanded
                   onClick={addSeriesTeam}
-                >
-                  {t('teams.form.addSeriesTeam')}
-                </Button>
+                />
               </div>
             </DetailSection>
           </Card>
@@ -692,22 +693,22 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                       type="button"
                       variant="ghost"
                       size="sm"
+                      icon={Trash2}
                       className="h-9 px-2 text-destructive hover:text-destructive"
                       onClick={() => removeTrainingTime(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      aria-label={t('common.delete')}
+                    />
                   </div>
                 ))}
-                <Button
+                <RoundIconLabelButton
                   type="button"
-                  variant="outline"
-                  size="sm"
                   icon={Plus}
+                  label={t('teams.form.addTraining')}
+                  variant="soft"
+                  size="xs"
+                  alwaysExpanded
                   onClick={addTrainingTime}
-                >
-                  {t('teams.form.addTraining')}
-                </Button>
+                />
               </div>
             </DetailSection>
           </Card>
@@ -751,22 +752,22 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                       type="button"
                       variant="ghost"
                       size="sm"
+                      icon={Trash2}
                       className="h-9 px-2 text-destructive hover:text-destructive"
                       onClick={() => removeSeasonBreak(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      aria-label={t('common.delete')}
+                    />
                   </div>
                 ))}
-                <Button
+                <RoundIconLabelButton
                   type="button"
-                  variant="outline"
-                  size="sm"
                   icon={Plus}
+                  label={t('teams.form.addBreak')}
+                  variant="soft"
+                  size="xs"
+                  alwaysExpanded
                   onClick={addSeasonBreak}
-                >
-                  {t('teams.form.addBreak')}
-                </Button>
+                />
               </div>
             </DetailSection>
           </Card>

@@ -1,4 +1,4 @@
-import { Copy, Download, Trash2 } from 'lucide-react';
+import { Copy, Download, Edit, Trash2 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +24,7 @@ function getSlotActionIconColorClass(actionId: string): string {
 export function SlotDetailHeaderMenus({ slot }: { slot: Slot }) {
   const { t } = useTranslation();
   const {
+    openSlotForEdit,
     deleteSlot,
     getDeleteMessage,
     getDuplicateConfig,
@@ -42,6 +43,13 @@ export function SlotDetailHeaderMenus({ slot }: { slot: Slot }) {
 
   const actions = useMemo((): DetailHeaderMenuAction[] => {
     const buttons: DetailHeaderMenuAction[] = [
+      {
+        id: 'edit',
+        icon: Edit,
+        label: t('common.edit'),
+        variant: 'soft',
+        onClick: () => openSlotForEdit(slot),
+      },
       {
         id: 'delete',
         icon: Trash2,
@@ -78,7 +86,7 @@ export function SlotDetailHeaderMenus({ slot }: { slot: Slot }) {
     }
 
     return buttons;
-  }, [canDuplicate, detailFooterActions, slot, t]);
+  }, [canDuplicate, detailFooterActions, openSlotForEdit, slot, t]);
 
   const exportActions = useMemo((): DetailHeaderMenuAction[] => {
     const exportLabelByFormat: Record<ExportFormat, string> = {

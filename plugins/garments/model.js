@@ -105,8 +105,42 @@ function inventoryColumnIdsForItem(itemId) {
   return INVENTORY_CHECKBOX_STATUSES.map((status) => `inv_${itemId}_${status.suffix}`);
 }
 
+/**
+ * Column ids accepted on person checkbox_values: list checkbox_columns plus
+ * inv_* ids for currently assigned inventory (client may synthesize those when
+ * join rows exist but checkbox_columns were never updated).
+ */
+async function resolveAllowedCheckboxIds(pool, listId, checkboxColumns) {
+  const ids = new Set(
+    (checkboxColumns || []).map((col) => col.id).filter((id) => typeof id === 'string' && id),
+  );
+  const lid = parseInt(String(listId), 10);
+  if (Number.isNaN(lid)) {
+    return Array.from(ids);
+  }
+  const assigned = await pool.query(
+    `SELECT item_id FROM garment_list_inventory_items WHERE list_id = $1`,
+    [lid],
+  );
+  for (const row of assigned.rows) {
+    for (const colId of inventoryColumnIdsForItem(row.item_id)) {
+      ids.add(colId);
+    }
+  }
+  return Array.from(ids);
+}
+
 function parseOptionalContactId(data) {
   const raw = data?.contactId ?? data?.contact_id;
+  if (raw === null || raw === undefined || raw === '') {
+    return null;
+  }
+  const n = parseInt(String(raw), 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseOptionalTeamId(data) {
+  const raw = data?.teamId ?? data?.team_id;
   if (raw === null || raw === undefined || raw === '') {
     return null;
   }
@@ -208,14 +242,70 @@ class GarmentsModel {
       if (!rows.length) return null;
       const list = this.transformListRow(rows[0]);
       const [enriched] = await this.enrichListsWithInventoryAssignments(req, [list]);
+      const healed = await this.ensureAssignedInventoryCheckboxColumns(req, enriched);
       if (includePersons) {
-        enriched.persons = await this.getPersonsForList(req, id);
+        healed.persons = await this.getPersonsForList(req, id);
       }
-      return enriched;
+      return healed;
     } catch (error) {
       Logger.error('Failed to get garment list', error, { listId });
       throw new AppError('Failed to get list', 500, AppError.CODES.DATABASE_ERROR);
     }
+  }
+
+  /**
+   * Persist inv_* checkbox columns when join rows exist but columns were never written
+   * (e.g. legacy assign / migration). Keeps server allow-list in sync with the matrix UI.
+   */
+  async ensureAssignedInventoryCheckboxColumns(req, list) {
+    const assignedIds = (list.assignedInventoryItemIds || [])
+      .map((id) => parseInt(String(id), 10))
+      .filter((id) => !Number.isNaN(id));
+    if (!assignedIds.length) {
+      return list;
+    }
+
+    const existingIds = new Set(list.checkboxColumns.map((col) => col.id));
+    const missingItemIds = assignedIds.filter((itemId) =>
+      inventoryColumnIdsForItem(itemId).some((colId) => !existingIds.has(colId)),
+    );
+    if (!missingItemIds.length) {
+      return list;
+    }
+
+    let checkboxColumns = [...list.checkboxColumns];
+    let maxColSort = checkboxColumns.reduce((max, col) => Math.max(max, col.sortOrder ?? 0), -1);
+
+    for (const itemId of missingItemIds) {
+      const inventory = await this.getInventoryById(req, itemId);
+      const articleName = inventory?.articleName?.trim() || `Item ${itemId}`;
+      const newColumns = buildInventoryCheckboxColumns(itemId, articleName, maxColSort + 1).filter(
+        (col) => !existingIds.has(col.id),
+      );
+      if (!newColumns.length) {
+        continue;
+      }
+      checkboxColumns = [...checkboxColumns, ...newColumns];
+      newColumns.forEach((col) => existingIds.add(col.id));
+      maxColSort += newColumns.length;
+    }
+
+    if (checkboxColumns.length === list.checkboxColumns.length) {
+      return list;
+    }
+
+    const pool = this._pool(req);
+    const lid = parseInt(String(list.id), 10);
+    await pool.query(
+      `
+      UPDATE garment_lists
+      SET checkbox_columns = $1::jsonb, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      `,
+      [JSON.stringify(checkboxColumns), lid],
+    );
+
+    return { ...list, checkboxColumns };
   }
 
   async createList(req, data) {
@@ -378,9 +468,10 @@ class GarmentsModel {
       `SELECT checkbox_columns FROM garment_lists WHERE id = $1`,
       [id],
     );
-    const allowedIds = normalizeCheckboxColumns(
+    const checkboxColumns = normalizeCheckboxColumns(
       parseJsonb(listResult.rows[0]?.checkbox_columns, []),
-    ).map((c) => c.id);
+    );
+    const allowedIds = await resolveAllowedCheckboxIds(pool, id, checkboxColumns);
     const result = await pool.query(
       `
       SELECT * FROM garment_list_persons
@@ -400,7 +491,7 @@ class GarmentsModel {
       if (!list) {
         throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
       }
-      const allowedIds = list.checkboxColumns.map((c) => c.id);
+      const allowedIds = await resolveAllowedCheckboxIds(pool, id, list.checkboxColumns);
       const checkboxValues = normalizeCheckboxValues(
         data.checkboxValues ?? data.checkbox_values ?? {},
         allowedIds,
@@ -414,13 +505,14 @@ class GarmentsModel {
           ? parseInt(String(data.sortOrder), 10)
           : (maxOrder.rows[0]?.m ?? -1) + 1;
       const contactId = parseOptionalContactId(data);
+      const teamId = parseOptionalTeamId(data);
 
       const record = await pool.query(
         `
         INSERT INTO garment_list_persons (
           list_id, name, shirt_size, shorts_size, socks_size, jersey_number,
-          jersey_name, initials, comment, checkbox_values, sort_order, contact_id
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
+          jersey_name, initials, comment, checkbox_values, sort_order, contact_id, team_id
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13)
         RETURNING *
         `,
         [
@@ -436,6 +528,7 @@ class GarmentsModel {
           JSON.stringify(checkboxValues),
           sortOrder,
           contactId,
+          teamId,
         ],
       );
       await pool.query(`UPDATE garment_lists SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [
@@ -458,7 +551,7 @@ class GarmentsModel {
       if (!list) {
         throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
       }
-      const allowedIds = list.checkboxColumns.map((c) => c.id);
+      const allowedIds = await resolveAllowedCheckboxIds(pool, lid, list.checkboxColumns);
       const existingResult = await pool.query(
         `SELECT * FROM garment_list_persons WHERE id = $1 AND list_id = $2`,
         [pid, lid],
@@ -479,6 +572,13 @@ class GarmentsModel {
             ? Number(existing.contact_id)
             : null;
 
+      const teamId =
+        data.teamId !== undefined || data.team_id !== undefined
+          ? parseOptionalTeamId(data)
+          : existing.team_id != null
+            ? Number(existing.team_id)
+            : null;
+
       const rows = await pool.query(
         `
         UPDATE garment_list_persons SET
@@ -493,8 +593,9 @@ class GarmentsModel {
           checkbox_values = $9::jsonb,
           sort_order = $10,
           contact_id = $11,
+          team_id = $12,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $12 AND list_id = $13
+        WHERE id = $13 AND list_id = $14
         RETURNING *
         `,
         [
@@ -533,6 +634,7 @@ class GarmentsModel {
               ? parseInt(String(data.sort_order), 10)
               : existing.sort_order,
           contactId,
+          teamId,
           pid,
           lid,
         ],
@@ -1569,6 +1671,7 @@ class GarmentsModel {
       initials: row.initials ?? null,
       comment: row.comment ?? null,
       contactId: row.contact_id != null ? String(row.contact_id) : null,
+      teamId: row.team_id != null ? String(row.team_id) : null,
       checkboxValues: normalizeCheckboxValues(row.checkbox_values, ids),
       ctSizes: parseCtSizes(row.ct_sizes),
       ctAudiences: parseCtAudiences(row.ct_audiences),

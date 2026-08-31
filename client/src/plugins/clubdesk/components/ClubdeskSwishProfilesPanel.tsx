@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   Select,
   SelectContent,
@@ -260,16 +261,16 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
             ))}
           </SelectContent>
         </Select>
-        <Button
+        <RoundIconLabelButton
           type="button"
-          variant="outline"
-          size="sm"
           icon={Plus}
+          label={t('clubdesk.siteContent.swish.newProfile')}
+          variant="soft"
+          size="xs"
+          alwaysExpanded
           disabled={busy || selectedId === 'new'}
           onClick={() => setSelectedId('new')}
-        >
-          {t('clubdesk.siteContent.swish.newProfile')}
-        </Button>
+        />
       </div>
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto]">

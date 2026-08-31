@@ -1,4 +1,4 @@
-import { Copy, Trash2 } from 'lucide-react';
+import { Copy, Edit, Trash2 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -20,6 +20,7 @@ function getMatchActionIconColorClass(actionId: string): string {
 export function MatchDetailHeaderMenus({ match }: { match: Match }) {
   const { t } = useTranslation();
   const {
+    openMatchForEdit,
     deleteMatch,
     getDeleteMessage,
     closeMatchPanel,
@@ -37,6 +38,13 @@ export function MatchDetailHeaderMenus({ match }: { match: Match }) {
 
   const actions = useMemo((): DetailHeaderMenuAction[] => {
     const buttons: DetailHeaderMenuAction[] = [
+      {
+        id: 'edit',
+        icon: Edit,
+        label: t('common.edit'),
+        variant: 'soft',
+        onClick: () => openMatchForEdit(match),
+      },
       {
         id: 'delete',
         icon: Trash2,
@@ -73,7 +81,7 @@ export function MatchDetailHeaderMenus({ match }: { match: Match }) {
     }
 
     return buttons;
-  }, [canDuplicate, detailFooterActions, match, t]);
+  }, [canDuplicate, detailFooterActions, match, openMatchForEdit, t]);
 
   return (
     <DetailHeaderMenus

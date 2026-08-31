@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -206,17 +207,16 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
             <Label className="text-xs text-muted-foreground">
               {t('clubdesk.infoContacts.listTitle')}
             </Label>
-            <Button
+            <RoundIconLabelButton
               type="button"
-              variant="ghost"
-              size="sm"
               icon={Plus}
-              className="h-7 px-2 text-xs"
+              label={t('clubdesk.infoContacts.add')}
+              variant="soft"
+              size="xs"
+              alwaysExpanded
               disabled={disabled || isLoading || isSaving}
               onClick={() => setSelectedId('new')}
-            >
-              {t('clubdesk.infoContacts.add')}
-            </Button>
+            />
           </div>
           <div className="space-y-1 rounded-lg border border-border p-1">
             {isLoading ? (

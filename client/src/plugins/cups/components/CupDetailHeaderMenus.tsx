@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -10,12 +10,19 @@ import type { Cup } from '../types/cups';
 
 export function CupDetailHeaderMenus({ cup }: { cup: Cup }) {
   const { t } = useTranslation();
-  const { deleteCup, getDeleteMessage } = useCups();
+  const { openCupForEdit, deleteCup, getDeleteMessage } = useCups();
 
   const [showDelete, setShowDelete] = useState(false);
 
   const actions = useMemo(
     (): DetailHeaderMenuAction[] => [
+      {
+        id: 'edit',
+        icon: Edit,
+        label: t('common.edit'),
+        variant: 'soft',
+        onClick: () => openCupForEdit(cup),
+      },
       {
         id: 'delete',
         icon: Trash2,
@@ -25,7 +32,7 @@ export function CupDetailHeaderMenus({ cup }: { cup: Cup }) {
         onClick: () => setShowDelete(true),
       },
     ],
-    [t],
+    [cup, openCupForEdit, t],
   );
 
   return (

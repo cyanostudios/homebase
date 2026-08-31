@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
@@ -400,7 +401,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                 <DetailSection
                   title={t('estimates.estimateProperties')}
                   icon={SlidersHorizontal}
-                  iconPlugin="estimates"
+                  subtleTitle
                   className="p-6"
                 >
                   <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
@@ -494,16 +495,15 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                   className="p-6"
                 >
                   <div className="flex items-center justify-end mb-3">
-                    <Button
+                    <RoundIconLabelButton
                       type="button"
-                      onClick={addLineItem}
-                      variant="secondary"
                       icon={Plus}
-                      size="sm"
-                      className="h-9 text-xs px-3"
-                    >
-                      Add Item
-                    </Button>
+                      label="Add Item"
+                      variant="soft"
+                      size="xs"
+                      alwaysExpanded
+                      onClick={addLineItem}
+                    />
                   </div>
 
                   {formData.lineItems.length === 0 ? (

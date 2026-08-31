@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -747,16 +748,15 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                       }
                     }}
                   />
-                  <Button
+                  <RoundIconLabelButton
                     type="button"
-                    variant="secondary"
-                    size="sm"
                     icon={Plus}
-                    className="h-9 px-3 text-xs"
+                    label={t('clubdesk.priceList.addCategory')}
+                    variant="soft"
+                    size="xs"
+                    alwaysExpanded
                     onClick={() => void handleAddCategory()}
-                  >
-                    {t('clubdesk.priceList.addCategory')}
-                  </Button>
+                  />
                 </div>
               </DetailSection>
             </Card>
@@ -777,16 +777,16 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                     <p className="text-sm text-muted-foreground">
                       {t('clubdesk.priceList.noItemsYet')}
                     </p>
-                    <Button
+                    <RoundIconLabelButton
                       type="button"
-                      variant="primary"
-                      size="sm"
                       icon={Plus}
-                      className="mt-3 h-9 px-3 text-xs"
+                      label={t('clubdesk.priceList.addItem')}
+                      variant="soft"
+                      size="xs"
+                      alwaysExpanded
+                      className="mt-3"
                       onClick={addItem}
-                    >
-                      {t('clubdesk.priceList.addItem')}
-                    </Button>
+                    />
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -904,16 +904,15 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                         </div>
                       </div>
                     ))}
-                    <Button
+                    <RoundIconLabelButton
                       type="button"
-                      variant="secondary"
-                      size="sm"
                       icon={Plus}
-                      className="h-9 px-3 text-xs"
+                      label={t('clubdesk.priceList.addItem')}
+                      variant="soft"
+                      size="xs"
+                      alwaysExpanded
                       onClick={addItem}
-                    >
-                      {t('clubdesk.priceList.addItem')}
-                    </Button>
+                    />
                   </div>
                 )}
               </DetailSection>

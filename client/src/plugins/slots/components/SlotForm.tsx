@@ -30,7 +30,7 @@ import { DateTimePicker } from '@/core/ui/DateTimePicker';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -732,49 +732,61 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
             </Card>
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <div className="space-y-2 p-6">
-                <div className="mb-1 flex min-w-0 items-center gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="truncate text-sm font-semibold text-foreground">
-                    {t('slots.properties')}
-                  </span>
-                </div>
-                <div
-                  className={cn(
-                    'flex items-center justify-between rounded-lg border border-border p-4',
-                    isSlotTimePast(formData.slot_time) && 'opacity-55 text-muted-foreground',
-                  )}
-                  title={
-                    isSlotTimePast(formData.slot_time) ? t('slots.visibleDisabledPast') : undefined
-                  }
-                >
-                  <div className="space-y-0.5">
-                    <div className="text-sm font-medium">{t('slots.visibleLabel')}</div>
-                    <p className="text-[11px] text-muted-foreground">{t('slots.visibleHelp')}</p>
+              <DetailSection
+                title={t('slots.properties')}
+                icon={SlidersHorizontal}
+                subtleTitle
+                className="p-6"
+              >
+                <div>
+                  <div
+                    className={cn(
+                      DETAIL_PROP_ROW_CLASS,
+                      'items-start gap-4',
+                      isSlotTimePast(formData.slot_time) && 'opacity-55 text-muted-foreground',
+                    )}
+                    title={
+                      isSlotTimePast(formData.slot_time)
+                        ? t('slots.visibleDisabledPast')
+                        : undefined
+                    }
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('slots.visibleLabel')}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {t('slots.visibleHelp')}
+                      </p>
+                    </div>
+                    <div className="shrink-0 pt-0.5">
+                      <Switch
+                        checked={formData.visible}
+                        onCheckedChange={(checked) => updateField('visible', checked)}
+                        disabled={isSlotTimePast(formData.slot_time)}
+                        className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
+                      />
+                    </div>
                   </div>
-                  <Switch
-                    checked={formData.visible}
-                    onCheckedChange={(checked) => updateField('visible', checked)}
-                    disabled={isSlotTimePast(formData.slot_time)}
-                    className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-border p-4">
-                  <div className="space-y-0.5">
-                    <div className="text-sm font-medium">{t('slots.notificationsLabel')}</div>
-                    <p className="text-[11px] text-muted-foreground">
-                      {t('slots.notificationsHelp')}
-                    </p>
+                  <div className={cn(DETAIL_PROP_ROW_CLASS, 'items-start gap-4')}>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('slots.notificationsLabel')}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {t('slots.notificationsHelp')}
+                      </p>
+                    </div>
+                    <div className="shrink-0 pt-0.5">
+                      <Switch
+                        checked={formData.notifications_enabled}
+                        onCheckedChange={(checked) => updateField('notifications_enabled', checked)}
+                        className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
+                      />
+                    </div>
                   </div>
-                  <Switch
-                    checked={formData.notifications_enabled}
-                    onCheckedChange={(checked) => updateField('notifications_enabled', checked)}
-                    className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
-                  />
                 </div>
-              </div>
+              </DetailSection>
             </Card>
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>

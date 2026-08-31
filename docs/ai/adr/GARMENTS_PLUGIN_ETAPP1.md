@@ -12,14 +12,14 @@
 
 3. **Lists schema (tenant DB, migration 131)** — Tables:
    - `garment_lists` — `user_id`, `name`, optional `team_id` → `teams(id) ON DELETE SET NULL`, `checkbox_columns JSONB` (array of `{ id, label, sort_order }`), timestamps.
-   - `garment_list_persons` — free-text `name`, optional `contact_id` → `contacts(id)` ON DELETE SET NULL (migration **143**; set when importing From Contacts), `shirt_size` / `shorts_size` / `socks_size`, `jersey_number`, `jersey_name`, `initials`, `comment`, `checkbox_values JSONB` map `{ [columnId]: boolean }`, `sort_order`, FK `list_id` CASCADE.
+   - `garment_list_persons` — free-text `name`, optional `contact_id` → `contacts(id)` ON DELETE SET NULL (migration **143**; set when importing From Contacts), optional `team_id` → `teams(id)` ON DELETE SET NULL (migration **155**; per-person team, distinct from list-level `garment_lists.team_id`), `shirt_size` / `shorts_size` / `socks_size`, `jersey_number`, `jersey_name`, `initials`, `comment`, `checkbox_values JSONB` map `{ [columnId]: boolean }`, `sort_order`, FK `list_id` CASCADE.
    - `garment_list_shares` — mirror [`067-note-shares.sql`](../../../server/migrations/067-note-shares.sql).
 
 4. **Checkbox columns = JSONB** — Admin-defined columns on the list; person booleans keyed by column `id`. On column remove, backend strips keys from all persons in one transaction. Default Excel-inspired template on new list is a **UX decision** (frontend sends default `checkbox_columns` on create).
 
 5. **Inventory schema (tenant DB, same migration 131)** — Table `garment_inventory_items`: `user_id`, `article_name`, `brand`, `size`, `quantity` (≥ 0), `comment`. **Unique** on `(user_id, lower(article_name), lower(brand), lower(size))` with empty brand/size as `''`. **No** automatic FK or sync to lists.
 
-6. **Team gating** — `team_id` optional. UI team picker and TeamView section only when teams plugin enabled. API may filter `GET /lists?team_id=`.
+6. **Team gating** — List-level `team_id` optional. Person-level `team_id` optional (migration **155**). UI team pickers and TeamView garments section only when teams plugin enabled. API may filter `GET /lists?team_id=`.
 
 7. **Share (Notes-style, view-only v1)** — Create share writes `garment_list_shares` then `registerPublicShareRoute(token, 'garment_list', tenantConnectionString)`; fail closed. Public `GET /api/garments/public/:token`. Frontend `PublicGarmentListView` at `/public/garment-list/:token`. No public edit in Etapp 1.
 
@@ -75,6 +75,10 @@
 ## Person row UX (verified 2026-08-17)
 
 Not a schema change. List detail and public share render each person as a **two-row block** (`PersonBlock` / `PersonMatrix`): identity (name, jersey badge, comment on admin) then sizes + wrapping labeled checkboxes. Public: `readOnly` + `hideComment`. Replaces the earlier wide HTML table in the same detail card. Security residual class unchanged — see [`GARMENTS_PUBLIC_SHARE_ETAPP1.md`](../security/GARMENTS_PUBLIC_SHARE_ETAPP1.md).
+
+## Person-level team (verified 2026-08-31)
+
+Schema delta: migration **`155-garment-list-persons-team-id.sql`**. Admin `PersonMatrix` shows optional Team column (after name, before jersey name) when teams is enabled. Public share payload may include numeric `teamId`; public `PersonBlock` does not render Team. Operator notes: [`GARMENTS_PLUGIN.md`](../../GARMENTS_PLUGIN.md).
 
 ## References
 

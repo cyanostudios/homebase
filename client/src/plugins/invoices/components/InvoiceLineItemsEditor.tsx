@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -53,16 +54,16 @@ export function InvoiceLineItemsEditor({
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border/70 px-4 py-8 text-center">
           <p className="text-sm text-muted-foreground">{t('invoices.noLineItems')}</p>
-          <Button
+          <RoundIconLabelButton
             type="button"
-            variant="primary"
-            size="sm"
             icon={Plus}
-            className="mt-3 h-9 px-3 text-xs"
+            label={t('invoices.addItem')}
+            variant="soft"
+            size="xs"
+            alwaysExpanded
+            className="mt-3"
             onClick={onAdd}
-          >
-            {t('invoices.addItem')}
-          </Button>
+          />
         </div>
       ) : (
         <div className="space-y-2">
@@ -225,9 +226,15 @@ export function InvoiceLineItemsEditor({
               </tbody>
             </table>
           </div>
-          <Button type="button" variant="secondary" icon={Plus} size="sm" onClick={onAdd}>
-            {t('invoices.addItem')}
-          </Button>
+          <RoundIconLabelButton
+            type="button"
+            icon={Plus}
+            label={t('invoices.addItem')}
+            variant="soft"
+            size="xs"
+            alwaysExpanded
+            onClick={onAdd}
+          />
         </div>
       )}
 

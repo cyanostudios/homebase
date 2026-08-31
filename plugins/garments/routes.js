@@ -275,6 +275,7 @@ function createGarmentsRoutes(controller, context) {
     body('checkboxValues').optional().isObject(),
     body('sortOrder').optional().isInt({ min: 0 }),
     optionalContactIdBody(),
+    optionalTeamIdBody(),
     validateRequest,
     (req, res, next) => controller.createPerson(req, res, next),
   );
@@ -300,6 +301,7 @@ function createGarmentsRoutes(controller, context) {
     body('checkboxValues').optional().isObject(),
     body('sortOrder').optional().isInt({ min: 0 }),
     optionalContactIdBody(),
+    optionalTeamIdBody(),
     validateRequest,
     (req, res, next) => controller.updatePerson(req, res, next),
   );

@@ -20,7 +20,7 @@ Sidebar submenu (Clubdesk-style), URL-driven:
 
 | View          | URL                   | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lists**     | `/garments`           | Clothing checklists: persons + spreadsheet (Paid per person; Ordered/Delivered/Handed out per **assigned** inventory article). List index: cards/table layout toggle + column count (persisted under user settings key `garments`). Optional team link. Person matrix shows only columns for inventory assigned to the list (legacy Shorts/Shirt/Socks groups and Blankett Fogis are hidden).                                                                                                                                                                                                   |
+| **Lists**     | `/garments`           | Clothing checklists: persons + spreadsheet (Paid per person; Ordered/Delivered/Handed out per **assigned** inventory article). List index: cards/table layout toggle + column count (persisted under user settings key `garments`). Optional **list** team link (form). Person matrix: optional **per-person** team column (after name, before jersey name) when the teams plugin is enabled. Person matrix shows only columns for inventory assigned to the list (legacy Shorts/Shirt/Socks groups and Blankett Fogis are hidden).                                                             |
 | **Inventory** | `/garments/inventory` | Stock **articles** with product fields (name required; optional brand, description, material, purchase price). Each article has **variants** (optional audience + color and/or size + SKU + quantity) via a form repeater. Desktop: sticky quick-context (variant list with inline qty, assigned-list badges) + full view. Full view: **50/50** layout (`lg:grid-cols-2`) — details + **Show in lists** card beside variants; platform prev/next when more than one article. Assign articles to lists per item (see **Inventory ↔ lists**). Bulk assign/unassign via inventory list selection. |
 
 ### Inventory uniqueness and copy behaviour
@@ -50,8 +50,9 @@ Sidebar submenu (Clubdesk-style), URL-driven:
 | `152-garment-inventory-variant-identity-nonunique.sql` | Drops unique index on `(audience, color, size)` so identity may repeat                                      |
 | `153-garment-list-inventory.sql`                       | Join table `garment_list_inventory_items`; `ct_sizes` JSONB on `garment_list_persons`                       |
 | `154-garment-list-persons-ct-audiences.sql`            | `ct_audiences` JSONB on `garment_list_persons` (per-person audience per assigned inventory item)            |
+| `155-garment-list-persons-team-id.sql`                 | Nullable `team_id` on `garment_list_persons` (optional per-person team; `ON DELETE SET NULL`)               |
 
-Run: `npm run migrate:garments`. Apply **`149`–`154` in the target environment** as needed. Apply **`140`** so existing lists get the current spreadsheet column set.
+Run: `npm run migrate:garments`. Apply **`149`–`155` in the target environment** as needed. Apply **`140`** so existing lists get the current spreadsheet column set.
 
 ## Inventory ↔ lists (per article)
 
@@ -94,9 +95,11 @@ Admin list full view uses a **Notes-style** layout: list name + persons spreadsh
 
 The persons matrix is a **spreadsheet table** with a single header row:
 
-| Namn | Namn på tröja | Initialer | Betalt | _(per assigned article)_ Audience · Size · Beställt · Levererat · Utdelat |
+| Namn | Lag _(when teams enabled)_ | Namn på tröja | Initialer | Betalt | _(per assigned article)_ Audience · Size · Beställt · Levererat · Utdelat |
 
-_(UI working language is English: Name / Name on jersey / Initials / Paid / Audience / Size / Ordered / Delivered / Handed out. Swedish remains in `sv.json`.)_
+_(UI working language is English: Name / Team / Name on jersey / Initials / Paid / Audience / Size / Ordered / Delivered / Handed out. Swedish remains in `sv.json`. Team column is omitted when the teams plugin is disabled.)_
+
+Person create/update (`POST` / `PUT` `/api/garments/lists/:id/persons[/:personId]`) accept optional `teamId` (numeric id or `null`), same validation style as `contactId`. CSRF + garments plugin gate required. List ownership is enforced before write (`user_id` on the parent list).
 
 Each person is a **collapsible** parent row (jersey name, initials, Paid on the person). Expanding shows **child rows per assigned inventory article** only (`filterMatrixColumns` — legacy Shorts/Shirt/Socks groups and Blankett Fogis are not shown). On phone/pad the matrix scrolls horizontally (`MATRIX_TABLE_SCROLL_CLASS`); the name column is not sticky.
 
@@ -133,11 +136,15 @@ Duplicate jersey numbers on the same list still show a non-blocking warning when
 
 Notes-style view-only link. Creates `garment_list_shares` + main-DB `public_share_routing` (`resource_type = garment_list`). Public page: `/public/garment-list/:token`.
 
-Public person blocks keep the older **two-row** `PersonBlock` layout, **read-only** (no Edit/Delete; checkboxes disabled). **Comments are hidden** (API clears `comment`; UI does not show the field). **`ct_sizes`** and **`ct_audiences`** (inventory-linked per-person fields) are included in the public payload, same exposure class as legacy size fields.
+Public person blocks keep the older **two-row** `PersonBlock` layout, **read-only** (no Edit/Delete; checkboxes disabled). **Comments are hidden** (API clears `comment`; UI does not show the field). **`ct_sizes`**, **`ct_audiences`**, and optional person **`teamId`** (numeric id string, or null) are included in the public JSON payload (`getListByShareToken` strips `comment` only). The public `PersonBlock` UI does **not** render a Team column; exposure is metadata in the API response.
 
 ## Teams
 
-When both `teams` and `garments` are enabled, Team detail has a **Kläder** tab listing lists for that team.
+When both `teams` and `garments` are enabled:
+
+- **List form:** optional `team_id` on `garment_lists` (list ↔ team).
+- **Person matrix:** optional per-person `team_id` on `garment_list_persons` (migration **`155`**). Column after name / before jersey name; value may be empty (`—` / “No team”).
+- **Team detail:** **Kläder** tab lists garment lists for that team (list-level `team_id`).
 
 ## Requests → list intake (cross-plugin)
 
@@ -147,11 +154,13 @@ Operator detail: [`REQUESTS_PLUGIN.md`](REQUESTS_PLUGIN.md). ADR: [`docs/ai/adr/
 
 ## Security residuals
 
-Unauthenticated share links can expose youth names, sizes, jersey numbers, and checkbox status. Same residual class as Notes public shares. See [`docs/ai/security/GARMENTS_PUBLIC_SHARE_ETAPP1.md`](ai/security/GARMENTS_PUBLIC_SHARE_ETAPP1.md). Prefer short expiry and revoke after use. **Local first; no prod** without an explicit release.
+Unauthenticated share links can expose youth names, sizes, jersey numbers, checkbox status, inventory-linked size/audience fields, and (when set) numeric person **`teamId`**. Same residual class as Notes public shares. See [`docs/ai/security/GARMENTS_PUBLIC_SHARE_ETAPP1.md`](ai/security/GARMENTS_PUBLIC_SHARE_ETAPP1.md). Prefer short expiry and revoke after use. **Local first; no prod** without an explicit release.
 
 **Inventory (Gate 5, 2026-08-23):** No unacceptable risks. Hardening note (non-blocking): nested `variants[]` on item POST/PUT is validated mainly as an array (max 100); dedicated `/variants` routes use per-field length/int rules. Prefer aligning nested validators with `variantBody` in a follow-up. Ensure migrations **`149`** and **`150`** are applied in each target tenant DB (audience uniqueness; art.nr non-unique).
 
 **List ↔ inventory (Gate 5, 2026-08-28):** No unacceptable risks. `PATCH …/ct-sizes` trims `ctSizes` values to 50 chars and `ctAudiences` to 100 chars server-side.
+
+**Person team (Gate 5, 2026-08-31):** No unacceptable risks. Optional person `teamId` on create/update: numeric-or-null validation, CSRF, plugin gate, list `user_id` ownership. FK to tenant `teams(id)`; invalid id may surface as DB error (same class as list-level `team_id`). Public share may include numeric `teamId` in person JSON (UI does not show Team on public `PersonBlock`). Non-blocking follow-up: map FK violations to 400.
 
 ## ADR
 

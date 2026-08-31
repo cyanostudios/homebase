@@ -1,9 +1,8 @@
-import { Edit, Link2, SlidersHorizontal, Users } from 'lucide-react';
+import { Link2, SlidersHorizontal, Users } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -42,7 +41,6 @@ export function TaskView({ task }: TaskViewProps) {
   const { contacts } = useContacts();
   const {
     closeTaskPanel,
-    openTaskForEdit,
     saveTask,
     validationErrors,
     clearValidationErrors,
@@ -164,18 +162,6 @@ export function TaskView({ task }: TaskViewProps) {
         title={String((displayTask ?? task)?.title || '').trim() || '—'}
         className="p-6"
         prominentTitle
-        action={
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={Edit}
-            className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
-            onClick={() => openTaskForEdit(task)}
-            aria-label={t('common.edit')}
-            title={t('common.edit')}
-          />
-        }
       >
         {updatedLabel ? (
           <p className="mb-3 text-xs text-muted-foreground">

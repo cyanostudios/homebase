@@ -685,6 +685,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
               icon={Plus}
               label={t('garments.addVariant')}
               variant="soft"
+              size="xs"
               alwaysExpanded
               onClick={addVariant}
             />

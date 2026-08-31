@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -764,16 +765,15 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                         }
                       }}
                     />
-                    <Button
+                    <RoundIconLabelButton
                       type="button"
-                      variant="secondary"
-                      size="sm"
                       icon={Plus}
-                      className="h-9 px-3 text-xs"
+                      label={t('clubdesk.addGuideCategory')}
+                      variant="soft"
+                      size="xs"
+                      alwaysExpanded
                       onClick={() => void handleAddCategory()}
-                    >
-                      {t('clubdesk.addGuideCategory')}
-                    </Button>
+                    />
                   </div>
                 </DetailSection>
               </Card>
@@ -794,16 +794,16 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                   {formData.steps.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-border/70 px-4 py-8 text-center">
                       <p className="text-sm text-muted-foreground">{t('clubdesk.noStepsYet')}</p>
-                      <Button
+                      <RoundIconLabelButton
                         type="button"
-                        variant="primary"
-                        size="sm"
                         icon={Plus}
-                        className="mt-3 h-9 px-3 text-xs"
+                        label={t('clubdesk.addStep')}
+                        variant="soft"
+                        size="xs"
+                        alwaysExpanded
+                        className="mt-3"
                         onClick={addStep}
-                      >
-                        {t('clubdesk.addStep')}
-                      </Button>
+                      />
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -901,16 +901,15 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                           </div>
                         </div>
                       ))}
-                      <Button
+                      <RoundIconLabelButton
                         type="button"
-                        variant="secondary"
-                        size="sm"
                         icon={Plus}
-                        className="h-9 px-3 text-xs"
+                        label={t('clubdesk.addStep')}
+                        variant="soft"
+                        size="xs"
+                        alwaysExpanded
                         onClick={addStep}
-                      >
-                        {t('clubdesk.addStep')}
-                      </Button>
+                      />
                     </div>
                   )}
                 </DetailSection>

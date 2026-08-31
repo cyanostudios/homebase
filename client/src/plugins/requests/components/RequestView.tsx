@@ -1,7 +1,6 @@
 import {
   CalendarDays,
   ClipboardList,
-  Edit,
   ExternalLink,
   Mail,
   Phone,
@@ -79,14 +78,8 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
   const enabledPlugins = useEnabledPlugins();
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const garmentsEnabled = enabledPlugins.has('garments');
-  const {
-    openRequestForEdit,
-    saveRequest,
-    closeRequestPanel,
-    validationErrors,
-    clearValidationErrors,
-    requestTypes,
-  } = useRequests();
+  const { saveRequest, closeRequestPanel, validationErrors, clearValidationErrors, requestTypes } =
+    useRequests();
   const { contacts } = useContacts();
   const [targetListName, setTargetListName] = useState<string | null>(null);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
@@ -245,18 +238,6 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
           title={String(request.title || '').trim() || '—'}
           className="p-6"
           prominentTitle
-          action={
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={Edit}
-              className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
-              onClick={() => openRequestForEdit(request)}
-              aria-label={t('common.edit')}
-              title={t('common.edit')}
-            />
-          }
         >
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Badge

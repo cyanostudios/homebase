@@ -2,7 +2,7 @@ import { Plus } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Textarea } from '@/components/ui/textarea';
 
 import type { TeamNote } from '../types/teams';
@@ -63,16 +63,16 @@ export function TeamNotesSection({
             rows={3}
             placeholder={t('teams.view.notePlaceholder')}
           />
-          <Button
+          <RoundIconLabelButton
             type="button"
-            variant="outline"
-            size="sm"
             icon={Plus}
+            label={t('teams.view.addNote')}
+            variant="soft"
+            size="xs"
+            alwaysExpanded
             onClick={handleAdd}
             disabled={isAdding || !draft.trim()}
-          >
-            {t('teams.view.addNote')}
-          </Button>
+          />
         </div>
       )}
     </div>

@@ -19,6 +19,9 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DETAIL_FIELD_LABEL_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
 import { cn } from '@/lib/utils';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useGarments } from '../hooks/useGarments';
 import type {
@@ -177,6 +180,9 @@ export function PersonMatrix({
   hideComment?: boolean;
 }) {
   const { t } = useTranslation();
+  const enabledPlugins = useEnabledPlugins();
+  const hasTeams = enabledPlugins.has('teams');
+  const { teams } = useTeams();
   const {
     addPerson,
     updatePerson,
@@ -271,6 +277,7 @@ export function PersonMatrix({
     jerseyName: overrides.jerseyName !== undefined ? overrides.jerseyName : person.jerseyName,
     initials: overrides.initials !== undefined ? overrides.initials : person.initials,
     comment: overrides.comment !== undefined ? overrides.comment : person.comment,
+    teamId: overrides.teamId !== undefined ? overrides.teamId : person.teamId,
     checkboxValues:
       overrides.checkboxValues !== undefined ? overrides.checkboxValues : person.checkboxValues,
   });
@@ -311,6 +318,17 @@ export function PersonMatrix({
       return;
     }
     await updatePerson(list.id, person.id, personFieldPayload(person, { [field]: next }));
+  };
+
+  const saveTeamField = async (person: GarmentPerson, nextTeamId: string | null) => {
+    if (readOnly) {
+      return;
+    }
+    const current = person.teamId ?? null;
+    if (nextTeamId === current) {
+      return;
+    }
+    await updatePerson(list.id, person.id, personFieldPayload(person, { teamId: nextTeamId }));
   };
 
   const saveCtSize = async (person: GarmentPerson, itemId: string, raw: string) => {
@@ -475,6 +493,16 @@ export function PersonMatrix({
                     <ListTableSortIcon active={primarySort === 'name'} order={sortOrder} />
                   </div>
                 </th>
+                {hasTeams ? (
+                  <th
+                    className={cn(
+                      'min-w-[8rem] border-r border-border px-1.5 py-2 text-left',
+                      MATRIX_HEADER_BASE,
+                    )}
+                  >
+                    {t('garments.team')}
+                  </th>
+                ) : null}
                 <th
                   className={cn(
                     'border-r border-border px-1.5 py-2 text-center',
@@ -644,6 +672,73 @@ export function PersonMatrix({
                           )}
                         </div>
                       </td>
+                      {hasTeams ? (
+                        <td className="min-w-[8rem] border-r border-border/50 px-1 py-1.5">
+                          {readOnly ? (
+                            <span className="block truncate px-1 text-xs">
+                              {(() => {
+                                const team = person.teamId
+                                  ? teams.find(
+                                      (entry) => String(entry.id) === String(person.teamId),
+                                    )
+                                  : null;
+                                return team ? formatTeamLabel(team) || team.name : '—';
+                              })()}
+                            </span>
+                          ) : isEditing ? (
+                            <Select
+                              value={editDraft.teamId ?? '__none__'}
+                              onValueChange={(value) =>
+                                setEditDraft((prev) => ({
+                                  ...prev,
+                                  teamId: value === '__none__' ? null : value,
+                                }))
+                              }
+                            >
+                              <SelectTrigger
+                                aria-label={t('garments.team')}
+                                className="h-8 text-xs"
+                              >
+                                <SelectValue placeholder={t('garments.teamNone')} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItemCompact value="__none__">
+                                  {t('garments.teamNone')}
+                                </SelectItemCompact>
+                                {teams.map((team) => (
+                                  <SelectItemCompact key={team.id} value={String(team.id)}>
+                                    {formatTeamLabel(team)}
+                                  </SelectItemCompact>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Select
+                              value={person.teamId ?? '__none__'}
+                              onValueChange={(value) =>
+                                void saveTeamField(person, value === '__none__' ? null : value)
+                              }
+                            >
+                              <SelectTrigger
+                                aria-label={`${person.name} — ${t('garments.team')}`}
+                                className="h-8 text-xs"
+                              >
+                                <SelectValue placeholder={t('garments.teamNone')} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItemCompact value="__none__">
+                                  {t('garments.teamNone')}
+                                </SelectItemCompact>
+                                {teams.map((team) => (
+                                  <SelectItemCompact key={team.id} value={String(team.id)}>
+                                    {formatTeamLabel(team)}
+                                  </SelectItemCompact>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </td>
+                      ) : null}
                       <td className="border-r border-border/50 px-1 py-1.5">
                         {readOnly ? (
                           <span className="block truncate px-1 text-xs">
@@ -854,6 +949,9 @@ export function PersonMatrix({
                               <td className="border-r border-border bg-muted/10 py-1.5 pl-9 pr-2 text-xs text-muted-foreground">
                                 {translateCheckboxGroupLabel(t, group)}
                               </td>
+                              {hasTeams ? (
+                                <td className="border-r border-border/40 px-1 py-1.5" />
+                              ) : null}
                               <td className="border-r border-border/40 px-1 py-1.5" />
                               <td className="border-r border-border/40 px-0.5 py-1.5" />
                               <td className="border-r border-border/40 px-0.5 py-1.5" />
@@ -1007,6 +1105,7 @@ export function PersonMatrix({
             </Label>
             <Input
               id="add-person-name"
+              name="garment-person-name"
               value={draftName}
               onChange={(e) => setDraftName(e.target.value)}
               onKeyDown={(e) => {
@@ -1016,6 +1115,9 @@ export function PersonMatrix({
                 }
               }}
               placeholder={t('garments.personNamePlaceholder')}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="h-9"
             />
           </div>
@@ -1024,6 +1126,7 @@ export function PersonMatrix({
             icon={Plus}
             label={t('garments.addPerson')}
             variant="soft"
+            size="xs"
             alwaysExpanded
             onClick={() => void handleAdd()}
             disabled={!draftName.trim()}

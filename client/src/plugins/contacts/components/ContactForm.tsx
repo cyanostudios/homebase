@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   NativeSelect,
   Select,
@@ -612,9 +613,15 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection title="Addresses" icon={MapPin} subtleTitle className="p-6">
           <div className="space-y-4">
-            <Button type="button" onClick={addAddress} variant="secondary" icon={Plus} size="sm">
-              Add Address
-            </Button>
+            <RoundIconLabelButton
+              type="button"
+              icon={Plus}
+              label="Add Address"
+              variant="soft"
+              size="xs"
+              alwaysExpanded
+              onClick={addAddress}
+            />
             {formData.addresses.length === 0 ? (
               <p className="text-xs italic text-muted-foreground">No addresses added yet.</p>
             ) : (
@@ -622,16 +629,15 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                 <div key={address.id} className="space-y-4 rounded-lg border border-border p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{address.type || 'Address'}</span>
-                    <Button
+                    <RoundIconLabelButton
                       type="button"
-                      onClick={() => removeAddress(address.id)}
-                      variant="ghost"
                       icon={Trash2}
-                      size="sm"
-                      className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                    >
-                      <span className="sr-only">Remove</span>
-                    </Button>
+                      label="Remove"
+                      variant="dangerSoft"
+                      size="xs"
+                      expandOnHover={false}
+                      onClick={() => removeAddress(address.id)}
+                    />
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
@@ -906,15 +912,15 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection title="Contact Persons" icon={Users} subtleTitle className="p-6">
                   <div className="space-y-4">
-                    <Button
+                    <RoundIconLabelButton
                       type="button"
-                      onClick={addContactPerson}
-                      variant="secondary"
                       icon={Plus}
-                      size="sm"
-                    >
-                      Add Contact
-                    </Button>
+                      label="Add Contact"
+                      variant="soft"
+                      size="xs"
+                      alwaysExpanded
+                      onClick={addContactPerson}
+                    />
                     {formData.contactPersons.length === 0 ? (
                       <p className="text-xs italic text-muted-foreground">
                         No contact persons added yet.
@@ -927,16 +933,15 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">{person.name || 'Person'}</span>
-                            <Button
+                            <RoundIconLabelButton
                               type="button"
-                              onClick={() => removeContactPerson(person.id)}
-                              variant="ghost"
                               icon={Trash2}
-                              size="sm"
-                              className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                            >
-                              <span className="sr-only">Remove</span>
-                            </Button>
+                              label="Remove"
+                              variant="dangerSoft"
+                              size="xs"
+                              expandOnHover={false}
+                              onClick={() => removeContactPerson(person.id)}
+                            />
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="sm:col-span-2">

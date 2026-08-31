@@ -26,6 +26,7 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/152-garment-inventory-variant-identity-nonunique.sql'),
   path.join(__dirname, '../server/migrations/153-garment-list-inventory.sql'),
   path.join(__dirname, '../server/migrations/154-garment-list-persons-ct-audiences.sql'),
+  path.join(__dirname, '../server/migrations/155-garment-list-persons-team-id.sql'),
 ];
 const MAIN_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/132-grant-garments-plugin-access.sql'),

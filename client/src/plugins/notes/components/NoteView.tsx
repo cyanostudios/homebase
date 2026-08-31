@@ -1,4 +1,4 @@
-import { Edit, Link2, Maximize2, Minimize2, Users } from 'lucide-react';
+import { Link2, Maximize2, Minimize2, Users } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -36,7 +36,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { contacts } = useContacts();
-  const { closeNotePanel, openNoteForEdit } = useNotes();
+  const { closeNotePanel } = useNotes();
   const { user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
 
@@ -108,19 +108,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   );
 
   const contentHeaderActions = (
-    <div className="flex shrink-0 items-center gap-1">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        icon={Edit}
-        className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
-        onClick={() => openNoteForEdit(note)}
-        aria-label={t('common.edit')}
-        title={t('common.edit')}
-      />
-      {focusModeToggle}
-    </div>
+    <div className="flex shrink-0 items-center gap-1">{focusModeToggle}</div>
   );
 
   const noteContent = (

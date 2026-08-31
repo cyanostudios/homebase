@@ -2,7 +2,7 @@ import { ChevronRight, Inbox, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { cn } from '@/lib/utils';
 
 import { requestsApi } from '../api/requestsApi';
@@ -126,16 +126,16 @@ export function TeamRequestsSection({
         <Inbox className="h-8 w-8 text-muted-foreground/40" />
         <p className="text-sm text-muted-foreground">{t('requests.noYetForTeam')}</p>
         {onCreateRequest && (
-          <Button
+          <RoundIconLabelButton
             type="button"
-            variant="outline"
-            size="sm"
             icon={Plus}
+            label={t('requests.addRequest')}
+            variant="soft"
+            size="xs"
+            alwaysExpanded
             onClick={onCreateRequest}
             className="mt-1"
-          >
-            {t('requests.addRequest')}
-          </Button>
+          />
         )}
       </div>
     );
@@ -208,16 +208,16 @@ export function TeamRequestsSection({
         )}
 
         {!compact && onCreateRequest && (
-          <Button
+          <RoundIconLabelButton
             type="button"
-            variant="outline"
-            size="sm"
             icon={Plus}
+            label={t('requests.addRequest')}
+            variant="soft"
+            size="xs"
+            alwaysExpanded
             onClick={onCreateRequest}
             className="mt-2"
-          >
-            {t('requests.addRequest')}
-          </Button>
+          />
         )}
       </div>
 
