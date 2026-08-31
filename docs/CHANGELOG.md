@@ -4,6 +4,51 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-31 – Garments: size/audience summary under person matrix
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** feature / UX / frontend  
+**Scope:** `buildGarmentListFitSummary` (`inventoryListColumns.ts`), `GarmentListFitSummary` in `PersonMatrix.tsx` / `PublicPersonMatrix`, i18n `garments.fitSummary*`
+
+**Sammanfattning:** Under personmatrisen visas en **storlekssammanfattning** per tilldelad inventarieartikel: antal personer med ifylld audience och/eller storlek, plus histogram för audience och storlek. Ordered/Delivered/Handed out räknas **inte**.
+
+**Beteende (verifierat i kod)**
+
+- Client-only aggregat från `list.persons` (`ctSizes` / `ctAudiences`) + garment groups; inget nytt API
+- Admin: artikelnamn från inventory-katalog när tillgängligt; public share: group-etikett som fallback
+- Visas på admin full view och publikt share (`/public/garment-list/:token`)
+
+**Begränsningar / residual (Security):** Aggregerade antal på publikt share ligger inom samma exponeringsklass som befintliga personrader (storlek/audience redan synliga). Inga nya accepterade risker.
+
+**Guides:** [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (person matrix / public share)
+
+---
+
+## 2026-08-31 – Teams: save JSONB fix + edit from quick context
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut (JSONB-fix kräver deploy av `plugins/teams/model.js`).
+
+**Typ:** bugfix / backend + frontend  
+**Scope:** `plugins/teams/model.js` (`jsonbParam`), `plugins/teams/__tests__/playerCountHistory.test.js`, `client/src/plugins/teams/context/TeamProvider.tsx` (`teamsDeepLinkPathSyncedRef`)
+
+**Sammanfattning:** (1) Team-update misslyckades med `DATABASE_ERROR` / `Failed to update teams` när `player_count` var oförändrat — `player_count_history` skickades som JS-array och `node-pg` serialiserade den som Postgres-array, inte JSON. (2) Edit från Teams quick context öppnade full view i stället för formulär — URL-sync anropade alltid `openTeamForView` efter navigate.
+
+**Beteende (verifierat i kod)**
+
+- `jsonbParam()` stringifierar JSONB-värden före `db.update`; används för `player_count_history` och övriga JSONB-fallbacks i `TeamModel.update`
+- Migration `146` (`player_count_history`) måste finnas på tenant-DB (redan listad under `migrate:teams-player-count-history`)
+- `openTeamForEdit` sätter `teamsDeepLinkPathSyncedRef` till `/teams/${slug}` **före** `navigateToItem` (samma mönster som Contacts/Notes/Tasks/Requests)
+
+**Begränsningar**
+
+- Prod får JSONB-fixen först efter deploy; migration 146 ensam räcker inte
+- Venues-migrationsskriptändringar i working tree ingår **inte** i denna leverans (QA/Security scope-exkluderade)
+
+**Guides:** [`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`](PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md) §1; [`LOCAL_PROD_PARITY.md`](LOCAL_PROD_PARITY.md) tenant migrate-lista
+
+---
+
 ## 2026-08-28 – Companion Panel (Teams → Schedule)
 
 **Status:** Implementerat lokalt. **Ej prod-release** utan explicit beslut. QA/Security pending.
@@ -484,7 +529,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - Create seedar historik; update appendar `{ at, count }` när spelarantalet ändras; klient kan inte skriva historik
 - Diagrammet summerar per månad last-known count per lag (`buildPlayersByMonth`)
 
-**Begränsningar:** Månader före go-live kan fortfarande vara ungefärliga (backfill = nuvarande antal vid `created_at`). Unmigrated tenants: create/update av teams failar tills 146 körts.
+**Begränsningar:** Månader före go-live kan fortfarande vara ungefärliga (backfill = nuvarande antal vid `created_at`). Unmigrated tenants: create/update av teams failar tills 146 körts. JSONB-värden i `update` måste skickas som JSON-strängar till `node-pg` (se 2026-08-31 changelog / `jsonbParam`) — JS-arrayer serialiseras annars som Postgres-arrayer.
 
 **Operator:** [`server/migrations/README.md`](../server/migrations/README.md) §146; [`LOCAL_PROD_PARITY.md`](LOCAL_PROD_PARITY.md) tenant migrate-lista
 

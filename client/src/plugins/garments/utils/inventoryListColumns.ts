@@ -142,6 +142,89 @@ export function personHasFilledInventoryItem(
   return false;
 }
 
+/** Size/audience only — ignores Ordered / Delivered / Handed out. */
+export function personHasInventoryFitData(
+  person: Pick<GarmentPerson, 'ctSizes' | 'ctAudiences'>,
+  itemId: string,
+): boolean {
+  const id = String(itemId);
+  return Boolean(person.ctSizes?.[id]?.trim() || person.ctAudiences?.[id]?.trim());
+}
+
+export type GarmentFitSummaryCount = { label: string; count: number };
+
+export type GarmentFitSummaryEntry = {
+  itemId: string;
+  articleName: string;
+  personCount: number;
+  /** Persons with size and/or audience for this inventory item. */
+  filledCount: number;
+  sizeCounts: GarmentFitSummaryCount[];
+  audienceCounts: GarmentFitSummaryCount[];
+};
+
+function tallySorted(map: Map<string, number>): GarmentFitSummaryCount[] {
+  return Array.from(map.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' }),
+    );
+}
+
+/**
+ * Per assigned inventory article: how many persons have size/audience filled,
+ * plus size and audience histograms. Status checkboxes are ignored.
+ */
+export function buildGarmentListFitSummary(
+  persons: Array<Pick<GarmentPerson, 'ctSizes' | 'ctAudiences'>>,
+  garmentGroups: Array<{ group: string; columns: GarmentCheckboxColumn[] }>,
+  inventoryItems: InventoryItem[],
+): GarmentFitSummaryEntry[] {
+  const personCount = persons.length;
+  const entries: GarmentFitSummaryEntry[] = [];
+  const seenItemIds = new Set<string>();
+
+  for (const { group, columns: groupCols } of garmentGroups) {
+    const itemId = inventoryItemIdFromGroupColumns(groupCols);
+    if (!itemId || seenItemIds.has(itemId)) {
+      continue;
+    }
+    seenItemIds.add(itemId);
+
+    const inventoryItem = inventoryItems.find((item) => String(item.id) === itemId);
+    const articleName = inventoryItem?.articleName?.trim() || group.trim() || itemId;
+
+    const sizeMap = new Map<string, number>();
+    const audienceMap = new Map<string, number>();
+    let filledCount = 0;
+
+    for (const person of persons) {
+      const size = person.ctSizes?.[itemId]?.trim() ?? '';
+      const audience = person.ctAudiences?.[itemId]?.trim() ?? '';
+      if (size || audience) {
+        filledCount += 1;
+      }
+      if (size) {
+        sizeMap.set(size, (sizeMap.get(size) ?? 0) + 1);
+      }
+      if (audience) {
+        audienceMap.set(audience, (audienceMap.get(audience) ?? 0) + 1);
+      }
+    }
+
+    entries.push({
+      itemId,
+      articleName,
+      personCount,
+      filledCount,
+      sizeCounts: tallySorted(sizeMap),
+      audienceCounts: tallySorted(audienceMap),
+    });
+  }
+
+  return entries;
+}
+
 /** Unique non-empty audiences from inventory variants. */
 export function inventoryItemAudiences(item: InventoryItem | undefined): string[] {
   if (!item?.variants?.length) return [];

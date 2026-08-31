@@ -788,6 +788,36 @@ useEffect(() => {
 💡 **Why (lesson learned):**
 `location.pathname` ändras bara när användaren navigerar. Listan uppdateras utan URL-ändring efter duplicering, så effekten ignorerar listuppdateringen. Varje unik URL öppnar panelen exakt en gång, och grön highlight störs inte.
 
+**Edit från list / quick context:** Sätt samma ref till mål-path **före** `navigateToItem` i `openXForEdit`. Annars öppnar URL-sync `openXForView` och skriver över `panelMode` från `'edit'` till `'view'` (sett i Teams 2026-08-31; redan åtgärdat i Contacts/Notes/Tasks/Requests).
+
+---
+
+## node-pg: JS-arrayer är inte JSON för JSONB-kolumner
+
+❌ **What we did (that didn't work):**
+
+```js
+// ❌ FEL – current.player_count_history är en JS-array från pg JSONB-parse
+player_count_history: current.player_count_history, // node-pg → Postgres array `{...}` → invalid JSON
+```
+
+Konsekvens: `PUT /api/teams/:id` → `Failed to update teams` / `DATABASE_ERROR` (`invalid input syntax for type json`) när t.ex. bara lagnamn ändras och historiken lämnas oförändrad.
+
+✅ **What we do instead (that works):**
+
+```js
+// ✅ RÄTT – alltid JSON-sträng (objekt/array via JSON.stringify; sträng passthrough)
+function jsonbParam(value, fallback = '[]') {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
+}
+player_count_history: jsonbParam(sanitizePlayerCountHistory(current.player_count_history));
+```
+
+💡 **Why (lesson learned):**
+`node-pg` serialiserar JavaScript-**arrayer** som PostgreSQL array-literals. JSONB kräver JSON-text. Stringifiera alltid JSONB-skrivningar (särskilt serverägda fält som återanvänds från `SELECT`).
+
 ---
 
 ## Duplicate: `setRecentlyDuplicatedId` destruktureras inte i View

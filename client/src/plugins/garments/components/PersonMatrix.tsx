@@ -47,6 +47,7 @@ import {
   type GarmentSizeField,
 } from '../utils/checkboxColumnI18n';
 import {
+  buildGarmentListFitSummary,
   filterMatrixColumns,
   inventoryItemAudiences,
   inventoryItemIdFromGroupColumns,
@@ -54,8 +55,61 @@ import {
   inventoryItemSizesForAudience,
   personHasFilledInventoryItem,
   resolveMatrixColumns,
+  type GarmentFitSummaryEntry,
 } from '../utils/inventoryListColumns';
 import { MATRIX_TABLE_SCROLL_CLASS } from '../utils/variantListStyles';
+
+function formatFitCountList(counts: { label: string; count: number }[]): string {
+  return counts.map((entry) => `${entry.label}: ${entry.count}`).join(' · ');
+}
+
+function GarmentListFitSummary({ entries }: { entries: GarmentFitSummaryEntry[] }) {
+  const { t } = useTranslation();
+  if (!entries.length) {
+    return null;
+  }
+
+  return (
+    <div
+      className="mt-4 space-y-3 border-t border-border/50 pt-4"
+      data-testid="garment-fit-summary"
+    >
+      <h3 className="text-sm font-semibold text-foreground">{t('garments.fitSummaryTitle')}</h3>
+      <p className="text-xs text-muted-foreground">{t('garments.fitSummaryHint')}</p>
+      <ul className="space-y-3">
+        {entries.map((entry) => (
+          <li key={entry.itemId} className="text-sm">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="font-semibold text-foreground">{entry.articleName}</span>
+              <span className="tabular-nums text-muted-foreground">
+                {t('garments.fitSummaryFilled', {
+                  filled: entry.filledCount,
+                  total: entry.personCount,
+                })}
+              </span>
+            </div>
+            {entry.audienceCounts.length > 0 ? (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground/80">{t('garments.audience')}: </span>
+                {formatFitCountList(entry.audienceCounts)}
+              </p>
+            ) : null}
+            {entry.sizeCounts.length > 0 ? (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground/80">{t('garments.size')}: </span>
+                {formatFitCountList(entry.sizeCounts)}
+              </p>
+            ) : (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t('garments.fitSummaryNoSizes')}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function splitMatrixColumns(columns: GarmentCheckboxColumn[]): {
   personColumns: GarmentCheckboxColumn[];
@@ -246,6 +300,11 @@ export function PersonMatrix({
       return inventoryItemAudiences(inventoryItem).length > 0;
     });
   }, [garmentGroups, inventoryItems, showGarmentColumns]);
+
+  const fitSummary = useMemo(
+    () => buildGarmentListFitSummary(persons, garmentGroups, inventoryItems),
+    [persons, garmentGroups, inventoryItems],
+  );
 
   const [draftName, setDraftName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1143,6 +1202,8 @@ export function PersonMatrix({
         </div>
       )}
 
+      <GarmentListFitSummary entries={fitSummary} />
+
       {!readOnly ? (
         <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-border/50 pt-4">
           <div className="min-w-[12rem] flex-1">
@@ -1225,197 +1286,207 @@ export function PublicPersonMatrix({ list }: { list: GarmentList }) {
     );
   }, [persons, showGarmentColumns]);
 
+  const fitSummary = useMemo(
+    () => buildGarmentListFitSummary(persons, garmentGroups, []),
+    [persons, garmentGroups],
+  );
+
   if (persons.length === 0) {
     return <PublicEmptyPersons />;
   }
 
   return (
-    <div className={MATRIX_TABLE_SCROLL_CLASS}>
-      <table className="w-max min-w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-border bg-primary/5">
-            <th
-              className={cn(
-                'border-r border-border bg-primary/5 px-3 py-2 text-left',
-                MATRIX_HEADER_BASE,
-              )}
-            >
-              {t('garments.personName')}
-            </th>
-            <th
-              className={cn('border-r border-border px-1.5 py-2 text-center', MATRIX_HEADER_BASE)}
-            >
-              {t('garments.jerseyName')}
-            </th>
-            <th
-              className={cn(
-                'w-11 border-r border-border px-0.5 py-2 text-center',
-                MATRIX_HEADER_BASE,
-              )}
-            >
-              {t('garments.initials')}
-            </th>
-            {personColumns.map((col) => (
+    <div>
+      <div className={MATRIX_TABLE_SCROLL_CLASS}>
+        <table className="w-max min-w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border bg-primary/5">
               <th
-                key={col.id}
-                className={PERSON_CHECKBOX_COL_CLASS}
-                title={translateCheckboxColumnLabel(t, col)}
+                className={cn(
+                  'border-r border-border bg-primary/5 px-3 py-2 text-left',
+                  MATRIX_HEADER_BASE,
+                )}
               >
-                {translateCheckboxColumnLabel(t, col)}
+                {t('garments.personName')}
               </th>
-            ))}
-            {showGarmentColumns
-              ? statusLabels.map((label) => (
-                  <th
-                    key={label}
-                    className={cn(STATUS_CHECKBOX_COL_CLASS, 'last:border-r-0')}
-                    title={translateCheckboxStatusLabel(t, label)}
-                  >
-                    {translateCheckboxStatusLabel(t, label)}
-                  </th>
-                ))
-              : null}
-            {showGarmentColumns ? (
-              <>
-                {showAudienceColumn ? (
+              <th
+                className={cn('border-r border-border px-1.5 py-2 text-center', MATRIX_HEADER_BASE)}
+              >
+                {t('garments.jerseyName')}
+              </th>
+              <th
+                className={cn(
+                  'w-11 border-r border-border px-0.5 py-2 text-center',
+                  MATRIX_HEADER_BASE,
+                )}
+              >
+                {t('garments.initials')}
+              </th>
+              {personColumns.map((col) => (
+                <th
+                  key={col.id}
+                  className={PERSON_CHECKBOX_COL_CLASS}
+                  title={translateCheckboxColumnLabel(t, col)}
+                >
+                  {translateCheckboxColumnLabel(t, col)}
+                </th>
+              ))}
+              {showGarmentColumns
+                ? statusLabels.map((label) => (
+                    <th
+                      key={label}
+                      className={cn(STATUS_CHECKBOX_COL_CLASS, 'last:border-r-0')}
+                      title={translateCheckboxStatusLabel(t, label)}
+                    >
+                      {translateCheckboxStatusLabel(t, label)}
+                    </th>
+                  ))
+                : null}
+              {showGarmentColumns ? (
+                <>
+                  {showAudienceColumn ? (
+                    <th
+                      className={cn(
+                        'w-16 border-l border-border px-1 py-2 text-center',
+                        MATRIX_HEADER_BASE,
+                      )}
+                    >
+                      {t('garments.audience')}
+                    </th>
+                  ) : null}
                   <th
                     className={cn(
-                      'w-16 border-l border-border px-1 py-2 text-center',
+                      'w-14 border-l border-border px-1 py-2 text-center',
                       MATRIX_HEADER_BASE,
                     )}
                   >
-                    {t('garments.audience')}
+                    {t('garments.size')}
                   </th>
-                ) : null}
-                <th
-                  className={cn(
-                    'w-14 border-l border-border px-1 py-2 text-center',
-                    MATRIX_HEADER_BASE,
-                  )}
-                >
-                  {t('garments.size')}
-                </th>
-              </>
-            ) : null}
-          </tr>
-        </thead>
-        <tbody>
-          {persons.map((person) => {
-            const checkboxValues = person.checkboxValues ?? {};
-            const filledGroups = showGarmentColumns
-              ? garmentGroups.filter(({ columns: groupCols }) => {
-                  const itemId = inventoryItemIdFromGroupColumns(groupCols);
-                  return itemId ? personHasFilledInventoryItem(person, itemId, groupCols) : false;
-                })
-              : [];
+                </>
+              ) : null}
+            </tr>
+          </thead>
+          <tbody>
+            {persons.map((person) => {
+              const checkboxValues = person.checkboxValues ?? {};
+              const filledGroups = showGarmentColumns
+                ? garmentGroups.filter(({ columns: groupCols }) => {
+                    const itemId = inventoryItemIdFromGroupColumns(groupCols);
+                    return itemId ? personHasFilledInventoryItem(person, itemId, groupCols) : false;
+                  })
+                : [];
 
-            return (
-              <React.Fragment key={person.id}>
-                <tr className="border-b border-border/60">
-                  <td className="border-r border-border bg-background px-3 py-1.5 text-sm font-medium">
-                    {person.name || '—'}
-                  </td>
-                  <td className="border-r border-border/50 px-1 py-1.5 text-center text-xs">
-                    {person.jerseyName?.trim() || '—'}
-                  </td>
-                  <td className="w-11 border-r border-border/50 px-0.5 py-1.5 text-center text-xs">
-                    {person.initials?.trim() || '—'}
-                  </td>
-                  {personColumns.map((col) => (
-                    <td key={col.id} className={PERSON_CHECKBOX_CELL_CLASS}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(checkboxValues[col.id])}
-                        disabled
-                        readOnly
-                        aria-label={`${person.name} — ${translateCheckboxColumnLabel(t, col)}`}
-                        className={cn(CHECKBOX_SM_CLASS, 'cursor-default')}
-                      />
+              return (
+                <React.Fragment key={person.id}>
+                  <tr className="border-b border-border/60">
+                    <td className="border-r border-border bg-background px-3 py-1.5 text-sm font-medium">
+                      {person.name || '—'}
                     </td>
-                  ))}
-                  {showGarmentColumns
-                    ? statusLabels.map((label) => (
-                        <td
-                          key={`${person.id}-parent-${label}`}
-                          className={STATUS_CHECKBOX_CELL_CLASS}
+                    <td className="border-r border-border/50 px-1 py-1.5 text-center text-xs">
+                      {person.jerseyName?.trim() || '—'}
+                    </td>
+                    <td className="w-11 border-r border-border/50 px-0.5 py-1.5 text-center text-xs">
+                      {person.initials?.trim() || '—'}
+                    </td>
+                    {personColumns.map((col) => (
+                      <td key={col.id} className={PERSON_CHECKBOX_CELL_CLASS}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(checkboxValues[col.id])}
+                          disabled
+                          readOnly
+                          aria-label={`${person.name} — ${translateCheckboxColumnLabel(t, col)}`}
+                          className={cn(CHECKBOX_SM_CLASS, 'cursor-default')}
                         />
-                      ))
-                    : null}
-                  {showGarmentColumns ? (
-                    <>
-                      {showAudienceColumn ? (
-                        <td className="border-l border-border/50 px-1 py-1.5" />
-                      ) : null}
-                      <td className="border-l border-border/50 px-1 py-1.5" />
-                    </>
-                  ) : null}
-                </tr>
-                {filledGroups.map(({ group, columns: groupCols }) => {
-                  const inventoryItemId = inventoryItemIdFromGroupColumns(groupCols);
-                  const audience =
-                    inventoryItemId != null
-                      ? (person.ctAudiences?.[inventoryItemId] ?? '').trim()
-                      : '';
-                  const size =
-                    inventoryItemId != null ? (person.ctSizes?.[inventoryItemId] ?? '').trim() : '';
-                  return (
-                    <tr
-                      key={`${person.id}-${group}`}
-                      className="border-b border-border/40 bg-muted/10"
-                    >
-                      <td className="border-r border-border bg-muted/10 py-1.5 pl-9 pr-2 text-xs text-muted-foreground">
-                        {translateCheckboxGroupLabel(t, group)}
                       </td>
-                      <td className="border-r border-border/40 px-1 py-1.5" />
-                      <td className="border-r border-border/40 px-0.5 py-1.5" />
-                      {personColumns.map((col) => (
-                        <td
-                          key={`${person.id}-${group}-${col.id}`}
-                          className={cn(PERSON_CHECKBOX_CELL_CLASS, 'border-border/40')}
-                        />
-                      ))}
-                      {statusLabels.map((statusLabel) => {
-                        const col = columnForStatus(groupCols, statusLabel);
-                        if (!col) {
-                          return (
-                            <td
-                              key={`${person.id}-${group}-${statusLabel}`}
-                              className={cn(STATUS_CHECKBOX_CELL_CLASS, 'border-border/40')}
-                            />
-                          );
-                        }
-                        return (
+                    ))}
+                    {showGarmentColumns
+                      ? statusLabels.map((label) => (
+                          <td
+                            key={`${person.id}-parent-${label}`}
+                            className={STATUS_CHECKBOX_CELL_CLASS}
+                          />
+                        ))
+                      : null}
+                    {showGarmentColumns ? (
+                      <>
+                        {showAudienceColumn ? (
+                          <td className="border-l border-border/50 px-1 py-1.5" />
+                        ) : null}
+                        <td className="border-l border-border/50 px-1 py-1.5" />
+                      </>
+                    ) : null}
+                  </tr>
+                  {filledGroups.map(({ group, columns: groupCols }) => {
+                    const inventoryItemId = inventoryItemIdFromGroupColumns(groupCols);
+                    const audience =
+                      inventoryItemId != null
+                        ? (person.ctAudiences?.[inventoryItemId] ?? '').trim()
+                        : '';
+                    const size =
+                      inventoryItemId != null
+                        ? (person.ctSizes?.[inventoryItemId] ?? '').trim()
+                        : '';
+                    return (
+                      <tr
+                        key={`${person.id}-${group}`}
+                        className="border-b border-border/40 bg-muted/10"
+                      >
+                        <td className="border-r border-border bg-muted/10 py-1.5 pl-9 pr-2 text-xs text-muted-foreground">
+                          {translateCheckboxGroupLabel(t, group)}
+                        </td>
+                        <td className="border-r border-border/40 px-1 py-1.5" />
+                        <td className="border-r border-border/40 px-0.5 py-1.5" />
+                        {personColumns.map((col) => (
                           <td
                             key={`${person.id}-${group}-${col.id}`}
-                            className={cn(STATUS_CHECKBOX_CELL_CLASS, 'border-border/40')}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={Boolean(checkboxValues[col.id])}
-                              disabled
-                              readOnly
-                              aria-label={`${person.name} — ${translateCheckboxGroupLabel(t, group)} ${translateCheckboxColumnLabel(t, col)}`}
-                              className={cn(CHECKBOX_SM_CLASS, 'cursor-default')}
-                            />
+                            className={cn(PERSON_CHECKBOX_CELL_CLASS, 'border-border/40')}
+                          />
+                        ))}
+                        {statusLabels.map((statusLabel) => {
+                          const col = columnForStatus(groupCols, statusLabel);
+                          if (!col) {
+                            return (
+                              <td
+                                key={`${person.id}-${group}-${statusLabel}`}
+                                className={cn(STATUS_CHECKBOX_CELL_CLASS, 'border-border/40')}
+                              />
+                            );
+                          }
+                          return (
+                            <td
+                              key={`${person.id}-${group}-${col.id}`}
+                              className={cn(STATUS_CHECKBOX_CELL_CLASS, 'border-border/40')}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={Boolean(checkboxValues[col.id])}
+                                disabled
+                                readOnly
+                                aria-label={`${person.name} — ${translateCheckboxGroupLabel(t, group)} ${translateCheckboxColumnLabel(t, col)}`}
+                                className={cn(CHECKBOX_SM_CLASS, 'cursor-default')}
+                              />
+                            </td>
+                          );
+                        })}
+                        {showAudienceColumn ? (
+                          <td className="border-l border-border/40 px-1 py-1.5 text-center text-xs">
+                            {audience || '—'}
                           </td>
-                        );
-                      })}
-                      {showAudienceColumn ? (
+                        ) : null}
                         <td className="border-l border-border/40 px-1 py-1.5 text-center text-xs">
-                          {audience || '—'}
+                          {size || '—'}
                         </td>
-                      ) : null}
-                      <td className="border-l border-border/40 px-1 py-1.5 text-center text-xs">
-                        {size || '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <GarmentListFitSummary entries={fitSummary} />
     </div>
   );
 }

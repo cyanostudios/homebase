@@ -1,6 +1,7 @@
 const TeamModel = require('../model');
 
-const { sanitizePlayerCountHistory, seedPlayerCountHistory, appendPlayerCountHistory } = TeamModel;
+const { sanitizePlayerCountHistory, seedPlayerCountHistory, appendPlayerCountHistory, jsonbParam } =
+  TeamModel;
 
 describe('player_count_history helpers', () => {
   test('sanitizePlayerCountHistory keeps valid entries and clamps count', () => {
@@ -37,5 +38,27 @@ describe('player_count_history helpers', () => {
     expect(appendPlayerCountHistory([], 10, '2026-08-01T00:00:00.000Z')).toEqual([
       { at: '2026-08-01T00:00:00.000Z', count: 10 },
     ]);
+  });
+});
+
+describe('jsonbParam', () => {
+  // Regression: node-pg treats JS arrays as Postgres arrays (`{...}`), which breaks JSONB.
+  test('stringifies JS arrays so they are valid JSON for JSONB columns', () => {
+    const history = [{ at: '2026-01-01T00:00:00.000Z', count: 12 }];
+    const param = jsonbParam(history);
+    expect(typeof param).toBe('string');
+    expect(JSON.parse(param)).toEqual(history);
+    expect(param.startsWith('[')).toBe(true);
+    expect(param.startsWith('{')).toBe(false);
+  });
+
+  test('passes through already-stringified JSON', () => {
+    expect(jsonbParam('[]')).toBe('[]');
+    expect(jsonbParam('[{"at":"x","count":1}]')).toBe('[{"at":"x","count":1}]');
+  });
+
+  test('falls back for null/undefined', () => {
+    expect(jsonbParam(null)).toBe('[]');
+    expect(jsonbParam(undefined)).toBe('[]');
   });
 });

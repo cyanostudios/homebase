@@ -105,6 +105,8 @@ Each person is a **collapsible** parent row (jersey name, initials, Paid on the 
 
 Checkboxes toggle immediately; name is editable via the row edit control. New persons are added below the table.
 
+Below the spreadsheet (admin and public share), a **size summary** (`buildGarmentListFitSummary` / `GarmentListFitSummary`) lists each assigned inventory article with: filled count (persons with size and/or audience), audience histogram, and size histogram. Status checkboxes (Ordered/Delivered/Handed out) are **not** included in the counts.
+
 ### Per-person audience and size (assigned inventory)
 
 For child rows whose checkbox group maps to an assigned inventory article (`inv_{itemId}_*` column ids):
@@ -136,7 +138,7 @@ Duplicate jersey numbers on the same list still show a non-blocking warning when
 
 Notes-style view-only link. Creates `garment_list_shares` + main-DB `public_share_routing` (`resource_type = garment_list`). Public page: `/public/garment-list/:token`.
 
-Public share uses the same **spreadsheet** layout as admin (name / jersey name / initials / Paid + inventory status columns). Per person, **only inventory articles with filled data** are shown as child rows (size, audience, or any Ordered/Delivered/Handed out checked). Empty assigned articles are hidden. **Comments are hidden** (API clears `comment`). Public payload includes `assignedInventoryItemIds`, `ct_sizes`, `ct_audiences`, and optional numeric person `teamId` (Team column is not rendered on the public page).
+Public share uses the same **spreadsheet** layout as admin (name / jersey name / initials / Paid + inventory status columns). Per person, **only inventory articles with filled data** are shown as child rows (size, audience, or any Ordered/Delivered/Handed out checked). Empty assigned articles are hidden. **Comments are hidden** (API clears `comment`). Public payload includes `assignedInventoryItemIds`, `ct_sizes`, `ct_audiences`, and optional numeric person `teamId` (Team column is not rendered on the public page). The same **size summary** as admin appears under the public matrix (aggregates from person size/audience only).
 
 ## Teams
 
@@ -161,6 +163,8 @@ Unauthenticated share links can expose youth names, sizes, jersey numbers, check
 **List ↔ inventory (Gate 5, 2026-08-28):** No unacceptable risks. `PATCH …/ct-sizes` trims `ctSizes` values to 50 chars and `ctAudiences` to 100 chars server-side.
 
 **Person team (Gate 5, 2026-08-31):** No unacceptable risks. Optional person `teamId` on create/update: numeric-or-null validation, CSRF, plugin gate, list `user_id` ownership. FK to tenant `teams(id)`; invalid id may surface as DB error (same class as list-level `team_id`). Public share may include numeric `teamId` in person JSON (UI does not show Team on public `PersonBlock`). Non-blocking follow-up: map FK violations to 400.
+
+**Size summary (Gate 5, 2026-08-31):** No unacceptable risks. Client-only aggregate of already-loaded `ct_sizes` / `ct_audiences`; no new API. Public share summary stays within the existing person-data exposure class.
 
 ## ADR
 

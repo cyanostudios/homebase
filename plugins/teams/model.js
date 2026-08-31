@@ -193,6 +193,17 @@ function sanitizeExternalTeamId(value) {
   return trimmed ? trimmed.slice(0, 100) : null;
 }
 
+/**
+ * node-pg serializes JS arrays as Postgres array literals (`{...}`), not JSON.
+ * Always pass JSONB columns as strings (or leave non-arrays as objects that pg
+ * JSON.stringifies). Prefer an explicit string for every JSONB write.
+ */
+function jsonbParam(value, fallback = '[]') {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
+}
+
 async function assertExternalTeamIdAvailable(db, externalTeamId, excludeTeamId = null) {
   if (!externalTeamId) return;
 
@@ -482,12 +493,10 @@ class TeamModel {
             ? Number(current.player_count)
             : 0;
       const prevPlayerCount = current.player_count != null ? Number(current.player_count) : 0;
-      let nextPlayerCountHistory = current.player_count_history;
-      if (player_count !== undefined && nextPlayerCount !== prevPlayerCount) {
-        nextPlayerCountHistory = JSON.stringify(
-          appendPlayerCountHistory(current.player_count_history, nextPlayerCount),
-        );
-      }
+      const nextPlayerCountHistory =
+        player_count !== undefined && nextPlayerCount !== prevPlayerCount
+          ? jsonbParam(appendPlayerCountHistory(current.player_count_history, nextPlayerCount))
+          : jsonbParam(sanitizePlayerCountHistory(current.player_count_history));
 
       const result = await db.update('teams', teamId, {
         name: trimmedName.slice(0, 255),
@@ -511,8 +520,8 @@ class TeamModel {
         player_count_history: nextPlayerCountHistory,
         series_teams:
           sanitizedSeriesTeams !== null
-            ? JSON.stringify(sanitizedSeriesTeams)
-            : current.series_teams,
+            ? jsonbParam(sanitizedSeriesTeams)
+            : jsonbParam(current.series_teams),
         series_team_count:
           sanitizedSeriesTeams !== null
             ? sanitizedSeriesTeams.length
@@ -531,20 +540,20 @@ class TeamModel {
             : (current.status_note ?? null),
         team_notes:
           team_notes !== undefined
-            ? JSON.stringify(sanitizeTeamNotes(team_notes))
-            : current.team_notes,
+            ? jsonbParam(sanitizeTeamNotes(team_notes))
+            : jsonbParam(current.team_notes),
         training_times:
           training_times !== undefined
-            ? JSON.stringify(sanitizeTrainingTimes(training_times))
-            : current.training_times,
+            ? jsonbParam(sanitizeTrainingTimes(training_times))
+            : jsonbParam(current.training_times),
         season_breaks:
           season_breaks !== undefined
-            ? JSON.stringify(sanitizeSeasonBreaks(season_breaks))
-            : current.season_breaks,
+            ? jsonbParam(sanitizeSeasonBreaks(season_breaks))
+            : jsonbParam(current.season_breaks),
         responsibles:
           responsibles !== undefined
-            ? JSON.stringify(sanitizeResponsibles(responsibles))
-            : current.responsibles,
+            ? jsonbParam(sanitizeResponsibles(responsibles))
+            : jsonbParam(current.responsibles),
         color:
           color !== undefined
             ? TEAM_COLORS.includes(color)
@@ -798,5 +807,6 @@ TeamModel.sanitizeTrainingTimes = sanitizeTrainingTimes;
 TeamModel.sanitizePlayerCountHistory = sanitizePlayerCountHistory;
 TeamModel.seedPlayerCountHistory = seedPlayerCountHistory;
 TeamModel.appendPlayerCountHistory = appendPlayerCountHistory;
+TeamModel.jsonbParam = jsonbParam;
 
 module.exports = TeamModel;

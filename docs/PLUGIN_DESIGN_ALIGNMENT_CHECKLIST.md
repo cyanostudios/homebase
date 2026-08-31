@@ -27,14 +27,23 @@
 
 ## 1. Deep-link URL-synk (Context)
 
-**Referens:** `NoteContext.tsx`, `TaskContext.tsx`, `SlotsContext.tsx`
+**Referens:** `NoteProvider.tsx`, `TaskProvider.tsx`, `ContactProvider.tsx`, `RequestProvider.tsx`, `TeamProvider.tsx`
 
 ### Vad som är korrekt
 
 URL-synken kopplas mot `location.pathname` (från `useLocation()`), **inte** mot `[data]`-arrayen. En ref (`*DeepLinkPathSyncedRef`) säkerställer att samma pathname bara öppnar panelen en gång.
 
+**Edit från list / quick context:** I `openXForEdit` (och create-med-slug om tillämpligt) måste refen sättas till mål-path **före** `navigateToItem`. Annars kör URL-sync `openXForView` och skriver över `panelMode` från `'edit'` till `'view'`.
+
 ```tsx
-// ✅ RÄTT – i *Context.tsx
+// ✅ RÄTT – i openXForEdit
+const slug = buildSlug(item, items, 'name');
+myPluginDeepLinkPathSyncedRef.current = `/my-plugin/${slug}`;
+navigateToItem(item, items, 'name');
+```
+
+```tsx
+// ✅ RÄTT – i *Provider.tsx (sync-effekt)
 import { useLocation } from 'react-router-dom';
 
 const location = useLocation();
@@ -74,7 +83,13 @@ useEffect(() => {
 }, [items]); // ❌ [items] som dependency kör effekten varje gång listan ändras
 ```
 
-**Konsekvens av felet:** När listan uppdateras (t.ex. duplicering prepends en rad) körs effekten igen, anropar `openXForView` igen, vilket nollställer `recentlyDuplicatedId` och den gröna raden försvinner.
+```tsx
+// ❌ FEL – openXForEdit navigate utan att sätta ref först
+setPanelMode('edit');
+navigateToItem(item, items, 'name'); // URL-sync → openXForView → panelMode 'view'
+```
+
+**Konsekvens av felet:** När listan uppdateras (t.ex. duplicering prepends en rad) körs effekten igen, anropar `openXForView` igen, vilket nollställer `recentlyDuplicatedId` och den gröna raden försvinner. Edit från quick context landar i full view i stället för formulär.
 
 ### Checklist
 
@@ -82,6 +97,7 @@ useEffect(() => {
 - [ ] `const location = useLocation()` deklarerat i Provider
 - [ ] Deep-link-effekten beror på `[location.pathname, items]`
 - [ ] En ref (`*DeepLinkPathSyncedRef`) med `string | null` används
+- [ ] `openXForEdit` sätter `*DeepLinkPathSyncedRef.current = \`/plugin/${slug}\``**före**`navigateToItem`
 - [ ] Gammal `didOpenFromUrlRef`-logik **raderad**
 
 ---

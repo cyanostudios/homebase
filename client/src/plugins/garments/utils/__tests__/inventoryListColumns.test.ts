@@ -1,4 +1,5 @@
 import {
+  buildGarmentListFitSummary,
   filterMatrixColumns,
   inventoryItemAudiences,
   inventoryItemIdFromColumnId,
@@ -6,6 +7,7 @@ import {
   inventoryItemSizes,
   inventoryItemSizesForAudience,
   personHasFilledInventoryItem,
+  personHasInventoryFitData,
   resolveMatrixColumns,
 } from '@/plugins/garments/utils/inventoryListColumns';
 import type {
@@ -170,5 +172,93 @@ describe('inventoryListColumns', () => {
         groupColumns,
       ),
     ).toBe(false);
+  });
+
+  it('summarizes fit by inventory article ignoring status checkboxes', () => {
+    const groupColumns: GarmentCheckboxColumn[] = [
+      { id: 'inv_3_ordered', label: 'Ordered', group: 'Jacket', sortOrder: 0 },
+      { id: 'inv_3_delivered', label: 'Delivered', group: 'Jacket', sortOrder: 1 },
+    ];
+    const persons: GarmentPerson[] = [
+      {
+        id: '1',
+        listId: '1',
+        name: 'Ada',
+        shirtSize: null,
+        shortsSize: null,
+        socksSize: null,
+        jerseyNumber: null,
+        jerseyName: null,
+        initials: null,
+        comment: null,
+        contactId: null,
+        teamId: null,
+        checkboxValues: { inv_3_ordered: true },
+        ctSizes: { '3': 'M' },
+        ctAudiences: { '3': 'Women' },
+        sortOrder: 0,
+      },
+      {
+        id: '2',
+        listId: '1',
+        name: 'Bob',
+        shirtSize: null,
+        shortsSize: null,
+        socksSize: null,
+        jerseyNumber: null,
+        jerseyName: null,
+        initials: null,
+        comment: null,
+        contactId: null,
+        teamId: null,
+        checkboxValues: { inv_3_ordered: true },
+        ctSizes: {},
+        ctAudiences: {},
+        sortOrder: 1,
+      },
+      {
+        id: '3',
+        listId: '1',
+        name: 'Cia',
+        shirtSize: null,
+        shortsSize: null,
+        socksSize: null,
+        jerseyNumber: null,
+        jerseyName: null,
+        initials: null,
+        comment: null,
+        contactId: null,
+        teamId: null,
+        checkboxValues: {},
+        ctSizes: { '3': 'L' },
+        ctAudiences: { '3': 'Men' },
+        sortOrder: 2,
+      },
+    ];
+
+    expect(personHasInventoryFitData(persons[0], '3')).toBe(true);
+    expect(personHasInventoryFitData(persons[1], '3')).toBe(false);
+
+    const summary = buildGarmentListFitSummary(
+      persons,
+      [{ group: 'Jacket', columns: groupColumns }],
+      [{ ...sampleItem, id: '3', articleName: 'Match jacket' }],
+    );
+
+    expect(summary).toHaveLength(1);
+    expect(summary[0]).toMatchObject({
+      itemId: '3',
+      articleName: 'Match jacket',
+      personCount: 3,
+      filledCount: 2,
+    });
+    expect(summary[0].sizeCounts).toEqual([
+      { label: 'L', count: 1 },
+      { label: 'M', count: 1 },
+    ]);
+    expect(summary[0].audienceCounts).toEqual([
+      { label: 'Men', count: 1 },
+      { label: 'Women', count: 1 },
+    ]);
   });
 });

@@ -9,7 +9,7 @@ import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
-import { resolveSlug } from '@/core/utils/slugUtils';
+import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { teamsApi } from '../api/teamsApi';
 import type { TeamPayload } from '../api/teamsApi';
@@ -45,6 +45,8 @@ export function TeamProvider({
   >('list');
   const [isSaving, setIsSaving] = useState(false);
   const [recentlyDuplicatedTeamId, setRecentlyDuplicatedTeamId] = useState<string | null>(null);
+  /** Skip deep-link → view when we already opened edit for this path. */
+  const teamsDeepLinkPathSyncedRef = useRef<string | null>(null);
 
   const {
     selectedIds: selectedTeamIds,
@@ -119,6 +121,8 @@ export function TeamProvider({
       setIsTeamPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      const slug = buildSlug(team, teams, 'name');
+      teamsDeepLinkPathSyncedRef.current = `/teams/${slug}`;
       navigateToItem(team, teams, 'name');
     },
     [navigateToItem, teams, onCloseOtherPanels, setValidationErrors],
@@ -151,9 +155,15 @@ export function TeamProvider({
     }
     const slug = segments[1] ?? '';
     if (!slug) {
+      teamsDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (teamsDeepLinkPathSyncedRef.current === pathKey) {
       return;
     }
     const item = resolveSlug(slug, teams, 'name');
+    teamsDeepLinkPathSyncedRef.current = pathKey;
     if (item) {
       openTeamForViewRef.current(item as Team);
     }
