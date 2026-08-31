@@ -29,7 +29,7 @@ Sidebar submenu (Clubdesk-style), URL-driven:
 - **Article number (SKU):** may repeat. Non-blocking UI warning + red borders when two or more rows share the same non-empty art.nr (migration **`150`**).
 - **Quantity PATCH** (`PATCH /inventory/:id/variants/:variantId/quantity`) updates quantity only.
 - **Duplicate article:** copies variants’ audience/color/size/qty; **clears all SKUs** on the copy.
-- **Duplicate variant row (form):** clears **SKU and size** (keeps audience and color).
+- **Duplicate variant row (form):** copies audience/color/size; **clears SKU and quantity** (qty → 0).
 - Closing inventory create/edit/view navigates to **`/garments/inventory`**, not `/garments`.
 - Leaving an open **list** via the sidebar (Inventory or another plugin) navigates in **one click**. Panel close does not bounce back to the lists index.
 
@@ -136,7 +136,7 @@ Duplicate jersey numbers on the same list still show a non-blocking warning when
 
 Notes-style view-only link. Creates `garment_list_shares` + main-DB `public_share_routing` (`resource_type = garment_list`). Public page: `/public/garment-list/:token`.
 
-Public person blocks keep the older **two-row** `PersonBlock` layout, **read-only** (no Edit/Delete; checkboxes disabled). **Comments are hidden** (API clears `comment`; UI does not show the field). **`ct_sizes`**, **`ct_audiences`**, and optional person **`teamId`** (numeric id string, or null) are included in the public JSON payload (`getListByShareToken` strips `comment` only). The public `PersonBlock` UI does **not** render a Team column; exposure is metadata in the API response.
+Public share uses the same **spreadsheet** layout as admin (name / jersey name / initials / Paid + inventory status columns). Per person, **only inventory articles with filled data** are shown as child rows (size, audience, or any Ordered/Delivered/Handed out checked). Empty assigned articles are hidden. **Comments are hidden** (API clears `comment`). Public payload includes `assignedInventoryItemIds`, `ct_sizes`, `ct_audiences`, and optional numeric person `teamId` (Team column is not rendered on the public page).
 
 ## Teams
 

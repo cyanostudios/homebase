@@ -804,12 +804,14 @@ class GarmentsModel {
       );
 
       const list = this.transformListRow(row);
-      list.persons = await this.getPersonsForList(req, list.id);
+      const [enriched] = await this.enrichListsWithInventoryAssignments(req, [list]);
+      const healed = await this.ensureAssignedInventoryCheckboxColumns(req, enriched);
+      healed.persons = await this.getPersonsForList(req, healed.id);
       // Public: strip comments (PII)
-      list.persons = list.persons.map((p) => ({ ...p, comment: null }));
-      list.shareValidUntil = row.share_valid_until;
-      list.accessedCount = (row.accessed_count || 0) + 1;
-      return list;
+      healed.persons = healed.persons.map((p) => ({ ...p, comment: null }));
+      healed.shareValidUntil = row.share_valid_until;
+      healed.accessedCount = (row.accessed_count || 0) + 1;
+      return healed;
     } catch (error) {
       Logger.error('Failed to get garment list by share token', error, {
         shareToken: String(shareToken || '').substring(0, 10),

@@ -1,4 +1,9 @@
-import type { GarmentCheckboxColumn, GarmentList, InventoryItem } from '../types/garments';
+import type {
+  GarmentCheckboxColumn,
+  GarmentList,
+  GarmentPerson,
+  InventoryItem,
+} from '../types/garments';
 
 /** Hidden from matrix — legacy person-level column. */
 export const HIDDEN_PERSON_COLUMN_IDS = new Set(['person_blankett_fogis']);
@@ -111,6 +116,30 @@ export function resolveMatrixColumns(
   }
 
   return filtered.sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+/**
+ * Whether a person has any filled data for an assigned inventory article
+ * (size, audience, or any of that article’s status checkboxes).
+ */
+export function personHasFilledInventoryItem(
+  person: Pick<GarmentPerson, 'checkboxValues' | 'ctSizes' | 'ctAudiences'>,
+  itemId: string,
+  groupColumns: GarmentCheckboxColumn[],
+): boolean {
+  const id = String(itemId);
+  if (person.ctSizes?.[id]?.trim()) {
+    return true;
+  }
+  if (person.ctAudiences?.[id]?.trim()) {
+    return true;
+  }
+  for (const col of groupColumns) {
+    if (person.checkboxValues?.[col.id]) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Unique non-empty audiences from inventory variants. */

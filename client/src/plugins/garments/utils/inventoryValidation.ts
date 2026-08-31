@@ -109,8 +109,8 @@ export function findDuplicateVariantIndices(variants: InventoryVariantPayload[])
 }
 
 /**
- * Copy a variant row for the form repeater: new row (no id), empty art.nr,
- * cleared size so the copy is easy to differentiate. Keeps audience and color.
+ * Copy a variant row for the form repeater: new row (no id), empty art.nr and
+ * quantity 0. Keeps audience, color, and size.
  */
 export function buildDuplicatedVariantPayload(
   source: InventoryVariantPayload,
@@ -119,8 +119,8 @@ export function buildDuplicatedVariantPayload(
     sku: '',
     audience: source.audience ?? '',
     color: source.color ?? '',
-    size: '',
-    quantity: source.quantity ?? 0,
+    size: source.size ?? '',
+    quantity: 0,
     sortOrder: source.sortOrder,
   };
 }

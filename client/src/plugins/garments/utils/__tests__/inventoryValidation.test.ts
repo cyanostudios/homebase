@@ -81,7 +81,7 @@ describe('findDuplicateVariantIndices', () => {
 });
 
 describe('buildDuplicatedVariantPayload', () => {
-  it('clears sku and size so the copy is easy to edit', () => {
+  it('copies audience/color/size and clears sku and quantity', () => {
     const copy = buildDuplicatedVariantPayload({
       sku: 'KEEP-ME',
       audience: 'Women',
@@ -94,8 +94,8 @@ describe('buildDuplicatedVariantPayload', () => {
       sku: '',
       audience: 'Women',
       color: 'Navy',
-      size: '',
-      quantity: 3,
+      size: 'L',
+      quantity: 0,
       sortOrder: 1,
     });
   });

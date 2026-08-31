@@ -5,11 +5,13 @@ import {
   inventoryItemIdFromGroupColumns,
   inventoryItemSizes,
   inventoryItemSizesForAudience,
+  personHasFilledInventoryItem,
   resolveMatrixColumns,
 } from '@/plugins/garments/utils/inventoryListColumns';
 import type {
   GarmentCheckboxColumn,
   GarmentList,
+  GarmentPerson,
   InventoryItem,
 } from '@/plugins/garments/types/garments';
 
@@ -121,5 +123,52 @@ describe('inventoryListColumns', () => {
       'inv_7_delivered',
       'inv_7_handed_out',
     ]);
+  });
+
+  it('detects filled inventory data per person (size, audience, or status checkbox)', () => {
+    const groupColumns: GarmentCheckboxColumn[] = [
+      { id: 'inv_3_ordered', label: 'Ordered', group: 'Jacket', sortOrder: 0 },
+      { id: 'inv_3_delivered', label: 'Delivered', group: 'Jacket', sortOrder: 1 },
+      { id: 'inv_3_handed_out', label: 'Handed out', group: 'Jacket', sortOrder: 2 },
+    ];
+    const empty: GarmentPerson = {
+      id: '1',
+      listId: '1',
+      name: 'Ada',
+      shirtSize: null,
+      shortsSize: null,
+      socksSize: null,
+      jerseyNumber: null,
+      jerseyName: null,
+      initials: null,
+      comment: null,
+      contactId: null,
+      teamId: null,
+      checkboxValues: {},
+      ctSizes: {},
+      ctAudiences: {},
+      sortOrder: 0,
+    };
+    expect(personHasFilledInventoryItem(empty, '3', groupColumns)).toBe(false);
+    expect(
+      personHasFilledInventoryItem({ ...empty, ctSizes: { '3': 'M' } }, '3', groupColumns),
+    ).toBe(true);
+    expect(
+      personHasFilledInventoryItem({ ...empty, ctAudiences: { '3': 'Men' } }, '3', groupColumns),
+    ).toBe(true);
+    expect(
+      personHasFilledInventoryItem(
+        { ...empty, checkboxValues: { inv_3_ordered: true } },
+        '3',
+        groupColumns,
+      ),
+    ).toBe(true);
+    expect(
+      personHasFilledInventoryItem(
+        { ...empty, checkboxValues: { inv_9_ordered: true }, ctSizes: { '9': 'L' } },
+        '3',
+        groupColumns,
+      ),
+    ).toBe(false);
   });
 });

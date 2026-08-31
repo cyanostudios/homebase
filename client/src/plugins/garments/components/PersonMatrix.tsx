@@ -21,6 +21,7 @@ import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
 import { cn } from '@/lib/utils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import type { Team } from '@/plugins/teams/types/teams';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useGarments } from '../hooks/useGarments';
@@ -51,11 +52,10 @@ import {
   inventoryItemIdFromGroupColumns,
   inventoryItemSizes,
   inventoryItemSizesForAudience,
+  personHasFilledInventoryItem,
   resolveMatrixColumns,
 } from '../utils/inventoryListColumns';
 import { MATRIX_TABLE_SCROLL_CLASS } from '../utils/variantListStyles';
-
-import { PersonBlock } from './PersonBlock';
 
 function splitMatrixColumns(columns: GarmentCheckboxColumn[]): {
   personColumns: GarmentCheckboxColumn[];
@@ -125,12 +125,23 @@ function matrixSelectTriggerClass(hasValue: boolean): string {
   return cn(MATRIX_SELECT_TRIGGER_CLASS, hasValue && '[&>span]:font-medium [&>span]:text-primary');
 }
 
-type PersonMatrixSortField = 'name' | 'jerseyNumber';
+type PersonMatrixSortField = 'name' | 'team' | 'jerseyNumber';
 
 const MATRIX_HEADER_BASE = 'text-xs font-black leading-tight text-slate-400 dark:text-slate-500';
 
 function isPersonMatrixAscDefault(field: PersonMatrixSortField): boolean {
-  return field === 'name' || field === 'jerseyNumber';
+  return field === 'name' || field === 'team' || field === 'jerseyNumber';
+}
+
+function personTeamSortLabel(person: GarmentPerson, teams: Team[]): string {
+  if (person.teamId == null || person.teamId === '') {
+    return '';
+  }
+  const team = teams.find((entry) => String(entry.id) === String(person.teamId));
+  if (!team) {
+    return String(person.teamId);
+  }
+  return (formatTeamLabel(team) || team.name || '').trim();
 }
 
 function comparePersonsByField(
@@ -138,10 +149,33 @@ function comparePersonsByField(
   b: GarmentPerson,
   field: PersonMatrixSortField,
   order: 'asc' | 'desc',
+  teams: Team[] = [],
 ): number {
-  const av = String(field === 'name' ? a.name : (a.jerseyNumber ?? '')).toLowerCase();
-  const bv = String(field === 'name' ? b.name : (b.jerseyNumber ?? '')).toLowerCase();
-  const res = av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' });
+  const av =
+    field === 'name'
+      ? String(a.name ?? '')
+      : field === 'team'
+        ? personTeamSortLabel(a, teams)
+        : String(a.jerseyNumber ?? '');
+  const bv =
+    field === 'name'
+      ? String(b.name ?? '')
+      : field === 'team'
+        ? personTeamSortLabel(b, teams)
+        : String(b.jerseyNumber ?? '');
+
+  // Empty team sorts last in both directions (stable “no team” bucket).
+  if (field === 'team') {
+    const aEmpty = !av;
+    const bEmpty = !bv;
+    if (aEmpty !== bEmpty) {
+      return aEmpty ? 1 : -1;
+    }
+  }
+
+  const res = av
+    .toLowerCase()
+    .localeCompare(bv.toLowerCase(), undefined, { numeric: true, sensitivity: 'base' });
   return order === 'asc' ? res : -res;
 }
 
@@ -222,8 +256,8 @@ export function PersonMatrix({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const sortedPersons = useMemo(
-    () => [...persons].sort((a, b) => comparePersonsByField(a, b, primarySort, sortOrder)),
-    [persons, primarySort, sortOrder],
+    () => [...persons].sort((a, b) => comparePersonsByField(a, b, primarySort, sortOrder, teams)),
+    [persons, primarySort, sortOrder, teams],
   );
 
   const handleHeaderSort = useCallback(
@@ -498,9 +532,21 @@ export function PersonMatrix({
                     className={cn(
                       'min-w-[8rem] border-r border-border px-1.5 py-2 text-left',
                       MATRIX_HEADER_BASE,
+                      'cursor-pointer select-none hover:bg-primary/10',
                     )}
+                    onClick={() => handleHeaderSort('team')}
+                    aria-sort={
+                      primarySort === 'team'
+                        ? sortOrder === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
                   >
-                    {t('garments.team')}
+                    <div className="flex items-center gap-2 leading-4">
+                      <span>{t('garments.team')}</span>
+                      <ListTableSortIcon active={primarySort === 'team'} order={sortOrder} />
+                    </div>
                   </th>
                 ) : null}
                 <th
@@ -1154,6 +1200,7 @@ export function PersonMatrix({
 }
 
 export function PublicPersonMatrix({ list }: { list: GarmentList }) {
+  const { t } = useTranslation();
   const persons = list.persons ?? [];
   const columns = useMemo(
     () =>
@@ -1163,32 +1210,213 @@ export function PublicPersonMatrix({ list }: { list: GarmentList }) {
       ),
     [list.checkboxColumns, list.assignedInventoryItemIds],
   );
+  const { personColumns, garmentGroups, statusLabels } = useMemo(
+    () => splitMatrixColumns(columns),
+    [columns],
+  );
+  const showGarmentColumns = garmentGroups.length > 0 && statusLabels.length > 0;
+  const showAudienceColumn = useMemo(() => {
+    if (!showGarmentColumns) {
+      return false;
+    }
+    // Public payload has no inventory catalog; show Audience when any person has a value.
+    return persons.some((person) =>
+      Object.values(person.ctAudiences ?? {}).some((value) => Boolean(value?.trim())),
+    );
+  }, [persons, showGarmentColumns]);
 
   if (persons.length === 0) {
     return <PublicEmptyPersons />;
   }
 
   return (
-    <ul className="rounded-md border border-border">
-      {persons.map((person) => (
-        <PersonBlock
-          key={person.id}
-          person={person}
-          columns={columns}
-          hideComment
-          readOnly
-          isEditing={false}
-          editDraft={{}}
-          jerseyDup={false}
-          onStartEdit={() => {}}
-          onSave={() => {}}
-          onCancel={() => {}}
-          onDelete={() => {}}
-          onToggleCheckbox={() => {}}
-          onDraftChange={() => {}}
-        />
-      ))}
-    </ul>
+    <div className={MATRIX_TABLE_SCROLL_CLASS}>
+      <table className="w-max min-w-full border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-border bg-primary/5">
+            <th
+              className={cn(
+                'border-r border-border bg-primary/5 px-3 py-2 text-left',
+                MATRIX_HEADER_BASE,
+              )}
+            >
+              {t('garments.personName')}
+            </th>
+            <th
+              className={cn('border-r border-border px-1.5 py-2 text-center', MATRIX_HEADER_BASE)}
+            >
+              {t('garments.jerseyName')}
+            </th>
+            <th
+              className={cn(
+                'w-11 border-r border-border px-0.5 py-2 text-center',
+                MATRIX_HEADER_BASE,
+              )}
+            >
+              {t('garments.initials')}
+            </th>
+            {personColumns.map((col) => (
+              <th
+                key={col.id}
+                className={PERSON_CHECKBOX_COL_CLASS}
+                title={translateCheckboxColumnLabel(t, col)}
+              >
+                {translateCheckboxColumnLabel(t, col)}
+              </th>
+            ))}
+            {showGarmentColumns
+              ? statusLabels.map((label) => (
+                  <th
+                    key={label}
+                    className={cn(STATUS_CHECKBOX_COL_CLASS, 'last:border-r-0')}
+                    title={translateCheckboxStatusLabel(t, label)}
+                  >
+                    {translateCheckboxStatusLabel(t, label)}
+                  </th>
+                ))
+              : null}
+            {showGarmentColumns ? (
+              <>
+                {showAudienceColumn ? (
+                  <th
+                    className={cn(
+                      'w-16 border-l border-border px-1 py-2 text-center',
+                      MATRIX_HEADER_BASE,
+                    )}
+                  >
+                    {t('garments.audience')}
+                  </th>
+                ) : null}
+                <th
+                  className={cn(
+                    'w-14 border-l border-border px-1 py-2 text-center',
+                    MATRIX_HEADER_BASE,
+                  )}
+                >
+                  {t('garments.size')}
+                </th>
+              </>
+            ) : null}
+          </tr>
+        </thead>
+        <tbody>
+          {persons.map((person) => {
+            const checkboxValues = person.checkboxValues ?? {};
+            const filledGroups = showGarmentColumns
+              ? garmentGroups.filter(({ columns: groupCols }) => {
+                  const itemId = inventoryItemIdFromGroupColumns(groupCols);
+                  return itemId ? personHasFilledInventoryItem(person, itemId, groupCols) : false;
+                })
+              : [];
+
+            return (
+              <React.Fragment key={person.id}>
+                <tr className="border-b border-border/60">
+                  <td className="border-r border-border bg-background px-3 py-1.5 text-sm font-medium">
+                    {person.name || '—'}
+                  </td>
+                  <td className="border-r border-border/50 px-1 py-1.5 text-center text-xs">
+                    {person.jerseyName?.trim() || '—'}
+                  </td>
+                  <td className="w-11 border-r border-border/50 px-0.5 py-1.5 text-center text-xs">
+                    {person.initials?.trim() || '—'}
+                  </td>
+                  {personColumns.map((col) => (
+                    <td key={col.id} className={PERSON_CHECKBOX_CELL_CLASS}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(checkboxValues[col.id])}
+                        disabled
+                        readOnly
+                        aria-label={`${person.name} — ${translateCheckboxColumnLabel(t, col)}`}
+                        className={cn(CHECKBOX_SM_CLASS, 'cursor-default')}
+                      />
+                    </td>
+                  ))}
+                  {showGarmentColumns
+                    ? statusLabels.map((label) => (
+                        <td
+                          key={`${person.id}-parent-${label}`}
+                          className={STATUS_CHECKBOX_CELL_CLASS}
+                        />
+                      ))
+                    : null}
+                  {showGarmentColumns ? (
+                    <>
+                      {showAudienceColumn ? (
+                        <td className="border-l border-border/50 px-1 py-1.5" />
+                      ) : null}
+                      <td className="border-l border-border/50 px-1 py-1.5" />
+                    </>
+                  ) : null}
+                </tr>
+                {filledGroups.map(({ group, columns: groupCols }) => {
+                  const inventoryItemId = inventoryItemIdFromGroupColumns(groupCols);
+                  const audience =
+                    inventoryItemId != null
+                      ? (person.ctAudiences?.[inventoryItemId] ?? '').trim()
+                      : '';
+                  const size =
+                    inventoryItemId != null ? (person.ctSizes?.[inventoryItemId] ?? '').trim() : '';
+                  return (
+                    <tr
+                      key={`${person.id}-${group}`}
+                      className="border-b border-border/40 bg-muted/10"
+                    >
+                      <td className="border-r border-border bg-muted/10 py-1.5 pl-9 pr-2 text-xs text-muted-foreground">
+                        {translateCheckboxGroupLabel(t, group)}
+                      </td>
+                      <td className="border-r border-border/40 px-1 py-1.5" />
+                      <td className="border-r border-border/40 px-0.5 py-1.5" />
+                      {personColumns.map((col) => (
+                        <td
+                          key={`${person.id}-${group}-${col.id}`}
+                          className={cn(PERSON_CHECKBOX_CELL_CLASS, 'border-border/40')}
+                        />
+                      ))}
+                      {statusLabels.map((statusLabel) => {
+                        const col = columnForStatus(groupCols, statusLabel);
+                        if (!col) {
+                          return (
+                            <td
+                              key={`${person.id}-${group}-${statusLabel}`}
+                              className={cn(STATUS_CHECKBOX_CELL_CLASS, 'border-border/40')}
+                            />
+                          );
+                        }
+                        return (
+                          <td
+                            key={`${person.id}-${group}-${col.id}`}
+                            className={cn(STATUS_CHECKBOX_CELL_CLASS, 'border-border/40')}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(checkboxValues[col.id])}
+                              disabled
+                              readOnly
+                              aria-label={`${person.name} — ${translateCheckboxGroupLabel(t, group)} ${translateCheckboxColumnLabel(t, col)}`}
+                              className={cn(CHECKBOX_SM_CLASS, 'cursor-default')}
+                            />
+                          </td>
+                        );
+                      })}
+                      {showAudienceColumn ? (
+                        <td className="border-l border-border/40 px-1 py-1.5 text-center text-xs">
+                          {audience || '—'}
+                        </td>
+                      ) : null}
+                      <td className="border-l border-border/40 px-1 py-1.5 text-center text-xs">
+                        {size || '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
