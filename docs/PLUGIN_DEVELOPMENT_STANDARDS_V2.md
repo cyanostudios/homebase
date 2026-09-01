@@ -169,9 +169,10 @@ När en plugin stödjer manuell tabellimport (inte FOGIS/cups-style API-import):
 
 1. **Schema:** `ImportSchema` / `get*ImportSchema()` med fältnycklar, labels och `required`.
 2. **Settings:** kategori/sektion Import öppnar core `ImportWizard` (`@/core/ui/ImportWizard`) med `schema`, `title`, `onImport`.
-3. **CSV-mall:** erbjud `downloadImportCsvTemplate({ schema, filename, exampleRow })` så användaren får headers = field labels (matchar auto-mapping) + en exempelrad.
-4. **Provider:** `import*(rows)` mappar rader → create-payload, anropar pluginets create-API rad-för-rad, returnerar `{ successCount, failureCount }`.
+3. **CSV-mall:** erbjud `downloadImportCsvTemplate({ schema, filename, exampleRow | exampleRows })` så användaren får headers = field labels (matchar auto-mapping) + en eller flera exempelrader (t.ex. garments: två varianter samma artikel).
+4. **Provider:** `import*(rows)` mappar rader → create-payload, anropar pluginets create-API rad-för-rad (eller grupperar först — se garments inventory), returnerar `{ successCount, failureCount [, failureMessages] }`.
 5. **Copy:** settings-beskrivning via i18n (t.ex. `*.importDescription`); wizard-strängar under `importWizard.*`.
+6. **Parser:** core `parseDelimitedGrid` (comma, semicolon, tab) + `checkImportLimits` — plugins ska inte duplicera CSV-parse.
 
 **Core äger** parsers, wizard och mall-generator. **Plugin äger** schema, exempelrad och persistens. Domän/API-import (matcher FOGIS, cups←ingest) förblir plugin-ägda services — blanda inte ihop med denna yta.
 

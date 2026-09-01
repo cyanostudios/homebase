@@ -18,10 +18,10 @@ Production / `--both` only when you explicitly request release (Release Discipli
 
 Sidebar submenu (Clubdesk-style), URL-driven:
 
-| View          | URL                   | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lists**     | `/garments`           | Clothing checklists: persons + spreadsheet (Paid per person; Ordered/Delivered/Handed out per **assigned** inventory article). List index: cards/table layout toggle + column count (persisted under user settings key `garments`). Optional **list** team link (form). Person matrix: optional **per-person** team column (after name, before jersey name) when the teams plugin is enabled. Person matrix shows only columns for inventory assigned to the list (legacy Shorts/Shirt/Socks groups and Blankett Fogis are hidden).                                                             |
-| **Inventory** | `/garments/inventory` | Stock **articles** with product fields (name required; optional brand, description, material, purchase price). Each article has **variants** (optional audience + color and/or size + SKU + quantity) via a form repeater. Desktop: sticky quick-context (variant list with inline qty, assigned-list badges) + full view. Full view: **50/50** layout (`lg:grid-cols-2`) — details + **Show in lists** card beside variants; platform prev/next when more than one article. Assign articles to lists per item (see **Inventory ↔ lists**). Bulk assign/unassign via inventory list selection. |
+| View          | URL                   | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lists**     | `/garments`           | Clothing checklists: persons + spreadsheet (Paid per person; Ordered/Delivered/Handed out per **assigned** inventory article). List index: cards/table layout toggle + column count (persisted under user settings key `garments`). Optional **list** team link (form). Person matrix: optional **per-person** team column (after name, before jersey name) when the teams plugin is enabled. Person matrix shows only columns for inventory assigned to the list (legacy Shorts/Shirt/Socks groups and Blankett Fogis are hidden).                                                                                                                                     |
+| **Inventory** | `/garments/inventory` | Stock **articles** with product fields (name required; optional brand, description, material, purchase price). Each article has **variants** (optional audience + color and/or size + SKU + quantity) via a form repeater. Desktop: sticky quick-context (variant list with inline qty, assigned-list badges) + full view. Full view: **50/50** layout (`lg:grid-cols-2`) — details + **Show in lists** card beside variants; platform prev/next when more than one article. Assign articles to lists per item (see **Inventory ↔ lists**). Bulk assign/unassign via inventory list selection. **Settings** (gear): CSV/Excel/paste import (see **Import inventory**). |
 
 ### Inventory uniqueness and copy behaviour
 
@@ -126,6 +126,38 @@ From list full view → **Quick actions → Import names**:
 
 Other person fields stay empty for later edit.
 
+### Import inventory (CSV / Excel / paste)
+
+From **Inventory** → **Settings** (gear icon on desktop list header; mobile via list `onSettings`):
+
+1. **Download CSV template** — two example rows show variant grouping (same article + brand, different audience/color/size/SKU/qty). Implemented in `GarmentsInventorySettingsView` via `downloadImportCsvTemplate({ exampleRows })`.
+2. **Import** — platform `ImportWizard` (CSV, Excel `.xlsx`, or pasted table). One **row per variant**; rows with the same article name and brand merge into one inventory item with multiple variants (`groupInventoryImportRows.ts`).
+3. Persisted via existing `POST /api/garments/inventory` (create-only; duplicate article+brand returns **409** and counts as failed in the wizard result). List assignment is **not** part of import — use **Show in lists** after import.
+
+**Entry points (code):**
+
+| Del                           | Sökväg                                                                     |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| Settings UI                   | `client/src/plugins/garments/components/GarmentsInventorySettingsView.tsx` |
+| Import schema + template rows | `client/src/plugins/garments/utils/inventoryImportSchema.ts`               |
+| Flat row → grouped payloads   | `client/src/plugins/garments/utils/groupInventoryImportRows.ts`            |
+| Failure breakdown messages    | `client/src/plugins/garments/utils/inventoryImportFailures.ts`             |
+| Provider handler              | `GarmentProvider.importInventoryItems`                                     |
+
+**Template columns (English labels; SV/EN aliases for auto-mapping):** Article _(required)_, Brand, Description, Material, Purchase Price, Recommended Price, Sale Price, Currency, Comment, Article no., Audience, Color, Size, Quantity.
+
+**Parsing (core `importUtils`):** Comma, semicolon (typical Swedish Excel export), or tab delimiter; BOM stripped from headers; short rows padded to header width. Soft limits: 5 MB file / max 2000 data rows (ADR).
+
+**Result step:** `{ successCount, failureCount, failureMessages? }` — breakdown distinguishes empty Article cells, unmapped column, validation, duplicate (409), and API errors (i18n keys `garments.importFailure*`).
+
+**Begränsningar:**
+
+- Max **100 variants** per item on `POST /inventory` (server `variants` array max); grouping many rows into one article fails validation if >100 variants.
+- Create-only — no upsert; existing article+brand → 409.
+- Client-side file parse only; data sent as JSON POST (same security class as contacts import).
+
+Column labels in the template are English (platform convention for auto-mapping). Required field: **Article** (`articleName`).
+
 ### Contacts ↔ list link
 
 - `garment_list_persons.contact_id` → `contacts(id)` ON DELETE SET NULL (migration **`143`**)
@@ -165,6 +197,8 @@ Unauthenticated share links can expose youth names, sizes, jersey numbers, check
 **Person team (Gate 5, 2026-08-31):** No unacceptable risks. Optional person `teamId` on create/update: numeric-or-null validation, CSRF, plugin gate, list `user_id` ownership. FK to tenant `teams(id)`; invalid id may surface as DB error (same class as list-level `team_id`). Public share may include numeric `teamId` in person JSON (UI does not show Team on public `PersonBlock`). Non-blocking follow-up: map FK violations to 400.
 
 **Size summary (Gate 5, 2026-08-31):** No unacceptable risks. Client-only aggregate of already-loaded `ct_sizes` / `ct_audiences`; no new API. Public share summary stays within the existing person-data exposure class.
+
+**Inventory import (Gate 5, 2026-09-01):** No unacceptable risks. Settings → `ImportWizard` → sequential `POST /api/garments/inventory` with plugin gate + CSRF; server validates item fields and `variants` array (max 100). Client-side parse only (5 MB / 2000 rows). Same residual class as tabular import A1 (SheetJS) and pre-existing nested variant field-length gap on item POST (see inventory hardening note above). Create-only; duplicate article+brand → 409.
 
 ## ADR
 

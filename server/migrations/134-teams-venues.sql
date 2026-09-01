@@ -1,5 +1,6 @@
 -- 134-teams-venues.sql
--- Tenant DB (local-only apply): shared venue catalog + optional schedule_events.venue_id (no FK)
+-- Tenant DB: shared venue catalog + optional schedule_events.venue_id (no FK)
+-- Apply via: npm run migrate:teams-venues (DATABASE_URL = main; TENANT_PROVIDER=local|neon)
 
 CREATE TABLE IF NOT EXISTS team_venues (
   id SERIAL PRIMARY KEY,

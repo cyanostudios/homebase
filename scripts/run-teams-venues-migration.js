@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // scripts/run-teams-venues-migration.js
-// LOCAL ONLY: apply 134-teams-venues.sql to local tenant schemas.
-// Never uses PROD_MAIN_DATABASE_URL or Neon tenant connection strings.
+// Apply 134-teams-venues.sql on all tenant databases.
+// Uses DATABASE_URL (main) + TENANT_PROVIDER like other teams migrate:* scripts.
+// Prod Neon apply still requires explicit release (set DATABASE_URL to PROD_MAIN_DATABASE_URL).
 
 const { Pool } = require('pg');
 const fs = require('fs');
@@ -12,11 +13,6 @@ dotenv.config({ path: '.env.local' });
 dotenv.config({ path: '.env' });
 
 const MIGRATION_FILE = path.join(__dirname, '../server/migrations/134-teams-venues.sql');
-
-function isLocalDatabaseUrl(url) {
-  if (!url) return false;
-  return /@(localhost|127\.0\.0\.1)[:/]/.test(url) || url.includes('localhost:');
-}
 
 async function runMigrationOnTenant(connectionString, tenantInfo) {
   const pool = new Pool({ connectionString });
@@ -75,51 +71,45 @@ async function main() {
     process.exit(1);
   }
 
-  if (
-    process.env.PROD_MAIN_DATABASE_URL &&
-    process.env.DATABASE_URL === process.env.PROD_MAIN_DATABASE_URL
-  ) {
-    console.error(
-      'Refusing to run: DATABASE_URL matches PROD_MAIN_DATABASE_URL. This migration is local-only.',
-    );
-    process.exit(1);
-  }
-
-  if (!isLocalDatabaseUrl(process.env.DATABASE_URL)) {
-    console.error(
-      'Refusing to run: DATABASE_URL is not a localhost Postgres URL. 134-teams-venues.sql is local-only.',
-    );
-    process.exit(1);
-  }
-
-  const tenantProvider = process.env.TENANT_PROVIDER || 'local';
-  if (tenantProvider !== 'local') {
-    console.error(
-      `Refusing to run: TENANT_PROVIDER=${tenantProvider}. This migration applies only to local schema-per-tenant DBs.`,
-    );
-    process.exit(1);
-  }
-
   const mainPool = new Pool({
     connectionString: process.env.DATABASE_URL,
   });
 
   try {
-    console.log('Fetching local tenants from main database...');
+    console.log('Fetching all tenants from main database...');
 
-    const usersResult = await mainPool.query(`
+    const tenantProvider = process.env.TENANT_PROVIDER || 'neon';
+    const isLocalProvider = tenantProvider === 'local';
+    let tenants = [];
+
+    if (isLocalProvider) {
+      const usersResult = await mainPool.query(`
         SELECT id as user_id, email
         FROM users
         ORDER BY id
       `);
 
-    const mainConnectionString = process.env.DATABASE_URL;
-    const tenants = usersResult.rows.map((user) => ({
-      user_id: user.user_id,
-      email: user.email,
-      connection_string: `${mainConnectionString}?options=-csearch_path%3Dtenant_${user.user_id}`,
-      schema_name: `tenant_${user.user_id}`,
-    }));
+      const mainConnectionString = process.env.DATABASE_URL;
+      tenants = usersResult.rows.map((user) => ({
+        user_id: user.user_id,
+        email: user.email,
+        connection_string: `${mainConnectionString}?options=-csearch_path%3Dtenant_${user.user_id}`,
+        schema_name: `tenant_${user.user_id}`,
+      }));
+    } else {
+      const result = await mainPool.query(`
+        SELECT
+          t.user_id,
+          t.neon_connection_string as connection_string,
+          u.email
+        FROM tenants t
+        INNER JOIN users u ON t.user_id = u.id
+        WHERE t.neon_connection_string IS NOT NULL
+        ORDER BY t.user_id
+      `);
+
+      tenants = result.rows;
+    }
 
     if (tenants.length === 0) {
       console.log('No tenants found in database');
@@ -131,7 +121,19 @@ async function main() {
 
     const results = [];
     for (const tenant of tenants) {
-      const result = await runMigrationOnTenant(tenant.connection_string, {
+      const connectionString = tenant.connection_string || tenant.neon_connection_string;
+
+      if (!connectionString) {
+        console.log(`Skipping tenant ${tenant.user_id} (${tenant.email}): No connection string`);
+        results.push({
+          success: false,
+          tenantInfo: { userId: tenant.user_id, email: tenant.email },
+          error: 'No connection string',
+        });
+        continue;
+      }
+
+      const result = await runMigrationOnTenant(connectionString, {
         userId: tenant.user_id,
         email: tenant.email,
         schemaName: tenant.schema_name,

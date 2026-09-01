@@ -104,6 +104,7 @@
     "resultTitle": "Import finished",
     "resultSuccess": "{{count}} imported.",
     "resultFailed": "{{count}} failed.",
+    "resultFailureDetails": "Why rows failed",
     "done": "Done",
     "errorTooLarge": "File is too large (max 5 MB).",
     "errorTooManyRows": "Too many rows (max {{max}}).",
@@ -3302,6 +3303,23 @@
     "publicUnavailableHint": "This list could not be found or the share link has expired.",
     "publicSharedHint": "Shared list · link expires {{date}}",
     "publicReadOnly": "Shared garment list (read-only)",
-    "noListsForTeam": "No garment lists for this team yet."
+    "noListsForTeam": "No garment lists for this team yet.",
+    "settingsInventory": "Inventory – Settings",
+    "settingsInventorySubtitle": "Import inventory items from CSV or Excel.",
+    "importInventory": "Import inventory",
+    "importInventoryDescription": "Import from CSV, Excel (.xlsx), or pasted table. Download the CSV template — use one row per variant; rows with the same article and brand are grouped into one item. Map columns and import.",
+    "importFailureMissingArticle": "{{count}} rows had no Article value. Check column mapping and file delimiter (comma or semicolon).",
+    "importFailureEmptyArticle": "{{count}} rows had a mapped Article column but empty cells. Fill in article names or remove blank rows.",
+    "importFailureArticleUnmapped": "{{count}} rows could not read Article — the mapped column may be missing in those rows (too few columns). Re-export the file or pick another column.",
+    "importFailureValidation": "{{count}} items failed validation.",
+    "importFailureValidationExamples": "{{count}} items failed validation. Examples: {{examples}}.",
+    "importFailureDuplicate": "{{count}} items already exist (same article and brand).",
+    "importFailureDuplicateExamples": "{{count}} items already exist. Examples: {{examples}}.",
+    "importFailureApi": "{{count}} items could not be saved.",
+    "importFailureApiExamples": "{{count}} items could not be saved. Examples: {{examples}}.",
+    "importFailureUnexpected": "Import could not be completed. Try again or check the file format.",
+    "settingsCategories": {
+      "importDescription": "Import inventory items from CSV or Excel."
+    }
   }
 }

@@ -1,17 +1,31 @@
-import { Upload, ChevronRight, CheckCircle2, FileText, ClipboardPaste } from 'lucide-react';
-import React, { useId, useRef, useState } from 'react';
+import {
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  FileText,
+  ClipboardPaste,
+  AlertTriangle,
+} from 'lucide-react';
+import React, { useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { AlertDialogRoundCancel, DialogCloseButton } from '@/core/ui/DialogRoundButtons';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import {
+  AlertDialogRoundCancel,
+  AlertDialogRoundClose,
+  DialogActionButton,
+  DialogSaveButton,
+} from '@/core/ui/DialogRoundButtons';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,7 +40,7 @@ import {
   ImportResult,
   ImportSchema,
   mapGridToObjects,
-  parseCSV,
+  parseDelimitedGrid,
   parseTabularPaste,
   parseXlsxArrayBuffer,
 } from '../utils/importUtils';
@@ -147,7 +161,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
       if (isCsvFile(file) || file.type === 'text/plain') {
         const text = await file.text();
-        const grid = parseCSV(text);
+        const grid = parseDelimitedGrid(text);
         advanceToMapping(grid, file.name, file.size);
         return;
       }
@@ -188,16 +202,24 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   const handleStartImport = async () => {
     setIsImporting(true);
     setImportError(false);
+    let data: Record<string, string>[] = [];
     try {
-      const data = mapGridToObjects(gridData, mapping);
+      data = mapGridToObjects(gridData, mapping);
       const result = await onImport(data);
       setImportResult({
-        successCount: result?.successCount ?? data.length,
-        failureCount: result?.failureCount ?? 0,
+        successCount: result?.successCount ?? 0,
+        failureCount:
+          result?.failureCount ?? Math.max(0, data.length - (result?.successCount ?? 0)),
+        failureMessages: result?.failureMessages,
       });
       setStep('result');
-    } catch {
-      setImportError(true);
+    } catch (err) {
+      console.error('Import wizard failed:', err);
+      setImportResult({
+        successCount: 0,
+        failureCount: data.length || Math.max(0, gridData.length - 1),
+      });
+      setStep('result');
     } finally {
       setIsImporting(false);
     }
@@ -217,13 +239,32 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     }
   };
 
-  if (!isOpen) {
-    return null;
-  }
+  const stepDescription = useMemo(() => {
+    switch (step) {
+      case 'source':
+        return t('importWizard.fileHelp');
+      case 'mapping':
+        return t('importWizard.rowsDetected', { count: Math.max(0, gridData.length - 1) });
+      case 'preview':
+        return t('importWizard.previewTitle');
+      case 'result':
+        return importResult
+          ? t('importWizard.resultSuccess', { count: importResult.successCount })
+          : t('importWizard.resultTitle');
+      default:
+        return title;
+    }
+  }, [gridData.length, importResult, step, t, title]);
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && handleOnClose()}>
-      <AlertDialogContent className="max-w-2xl">
+      <AlertDialogContent
+        className="max-w-2xl overflow-hidden"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          (event.currentTarget as HTMLElement | null)?.focus();
+        }}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             {title}
@@ -231,36 +272,39 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               {step}
             </Badge>
           </AlertDialogTitle>
+          <AlertDialogDescription className="sr-only">{stepDescription}</AlertDialogDescription>
         </AlertDialogHeader>
 
-        <div className="py-2">
+        <div className="min-w-0 py-2">
           {step === 'source' && (
             <div className="space-y-4">
-              <div className="flex gap-2">
-                <Button
+              <div className="flex flex-wrap gap-2">
+                <RoundIconLabelButton
                   type="button"
-                  size="sm"
+                  icon={FileText}
+                  label={t('importWizard.file')}
                   variant={sourceMode === 'file' ? 'primary' : 'secondary'}
+                  size="xs"
+                  alwaysExpanded
                   aria-pressed={sourceMode === 'file'}
                   onClick={() => {
                     setSourceMode('file');
                     setSourceError(null);
                   }}
-                >
-                  {t('importWizard.file')}
-                </Button>
-                <Button
+                />
+                <RoundIconLabelButton
                   type="button"
-                  size="sm"
+                  icon={ClipboardPaste}
+                  label={t('importWizard.paste')}
                   variant={sourceMode === 'paste' ? 'primary' : 'secondary'}
+                  size="xs"
+                  alwaysExpanded
                   aria-pressed={sourceMode === 'paste'}
                   onClick={() => {
                     setSourceMode('paste');
                     setSourceError(null);
                   }}
-                >
-                  {t('importWizard.paste')}
-                </Button>
+                />
               </div>
 
               {sourceMode === 'file' && (
@@ -294,13 +338,18 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                     accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     className="hidden"
                   />
-                  <Button
+                  <RoundIconLabelButton
                     type="button"
+                    icon={Upload}
+                    label={
+                      isParsing ? t('importWizard.parsing') : t('importWizard.selectFileButton')
+                    }
+                    variant="primary"
+                    size="xs"
+                    alwaysExpanded
                     disabled={isParsing}
                     onClick={() => fileInputRef.current?.click()}
-                  >
-                    {isParsing ? t('importWizard.parsing') : t('importWizard.selectFileButton')}
-                  </Button>
+                  />
                 </div>
               )}
 
@@ -391,18 +440,18 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
           )}
 
           {step === 'preview' && (
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0">
               <div className="text-sm font-medium">{t('importWizard.previewTitle')}</div>
-              <ScrollArea className="h-[300px] border border-gray-100 dark:border-gray-800 rounded-lg">
-                <table className="w-full text-[11px] text-left border-collapse">
-                  <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 border-b border-gray-100 dark:border-gray-800">
+              <div className="max-h-[300px] overflow-auto rounded-lg border border-gray-100 dark:border-gray-800">
+                <table className="min-w-max w-full text-[11px] text-left border-collapse">
+                  <thead className="sticky top-0 z-10 border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
                     <tr>
                       {schema.fields
                         .filter((f) => mapping[f.key] !== -1)
                         .map((f) => (
                           <th
                             key={f.key}
-                            className="px-4 py-2 font-bold text-gray-500 uppercase tracking-tight"
+                            className="whitespace-nowrap px-4 py-2 font-bold uppercase tracking-tight text-gray-500"
                           >
                             {f.label}
                           </th>
@@ -423,7 +472,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                             .map((f) => (
                               <td
                                 key={f.key}
-                                className="px-4 py-2 truncate max-w-[150px] text-gray-700 dark:text-gray-300"
+                                className="max-w-[150px] truncate whitespace-nowrap px-4 py-2 text-gray-700 dark:text-gray-300"
                               >
                                 {String(row[f.key] ?? '')}
                               </td>
@@ -432,7 +481,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                       ))}
                   </tbody>
                 </table>
-              </ScrollArea>
+              </div>
               {importError && (
                 <p className="text-sm text-destructive" role="alert">
                   {t('importWizard.importFailed')}
@@ -442,79 +491,100 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
           )}
 
           {step === 'result' && importResult && (
-            <div className="flex flex-col items-center justify-center py-10 space-y-3 text-center">
-              <CheckCircle2 className="w-12 h-12 text-green-600" aria-hidden />
+            <div className="flex flex-col items-center justify-center space-y-3 py-6 text-center">
+              {importResult.successCount > 0 ? (
+                <CheckCircle2 className="h-12 w-12 text-green-600" aria-hidden />
+              ) : (
+                <AlertTriangle className="h-12 w-12 text-destructive" aria-hidden />
+              )}
               <div className="text-sm font-medium">{t('importWizard.resultTitle')}</div>
               <p className="text-sm text-muted-foreground">
                 {t('importWizard.resultSuccess', { count: importResult.successCount })}
               </p>
-              {importResult.failureCount > 0 && (
+              {importResult.failureCount > 0 ? (
                 <p className="text-sm text-destructive">
                   {t('importWizard.resultFailed', { count: importResult.failureCount })}
                 </p>
-              )}
+              ) : null}
+              {importResult.failureMessages && importResult.failureMessages.length > 0 ? (
+                <div
+                  className="mt-2 w-full max-w-lg rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-left"
+                  role="alert"
+                >
+                  <p className="mb-2 text-sm font-medium text-destructive">
+                    {t('importWizard.resultFailureDetails')}
+                  </p>
+                  <ul className="list-disc space-y-1 pl-5 text-sm text-destructive/90">
+                    {importResult.failureMessages.map((message) => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           )}
         </div>
 
-        <AlertDialogFooter>
-          {step !== 'result' && (
+        <AlertDialogFooter className="sm:flex-wrap">
+          {step !== 'result' ? (
             <>
               {onBack && step === 'source' ? (
-                <Button type="button" variant="ghost" onClick={handleOnBack}>
-                  {t('common.back')}
-                </Button>
+                <DialogActionButton
+                  type="button"
+                  variant="secondary"
+                  icon={ChevronLeft}
+                  label={t('common.back')}
+                  onClick={handleOnBack}
+                />
+              ) : null}
+              {step === 'preview' ? (
+                <DialogActionButton
+                  type="button"
+                  variant="secondary"
+                  icon={ChevronLeft}
+                  label={t('importWizard.back')}
+                  disabled={isImporting}
+                  onClick={() => setStep('mapping')}
+                />
               ) : null}
               <AlertDialogRoundCancel onClick={handleOnClose} />
             </>
-          )}
+          ) : null}
 
-          {step === 'source' && sourceMode === 'paste' && (
-            <Button
+          {step === 'source' && sourceMode === 'paste' ? (
+            <DialogActionButton
               type="button"
-              onClick={handlePasteContinue}
+              variant="primary"
+              icon={ChevronRight}
+              label={t('importWizard.continue')}
               disabled={!pasteText.trim()}
-              icon={ChevronRight}
-            >
-              {t('importWizard.continue')}
-            </Button>
-          )}
-
-          {step === 'mapping' && (
-            <Button
-              type="button"
-              onClick={() => setStep('preview')}
-              disabled={!requiredMapped}
-              icon={ChevronRight}
-            >
-              {t('importWizard.nextPreview')}
-            </Button>
-          )}
-
-          {step === 'preview' && (
-            <div className="flex gap-2">
-              <Button type="button" variant="secondary" onClick={() => setStep('mapping')}>
-                {t('importWizard.back')}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => void handleStartImport()}
-                className="bg-green-600 hover:bg-green-700 text-white"
-                disabled={isImporting}
-                icon={isImporting ? undefined : CheckCircle2}
-              >
-                {isImporting ? t('importWizard.importing') : t('importWizard.startImport')}
-              </Button>
-            </div>
-          )}
-
-          {step === 'result' && (
-            <DialogCloseButton
-              type="button"
-              label={t('importWizard.done')}
-              onClick={handleOnClose}
+              onClick={handlePasteContinue}
             />
-          )}
+          ) : null}
+
+          {step === 'mapping' ? (
+            <DialogActionButton
+              type="button"
+              variant="primary"
+              icon={ChevronRight}
+              label={t('importWizard.nextPreview')}
+              disabled={!requiredMapped}
+              onClick={() => setStep('preview')}
+            />
+          ) : null}
+
+          {step === 'preview' ? (
+            <DialogSaveButton
+              type="button"
+              label={isImporting ? t('importWizard.importing') : t('importWizard.startImport')}
+              disabled={isImporting}
+              onClick={() => void handleStartImport()}
+            />
+          ) : null}
+
+          {step === 'result' ? (
+            <AlertDialogRoundClose label={t('importWizard.done')} onClick={handleOnClose} />
+          ) : null}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

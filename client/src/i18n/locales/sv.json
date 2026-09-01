@@ -104,6 +104,7 @@
     "resultTitle": "Import klar",
     "resultSuccess": "{{count}} importerade.",
     "resultFailed": "{{count}} misslyckades.",
+    "resultFailureDetails": "Varför rader misslyckades",
     "done": "Klar",
     "errorTooLarge": "Filen är för stor (max 5 MB).",
     "errorTooManyRows": "För många rader (max {{max}}).",
@@ -3296,6 +3297,23 @@
     "publicUnavailableHint": "Listan hittades inte eller delningslänken har gått ut.",
     "publicSharedHint": "Delad lista · länken går ut {{date}}",
     "publicReadOnly": "Delad klädlista (skrivskyddad)",
-    "noListsForTeam": "Inga klädlistor för laget ännu."
+    "noListsForTeam": "Inga klädlistor för laget ännu.",
+    "settingsInventory": "Lager – Inställningar",
+    "settingsInventorySubtitle": "Importera lagerartiklar från CSV eller Excel.",
+    "importInventory": "Importera lager",
+    "importInventoryDescription": "Importera från CSV, Excel (.xlsx) eller inklistrad tabell. Ladda ner CSV-mallen — en rad per variant; rader med samma artikel och märke grupperas till en post. Mappa kolumner och importera.",
+    "importFailureMissingArticle": "{{count}} rader saknade artikelnamn. Kontrollera kolumnmappning och avgränsare (komma eller semikolon).",
+    "importFailureEmptyArticle": "{{count}} rader hade mappad Article-kolumn men tomma celler. Fyll i artikelnamn eller ta bort tomma rader.",
+    "importFailureArticleUnmapped": "{{count}} rader kunde inte läsa Article — mappad kolumn saknas i raden (för få kolumner). Exportera om filen eller välj annan kolumn.",
+    "importFailureValidation": "{{count}} poster klarade inte valideringen.",
+    "importFailureValidationExamples": "{{count}} poster klarade inte valideringen. Exempel: {{examples}}.",
+    "importFailureDuplicate": "{{count}} poster finns redan (samma artikel och märke).",
+    "importFailureDuplicateExamples": "{{count}} poster finns redan. Exempel: {{examples}}.",
+    "importFailureApi": "{{count}} poster kunde inte sparas.",
+    "importFailureApiExamples": "{{count}} poster kunde inte sparas. Exempel: {{examples}}.",
+    "importFailureUnexpected": "Importen kunde inte slutföras. Försök igen eller kontrollera filformatet.",
+    "settingsCategories": {
+      "importDescription": "Importera lagerartiklar från CSV eller Excel."
+    }
   }
 }

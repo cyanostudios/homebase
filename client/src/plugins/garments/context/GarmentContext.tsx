@@ -1,5 +1,7 @@
 import React, { createContext, useContext } from 'react';
 
+import type { ImportResult } from '@/core/utils/importUtils';
+
 import type {
   GarmentList,
   GarmentListPayload,
@@ -37,6 +39,8 @@ export interface GarmentContextType {
 
   openGarmentsInventory: () => void;
   openGarmentsLists: () => void;
+  openGarmentsSettings: () => void;
+  closeGarmentsSettingsView: () => void;
 
   assignInventoryItemToList: (listId: string, itemId: string) => Promise<boolean>;
   unassignInventoryItemFromList: (listId: string, itemId: string) => Promise<boolean>;
@@ -84,6 +88,8 @@ export interface GarmentContextType {
     listId: string,
     data: Record<string, string>[],
   ) => Promise<{ successCount: number; failureCount: number }>;
+  /** Import inventory items from tabular data (platform ImportWizard). */
+  importInventoryItems: (data: Record<string, string>[]) => Promise<ImportResult>;
 
   garmentShareExistingShare: GarmentShare | null;
   garmentShareShowDialog: boolean;
@@ -136,6 +142,8 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   openInventoryForView: () => {},
   openGarmentsInventory: () => {},
   openGarmentsLists: () => {},
+  openGarmentsSettings: () => {},
+  closeGarmentsSettingsView: () => {},
   assignInventoryItemToList: async () => false,
   unassignInventoryItemFromList: async () => false,
   updatePersonCtSizes: async () => null,
@@ -157,6 +165,7 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   updatePerson: async () => null,
   deletePerson: async () => {},
   importPersons: async () => ({ successCount: 0, failureCount: 0 }),
+  importInventoryItems: async () => ({ successCount: 0, failureCount: 0 }),
   garmentShareExistingShare: null,
   garmentShareShowDialog: false,
   setGarmentShareShowDialog: () => {},

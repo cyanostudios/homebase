@@ -3,6 +3,8 @@ export interface ImportField {
   label: string;
   required?: boolean;
   type?: 'string' | 'number' | 'date' | 'boolean';
+  /** Extra header labels for auto-mapping (e.g. translated export columns). */
+  aliases?: string[];
 }
 
 export interface ImportSchema {
@@ -12,6 +14,8 @@ export interface ImportSchema {
 export interface ImportResult {
   successCount: number;
   failureCount: number;
+  /** Optional breakdown shown in the result step when rows fail. */
+  failureMessages?: string[];
 }
 
 /** Soft limits (ADR TABULAR_IMPORT_EXPORT). */
@@ -20,51 +24,77 @@ export const IMPORT_MAX_DATA_ROWS = 2000;
 
 export type ImportLimitErrorCode = 'empty' | 'too_large' | 'too_many_rows' | 'invalid_format';
 
+export type DelimiterChar = ',' | ';' | '\t';
+
+/** Strip BOM and normalize header text for matching. */
+export function normalizeImportHeader(value: string): string {
+  return value
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/\s+/g, ' ');
+}
+
+/** Pick delimiter from the first line (tabs, semicolons, or commas). */
+export function detectDelimiter(firstLine: string): DelimiterChar {
+  const tabCount = (firstLine.match(/\t/g) || []).length;
+  const semicolonCount = (firstLine.match(/;/g) || []).length;
+  const commaCount = (firstLine.match(/,/g) || []).length;
+
+  if (tabCount > 0 && tabCount >= commaCount && tabCount >= semicolonCount) {
+    return '\t';
+  }
+  if (semicolonCount > commaCount) {
+    return ';';
+  }
+  return ',';
+}
+
 /**
- * Robust CSV parser that handles quoted values, escaped quotes, and multiline cells.
+ * Robust delimiter parser that handles quoted values, escaped quotes, and multiline cells.
  */
-export function parseCSV(text: string): string[][] {
+export function parseDelimitedText(text: string, delimiter: DelimiterChar = ','): string[][] {
   const result: string[][] = [];
   let row: string[] = [];
   let current = '';
   let inQuotes = false;
 
-  // Normalize line endings
-  const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const normalizedText = text
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
 
-  for (let i = 0; i < normalizedText.length; i++) {
+  for (let i = 0; i < normalizedText.length; i += 1) {
     const char = normalizedText[i];
     const next = normalizedText[i + 1];
 
     if (inQuotes) {
       if (char === '"' && next === '"') {
         current += '"';
-        i++; // skip next quote
+        i += 1;
       } else if (char === '"') {
         inQuotes = false;
       } else {
         current += char;
       }
-    } else {
-      if (char === '"') {
-        inQuotes = true;
-      } else if (char === ',') {
-        row.push(current.trim());
-        current = '';
-      } else if (char === '\n') {
-        row.push(current.trim());
-        if (row.length > 0) {
-          result.push(row);
-        }
-        row = [];
-        current = '';
-      } else {
-        current += char;
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === delimiter) {
+      row.push(current.trim());
+      current = '';
+    } else if (char === '\n') {
+      row.push(current.trim());
+      if (row.length > 0) {
+        result.push(row);
       }
+      row = [];
+      current = '';
+    } else {
+      current += char;
     }
   }
 
-  // Handle last row if not ending with newline
   if (current !== '' || row.length > 0) {
     row.push(current.trim());
     result.push(row);
@@ -74,23 +104,35 @@ export function parseCSV(text: string): string[][] {
 }
 
 /**
- * Parse pasted tabular text (TSV if tabs dominate the header line, otherwise CSV).
+ * Robust CSV parser that handles quoted values, escaped quotes, and multiline cells.
  */
-export function parseTabularPaste(text: string): string[][] {
+export function parseCSV(text: string): string[][] {
+  return parseDelimitedText(text, ',');
+}
+
+/** Parse CSV/TSV/semicolon text using the delimiter detected from the header line. */
+export function parseDelimitedGrid(text: string): string[][] {
   const trimmed = text.replace(/^\uFEFF/, '').trim();
   if (!trimmed) {
     return [];
   }
 
   const firstLine = trimmed.split(/\r?\n/, 1)[0] ?? '';
-  const tabCount = (firstLine.match(/\t/g) || []).length;
-  const commaCount = (firstLine.match(/,/g) || []).length;
-
-  if (tabCount > 0 && tabCount >= commaCount) {
-    return trimmed.split(/\r?\n/).map((line) => line.split('\t').map((cell) => cell.trim()));
+  const delimiter = detectDelimiter(firstLine);
+  if (delimiter === '\t') {
+    return trimmed
+      .split(/\r?\n/)
+      .map((line) => line.split('\t').map((cell) => cell.replace(/^\uFEFF/, '').trim()));
   }
 
-  return parseCSV(trimmed);
+  return parseDelimitedText(trimmed, delimiter);
+}
+
+/**
+ * Parse pasted tabular text (TSV if tabs dominate the header line, otherwise CSV).
+ */
+export function parseTabularPaste(text: string): string[][] {
+  return parseDelimitedGrid(text);
 }
 
 /**
@@ -151,16 +193,23 @@ export function mapCsvToObjects(
   csvData: string[][],
   mapping: Record<string, number>,
 ): Record<string, string>[] {
-  const [, ...rows] = csvData;
-  if (!csvData[0]) {
+  const [headerRow, ...rows] = csvData;
+  if (!headerRow) {
     return [];
   }
 
+  const headerLen = headerRow.length;
+
   return rows.map((row) => {
+    const padded = [...row];
+    while (padded.length < headerLen) {
+      padded.push('');
+    }
+
     const obj: Record<string, string> = {};
     Object.entries(mapping).forEach(([fieldKey, csvIndex]) => {
-      if (csvIndex !== -1 && row[csvIndex] !== undefined) {
-        obj[fieldKey] = row[csvIndex];
+      if (csvIndex !== -1 && csvIndex < padded.length) {
+        obj[fieldKey] = String(padded[csvIndex] ?? '').trim();
       }
     });
     return obj;
@@ -173,14 +222,22 @@ export const mapGridToObjects = mapCsvToObjects;
 export function buildAutoMapping(headers: string[], schema: ImportSchema): Record<string, number> {
   const initialMapping: Record<string, number> = {};
   schema.fields.forEach((field) => {
-    const index = headers.findIndex(
-      (h) =>
-        h.toLowerCase() === field.label.toLowerCase() ||
-        h.toLowerCase() === field.key.toLowerCase(),
-    );
+    const index = headers.findIndex((header) => headerMatchesField(header, field));
     initialMapping[field.key] = index;
   });
   return initialMapping;
+}
+
+function headerMatchesField(header: string, field: ImportField): boolean {
+  const normalized = normalizeImportHeader(header);
+  if (!normalized) {
+    return false;
+  }
+  const candidates = [field.label, field.key, ...(field.aliases ?? [])].map((value) =>
+    normalizeImportHeader(value),
+  );
+
+  return candidates.some((candidate) => candidate === normalized);
 }
 
 export function areRequiredFieldsMapped(
@@ -204,12 +261,18 @@ function escapeCsvCell(value: string): string {
 export function buildImportCsvTemplateContent(
   schema: ImportSchema,
   exampleRow: Record<string, string> = {},
+  exampleRows?: Record<string, string>[],
 ): string {
   const headers = schema.fields.map((f) => f.label);
-  const dataCells = schema.fields.map((f) => exampleRow[f.key] ?? '');
   const headerLine = headers.map(escapeCsvCell).join(',');
-  const dataLine = dataCells.map(escapeCsvCell).join(',');
-  return `${headerLine}\n${dataLine}\n`;
+  const rows = exampleRows?.length ? exampleRows : [exampleRow];
+  const dataLines = rows.map((row) =>
+    schema.fields
+      .map((f) => row[f.key] ?? '')
+      .map(escapeCsvCell)
+      .join(','),
+  );
+  return `${headerLine}\n${dataLines.join('\n')}\n`;
 }
 
 /**
@@ -219,13 +282,14 @@ export function downloadImportCsvTemplate(options: {
   schema: ImportSchema;
   filename: string;
   exampleRow?: Record<string, string>;
+  exampleRows?: Record<string, string>[];
 }): void {
-  const { schema, filename, exampleRow = {} } = options;
+  const { schema, filename, exampleRow = {}, exampleRows } = options;
   if (!schema.fields.length) {
     return;
   }
 
-  const csvContent = buildImportCsvTemplateContent(schema, exampleRow);
+  const csvContent = buildImportCsvTemplateContent(schema, exampleRow, exampleRows);
   const BOM = '\uFEFF';
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);

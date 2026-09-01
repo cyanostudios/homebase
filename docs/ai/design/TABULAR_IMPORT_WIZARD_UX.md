@@ -3,7 +3,7 @@
 **Status:** Grind 3 design; v1 implementerad och grindad (QA + Security + Docs) 2026-07-23. **Ej prod-release.**  
 **Datum:** 2026-07-23  
 **ADR:** [`docs/ai/adr/TABULAR_IMPORT_EXPORT.md`](../adr/TABULAR_IMPORT_EXPORT.md)  
-**Yta:** `ImportWizard` (core) + settings-copy i contacts/notes/tasks
+**Yta:** `ImportWizard` (core) + settings-copy i contacts/notes/tasks/**garments**
 
 ---
 
@@ -35,7 +35,7 @@ Settings → Import → [Öppna Import]
    - **Upload file** — primär dropzone (befintlig dashed border-yta)
    - **Paste data** — sekundär sektion under, eller toggle mellan två paneler via två knappar i en rad (`Upload` | `Paste`) där aktiv panel visas
 
-**Vald variant:** En rad med två `Button variant="secondary"` / aktiv `variant="primary"` (eller outline + filled): **File** | **Paste**. En panel i taget — enklare på mobil, återanvänder dialoghöjd.
+**Vald variant:** En rad med två `RoundIconLabelButton` (primary/secondary): **File** | **Paste**. Footer och primära åtgärder använder `DialogRoundButtons` (`DialogActionButton`, `DialogSaveButton`, `AlertDialogRoundCancel` / `AlertDialogRoundClose`) — samma mönster som övriga plattformsdialoger. En panel i taget — enklare på mobil, återanvänder dialoghöjd.
 
 #### Panel A — File
 

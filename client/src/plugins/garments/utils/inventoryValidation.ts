@@ -18,7 +18,7 @@ export function validateInventoryPayload(
   messages: InventoryValidationMessages,
 ): ValidationError[] {
   const errors: ValidationError[] = [];
-  if (!data.articleName.trim()) {
+  if (!(data.articleName ?? '').trim()) {
     errors.push({ field: 'articleName', message: messages.articleNameRequired });
   }
   if (data.purchasePrice != null && (Number.isNaN(data.purchasePrice) || data.purchasePrice < 0)) {

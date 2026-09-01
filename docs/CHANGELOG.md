@@ -4,6 +4,29 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-01 – Garments: inventory import (settings) + ImportWizard UX
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** feature / UX / frontend  
+**Scope:** `GarmentsInventorySettingsView`, `inventoryImportSchema.ts`, `groupInventoryImportRows.ts`, `inventoryImportFailures.ts`, `GarmentProvider.importInventoryItems`, core `ImportWizard` + `importUtils` (delimiter/BOM/padding, round dialog buttons), i18n `garments.import*`
+
+**Sammanfattning:** Inventory-ytan får **Settings** (kugghjul) med CSV-mall (två exempelrader för variantgruppering) och **Import** via plattformens `ImportWizard`. En rad per variant; samma artikel + varumärke slås ihop till ett lagerobjekt. Create-only via `POST /api/garments/inventory`; 409 vid dubblett. ImportWizard använder `DialogRoundButtons` / `RoundIconLabelButton` (samma som övriga dialoger).
+
+**Beteende (verifierat i kod)**
+
+- Semikolon-, komma- och tab-separerade CSV; BOM rensas; korta rader paddas till headerbredd (`parseDelimitedGrid`)
+- SV/EN kolumnalias i schema (t.ex. Artikel, Varumärke)
+- Resultatsteg visar `failureMessages` (tom artikel, omappad kolumn, validering, 409, API-fel)
+- Max 100 varianter per POST (server); >100 grupperade rader → valideringsfel
+- Delad `ImportWizard` — contacts/notes/tasks får samma knappdesign och parser-förbättringar
+
+**Begränsningar / residual (Security):** Klient-side tabular parse + sekventiella POST (befintligt mönster). Nested variant-fältlängd på item POST fortfarande svagare än dedikerade `/variants`-routes (pre-existing, non-blocking).
+
+**Guides:** [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (Import inventory); [`docs/ai/adr/TABULAR_IMPORT_EXPORT.md`](ai/adr/TABULAR_IMPORT_EXPORT.md) (garments konsument)
+
+---
+
 ## 2026-08-31 – Garments: size/audience summary under person matrix
 
 **Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.

@@ -11,7 +11,7 @@
 
 Tabellär import/export (CSV, Excel, inklistrad text) är en **plattformskapabilitet i core**, inte ett eget produktplugin. Core äger parsers, wizard och exportmotor. Varje domänplugin äger fältschema, mappning till create-payload och persistens via sitt eget API.
 
-Referenskonsumenter v1: **contacts**, **notes**, **tasks** (samma `ImportWizard`).
+Referenskonsumenter v1: **contacts**, **notes**, **tasks** (samma `ImportWizard`). **Garments** (inventory settings, 2026-09-01): flat rows per variant → plugin-side grouping before create.
 
 ---
 
@@ -25,19 +25,19 @@ Referenskonsumenter v1: **contacts**, **notes**, **tasks** (samma `ImportWizard`
 
 ## Beslut
 
-| Beslut             | Val                                                                                             | Motivering                                                                 |
-| ------------------ | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Placering          | **Core** (client utils + UI); plugin-adapters                                                   | Följer exportmönstret; ingen egen domän för “import”                       |
-| Eget import-plugin | **Nej**                                                                                         | Skulle bli navigationsyta utan affärsdomän; tvingar plugin→plugin-koppling |
-| Domän/API-import   | **Plugin-ägt** (oförändrat)                                                                     | Annan kontraktsyta (extern API, credentials, upsert)                       |
-| Parser-lager       | Core normaliserar till `string[][]` (headers + rows)                                            | Wizard och mappning blir formatoberoende                                   |
-| Format v1          | CSV, Excel `.xlsx` (första sheet), paste (TSV/CSV-text)                                         | Matchar användarbehov; `.xls` legacy utelämnas                             |
-| Excel-bibliotek    | SheetJS **`xlsx@0.20.3`** via `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` (lazy-load) | npm `0.18.5` hade kända PP/ReDoS; patchad CE finns endast via SheetJS CDN  |
-| Soft limits v1     | 5 MB filstorlek (**före** filläsning); max 2000 datarader                                       | Skyddar UI/minne                                                           |
-| Persistens v1      | Rad-för-rad `create*`; `import*` returnerar `{ successCount, failureCount }`                    | Minimal risk; resultatsteg i wizard                                        |
-| Persistens fas 2   | Valfritt `POST /api/<plugin>/batch` create                                                      | När volym kräver det                                                       |
-| Upsert / dedupe v1 | **Nej** — endast create                                                                         | Undvik affärsregler kring “samma post”                                     |
-| Export             | Oförändrad arkitektur; `exportUtils` + `*ExportConfig`                                          | Redan kanoniskt                                                            |
+| Beslut             | Val                                                                                                              | Motivering                                                                 |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Placering          | **Core** (client utils + UI); plugin-adapters                                                                    | Följer exportmönstret; ingen egen domän för “import”                       |
+| Eget import-plugin | **Nej**                                                                                                          | Skulle bli navigationsyta utan affärsdomän; tvingar plugin→plugin-koppling |
+| Domän/API-import   | **Plugin-ägt** (oförändrat)                                                                                      | Annan kontraktsyta (extern API, credentials, upsert)                       |
+| Parser-lager       | Core normaliserar till `string[][]` (headers + rows)                                                             | Wizard och mappning blir formatoberoende                                   |
+| Format v1          | CSV (comma **or semicolon** or tab via `parseDelimitedGrid`), Excel `.xlsx` (första sheet), paste (TSV/CSV-text) | Matchar användarbehov (SV Excel `;`); `.xls` legacy utelämnas              |
+| Excel-bibliotek    | SheetJS **`xlsx@0.20.3`** via `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` (lazy-load)                  | npm `0.18.5` hade kända PP/ReDoS; patchad CE finns endast via SheetJS CDN  |
+| Soft limits v1     | 5 MB filstorlek (**före** filläsning); max 2000 datarader                                                        | Skyddar UI/minne                                                           |
+| Persistens v1      | Rad-för-rad `create*`; `import*` returnerar `{ successCount, failureCount [, failureMessages] }`                 | Minimal risk; resultatsteg i wizard; optional breakdown (garments)         |
+| Persistens fas 2   | Valfritt `POST /api/<plugin>/batch` create                                                                       | När volym kräver det                                                       |
+| Upsert / dedupe v1 | **Nej** — endast create                                                                                          | Undvik affärsregler kring “samma post”                                     |
+| Export             | Oförändrad arkitektur; `exportUtils` + `*ExportConfig`                                                           | Redan kanoniskt                                                            |
 
 ---
 
@@ -72,11 +72,19 @@ flowchart TB
     ExpCfg[contactExportConfig]
   end
 
+  subgraph garments [plugins/garments]
+    GSchema[inventoryImportSchema]
+    Group[groupInventoryImportRows]
+    GAPI["POST /api/garments/inventory"]
+  end
+
   User[File or paste] --> Wizard
   Wizard --> Parse --> Grid
   Grid --> Map
   Schema --> Map
   Map --> MapRow --> API
+  GSchema --> Map
+  Map --> Group --> GAPI
   ExpCfg --> Export
 ```
 
@@ -84,7 +92,7 @@ flowchart TB
 
 **Core äger:** `ImportWizard` (source → mapping → preview → result), parsers, `ImportSchema`-typer, `exportItems`.
 
-**Plugin äger:** `get*ImportSchema()`, `import*(rows)` → create + `{ successCount, failureCount }`, settings-yta, `*ExportConfig`.
+**Plugin äger:** `get*ImportSchema()`, `import*(rows)` → create + `{ successCount, failureCount [, failureMessages] }`, settings-yta, `*ExportConfig`. Domän-specifik radgruppering (t.ex. garments inventory variants) sker i plugin före create.
 
 ### Verifierade nyckelfiler
 
@@ -113,7 +121,8 @@ flowchart TB
 - [x] Soft limit filstorlek före filläsning
 - [x] SheetJS 0.20.3 CDN (ersätter sårbar 0.18.5)
 - [x] Standards + CHANGELOG (Documentation)
-- [x] CSV-importmall per plugin (`downloadImportCsvTemplate`)
+- [x] CSV-importmall per plugin (`downloadImportCsvTemplate`; optional `exampleRows` for multi-row templates)
+- [x] Garments inventory import (settings, grouped flat rows → create-only)
 - [ ] Fas 2 (valfritt): `POST .../batch` create
 
 ---

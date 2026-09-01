@@ -1,4 +1,13 @@
-import { ArrowDown, ArrowUp, CheckSquare, Plus, Shirt, Trash2, XCircle } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckSquare,
+  Plus,
+  Settings,
+  Shirt,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
@@ -67,6 +76,10 @@ import {
 } from '../utils/garmentListViewMode';
 
 import { GarmentListItem } from './GarmentListItem';
+import {
+  GarmentsInventorySettingsView,
+  type GarmentsInventorySettingsCategory,
+} from './GarmentsInventorySettingsView';
 import { InventoryBulkListsDialog } from './InventoryBulkListsDialog';
 import { GarmentListTable } from './GarmentListTable';
 import { InventoryListItem } from './InventoryListItem';
@@ -113,6 +126,9 @@ export const GarmentList: React.FC = () => {
     unassignInventoryItemFromList,
     recentlyDuplicatedInventoryId,
     recentlyDuplicatedListId,
+    garmentsContentView,
+    openGarmentsSettings,
+    closeGarmentsSettingsView,
   } = useGarments();
   const location = useLocation();
   const garmentsNavPage = pathToNavPage(location.pathname);
@@ -121,9 +137,13 @@ export const GarmentList: React.FC = () => {
 
   const isInventory = garmentsNavPage === 'garments-inventory';
 
+  const [settingsCategory, setSettingsCategory] =
+    useState<GarmentsInventorySettingsCategory>('import');
+
   useMobileActions({
     onAdd: () =>
       attemptNavigation(() => (isInventory ? openInventoryPanel(null) : openGarmentPanel(null))),
+    ...(isInventory ? { onSettings: () => openGarmentsSettings() } : {}),
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -404,6 +424,21 @@ export const GarmentList: React.FC = () => {
   const totalCount = isInventory ? inventoryItems.length : garmentLists.length;
   const filteredCount = isInventory ? filteredInventory.length : filteredLists.length;
 
+  if (isInventory && garmentsContentView === 'settings') {
+    return (
+      <div className="plugin-garments min-h-full bg-background">
+        <div className="px-4 py-4 md:px-6">
+          <GarmentsInventorySettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            renderCategoryButtonsInline
+            onClose={closeGarmentsSettingsView}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn('plugin-garments', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
       <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
@@ -415,6 +450,14 @@ export const GarmentList: React.FC = () => {
                   <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
                     {t(isInventory ? 'nav.garments-inventory' : 'nav.garments-lists')}
                   </h2>
+                  {isInventory ? (
+                    <ExpandableIconButton
+                      icon={Settings}
+                      label={t('common.settings')}
+                      variant="soft"
+                      onClick={() => openGarmentsSettings()}
+                    />
+                  ) : null}
                   {filteredCount > 0 ? (
                     selectionMode ? (
                       <ExpandableIconButton

@@ -1,5 +1,6 @@
 import {
   parseCSV,
+  parseDelimitedGrid,
   parseTabularPaste,
   parseXlsxArrayBuffer,
   checkImportLimits,
@@ -23,6 +24,24 @@ describe('parseCSV', () => {
   it('handles quoted commas', () => {
     const grid = parseCSV('Name,Notes\n"Acme, Inc",hello\n');
     expect(grid[1]).toEqual(['Acme, Inc', 'hello']);
+  });
+});
+
+describe('parseDelimitedGrid', () => {
+  it('parses semicolon-separated CSV (common Excel export in SV)', () => {
+    const grid = parseDelimitedGrid('Article;Brand\nJersey;Nike\n');
+    expect(grid).toEqual([
+      ['Article', 'Brand'],
+      ['Jersey', 'Nike'],
+    ]);
+  });
+
+  it('strips BOM from headers for auto-mapping', () => {
+    const grid = parseDelimitedGrid('\uFEFFArticle,Brand\nJersey,Nike\n');
+    const schema = {
+      fields: [{ key: 'articleName', label: 'Article', required: true }],
+    };
+    expect(buildAutoMapping(grid[0], schema)).toEqual({ articleName: 0 });
   });
 });
 
@@ -109,6 +128,26 @@ describe('mapCsvToObjects / mapping helpers', () => {
     expect(mapCsvToObjects(grid, mapping)).toEqual([{ companyName: 'Acme', email: 'a@b.c' }]);
   });
 
+  it('pads short rows and trims mapped cells', () => {
+    const grid = [
+      ['Name', 'Email', 'Notes'],
+      ['Acme', 'a@b.c'],
+    ];
+    const mapping = { companyName: 0, email: 1, notes: 2 };
+    expect(mapCsvToObjects(grid, mapping)).toEqual([
+      { companyName: 'Acme', email: 'a@b.c', notes: '' },
+    ]);
+  });
+
+  it('matches header aliases', () => {
+    const schema = {
+      fields: [{ key: 'articleName', label: 'Article', aliases: ['Artikel'] }],
+    };
+    expect(buildAutoMapping(['Artikel', 'Brand'], schema)).toEqual({
+      articleName: 0,
+    });
+  });
+
   it('detects missing required mapping', () => {
     expect(areRequiredFieldsMapped(schema, { companyName: -1, email: 0 })).toBe(false);
     expect(areRequiredFieldsMapped(schema, { companyName: 0, email: -1 })).toBe(true);
@@ -155,5 +194,15 @@ describe('buildImportCsvTemplateContent', () => {
       email: 'a@b.c',
       notes: '',
     });
+  });
+
+  it('supports multiple example rows', () => {
+    const csv = buildImportCsvTemplateContent(schema, {}, [
+      { companyName: 'Acme AB', email: 'info@acme.se', notes: 'First' },
+      { companyName: 'Beta AB', email: 'hello@beta.se', notes: 'Second' },
+    ]);
+    expect(csv).toBe(
+      'Name,Email,Notes\nAcme AB,info@acme.se,First\nBeta AB,hello@beta.se,Second\n',
+    );
   });
 });

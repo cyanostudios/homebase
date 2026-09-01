@@ -6,6 +6,7 @@ import { useApp } from '@/core/api/AppContext';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
+import type { ImportResult } from '@/core/utils/importUtils';
 import { GARMENTS_SUBPAGE_SET, resolveGarmentPanelClosePath } from '@/core/routing/garmentsRoutes';
 import { pathToNavPage } from '@/core/routing/routeMap';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
@@ -32,6 +33,16 @@ import {
   buildDuplicatedItemVariantPayloads,
   validateInventoryPayload,
 } from '../utils/inventoryValidation';
+import { groupInventoryImportRows } from '../utils/groupInventoryImportRows';
+import {
+  buildInventoryImportFailureMessages,
+  createEmptyInventoryImportFailureCounts,
+  inventoryImportFailureTotal,
+  recordInventoryApiFailure,
+  recordInventoryDuplicateFailure,
+  recordInventoryValidationFailure,
+} from '../utils/inventoryImportFailures';
+import { normalizeInventoryItemPayload } from '../utils/inventoryPayloadNormalization';
 
 import { GarmentContext, type GarmentContextType } from './GarmentContext';
 
@@ -135,7 +146,11 @@ export function GarmentProvider({
       return;
     }
     const page = pathToNavPage(location.pathname);
-    setGarmentsContentView(page === 'garments-inventory' ? 'inventory' : 'lists');
+    if (page !== 'garments-inventory') {
+      setGarmentsContentView('lists');
+      return;
+    }
+    setGarmentsContentView((current) => (current === 'settings' ? 'settings' : 'inventory'));
   }, [location.pathname]);
 
   const closeGarmentPanel = useCallback(() => {
@@ -359,6 +374,23 @@ export function GarmentProvider({
     setGarmentsContentView('lists');
     navigate('/garments');
   }, [navigate]);
+
+  const openGarmentsSettings = useCallback(() => {
+    setRecentlyDuplicatedInventoryId(null);
+    setRecentlyDuplicatedListId(null);
+    setIsGarmentPanelOpen(false);
+    setCurrentGarment(null);
+    setCurrentInventoryItem(null);
+    setPanelMode('create');
+    setPanelKind('list');
+    clearValidationErrors();
+    setGarmentsContentView('settings');
+    onCloseOtherPanels();
+  }, [clearValidationErrors, onCloseOtherPanels]);
+
+  const closeGarmentsSettingsView = useCallback(() => {
+    setGarmentsContentView('inventory');
+  }, []);
 
   const validateList = useCallback(
     (data: GarmentListPayload): ValidationError[] => {
@@ -981,6 +1013,64 @@ export function GarmentProvider({
     [refreshGarmentList],
   );
 
+  const importInventoryItems = useCallback(
+    async (data: Record<string, string>[]): Promise<ImportResult> => {
+      const failureCounts = createEmptyInventoryImportFailureCounts();
+      try {
+        const { payloads, skippedRowCount, skippedEmptyArticle, skippedArticleUnmapped } =
+          groupInventoryImportRows(data);
+        failureCounts.emptyArticle = skippedEmptyArticle;
+        failureCounts.articleUnmapped = skippedArticleUnmapped;
+        failureCounts.missingArticle = Math.max(
+          0,
+          skippedRowCount - skippedEmptyArticle - skippedArticleUnmapped,
+        );
+        let successCount = 0;
+
+        for (const rawPayload of payloads) {
+          const payload = normalizeInventoryItemPayload(rawPayload);
+          const errors = validateInventory(payload);
+          if (errors.length > 0) {
+            recordInventoryValidationFailure(failureCounts, payload);
+            continue;
+          }
+          try {
+            await garmentsApi.createInventoryItem(payload);
+            successCount += 1;
+          } catch (err) {
+            const apiErr = err as {
+              status?: number;
+              message?: string;
+              errors?: { message?: string }[];
+            };
+            const apiMessage = apiErr.errors?.[0]?.message ?? apiErr.message;
+            if (apiErr.status === 409) {
+              recordInventoryDuplicateFailure(failureCounts, payload);
+            } else {
+              recordInventoryApiFailure(failureCounts, payload, apiMessage);
+            }
+          }
+        }
+
+        if (successCount > 0) {
+          await reloadInventoryItems();
+        }
+
+        const failureCount = inventoryImportFailureTotal(failureCounts);
+        const failureMessages = buildInventoryImportFailureMessages(failureCounts, t);
+        return { successCount, failureCount, failureMessages };
+      } catch (err) {
+        console.error('Inventory import failed:', err);
+        return {
+          successCount: 0,
+          failureCount: data.length,
+          failureMessages: [t('garments.importFailureUnexpected')],
+        };
+      }
+    },
+    [reloadInventoryItems, t, validateInventory],
+  );
+
   useEffect(() => {
     if (panelMode === 'view' && panelKind === 'list' && currentGarment?.id) {
       let cancelled = false;
@@ -1141,6 +1231,8 @@ export function GarmentProvider({
       openInventoryForView,
       openGarmentsInventory,
       openGarmentsLists,
+      openGarmentsSettings,
+      closeGarmentsSettingsView,
       assignInventoryItemToList,
       unassignInventoryItemFromList,
       updatePersonCtSizes,
@@ -1162,6 +1254,7 @@ export function GarmentProvider({
       updatePerson,
       deletePerson,
       importPersons,
+      importInventoryItems,
       garmentShareExistingShare,
       garmentShareShowDialog,
       setGarmentShareShowDialog,
@@ -1200,6 +1293,8 @@ export function GarmentProvider({
       openInventoryForView,
       openGarmentsInventory,
       openGarmentsLists,
+      openGarmentsSettings,
+      closeGarmentsSettingsView,
       assignInventoryItemToList,
       unassignInventoryItemFromList,
       updatePersonCtSizes,
@@ -1219,6 +1314,7 @@ export function GarmentProvider({
       updatePerson,
       deletePerson,
       importPersons,
+      importInventoryItems,
       garmentShareExistingShare,
       garmentShareShowDialog,
       garmentShareIsCreatingShare,

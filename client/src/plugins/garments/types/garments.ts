@@ -1,6 +1,6 @@
 export type PanelMode = 'create' | 'edit' | 'view';
 
-export type GarmentsContentView = 'lists' | 'inventory';
+export type GarmentsContentView = 'lists' | 'inventory' | 'settings';
 
 export type GarmentPanelKind = 'list' | 'inventory';
 

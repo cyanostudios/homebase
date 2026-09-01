@@ -1,18 +1,20 @@
-import { CheckCircle2, FileUp, Tags, Users } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, FileUp, Tags, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   AlertDialogRoundCancel,
   AlertDialogRoundClose,
+  DialogActionButton,
   DialogSaveButton,
 } from '@/core/ui/DialogRoundButtons';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -168,6 +170,13 @@ export function GarmentPersonImportDialog({
                   ? t('garments.importFromContactsTitle')
                   : t('garments.importPersonsTitle')}
             </AlertDialogTitle>
+            <AlertDialogDescription className="sr-only">
+              {step === 'result'
+                ? t('garments.importPersonsResult', { success: 0, failed: 0 })
+                : step === 'contacts'
+                  ? t('garments.importFromContactsHint')
+                  : t('garments.importPersonsDescription')}
+            </AlertDialogDescription>
           </AlertDialogHeader>
 
           {step === 'chooser' ? (
@@ -175,35 +184,37 @@ export function GarmentPersonImportDialog({
               <p className="text-sm text-muted-foreground">
                 {t('garments.importPersonsDescription')}
               </p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-auto flex-col items-start gap-1 px-3 py-3 text-left"
-                  onClick={() => setIsFileWizardOpen(true)}
-                >
-                  <span className="inline-flex items-center gap-2 text-sm font-medium">
-                    <FileUp className="h-4 w-4" />
-                    {t('garments.importFromFile')}
-                  </span>
-                  <span className="text-xs font-normal text-muted-foreground">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <RoundIconLabelButton
+                    type="button"
+                    icon={FileUp}
+                    label={t('garments.importFromFile')}
+                    variant="secondary"
+                    size="xs"
+                    alwaysExpanded
+                    className="w-full"
+                    onClick={() => setIsFileWizardOpen(true)}
+                  />
+                  <p className="text-xs text-muted-foreground">
                     {t('garments.importFromFileHint')}
-                  </span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-auto flex-col items-start gap-1 px-3 py-3 text-left"
-                  onClick={openContactsStep}
-                >
-                  <span className="inline-flex items-center gap-2 text-sm font-medium">
-                    <Tags className="h-4 w-4" />
-                    {t('garments.importFromContacts')}
-                  </span>
-                  <span className="text-xs font-normal text-muted-foreground">
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <RoundIconLabelButton
+                    type="button"
+                    icon={Tags}
+                    label={t('garments.importFromContacts')}
+                    variant="secondary"
+                    size="xs"
+                    alwaysExpanded
+                    className="w-full"
+                    onClick={openContactsStep}
+                  />
+                  <p className="text-xs text-muted-foreground">
                     {t('garments.importFromContactsHint')}
-                  </span>
-                </Button>
+                  </p>
+                </div>
               </div>
             </div>
           ) : null}
@@ -290,9 +301,13 @@ export function GarmentPersonImportDialog({
             {step === 'chooser' ? <AlertDialogRoundCancel onClick={handleClose} /> : null}
             {step === 'contacts' ? (
               <>
-                <Button type="button" variant="ghost" onClick={() => setStep('chooser')}>
-                  {t('common.back')}
-                </Button>
+                <DialogActionButton
+                  type="button"
+                  variant="secondary"
+                  icon={ChevronLeft}
+                  label={t('common.back')}
+                  onClick={() => setStep('chooser')}
+                />
                 <AlertDialogRoundCancel onClick={handleClose} />
                 <DialogSaveButton
                   type="button"
