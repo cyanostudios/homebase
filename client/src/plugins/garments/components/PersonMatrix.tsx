@@ -59,8 +59,14 @@ import {
 } from '../utils/inventoryListColumns';
 import { MATRIX_TABLE_SCROLL_CLASS } from '../utils/variantListStyles';
 
-function formatFitCountList(counts: { label: string; count: number }[]): string {
-  return counts.map((entry) => `${entry.label}: ${entry.count}`).join(' · ');
+function fitSummaryBreakdownLabel(
+  t: (key: string) => string,
+  row: { audience: string; size: string },
+): { audience: string; size: string } {
+  return {
+    audience: row.audience || t('garments.fitSummaryAnyAudience'),
+    size: row.size || t('garments.fitSummaryAnySize'),
+  };
 }
 
 function GarmentListFitSummary({ entries }: { entries: GarmentFitSummaryEntry[] }) {
@@ -76,36 +82,49 @@ function GarmentListFitSummary({ entries }: { entries: GarmentFitSummaryEntry[] 
     >
       <h3 className="text-sm font-semibold text-foreground">{t('garments.fitSummaryTitle')}</h3>
       <p className="text-xs text-muted-foreground">{t('garments.fitSummaryHint')}</p>
-      <ul className="space-y-3">
-        {entries.map((entry) => (
-          <li key={entry.itemId} className="text-sm">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2 xl:grid-cols-3">
+        {entries.map((entry) =>
+          entry.fitBreakdowns.length > 0 ? (
+            entry.fitBreakdowns.map((row) => {
+              const labels = fitSummaryBreakdownLabel(t, row);
+              const rowKey = `${entry.itemId}\0${row.audience}\0${row.size}`;
+              return (
+                <li
+                  key={rowKey}
+                  className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 rounded-md border border-border/60 bg-muted/15 px-3 py-2 text-sm leading-snug"
+                >
+                  <span className="font-semibold text-foreground">{entry.articleName}</span>
+                  <span className="text-muted-foreground/70">/</span>
+                  <span className="text-muted-foreground">{labels.audience}</span>
+                  <span className="text-muted-foreground/70">/</span>
+                  <span className="text-base font-semibold tabular-nums text-foreground">
+                    {labels.size}
+                  </span>
+                  <span className="text-muted-foreground/70">—</span>
+                  <span className="text-base font-semibold tabular-nums text-foreground">
+                    {row.count}
+                  </span>
+                </li>
+              );
+            })
+          ) : (
+            <li
+              key={entry.itemId}
+              className="rounded-md border border-border/60 bg-muted/15 px-3 py-2 text-sm"
+            >
               <span className="font-semibold text-foreground">{entry.articleName}</span>
-              <span className="tabular-nums text-muted-foreground">
+              <span className="ml-2 text-xs tabular-nums text-muted-foreground">
                 {t('garments.fitSummaryFilled', {
                   filled: entry.filledCount,
                   total: entry.personCount,
                 })}
               </span>
-            </div>
-            {entry.audienceCounts.length > 0 ? (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground/80">{t('garments.audience')}: </span>
-                {formatFitCountList(entry.audienceCounts)}
-              </p>
-            ) : null}
-            {entry.sizeCounts.length > 0 ? (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground/80">{t('garments.size')}: </span>
-                {formatFitCountList(entry.sizeCounts)}
-              </p>
-            ) : (
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {t('garments.fitSummaryNoSizes')}
               </p>
-            )}
-          </li>
-        ))}
+            </li>
+          ),
+        )}
       </ul>
     </div>
   );

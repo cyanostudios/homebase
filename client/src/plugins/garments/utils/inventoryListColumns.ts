@@ -151,7 +151,11 @@ export function personHasInventoryFitData(
   return Boolean(person.ctSizes?.[id]?.trim() || person.ctAudiences?.[id]?.trim());
 }
 
-export type GarmentFitSummaryCount = { label: string; count: number };
+export type GarmentFitSummaryBreakdown = {
+  audience: string;
+  size: string;
+  count: number;
+};
 
 export type GarmentFitSummaryEntry = {
   itemId: string;
@@ -159,16 +163,23 @@ export type GarmentFitSummaryEntry = {
   personCount: number;
   /** Persons with size and/or audience for this inventory item. */
   filledCount: number;
-  sizeCounts: GarmentFitSummaryCount[];
-  audienceCounts: GarmentFitSummaryCount[];
+  /** Audience + size combinations (e.g. Women / M — 2). */
+  fitBreakdowns: GarmentFitSummaryBreakdown[];
 };
 
-function tallySorted(map: Map<string, number>): GarmentFitSummaryCount[] {
-  return Array.from(map.entries())
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) =>
-      a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' }),
-    );
+function compareFitBreakdown(a: GarmentFitSummaryBreakdown, b: GarmentFitSummaryBreakdown): number {
+  const audienceCompare = a.audience.localeCompare(b.audience, undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
+  if (audienceCompare !== 0) {
+    return audienceCompare;
+  }
+  return a.size.localeCompare(b.size, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function fitBreakdownKey(audience: string, size: string): string {
+  return `${audience}\0${size}`;
 }
 
 /**
@@ -194,21 +205,22 @@ export function buildGarmentListFitSummary(
     const inventoryItem = inventoryItems.find((item) => String(item.id) === itemId);
     const articleName = inventoryItem?.articleName?.trim() || group.trim() || itemId;
 
-    const sizeMap = new Map<string, number>();
-    const audienceMap = new Map<string, number>();
+    const breakdownMap = new Map<string, GarmentFitSummaryBreakdown>();
     let filledCount = 0;
 
     for (const person of persons) {
       const size = person.ctSizes?.[itemId]?.trim() ?? '';
       const audience = person.ctAudiences?.[itemId]?.trim() ?? '';
-      if (size || audience) {
-        filledCount += 1;
+      if (!size && !audience) {
+        continue;
       }
-      if (size) {
-        sizeMap.set(size, (sizeMap.get(size) ?? 0) + 1);
-      }
-      if (audience) {
-        audienceMap.set(audience, (audienceMap.get(audience) ?? 0) + 1);
+      filledCount += 1;
+      const key = fitBreakdownKey(audience, size);
+      const existing = breakdownMap.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        breakdownMap.set(key, { audience, size, count: 1 });
       }
     }
 
@@ -217,8 +229,7 @@ export function buildGarmentListFitSummary(
       articleName,
       personCount,
       filledCount,
-      sizeCounts: tallySorted(sizeMap),
-      audienceCounts: tallySorted(audienceMap),
+      fitBreakdowns: Array.from(breakdownMap.values()).sort(compareFitBreakdown),
     });
   }
 

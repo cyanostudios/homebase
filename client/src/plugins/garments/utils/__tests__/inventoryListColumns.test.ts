@@ -252,13 +252,9 @@ describe('inventoryListColumns', () => {
       personCount: 3,
       filledCount: 2,
     });
-    expect(summary[0].sizeCounts).toEqual([
-      { label: 'L', count: 1 },
-      { label: 'M', count: 1 },
-    ]);
-    expect(summary[0].audienceCounts).toEqual([
-      { label: 'Men', count: 1 },
-      { label: 'Women', count: 1 },
+    expect(summary[0].fitBreakdowns).toEqual([
+      { audience: 'Men', size: 'L', count: 1 },
+      { audience: 'Women', size: 'M', count: 1 },
     ]);
   });
 });
