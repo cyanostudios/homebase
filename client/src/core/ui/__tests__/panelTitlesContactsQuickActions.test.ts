@@ -67,3 +67,63 @@ describe('createPanelTitles — detail header menus in view mode', () => {
     expect(getPanelTitle()).toBe('');
   });
 });
+
+describe('createPanelTitles — create/edit prefer plugin getPanelTitle', () => {
+  const t = (key: string, options?: { item?: string }) => {
+    if (key === 'panel.createItem') {
+      return `New ${options?.item}`;
+    }
+    if (key === 'panel.editItem') {
+      return `Edit ${options?.item}`;
+    }
+    if (key === 'nav.garment') {
+      return 'Garment list';
+    }
+    return key;
+  };
+
+  it('uses garments create title for inventory instead of New Garment list', () => {
+    const { getPanelTitle } = createPanelTitles(
+      { name: 'garments' },
+      'create',
+      null,
+      false,
+      () => undefined,
+      {
+        getPanelTitle: (mode: string) => (mode === 'create' ? 'New inventory item' : null),
+      },
+      t,
+    );
+    expect(getPanelTitle()).toBe('New inventory item');
+  });
+
+  it('uses garments edit title for inventory instead of Edit Garment list', () => {
+    const { getPanelTitle } = createPanelTitles(
+      { name: 'garments' },
+      'edit',
+      { id: '1', articleName: 'Jacket' },
+      false,
+      () => undefined,
+      {
+        getPanelTitle: (mode: string) => (mode === 'edit' ? 'Edit inventory item' : null),
+      },
+      t,
+    );
+    expect(getPanelTitle()).toBe('Edit inventory item');
+  });
+
+  it('falls back to generic New Garment list when getPanelTitle returns null', () => {
+    const { getPanelTitle } = createPanelTitles(
+      { name: 'garments' },
+      'create',
+      null,
+      false,
+      () => undefined,
+      {
+        getPanelTitle: () => null,
+      },
+      t,
+    );
+    expect(getPanelTitle()).toBe('New Garment list');
+  });
+});

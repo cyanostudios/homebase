@@ -5,7 +5,7 @@ import type { NavPage } from '@/core/navigation/navTypes';
 
 /**
  * Core app pages shown in the sidebar but not registered as plugins.
- * Dashboard is the home route; settings is reached via TopBar only.
+ * Dashboard is the home route; settings is reached via user menu / right rail only.
  */
 export const CORE_SIDEBAR_NAV_ITEMS: ReadonlyArray<{
   page: NavPage;

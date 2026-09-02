@@ -12,10 +12,16 @@ import { ContentSurface, MAIN_CONTENT_SHELL_CLASS } from './ContentSurface';
 import { DetailPanel } from './DetailPanel';
 import { MobileActionsProvider, useMobileSearchBar } from './MobileActionsContext';
 import { MobileBottomBar } from './MobileBottomBar';
+import { MobileShellControls } from './mobile/MobileShellControls';
 import { RightSidebarProvider } from './RightSidebarContext';
 import { Sidebar } from './Sidebar';
+import { LeftSidebarProvider, useLeftSidebar } from '@/core/ui/sidebar/LeftSidebarContext';
 import type { NavPage } from '@/core/navigation/navTypes';
-import { TopBar } from './TopBar';
+import {
+  MOBILE_SHELL_TOP_INSET_CLASS,
+  CONTENT_SHELL_Y_GUTTER_CLASS,
+  CONTENT_SHELL_BOTTOM_GUTTER_CLASS,
+} from './pluginPageStyles';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -30,8 +36,6 @@ interface MainLayoutProps {
   // DetailPanel props
   detailPanelOpen: boolean;
   detailPanelTitle: string | React.ReactNode;
-  /** String label for TopBar breadcrumb chip (never React action bars). */
-  detailPanelBreadcrumbLabel?: string;
   detailPanelSubtitle?: string | React.ReactNode;
   detailPanelContent: React.ReactNode;
   detailPanelFooter?: React.ReactNode;
@@ -63,14 +67,12 @@ function MainLayoutShell(props: MainLayoutProps) {
     onContentAction,
     detailPanelOpen,
     detailPanelTitle,
-    detailPanelBreadcrumbLabel,
     detailPanelSubtitle,
     detailPanelContent,
     detailPanelFooter,
     detailPanelHeaderRight,
     detailPanelShowCloseButton = true,
     onDetailPanelClose,
-    detailPanelPluginName,
     detailPanelContentKey,
     contentFlush = false,
     companionPanelOpen = false,
@@ -85,6 +87,8 @@ function MainLayoutShell(props: MainLayoutProps) {
   const viewportTier = useViewportTier();
   const isPhone = viewportTier === 'phone';
   const isPad = viewportTier === 'pad';
+  const isDesktop = viewportTier === 'desktop';
+  const { widthPx: leftSidebarWidthPx } = useLeftSidebar();
   const { searchOpen } = useMobileSearchBar();
 
   useEffect(() => {
@@ -102,6 +106,11 @@ function MainLayoutShell(props: MainLayoutProps) {
   const openMobileNav = useCallback(() => {
     setMobileNavOpen(true);
   }, []);
+
+  const openSettings = useCallback(() => {
+    handlePageChange('settings');
+  }, [handlePageChange]);
+
   const shouldShowContentHeader = Boolean(
     contentTitle || contentIcon || headerTitleSuffix || contentActionLabel || headerTrailing,
   );
@@ -198,25 +207,23 @@ function MainLayoutShell(props: MainLayoutProps) {
         onMobileOpenChange={setMobileNavOpen}
       />
 
-      <TopBar
-        currentPage={currentPage}
-        onPageChange={handlePageChange}
+      <MobileShellControls
+        mobileNavOpen={mobileNavOpen}
         onOpenMobileNav={openMobileNav}
-        detailPanelTitle={
-          detailPanelOpen
-            ? (detailPanelBreadcrumbLabel ??
-              (typeof detailPanelTitle === 'string' ? detailPanelTitle : undefined))
-            : undefined
-        }
-        onDetailPanelClose={detailPanelOpen ? onDetailPanelClose : undefined}
-        detailPanelPluginName={detailPanelOpen ? detailPanelPluginName : undefined}
+        onOpenSettings={openSettings}
       />
 
-      <div className="flex min-h-0 flex-1 overflow-hidden lg:pl-[252px]">
+      <div
+        className="flex min-h-0 flex-1 overflow-hidden transition-[padding-left] duration-300 ease-out"
+        style={isDesktop ? { paddingLeft: leftSidebarWidthPx } : undefined}
+      >
         <main
           className={cn(
             'flex min-h-0 min-w-0 flex-1 overflow-hidden bg-workspace',
             !isPhone && 'pr-4',
+            isPhone || isPad
+              ? cn(MOBILE_SHELL_TOP_INSET_CLASS, CONTENT_SHELL_BOTTOM_GUTTER_CLASS)
+              : CONTENT_SHELL_Y_GUTTER_CLASS,
           )}
         >
           {isPhone ? (
@@ -278,9 +285,11 @@ function MainLayoutShell(props: MainLayoutProps) {
 export function MainLayout(props: MainLayoutProps) {
   return (
     <RightSidebarProvider>
-      <MobileActionsProvider>
-        <MainLayoutShell {...props} />
-      </MobileActionsProvider>
+      <LeftSidebarProvider>
+        <MobileActionsProvider>
+          <MainLayoutShell {...props} />
+        </MobileActionsProvider>
+      </LeftSidebarProvider>
     </RightSidebarProvider>
   );
 }

@@ -90,6 +90,22 @@ export const createPanelTitles = (
       return '';
     }
 
+    // Create/edit/settings: prefer plugin getPanelTitle (e.g. garments inventory vs list).
+    // Contacts and similar may return null and fall through to the generic nav label below.
+    if (
+      (currentMode === 'create' || currentMode === 'edit' || currentMode === 'settings') &&
+      pluginContext?.getPanelTitle
+    ) {
+      const item =
+        currentPlugin.name === 'ai-providers'
+          ? (currentItem ?? pluginContext.currentAIProvider ?? null)
+          : currentItem;
+      const custom = pluginContext.getPanelTitle(currentMode, item);
+      if (custom != null && custom !== '') {
+        return custom;
+      }
+    }
+
     if (currentPlugin.name === 'matches' && pluginContext?.getPanelTitle) {
       return pluginContext.getPanelTitle(currentMode, currentItem);
     }

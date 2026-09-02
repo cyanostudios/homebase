@@ -20,7 +20,7 @@ import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDateOnly, formatDateTime, formatTime } from '@/core/utils/dateFormat';
@@ -318,9 +318,7 @@ function SlotSettingsCard({
         <div className="p-6 space-y-2">
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                <Users className="h-3.5 w-3.5" />
-              </span>
+              <SectionCategoryIcon icon={Users} />
               <span className="truncate text-sm font-semibold text-foreground">
                 {t('common.contacts')}
               </span>
@@ -447,9 +445,7 @@ function SlotSettingsCard({
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <div className="p-6 space-y-3">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                <CalendarDays className="h-3.5 w-3.5" />
-              </span>
+              <SectionCategoryIcon icon={CalendarDays} />
               <span className="truncate text-sm font-semibold text-foreground">
                 {t('slots.publicBookings')}
               </span>

@@ -19,7 +19,7 @@
 | Ny plugin (checklista)                               | [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md)                                                                               |
 | Plugin List/View/Form / quick context (obligatorisk) | [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md)                                                                               |
 | Plugin-standarder (obligatoriskt)                    | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)                                                                                 |
-| UI/UX (V3 + list shell v3.6)                         | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)                                                                                                   |
+| UI/UX (V3 + list shell v3.6)                         | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) · shell utan TopBar: ADR [`ai/adr/SHELL_NO_TOPBAR.md`](ai/adr/SHELL_NO_TOPBAR.md)                 |
 | Home dashboard (KPI / snabbåtgärder / diagram)       | [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md)                                                                                                                   |
 | Cross-plugin navigation (URL) + entity quick-info    | [`MENTIONS_AND_CROSS_PLUGIN_UI.md`](MENTIONS_AND_CROSS_PLUGIN_UI.md) § Entity quick-info popup, § Cross-plugin URL navigation                              |
 | Säkerhet, CSRF, `apiFetch`                           | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                                                                                                         |

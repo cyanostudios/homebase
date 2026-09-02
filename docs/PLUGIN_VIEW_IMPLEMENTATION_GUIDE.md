@@ -440,7 +440,7 @@ flex items-start justify-between gap-6
 - List page title and primary Add action come from `MainLayout` / content header wiring in context (`getPanelTitle`, content view keys).
 - Plugins with `contentFlush: true` own in-page padding and often render their own list header (title + count + Settings + Add).
 - Detail panel title/subtitle come from context helpers consumed by `AppContent` → `createPanelTitles` (`PanelTitles.tsx`).
-- **TopBar breadcrumb chip** must receive a **string** label (`detailPanelBreadcrumbLabel`). Never pass React action bars into `TopBar` / `TopBarBreadcrumbs` — if `getPanelTitle` returns a React node (`DetailHeaderMenus`), `AppContent` derives the chip from the item name / display number.
+- The app shell has **no TopBar breadcrumbs**. When `getPanelTitle` returns a React node (`DetailHeaderMenus`), that node is for the DetailPanel title only — never inject action bars into shell chrome.
 
 ### Detail header menus (platform reference)
 
@@ -730,7 +730,7 @@ Walk in order. No “probably OK” — verify in the running app.
 
 - [ ] Layout columns match Contacts reference (identity left + main; actions in panel title header menus)
 - [ ] Quick actions: blue Edit, red Delete (+ red hover), green Duplicate — via `DetailHeaderMenus` (§4)
-- [ ] Contacts: TopBar breadcrumb shows contact **name** string, not Actions UI
+- [ ] Contacts: Actions / Export / Time log live in DetailPanel title menus only (no shell breadcrumb chip)
 - [ ] Contacts: Time log trigger hidden when there are zero entries; count badge when ≥1
 - [ ] Delete opens danger confirm; confirm deletes and closes as designed
 - [ ] Duplicate opens name dialog; after confirm: panel closes, green list row
@@ -778,35 +778,35 @@ Walk in order. No “probably OK” — verify in the running app.
 
 ## Reference file map
 
-| File                                                                    | Shows                                                                          |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `client/src/core/ui/QuickContextHeaderActions.tsx`                      | Shared quick context Open/Edit/Close + footer CTA                              |
-| `client/src/core/ui/dialogStyles.ts`                                    | Dialog header/body/footer layout tokens                                        |
-| `client/src/core/ui/DialogHeading.tsx`                                  | Shared dialog title component                                                  |
-| `client/src/core/ui/DialogRoundButtons.tsx`                             | Round dialog action buttons                                                    |
-| `client/src/components/ui/round-icon-label-button.tsx`                  | Base round pill button                                                         |
-| `client/src/plugins/contacts/components/ContactList.tsx`                | Canonical list header: Select/Clear, BulkActionRoundBar, RoundExpandableSearch |
-| `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx`   | Contacts view: Actions / Export / Time log in panel title                      |
-| `client/src/plugins/contacts/components/ContactView.tsx`                | Canonical full view (2-col; no Information/Activity cards)                     |
-| `client/src/plugins/ai-providers/components/AIProvidersList.tsx`        | Provider list: search-only header (no Select)                                  |
-| `client/src/core/ui/PanelTitles.tsx`                                    | `createPanelTitles`; contacts `getPanelTitle` before mobile blank              |
-| `client/src/core/ui/MainLayout.tsx` / `TopBar.tsx`                      | `detailPanelBreadcrumbLabel` string for breadcrumb chip                        |
-| `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx` | Canonical quick context (header, facts, variants, footer)                      |
-| `client/src/plugins/garments/components/GarmentList.tsx`                | Sticky aside + `useQuickContextPreview` + Contacts-class bulk header           |
-| `client/src/plugins/garments/components/GarmentView.tsx`                | Full inventory detail; header menus; no Information/Activity                   |
-| `client/src/plugins/garments/components/GarmentForm.tsx`                | Form chrome, variant delete confirm, unsaved warning                           |
-| `client/src/plugins/garments/context/GarmentProvider.tsx`               | `usePluginDuplicate`, `getDeleteMessage`, panel open helpers                   |
-| `client/src/plugins/tasks/components/TaskQuickContextPanel.tsx`         | Rich quick context + link tiles                                                |
-| `client/src/plugins/matches/components/MatchQuickContextPanel.tsx`      | Sport entity quick context + contact/team link tiles                           |
-| `client/src/plugins/slots/components/SlotQuickContextPanel.tsx`         | Booking slot quick context                                                     |
-| `client/src/plugins/teams/components/TeamQuickContextPanel.tsx`         | Team quick context + responsibles link tiles                                   |
-| `client/src/plugins/slots/components/SlotView.tsx`                      | Detail header menus + duplicate pattern                                        |
-| `client/src/core/hooks/useQuickContextPreview.ts`                       | Desktop vs compact preview behavior                                            |
-| `client/src/core/ui/detailViewCardStyles.ts`                            | Shared class tokens                                                            |
-| `client/src/core/ui/ConfirmDialog.tsx`                                  | Danger / warning confirms                                                      |
-| `client/src/core/ui/DuplicateDialog.tsx`                                | Rename-on-duplicate dialog                                                     |
-| `client/src/core/ui/BulkDeleteModal.tsx`                                | Multi-select delete                                                            |
-| `client/src/core/ui/DetailLayout.tsx`                                   | Multi-column detail shell                                                      |
+| File                                                                         | Shows                                                                                                                        |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `client/src/core/ui/QuickContextHeaderActions.tsx`                           | Shared quick context Open/Edit/Close + footer CTA                                                                            |
+| `client/src/core/ui/dialogStyles.ts`                                         | Dialog header/body/footer layout tokens                                                                                      |
+| `client/src/core/ui/DialogHeading.tsx`                                       | Shared dialog title component                                                                                                |
+| `client/src/core/ui/DialogRoundButtons.tsx`                                  | Round dialog action buttons                                                                                                  |
+| `client/src/components/ui/round-icon-label-button.tsx`                       | Base round pill button                                                                                                       |
+| `client/src/plugins/contacts/components/ContactList.tsx`                     | Canonical list header: Select/Clear, BulkActionRoundBar, RoundExpandableSearch                                               |
+| `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx`        | Contacts view: Actions / Export / Time log in panel title                                                                    |
+| `client/src/plugins/contacts/components/ContactView.tsx`                     | Canonical full view (2-col; no Information/Activity cards)                                                                   |
+| `client/src/plugins/ai-providers/components/AIProvidersList.tsx`             | Provider list: search-only header (no Select)                                                                                |
+| `client/src/core/ui/PanelTitles.tsx`                                         | `createPanelTitles`; view React nodes before mobile blank; create/edit/settings prefer plugin `getPanelTitle` when non-empty |
+| `client/src/core/ui/MainLayout.tsx` / `SidebarBrand` / `MobileShellControls` | App shell without TopBar; brand in sidebar; floating phone/pad Menu + account                                                |
+| `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx`      | Canonical quick context (header, facts, variants, footer)                                                                    |
+| `client/src/plugins/garments/components/GarmentList.tsx`                     | Sticky aside + `useQuickContextPreview` + Contacts-class bulk header                                                         |
+| `client/src/plugins/garments/components/GarmentView.tsx`                     | Full inventory detail; header menus; no Information/Activity                                                                 |
+| `client/src/plugins/garments/components/GarmentForm.tsx`                     | Form chrome, variant delete confirm, unsaved warning                                                                         |
+| `client/src/plugins/garments/context/GarmentProvider.tsx`                    | `usePluginDuplicate`, `getDeleteMessage`, panel open helpers                                                                 |
+| `client/src/plugins/tasks/components/TaskQuickContextPanel.tsx`              | Rich quick context + link tiles                                                                                              |
+| `client/src/plugins/matches/components/MatchQuickContextPanel.tsx`           | Sport entity quick context + contact/team link tiles                                                                         |
+| `client/src/plugins/slots/components/SlotQuickContextPanel.tsx`              | Booking slot quick context                                                                                                   |
+| `client/src/plugins/teams/components/TeamQuickContextPanel.tsx`              | Team quick context + responsibles link tiles                                                                                 |
+| `client/src/plugins/slots/components/SlotView.tsx`                           | Detail header menus + duplicate pattern                                                                                      |
+| `client/src/core/hooks/useQuickContextPreview.ts`                            | Desktop vs compact preview behavior                                                                                          |
+| `client/src/core/ui/detailViewCardStyles.ts`                                 | Shared class tokens                                                                                                          |
+| `client/src/core/ui/ConfirmDialog.tsx`                                       | Danger / warning confirms                                                                                                    |
+| `client/src/core/ui/DuplicateDialog.tsx`                                     | Rename-on-duplicate dialog                                                                                                   |
+| `client/src/core/ui/BulkDeleteModal.tsx`                                     | Multi-select delete                                                                                                          |
+| `client/src/core/ui/DetailLayout.tsx`                                        | Multi-column detail shell                                                                                                    |
 
 ---
 

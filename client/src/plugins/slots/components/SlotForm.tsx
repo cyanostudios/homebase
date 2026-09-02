@@ -29,7 +29,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DateTimePicker } from '@/core/ui/DateTimePicker';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
@@ -793,9 +793,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
               <div className="space-y-2 p-6">
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                      <Users className="h-3.5 w-3.5" />
-                    </span>
+                    <SectionCategoryIcon icon={Users} />
                     <span className="truncate text-sm font-semibold text-foreground">
                       {t('common.contacts')}
                     </span>

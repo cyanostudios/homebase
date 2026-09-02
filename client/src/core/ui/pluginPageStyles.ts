@@ -8,7 +8,7 @@
  * Use overflow-x-clip (not hidden): hidden forces overflow-y to auto and breaks sticky quick context.
  */
 export const PLUGIN_PAGE_LIST_SHELL_CLASS =
-  'min-h-full overflow-x-clip bg-background px-4 pt-2 pb-4 md:px-6 md:pt-6 md:pb-5';
+  'min-h-full overflow-x-clip bg-slate-100 pb-4 pt-2 dark:bg-slate-900 px-4 md:px-6 md:pb-5 md:pt-6';
 
 /** Vertical gap between list sections. Flex + gap skips `display:none` md-only headers on phone. */
 export const PLUGIN_PAGE_SECTION_GAP_CLASS = 'flex min-w-0 flex-col gap-3 md:gap-6';
@@ -60,3 +60,16 @@ export const DETAIL_PANEL_BODY_CLASS = '[&_.shadow-none]:border-none';
 /** Phone floating chrome (bottom bar + detail Edit/Close) — translucent over content. */
 export const MOBILE_FLOATING_CHROME_CLASS =
   'rounded-xl bg-background/30 shadow-sm backdrop-blur-md';
+
+/**
+ * Top inset on phone/pad so list/detail titles clear floating Menu + account controls.
+ * Applied in MainLayout under `lg` (permanent sidebar breakpoint).
+ */
+export const MOBILE_SHELL_TOP_INSET_CLASS = 'pt-14';
+
+/**
+ * Small vertical gutter around the main content shell so `rounded-xl` reads against workspace.
+ * Desktop uses full `py-4`; phone/pad keep `MOBILE_SHELL_TOP_INSET_CLASS` for top and use bottom only.
+ */
+export const CONTENT_SHELL_Y_GUTTER_CLASS = 'py-4';
+export const CONTENT_SHELL_BOTTOM_GUTTER_CLASS = 'pb-4';

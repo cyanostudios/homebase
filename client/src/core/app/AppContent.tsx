@@ -37,7 +37,6 @@ import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
 import { createPanelTitles } from '@/core/ui/PanelTitles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { resolveSlug } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useIsDesktopLayout, useIsMobile } from '@/hooks/useMediaQuery';
@@ -519,33 +518,6 @@ export function AppContent() {
 
   const detailPanelOpen = isAnyPanelOpen;
   const detailPanelTitle = panelTitles.getPanelTitle();
-  // Plain derivation (not useMemo) — this block runs after auth early-returns; hooks cannot.
-  let detailPanelBreadcrumbLabel: string | undefined;
-  if (detailPanelOpen) {
-    if (typeof detailPanelTitle === 'string' && detailPanelTitle.trim()) {
-      detailPanelBreadcrumbLabel = detailPanelTitle;
-    } else if (currentItem) {
-      const name =
-        (typeof currentItem.companyName === 'string' && currentItem.companyName.trim()) ||
-        (typeof currentItem.title === 'string' && currentItem.title.trim()) ||
-        (typeof currentItem.name === 'string' && currentItem.name.trim()) ||
-        (typeof currentItem.displayName === 'string' && currentItem.displayName.trim()) ||
-        '';
-      if (name) {
-        detailPanelBreadcrumbLabel = name;
-      } else if (currentPlugin?.name === 'contacts') {
-        detailPanelBreadcrumbLabel = formatDisplayNumber(
-          'contacts',
-          String(currentItem.contactNumber ?? currentItem.id),
-        );
-      } else if (currentItem.id != null) {
-        detailPanelBreadcrumbLabel = formatDisplayNumber(
-          currentPlugin?.name ?? 'item',
-          String(currentItem.id),
-        );
-      }
-    }
-  }
   const detailPanelSubtitle = panelTitles.getPanelSubtitle();
   const detailPanelContent = renderers.renderPanelContent();
   const detailPanelFooter = panelFooter;
@@ -616,14 +588,12 @@ export function AppContent() {
         onContentAction={primaryAction?.onClick}
         detailPanelOpen={detailPanelOpen}
         detailPanelTitle={detailPanelTitle}
-        detailPanelBreadcrumbLabel={detailPanelBreadcrumbLabel}
         detailPanelSubtitle={detailPanelSubtitle}
         detailPanelContent={detailPanelContent}
         detailPanelFooter={detailPanelFooter}
         detailPanelHeaderRight={detailPanelHeaderRight}
         detailPanelShowCloseButton={!useHeaderActionButtons}
         onDetailPanelClose={onDetailPanelClose}
-        detailPanelPluginName={currentPlugin?.name}
         detailPanelContentKey={detailPanelContentKey}
         contentFlush={currentPage === 'dashboard' || (currentPagePlugin?.contentFlush ?? false)}
         companionPanelOpen={companionPanelOpen}

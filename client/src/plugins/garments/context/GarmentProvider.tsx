@@ -1187,6 +1187,9 @@ export function GarmentProvider({
         if (mode === 'view') {
           return inv ? <InventoryDetailHeaderMenus item={inv} /> : '';
         }
+        if (mode === 'edit') {
+          return t('garments.editInventoryItem');
+        }
         return inv?.articleName || t('garments.inventoryItem');
       }
       if (mode === 'create') {
@@ -1195,6 +1198,9 @@ export function GarmentProvider({
       const list = item && 'checkboxColumns' in item ? item : currentGarment;
       if (mode === 'view') {
         return list ? <GarmentListDetailHeaderMenus list={list} /> : '';
+      }
+      if (mode === 'edit') {
+        return t('garments.editList');
       }
       return list?.name || t('garments.list');
     },

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 import { filesApi } from '@/plugins/files/api/filesApi';
@@ -162,9 +163,7 @@ export function FileAttachmentsSection({
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, cardClassName, className)}>
       <div className="space-y-2 p-6">
         <div className="mb-1 flex min-w-0 items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-          </span>
+          <SectionCategoryIcon icon={SlidersHorizontal} />
           <span className="truncate text-sm font-semibold text-foreground">
             {t('files.attachmentsTitle')}
           </span>

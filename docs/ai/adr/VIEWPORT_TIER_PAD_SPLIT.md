@@ -12,9 +12,9 @@ UI/UX design (etapp 1) requires three surfaces: phone (&lt;768), pad (768–1023
 
 1. **`ViewportTier`:** `'phone' | 'pad' | 'desktop'` via `useViewportTier()` / `getViewportTier(width)` in `client/src/hooks/useMediaQuery.ts`.
 2. **`useIsMobile()`** remains phone-only (`max-width: 767px`) for backward-compatible call sites that mean “compact phone”.
-3. **Permanent sidebar + main `pl-[252px]`** start at Tailwind **`lg` (1024px)**. Pad and phone use overlay Sheet nav + TopBar hamburger (`lg:hidden`).
+3. **Permanent sidebar + main `pl-[252px]`** start at Tailwind **`lg` (1024px)**. Pad and phone use overlay Sheet nav + floating Menu control (`lg:hidden`; see ADR `SHELL_NO_TOPBAR.md`).
 4. **Detail presentation:**
-   - phone → full-height panel in `main` under TopBar (`DetailPanel` `isMobile`; bottom actions bar)
+   - phone → full-height panel in `main` (`DetailPanel` `isMobile`; bottom actions bar)
    - pad → list and detail mounted together (split ~38% / remainder, list `min-w-[280px]`)
    - desktop → detail replaces list; optional **Companion Panel** (secondary plugin List ~40% beside primary list or detail) when opened from a primary page that declares a companion target (MVP: Teams → Schedule). Companion lives inside `<main>`, left of `AppRightSidebar`; not shown on phone/pad.
 5. **List display overrides** (`effectiveListViewMode.ts`) take `ViewportTier`:

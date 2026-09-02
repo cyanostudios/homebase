@@ -7,7 +7,8 @@ const localesDir = path.join(__dirname, '../../../i18n/locales');
 const mainLayout = fs.readFileSync(path.join(uiDir, 'MainLayout.tsx'), 'utf8');
 const appRightSidebar = fs.readFileSync(path.join(uiDir, 'AppRightSidebar.tsx'), 'utf8');
 const detailLayout = fs.readFileSync(path.join(uiDir, 'DetailLayout.tsx'), 'utf8');
-const topBar = fs.readFileSync(path.join(uiDir, 'TopBar.tsx'), 'utf8');
+const sidebar = fs.readFileSync(path.join(uiDir, 'Sidebar.tsx'), 'utf8');
+const mobileShell = fs.readFileSync(path.join(uiDir, 'mobile/MobileShellControls.tsx'), 'utf8');
 const context = fs.readFileSync(path.join(uiDir, 'RightSidebarContext.tsx'), 'utf8');
 const en = fs.readFileSync(path.join(localesDir, 'en.json'), 'utf8');
 const sv = fs.readFileSync(path.join(localesDir, 'sv.json'), 'utf8');
@@ -51,10 +52,12 @@ describe('App right sidebar wiring', () => {
     expect(detailLayout).not.toMatch(/detailLayoutPortal/);
   });
 
-  test('TopBar user menu is phone/pad only', () => {
-    expect(topBar).toMatch(/TopBarUserMenu/);
-    expect(topBar).toMatch(/lg:hidden/);
-    expect(topBar).not.toMatch(/getTopBarWidgets/);
+  test('Mobile shell controls replace TopBar user menu on phone/pad', () => {
+    expect(mainLayout).toMatch(/MobileShellControls/);
+    expect(mainLayout).not.toMatch(/TopBar/);
+    expect(mobileShell).toMatch(/MobileUserMenu/);
+    expect(mobileShell).toMatch(/lg:hidden/);
+    expect(sidebar).toMatch(/SidebarBrand/);
   });
 
   test('i18n keys exist in en and sv', () => {
@@ -65,6 +68,7 @@ describe('App right sidebar wiring', () => {
       expect(locale).toMatch(/"timer"\s*:/);
       expect(locale).toMatch(/"settings"\s*:/);
       expect(locale).toMatch(/"userPrefs"\s*:/);
+      expect(locale).toMatch(/"openNavigation"\s*:/);
     }
   });
 });

@@ -118,11 +118,13 @@ The **Add** / **Close** button on list pages is resolved in `resolvePrimaryActio
 
 `PanelTitles.tsx` still contains a **legacy** config only for the `import` plugin. **Do not extend** that pattern for new plugins; use `getPanelTitle` / `getPanelSubtitle` on context instead.
 
+For **create / edit / settings**, `PanelTitles` prefers a non-empty return from `pluginContext.getPanelTitle` before the generic `nav.*` + `panel.createItem` / `panel.editItem` fallback (needed when one plugin has multiple entity kinds, e.g. garments list vs inventory). Plugins that return `null` for those modes keep the generic labels.
+
 ### `getPanelTitle` as React node (DetailHeaderMenus)
 
 View mode may return JSX from `getPanelTitle` — typically a thin `*DetailHeaderMenus` wrapper around shared `DetailHeaderMenus` (`client/src/core/ui/DetailHeaderMenus.tsx`). That node is the **DetailPanel** title only (Actions / Export / extras).
 
 - **Mobile:** open Actions/Export submenu pills appear inline beside the trigger with horizontal scroll; desktop (`md+`) uses a second row below triggers. See [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) § Detail header menus.
 - `PanelTitles` prefers non-string React nodes from `pluginContext.getPanelTitle` **before** the mobile view early-return that blanks plain text titles (so menus appear on phone).
-- Pass a separate **string** `detailPanelBreadcrumbLabel` into `MainLayout` → `TopBar` (never the React menus). `AppContent` derives the label from item name / `formatDisplayNumber` when the title is not a string.
+- There is **no** TopBar breadcrumb chip — do not pass action bars or breadcrumb labels into the shell. Hierarchy is conveyed via sidebar nav + DetailPanel / ContentHeader titles.
 - Remount with `key={item.id}` when switching items so open-menu state resets.

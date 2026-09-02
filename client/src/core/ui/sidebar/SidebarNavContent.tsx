@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { isSubmenuOpen as computeSubmenuOpen } from '@/core/navigation/collapsibleState';
 import type { NavCategory, NavPage } from '@/core/navigation/navTypes';
-import { SubtleSectionHeading } from '@/core/ui/DetailSection';
+import { SectionCategoryIcon, SubtleSectionHeading } from '@/core/ui/DetailSection';
 import { NavItem } from '@/core/ui/sidebar/NavItem';
+import { cn } from '@/lib/utils';
 
 export type SidebarNavContentProps = {
   navCategories: NavCategory[];
@@ -17,6 +18,14 @@ export type SidebarNavContentProps = {
   onNavigate: (page: NavPage) => void;
   onSubmenuOpenChange: (page: NavPage, open: boolean) => void;
   onCategoryOpenChange: (categoryId: string, open: boolean) => void;
+  /** Desktop icon rail: category icons only. */
+  collapsed?: boolean;
+  /** Category that contains the current page (collapsed rail highlight). */
+  activeCategoryId?: string | null;
+  /** When collapsed, clicking a category expands the sidebar and opens that section. */
+  onCollapsedCategorySelect?: (categoryId: string) => void;
+  /** Optional DOM id for aria-controls (desktop permanent rail only — avoid duplicates with Sheet). */
+  navId?: string;
 };
 
 export const SidebarNavContent = React.memo(function SidebarNavContent({
@@ -28,9 +37,43 @@ export const SidebarNavContent = React.memo(function SidebarNavContent({
   onNavigate,
   onSubmenuOpenChange,
   onCategoryOpenChange,
+  collapsed = false,
+  activeCategoryId = null,
+  onCollapsedCategorySelect,
+  navId,
 }: SidebarNavContentProps) {
+  if (collapsed) {
+    return (
+      <div
+        id={navId}
+        className="flex flex-1 flex-col items-center gap-2 overflow-y-auto px-2 pt-2 pb-4"
+      >
+        {navCategories.map((category) => {
+          const isActive = category.id === activeCategoryId;
+          return (
+            <button
+              key={category.id}
+              type="button"
+              title={category.title}
+              aria-label={category.title}
+              aria-current={isActive ? 'true' : undefined}
+              className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-full transition-colors',
+                'hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                isActive ? 'bg-primary/10' : undefined,
+              )}
+              onClick={() => onCollapsedCategorySelect?.(category.id)}
+            >
+              <SectionCategoryIcon icon={category.icon} />
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 overflow-y-auto px-3 pt-5">
+    <div id={navId} className="flex-1 overflow-y-auto px-3 pt-2">
       <div className="flex flex-col">
         {navCategories.map((category, index) => {
           const isCategoryOpen = openCategories.has(category.id);
@@ -39,7 +82,7 @@ export const SidebarNavContent = React.memo(function SidebarNavContent({
               key={category.id}
               open={isCategoryOpen}
               onOpenChange={(open) => onCategoryOpenChange(category.id, open)}
-              className={index > 0 ? 'mt-3 border-t border-border/50 pt-4' : undefined}
+              className={index > 0 ? 'mt-1' : undefined}
             >
               <CollapsibleTrigger asChild>
                 <Button

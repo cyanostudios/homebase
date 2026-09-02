@@ -13,7 +13,7 @@ import { useApp } from '@/core/api/AppContext';
 import { UserAvatarButton } from '@/core/ui/rightSidebar/UserAvatarButton';
 
 /** Phone/pad account menu. Desktop uses the right-rail user flyout. */
-export const TopBarUserMenu = React.memo(function TopBarUserMenu({
+export const MobileUserMenu = React.memo(function MobileUserMenu({
   onOpenSettings,
 }: {
   onOpenSettings: () => void;

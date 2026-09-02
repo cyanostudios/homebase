@@ -264,7 +264,7 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
     <DetailLayout>
       <div className="min-w-0 space-y-4">
         <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'min-w-0 overflow-hidden')}>
-          <div className="border-b border-border/50 px-4 py-4 md:px-6">
+          <div className="px-4 pb-2 pt-4 md:px-6 md:pt-6">
             <div className="flex flex-wrap items-center gap-2.5">
               <h2 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0')}>{list.name || '—'}</h2>
               {teamLabel ? (
@@ -282,7 +282,7 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
               </span>
             </div>
           </div>
-          <div className="min-w-0 p-4 md:p-6">
+          <div className="min-w-0 px-4 pb-4 pt-1 md:px-6 md:pb-6">
             <PersonMatrix list={list} />
           </div>
         </Card>

@@ -16,7 +16,11 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection, type DetailSectionIconPlugin } from '@/core/ui/DetailSection';
+import {
+  DetailSection,
+  SectionCategoryIcon,
+  type DetailSectionIconPlugin,
+} from '@/core/ui/DetailSection';
 import {
   DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_FIELD_LABEL_CLASS,
@@ -414,9 +418,7 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
             <div className="p-6 space-y-2">
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                    <Users className="h-3.5 w-3.5" />
-                  </span>
+                  <SectionCategoryIcon icon={Users} />
                   <span className="truncate text-sm font-semibold text-foreground">
                     {t('matches.contacts')}
                   </span>

@@ -163,8 +163,7 @@ export default defineConfig({
               id.includes('/core/ui/dashboard/') ||
               id.includes('/core/ui/Dashboard.') ||
               id.includes('/core/ui/MainLayout.') ||
-              id.includes('/core/ui/TopBar.') ||
-              id.includes('/core/ui/topbar/') ||
+              id.includes('/core/ui/mobile/') ||
               id.includes('/core/ui/AppRightSidebar.') ||
               id.includes('/core/ui/Sidebar.') ||
               id.includes('/core/ui/sidebar/') ||

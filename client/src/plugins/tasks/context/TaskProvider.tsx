@@ -117,7 +117,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           dueDate: task.dueDate ? new Date(task.dueDate) : null,
         }));
         setTasks(transformedTasks);
-        syncSharedTasks(transformedTasks);
       } catch (error: any) {
         if (!cancelled) {
           console.error('Failed to load tasks:', error);
@@ -129,7 +128,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, setValidationErrors, syncSharedTasks]);
+  }, [isAuthenticated, setValidationErrors]);
 
   const loadTasks = useCallback(async () => {
     const tasksData = await tasksApi.getTasks();
@@ -140,8 +139,12 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       dueDate: task.dueDate ? new Date(task.dueDate) : null,
     }));
     setTasks(transformedTasks);
-    syncSharedTasks(transformedTasks);
-  }, [syncSharedTasks]);
+  }, []);
+
+  // Keep AppContext.tasks in sync so contact linked-items (getTasksForContact) see assignee updates.
+  useEffect(() => {
+    syncSharedTasks(tasks);
+  }, [tasks, syncSharedTasks]);
 
   useEffect(() => {
     return registerSharedDataRefresh('tasks', loadTasks);

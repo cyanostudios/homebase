@@ -7,8 +7,8 @@
   :root {
     /* Bootstrap Color Scheme - Light Mode */
 
-    /* Background: soft gray behind list chrome / cards */
-    --background: 210 20% 96%;
+    /* Background: slate-100 gray-blue (content shell / list chrome) */
+    --background: 210 40% 96%;
     /* Foreground: body text (~25% darker than original gray-800) */
     --foreground: 220 25% 19%;
 

@@ -256,5 +256,12 @@ describe('inventoryListColumns', () => {
       { audience: 'Men', size: 'L', count: 1 },
       { audience: 'Women', size: 'M', count: 1 },
     ]);
+
+    const emptySummary = buildGarmentListFitSummary(
+      persons.map((person) => ({ ...person, ctSizes: {}, ctAudiences: {} })),
+      [{ group: 'Jacket', columns: groupColumns }],
+      [{ ...sampleItem, id: '3', articleName: 'Match jacket' }],
+    );
+    expect(emptySummary).toEqual([]);
   });
 });

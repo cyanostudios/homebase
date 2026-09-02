@@ -184,7 +184,8 @@ function fitBreakdownKey(audience: string, size: string): string {
 
 /**
  * Per assigned inventory article: how many persons have size/audience filled,
- * plus size and audience histograms. Status checkboxes are ignored.
+ * plus audience+size breakdowns. Status checkboxes are ignored.
+ * Articles with no filled counts are omitted.
  */
 export function buildGarmentListFitSummary(
   persons: Array<Pick<GarmentPerson, 'ctSizes' | 'ctAudiences'>>,
@@ -222,6 +223,10 @@ export function buildGarmentListFitSummary(
       } else {
         breakdownMap.set(key, { audience, size, count: 1 });
       }
+    }
+
+    if (filledCount === 0) {
+      continue;
     }
 
     entries.push({

@@ -4,6 +4,81 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-02 – Desktop left sidebar collapsible icon rail
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** UX / frontend / shell  
+**Scope:** `LeftSidebarContext`, `Sidebar`, `SidebarNavContent`, `SidebarBrand`, `MainLayout`
+
+**Sammanfattning:** Desktop left sidebar kan minimeras till en smal rail (logo + kategoriikoner). Rund `RoundIconLabelButton` på sidomenyns högerkant växlar expand/collapse; valet sparas i localStorage. Phone/pad overlay oförändrad.
+
+**Beteende (verifierat i kod)**
+
+- Expanded `252px` / collapsed `72px`; `MainLayout` padding följer bredden
+- Collapsed: endast brand-logo + `SectionCategoryIcon` per kategori; klick på kategori expanderar och öppnar sektionen
+- Toggle: `ChevronLeft` / `ChevronRight`, `size="xs"`, `expandOnHover={false}`, högst upp på kanten (`top-1`, `translate-x-1/2`), vit bg / blå hover
+- `id="left-sidebar-nav"` endast på permanent desktop-rail via `navId` (inte mobil Sheet)
+
+**Begränsningar / avvägningar:** Preference är klient-localStorage (`homebase.leftSidebar.collapsed` = `0`/`1`), inte synkad mellan enheter. Collapse gäller endast desktop `lg+`.
+
+**Guides:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.2; ADR [`ai/adr/SHELL_NO_TOPBAR.md`](ai/adr/SHELL_NO_TOPBAR.md)
+
+---
+
+## 2026-09-02 – Garments list view: tighter title / matrix spacing
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** UX polish / frontend  
+**Scope:** `GarmentView.tsx` (list full view)
+
+**Sammanfattning:** Borttagen `border-b` under listtitel; PersonMatrix flyttad närmare titeln.
+
+---
+
+## 2026-09-02 – App shell: TopBar removed (sidebar brand + floating mobile chrome)
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** UX / frontend / shell  
+**Scope:** `MainLayout`, `Sidebar`, `SidebarBrand`, `MobileShellControls`, `MobileUserMenu`; removed `TopBar` / breadcrumbs; ADR `SHELL_NO_TOPBAR`
+
+**Sammanfattning:** Fixed TopBar (brand, breadcrumbs, mobil hamburger, phone/pad user menu) är borttagen för mer vertikal yta. Organisationens logo + namn visas i left sidebar (`SidebarBrand`, display-only — inte klickbar). Phone/pad får flytande Meny (övre vänster) och kontomeny (övre höger). Desktop konto/settings oförändrat via `AppRightSidebar`.
+
+**Beteende (verifierat i kod)**
+
+- Ingen TopBar / `h-14`-spacer; ingen `detailPanelBreadcrumbLabel`-wiring
+- `SidebarBrand` i permanent sidebar och mobil nav-sheet (logo + org-namn, ingen navigation)
+- `MobileShellControls` (`z-40`, `lg:hidden`); Meny dold medan sheet är öppet
+- `MainLayout` sätter `MOBILE_SHELL_TOP_INSET_CLASS` (`pt-14`) på `main` för phone/pad
+- Settings fortsatt via user menu (phone/pad) eller right rail (desktop), inte sidebar-nav
+- Content shell: `MAIN_CONTENT_SHELL_CLASS` = `rounded-xl bg-slate-100 dark:bg-slate-900`; inner `Card` transparent så hörnen syns
+
+**Begränsningar / avvägningar:** Phone/pad har fortfarande inte Pomodoro/timer (desktop-only right rail). ~56px top-inset på phone/pad behålls så floating controls inte täcker titlar. Org-logo i brand använder befintlig `organizationLogoUrl` (samma som tidigare TopBar); ingen ny URL-allowlist i denna leverans.
+
+**Guides:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0 / §0.2; [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md); [`PLUGIN_RUNTIME_CONVENTIONS.md`](PLUGIN_RUNTIME_CONVENTIONS.md); ADR [`ai/adr/SHELL_NO_TOPBAR.md`](ai/adr/SHELL_NO_TOPBAR.md)
+
+---
+
+## 2026-09-02 – Follow-ups: panel titles, tasks sync, schedule count
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** bugfix / UX polish / frontend  
+**Scope:** `PanelTitles`, `GarmentProvider`, `TaskProvider`, `ScheduleList`, i18n
+
+**Sammanfattning:** Inventarie create/edit visar inte längre generiska “Garment list”-titlar; tasks synkas till AppContext så kontakt-länkade assignments syns; Choose schedule visar antal scheman inkl. default.
+
+**Beteende (verifierat i kod)**
+
+- `PanelTitles` prefererar plugin `getPanelTitle` för create/edit/settings (när icke-tom)
+- Garments: `New/Edit inventory item` vs `New/Edit list` beroende på `panelKind`
+- `TaskProvider` synkar `tasks` → `syncSharedTasks` via `useEffect` (kontakt `getTasksForContact`)
+- Schedule: `chooseSchedule` label med `{{count}}` = `plans.length + 1`
+
+---
+
 ## 2026-09-01 – Garments: inventory import (settings) + ImportWizard UX
 
 **Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.

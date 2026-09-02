@@ -31,6 +31,24 @@ export type DetailSectionIconPlugin =
   | 'mail'
   | 'cups';
 
+/** Shared chrome for section/category icons (sidebar + DetailSection + plugin section headers). */
+export const SECTION_CATEGORY_ICON_SHELL_CLASS =
+  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sky-500 dark:bg-slate-800/60 dark:text-sky-400';
+
+export function SectionCategoryIcon({
+  icon: Icon,
+  className,
+}: {
+  icon: AppIcon;
+  className?: string;
+}) {
+  return (
+    <span className={cn(SECTION_CATEGORY_ICON_SHELL_CLASS, className)}>
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+    </span>
+  );
+}
+
 /** Uppercase section label + small icon — shared by DetailSection subtleTitle and sidebar nav categories. */
 export function SubtleSectionHeading({
   title,
@@ -43,9 +61,7 @@ export function SubtleSectionHeading({
 }) {
   return (
     <div className={cn('flex min-w-0 items-center gap-2', className)}>
-      {Icon ? (
-        <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden />
-      ) : null}
+      {Icon ? <SectionCategoryIcon icon={Icon} /> : null}
       <h3 className="truncate whitespace-nowrap text-xs font-bold uppercase leading-none tracking-[0.1em] text-slate-500 dark:text-slate-400">
         {title}
       </h3>
@@ -56,7 +72,10 @@ export function SubtleSectionHeading({
 interface DetailSectionProps {
   title: string | React.ReactNode;
   icon?: AppIcon;
-  /** Plugin whose color to use for the icon (e.g. tasks = lila, notes = gul). Omit for neutral gray (e.g. Information). */
+  /**
+   * Kept for call-site compatibility. Category icons use the shared slate/sky chrome
+   * (same as sidebar); plugin tint is no longer applied to the icon shell.
+   */
   iconPlugin?: DetailSectionIconPlugin;
   /** Optional node rendered to the right of the title (e.g. a reset button). */
   action?: React.ReactNode;
@@ -75,7 +94,7 @@ interface DetailSectionProps {
 export function DetailSection({
   title,
   icon: Icon,
-  iconPlugin,
+  iconPlugin: _iconPlugin,
   action,
   children,
   className,
@@ -87,11 +106,6 @@ export function DetailSection({
   const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
 
-  const iconColorClass =
-    iconPlugin !== undefined && iconPlugin !== null
-      ? `plugin-${iconPlugin} text-plugin`
-      : 'text-muted-foreground';
-
   const titleNode = prominentTitle ? (
     <h3 className={PLUGIN_PAGE_TITLE_CLASS}>{title}</h3>
   ) : subtleTitle ? (
@@ -102,17 +116,7 @@ export function DetailSection({
     </Heading>
   );
 
-  const iconNode =
-    Icon && !subtleTitle ? (
-      <span
-        className={cn(
-          'flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80',
-          iconColorClass,
-        )}
-      >
-        <Icon className="h-3.5 w-3.5" aria-hidden />
-      </span>
-    ) : null;
+  const iconNode = Icon && !subtleTitle ? <SectionCategoryIcon icon={Icon} /> : null;
 
   if (!collapsible) {
     return (

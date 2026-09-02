@@ -136,6 +136,8 @@ export function ScheduleList({ isCompanion = false }: { isCompanion?: boolean } 
     return plans.find((plan) => plan.id === activeScheduleId)?.name ?? t('nav.schedule');
   }, [activeScheduleId, isDefaultSchedule, plans, t]);
 
+  const scheduleCount = plans.length + 1;
+
   useEffect(() => {
     registerUnsavedChangesChecker('schedule-list', () => isDefaultSchedule && isDirty && !isLocked);
     return () => unregisterUnsavedChangesChecker('schedule-list');
@@ -370,7 +372,7 @@ export function ScheduleList({ isCompanion = false }: { isCompanion?: boolean } 
                   ) : null}
                   <RoundIconLabelButton
                     icon={CalendarClock}
-                    label={t('schedule.chooseSchedule')}
+                    label={t('schedule.chooseSchedule', { count: scheduleCount })}
                     variant={chooseScheduleOpen ? 'primary' : 'soft'}
                     alwaysExpanded
                     aria-expanded={chooseScheduleOpen}
