@@ -831,23 +831,53 @@ export function GarmentProvider({
       listId: string,
       personId: string,
       data: GarmentPersonPayload,
+      options?: { updateLocalState?: boolean },
     ): Promise<GarmentPerson | null> => {
+      const updateLocalState = options?.updateLocalState !== false;
       try {
         const person = await garmentsApi.updatePerson(listId, personId, data);
-        setCurrentGarment((prev) => {
-          if (!prev || prev.id !== listId || !prev.persons) {
-            return prev;
-          }
-          return {
-            ...prev,
-            persons: prev.persons.map((p) => (p.id === person.id ? person : p)),
-          };
-        });
+        if (updateLocalState) {
+          setCurrentGarment((prev) => {
+            if (!prev || prev.id !== listId || !prev.persons) {
+              return prev;
+            }
+            return {
+              ...prev,
+              persons: prev.persons.map((p) => (p.id === person.id ? person : p)),
+            };
+          });
+        }
         return person;
       } catch (err) {
         console.error('Failed to update person:', err);
         return null;
       }
+    },
+    [],
+  );
+
+  const patchPersonLocal = useCallback(
+    (listId: string, personId: string, patch: Partial<GarmentPerson>) => {
+      const apply = (person: GarmentPerson): GarmentPerson =>
+        String(person.id) === String(personId) ? { ...person, ...patch } : person;
+
+      setCurrentGarment((prev) => {
+        if (!prev || prev.id !== listId || !prev.persons) {
+          return prev;
+        }
+        return {
+          ...prev,
+          persons: prev.persons.map(apply),
+        };
+      });
+      setGarmentLists((prev) =>
+        prev.map((list) => {
+          if (String(list.id) !== String(listId) || !list.persons) {
+            return list;
+          }
+          return { ...list, persons: list.persons.map(apply) };
+        }),
+      );
     },
     [],
   );
@@ -1252,6 +1282,7 @@ export function GarmentProvider({
       refreshGarmentList,
       addPerson,
       updatePerson,
+      patchPersonLocal,
       deletePerson,
       importPersons,
       importInventoryItems,
@@ -1312,6 +1343,7 @@ export function GarmentProvider({
       refreshGarmentList,
       addPerson,
       updatePerson,
+      patchPersonLocal,
       deletePerson,
       importPersons,
       importInventoryItems,

@@ -1,5 +1,5 @@
 import { Check, ChevronDown, ChevronRight, Edit, Plus, Trash2, X } from 'lucide-react';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,6 +18,8 @@ import { CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DETAIL_FIELD_LABEL_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
+import { createSerialLatestQueue } from '@/core/utils/serialLatestQueue';
+import type { SerialLatestSettle } from '@/core/utils/serialLatestQueue';
 import { cn } from '@/lib/utils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
@@ -83,47 +85,29 @@ function GarmentListFitSummary({ entries }: { entries: GarmentFitSummaryEntry[] 
       <h3 className="text-sm font-semibold text-foreground">{t('garments.fitSummaryTitle')}</h3>
       <p className="text-xs text-muted-foreground">{t('garments.fitSummaryHint')}</p>
       <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2 xl:grid-cols-3">
-        {entries.map((entry) =>
-          entry.fitBreakdowns.length > 0 ? (
-            entry.fitBreakdowns.map((row) => {
-              const labels = fitSummaryBreakdownLabel(t, row);
-              const rowKey = `${entry.itemId}\0${row.audience}\0${row.size}`;
-              return (
-                <li
-                  key={rowKey}
-                  className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 rounded-md border border-border/60 bg-muted/15 px-3 py-2 text-sm leading-snug"
-                >
-                  <span className="font-semibold text-foreground">{entry.articleName}</span>
-                  <span className="text-muted-foreground/70">/</span>
-                  <span className="text-muted-foreground">{labels.audience}</span>
-                  <span className="text-muted-foreground/70">/</span>
-                  <span className="text-base font-semibold tabular-nums text-foreground">
-                    {labels.size}
-                  </span>
-                  <span className="text-muted-foreground/70">—</span>
-                  <span className="text-base font-semibold tabular-nums text-foreground">
-                    {row.count}
-                  </span>
-                </li>
-              );
-            })
-          ) : (
-            <li
-              key={entry.itemId}
-              className="rounded-md border border-border/60 bg-muted/15 px-3 py-2 text-sm"
-            >
-              <span className="font-semibold text-foreground">{entry.articleName}</span>
-              <span className="ml-2 text-xs tabular-nums text-muted-foreground">
-                {t('garments.fitSummaryFilled', {
-                  filled: entry.filledCount,
-                  total: entry.personCount,
-                })}
-              </span>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t('garments.fitSummaryNoSizes')}
-              </p>
-            </li>
-          ),
+        {entries.flatMap((entry) =>
+          entry.fitBreakdowns.map((row) => {
+            const labels = fitSummaryBreakdownLabel(t, row);
+            const rowKey = `${entry.itemId}\0${row.audience}\0${row.size}`;
+            return (
+              <li
+                key={rowKey}
+                className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 rounded-md border border-border/60 bg-muted/15 px-3 py-2 text-sm leading-snug"
+              >
+                <span className="font-semibold text-foreground">{entry.articleName}</span>
+                <span className="text-muted-foreground/70">/</span>
+                <span className="text-muted-foreground">{labels.audience}</span>
+                <span className="text-muted-foreground/70">/</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {labels.size}
+                </span>
+                <span className="text-muted-foreground/70">—</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {row.count}
+                </span>
+              </li>
+            );
+          }),
         )}
       </ul>
     </div>
@@ -293,12 +277,26 @@ export function PersonMatrix({
   const {
     addPerson,
     updatePerson,
+    patchPersonLocal,
     deletePerson,
     inventoryItems,
     updatePersonCtSizes,
     openGarmentsInventory,
   } = useGarments();
   const persons = list.persons ?? [];
+  const listRef = useRef(list);
+  listRef.current = list;
+  const checkboxQueueRef = useRef(createSerialLatestQueue());
+  const checkboxRollbackRef = useRef<Map<string, Record<string, boolean>>>(new Map());
+  const latestCheckboxRef = useRef<Map<string, Record<string, boolean>>>(new Map());
+  const [checkboxSaveError, setCheckboxSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const queue = checkboxQueueRef.current;
+    return () => {
+      queue.clear();
+    };
+  }, []);
   const columns = useMemo(() => resolveMatrixColumns(list, inventoryItems), [list, inventoryItems]);
   const checkboxColumnIds = useMemo(() => columns.map((c) => c.id), [columns]);
   const { personColumns, garmentGroups, statusLabels } = useMemo(
@@ -495,6 +493,63 @@ export function PersonMatrix({
     });
   };
 
+  const enqueueOptimisticCheckboxSave = (
+    person: GarmentPerson,
+    nextValues: Record<string, boolean>,
+  ) => {
+    const key = String(person.id);
+    const queue = checkboxQueueRef.current;
+    if (!queue.isBusy(key) && !checkboxRollbackRef.current.has(key)) {
+      checkboxRollbackRef.current.set(key, { ...(person.checkboxValues ?? {}) });
+    }
+    latestCheckboxRef.current.set(key, nextValues);
+    patchPersonLocal(list.id, person.id, { checkboxValues: nextValues });
+
+    queue.enqueue({
+      key,
+      payload: nextValues,
+      save: async () => {
+        const latestList = listRef.current;
+        const latestPerson = latestList.persons?.find((p) => String(p.id) === key);
+        if (!latestPerson) {
+          throw new Error('Person not found');
+        }
+        const checkboxValues =
+          latestCheckboxRef.current.get(key) ?? latestPerson.checkboxValues ?? {};
+        const saved = await updatePerson(
+          latestList.id,
+          latestPerson.id,
+          personFieldPayload(latestPerson, { checkboxValues }),
+          { updateLocalState: false },
+        );
+        if (!saved) {
+          throw new Error('updatePerson failed');
+        }
+        return saved;
+      },
+      onSettle: (event: SerialLatestSettle<GarmentPerson>) => {
+        if (event.kind === 'committed') {
+          checkboxRollbackRef.current.delete(key);
+          if (event.result) {
+            latestCheckboxRef.current.set(key, event.result.checkboxValues ?? {});
+            patchPersonLocal(list.id, key, event.result);
+          }
+          setCheckboxSaveError(null);
+          return;
+        }
+        if (event.kind === 'failed' && event.shouldRollback) {
+          const snap = checkboxRollbackRef.current.get(key);
+          checkboxRollbackRef.current.delete(key);
+          if (snap) {
+            latestCheckboxRef.current.set(key, snap);
+            patchPersonLocal(list.id, key, { checkboxValues: snap });
+          }
+          setCheckboxSaveError(t('garments.saveFailed'));
+        }
+      },
+    });
+  };
+
   const toggleCheckbox = async (person: GarmentPerson, columnId: string) => {
     if (readOnly) {
       return;
@@ -506,21 +561,19 @@ export function PersonMatrix({
     const next = toggleCheckboxValue(currentValues, columnId);
     if (editingThis) {
       setEditDraft((prev) => ({ ...prev, checkboxValues: next }));
+      await updatePerson(
+        list.id,
+        person.id,
+        personFieldPayload(person, {
+          checkboxValues: next,
+          jerseyName: editDraft.jerseyName ?? person.jerseyName,
+          initials: editDraft.initials ?? person.initials,
+          name: editDraft.name ?? person.name,
+        }),
+      );
+      return;
     }
-    await updatePerson(
-      list.id,
-      person.id,
-      personFieldPayload(person, {
-        checkboxValues: next,
-        ...(editingThis
-          ? {
-              jerseyName: editDraft.jerseyName ?? person.jerseyName,
-              initials: editDraft.initials ?? person.initials,
-              name: editDraft.name ?? person.name,
-            }
-          : {}),
-      }),
-    );
+    enqueueOptimisticCheckboxSave(person, next);
   };
 
   const toggleMasterStatus = async (person: GarmentPerson, statusLabel: string) => {
@@ -540,25 +593,32 @@ export function PersonMatrix({
     const next = setCheckboxValuesForIds(currentValues, columnIds, nextChecked);
     if (editingThis) {
       setEditDraft((prev) => ({ ...prev, checkboxValues: next }));
+      await updatePerson(
+        list.id,
+        person.id,
+        personFieldPayload(person, {
+          checkboxValues: next,
+          jerseyName: editDraft.jerseyName ?? person.jerseyName,
+          initials: editDraft.initials ?? person.initials,
+          name: editDraft.name ?? person.name,
+        }),
+      );
+      return;
     }
-    await updatePerson(
-      list.id,
-      person.id,
-      personFieldPayload(person, {
-        checkboxValues: next,
-        ...(editingThis
-          ? {
-              jerseyName: editDraft.jerseyName ?? person.jerseyName,
-              initials: editDraft.initials ?? person.initials,
-              name: editDraft.name ?? person.name,
-            }
-          : {}),
-      }),
-    );
+    enqueueOptimisticCheckboxSave(person, next);
   };
 
   return (
     <div className="min-w-0 space-y-3">
+      {checkboxSaveError ? (
+        <div
+          role="status"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {checkboxSaveError}
+        </div>
+      ) : null}
+
       {duplicateJerseys.size > 0 ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           {t('garments.jerseyDuplicateWarning')}

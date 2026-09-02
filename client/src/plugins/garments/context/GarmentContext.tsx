@@ -77,10 +77,13 @@ export interface GarmentContextType {
 
   refreshGarmentList: (listId: string) => Promise<GarmentList | null>;
   addPerson: (listId: string, data: GarmentPersonPayload) => Promise<GarmentPerson | null>;
+  /** Merge patch into person on current list only; no network. */
+  patchPersonLocal: (listId: string, personId: string, patch: Partial<GarmentPerson>) => void;
   updatePerson: (
     listId: string,
     personId: string,
     data: GarmentPersonPayload,
+    options?: { updateLocalState?: boolean },
   ) => Promise<GarmentPerson | null>;
   deletePerson: (listId: string, personId: string) => Promise<void>;
   /** Import person names into an existing list (platform ImportWizard). */
@@ -162,6 +165,7 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   setRecentlyDuplicatedListId: () => {},
   refreshGarmentList: async () => null,
   addPerson: async () => null,
+  patchPersonLocal: () => {},
   updatePerson: async () => null,
   deletePerson: async () => {},
   importPersons: async () => ({ successCount: 0, failureCount: 0 }),
