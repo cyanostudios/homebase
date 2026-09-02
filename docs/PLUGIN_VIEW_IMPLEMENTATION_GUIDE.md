@@ -168,11 +168,26 @@ const { previewItem, setPreviewItem, showQuickContext, markPendingAndOpen, activ
   });
 ```
 
-| Helper                           | Behavior                                                              |
-| -------------------------------- | --------------------------------------------------------------------- |
-| `activateRow(item, openForView)` | Desktop → set preview; compact (`max-width: 1023px`) → open full view |
-| `markPendingAndOpen(item, open)` | Remember id so closing full view restores the sticky preview          |
-| `showQuickContext`               | `true` when preview is set and viewport is not compact                |
+| Helper                           | Behavior                                                                                                                                                                |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activateRow(item, openForView)` | Desktop → set preview (same row again closes); compact (`max-width: 1023px`) → open full view. Space on a focused list row triggers this via row click — not full view. |
+| `markPendingAndOpen(item, open)` | Remember id so closing full view restores the sticky preview                                                                                                            |
+| `showQuickContext`               | `true` when preview is set and viewport is not compact                                                                                                                  |
+
+**Contacts** uses local preview state (`setPreviewContact`) instead of this hook. `handleRowActivate` must still toggle: same id again → `null`. Do not call `open*ForView` from desktop row activate.
+
+### List keyboard (platform)
+
+Global handler: `client/src/core/keyboard/keyboardHandlers.ts`, registered **capture-phase** on `document` from `AppContent`. Ignore `INPUT` / `TEXTAREA` / `contentEditable`.
+
+| Key                     | Focused `[data-list-item]`                                                                                                                                                                    | Other                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **ArrowUp / ArrowDown** | Move focus to previous/next sibling item (wrap). Table: `tr[data-list-item]` in the same `<table>`. Cards: nearest ancestor with multiple `[data-list-item]`. DOM order, not 2D grid.         | Unhandled                                                                                 |
+| **Space**               | `preventDefault` + `click()` on the focused row (same as mouse). Desktop QC plugins → `activateRow` toggle. Compact → full view. Lists **without** QC → existing row click (often full view). | If a plugin **full panel** is open (`panelKey`), Space **closes** that panel (unchanged). |
+
+Do **not** call `open*ForView` from the global Space handler. Full profile stays on Open full / `markPendingAndOpen`.
+
+**Required row attributes:** `data-list-item`, `data-plugin-name`, `tabIndex={0}` when the row is clickable, `role="button"`. Shared table: `SortableListTable` sets `tabIndex={0}` when `onRowClick` is set. Cards already use `tabIndex={0}` on `*ListItem`.
 
 ### Wiring in `*List.tsx`
 
@@ -722,6 +737,8 @@ Walk in order. No “probably OK” — verify in the running app.
 ### Quick context
 
 - [ ] Desktop row click opens sticky panel; compact opens full view
+- [ ] Same desktop row again (click or Space) closes the panel
+- [ ] Space on a focused list row does **not** open full view on desktop
 - [ ] Active row ring matches preview
 - [ ] ExternalLink / footer opens full profile; Edit opens edit
 - [ ] Close clears preview; bulk selection still works with panel open
@@ -753,6 +770,7 @@ Walk in order. No “probably OK” — verify in the running app.
 - [ ] `selectionEnabled={selectionMode}` on table; bulk delete uses `BulkDeleteModal`
 - [ ] Provider lists without bulk: search-only header (`AIProvidersList.tsx` pattern)
 - [ ] Empty state Create; cards/table toggle per plugin
+- [ ] Clickable table rows are focusable (`tabIndex={0}` via `SortableListTable`); ArrowUp/Down moves between `[data-list-item]`
 
 ### Quality gates
 
@@ -803,7 +821,9 @@ Walk in order. No “probably OK” — verify in the running app.
 | `client/src/plugins/slots/components/SlotQuickContextPanel.tsx`              | Booking slot quick context                                                                                                   |
 | `client/src/plugins/teams/components/TeamQuickContextPanel.tsx`              | Team quick context + responsibles link tiles                                                                                 |
 | `client/src/plugins/slots/components/SlotView.tsx`                           | Detail header menus + duplicate pattern                                                                                      |
-| `client/src/core/hooks/useQuickContextPreview.ts`                            | Desktop vs compact preview behavior                                                                                          |
+| `client/src/core/hooks/useQuickContextPreview.ts`                            | Desktop vs compact preview; same-row toggle                                                                                  |
+| `client/src/core/keyboard/keyboardHandlers.ts`                               | List ArrowUp/Down + Space → row click (not `openForView`)                                                                    |
+| `client/src/core/ui/SortableListTable.tsx`                                   | Shared table; `tabIndex={0}` + `data-list-item` when clickable                                                               |
 | `client/src/core/ui/detailViewCardStyles.ts`                                 | Shared class tokens                                                                                                          |
 | `client/src/core/ui/ConfirmDialog.tsx`                                       | Danger / warning confirms                                                                                                    |
 | `client/src/core/ui/DuplicateDialog.tsx`                                     | Rename-on-duplicate dialog                                                                                                   |

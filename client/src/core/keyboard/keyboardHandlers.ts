@@ -13,21 +13,56 @@ function findPanelFunction(context: any, action: string, pluginName?: string): a
   return typeof context[fnName] === 'function' ? context[fnName] : null;
 }
 
-// Utility function to find open functions dynamically
-function findOpenFunction(context: any, mode: string, pluginName?: string): any {
-  if (!context || !pluginName) {
-    return null;
+/** Wrap-around next/previous index for list keyboard navigation. */
+export function getNextListItemIndex(
+  currentIndex: number,
+  length: number,
+  direction: 1 | -1,
+): number {
+  if (length <= 0 || currentIndex < 0) {
+    return -1;
   }
-
-  // Generic: open + SingularCap + ForX
-  const functionName = `open${getSingularCap(pluginName)}For${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
-  return typeof context[functionName] === 'function' ? context[functionName] : null;
+  let nextIndex = currentIndex + direction;
+  if (nextIndex < 0) {
+    nextIndex = length - 1;
+  } else if (nextIndex >= length) {
+    nextIndex = 0;
+  }
+  return nextIndex;
 }
 
-export const createKeyboardHandler = (
-  getPluginContexts: () => any[],
-  attemptNavigation?: (action: () => void) => void,
-) => {
+/**
+ * Collect sibling list items for ArrowUp/ArrowDown navigation.
+ * Table rows stay scoped to their `<table>`; card items use the nearest
+ * ancestor that contains multiple `[data-list-item]` (typically the grid).
+ */
+export function collectNavigableListItems(focused: HTMLElement): HTMLElement[] {
+  const table = focused.closest('table');
+  if (table) {
+    return Array.from(table.querySelectorAll('tr[data-list-item]')) as HTMLElement[];
+  }
+
+  const pluginName = focused.dataset.pluginName;
+  let best: HTMLElement[] = [focused];
+  let node: HTMLElement | null = focused.parentElement;
+
+  while (node && node !== document.documentElement) {
+    const items = Array.from(node.querySelectorAll<HTMLElement>('[data-list-item]')).filter(
+      (el) => !pluginName || !el.dataset.pluginName || el.dataset.pluginName === pluginName,
+    );
+    if (items.includes(focused)) {
+      best = items;
+      if (items.length > 1) {
+        break;
+      }
+    }
+    node = node.parentElement;
+  }
+
+  return best;
+}
+
+export const createKeyboardHandler = (getPluginContexts: () => any[]) => {
   return (e: KeyboardEvent) => {
     const pluginContexts = getPluginContexts();
     // Don't interfere with form inputs, textareas, etc.
@@ -80,76 +115,41 @@ export const createKeyboardHandler = (
         return;
       }
 
-      // If no panel is open, check if a table row is focused and open it with navigation guard
+      // Focused list item: same as row click — quick context toggle on desktop
+      // (activateRow), or full view on compact. Does not call openForView here.
       const focusedElement = document.activeElement as HTMLElement;
       if (focusedElement && focusedElement.dataset.listItem) {
         e.preventDefault();
-
-        // Parse the stored item data
-        try {
-          const itemData = JSON.parse(focusedElement.dataset.listItem);
-          const pluginName = focusedElement.dataset.pluginName;
-
-          // Find the correct plugin context
-          const pluginData = pluginContexts.find(({ plugin }) => plugin.name === pluginName);
-
-          if (pluginData?.context) {
-            const openForViewFunction = findOpenFunction(
-              pluginData.context,
-              'view',
-              pluginData.plugin.name,
-            );
-
-            if (openForViewFunction) {
-              // Use navigation guard if available, otherwise open directly
-              if (attemptNavigation) {
-                attemptNavigation(() => {
-                  openForViewFunction(itemData);
-                });
-              } else {
-                openForViewFunction(itemData);
-              }
-            } else {
-              console.warn(`OpenForView function not found for plugin: ${pluginData.plugin.name}`);
-            }
-          }
-        } catch (error) {
-          console.error('Failed to parse list item data:', error);
-        }
+        e.stopPropagation();
+        focusedElement.click();
       }
     }
 
-    // Handle Arrow keys for navigation
+    // Handle Arrow keys for list item navigation (cards + table rows)
     if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+      if (e.metaKey || e.ctrlKey || e.altKey) {
+        return;
+      }
+
       const focusedElement = document.activeElement as HTMLElement;
 
-      // Only handle if we're focused on a table row with list item data
       if (focusedElement && focusedElement.dataset.listItem) {
+        const items = collectNavigableListItems(focusedElement);
+        const currentIndex = items.indexOf(focusedElement);
+
+        if (currentIndex === -1 || items.length === 0) {
+          return;
+        }
+
         e.preventDefault();
 
         const direction = e.code === 'ArrowUp' ? -1 : 1;
-        const currentRow = focusedElement;
-        const table = currentRow.closest('table');
+        const nextIndex = getNextListItemIndex(currentIndex, items.length, direction);
+        const nextItem = nextIndex >= 0 ? items[nextIndex] : undefined;
 
-        if (table) {
-          const rows = Array.from(table.querySelectorAll('tr[data-list-item]')) as HTMLElement[];
-          const currentIndex = rows.indexOf(currentRow);
-
-          if (currentIndex !== -1) {
-            let nextIndex = currentIndex + direction;
-
-            // Wrap around
-            if (nextIndex < 0) {
-              nextIndex = rows.length - 1;
-            } else if (nextIndex >= rows.length) {
-              nextIndex = 0;
-            }
-
-            const nextRow = rows[nextIndex];
-            if (nextRow) {
-              nextRow.focus();
-            }
-          }
+        if (nextItem) {
+          nextItem.focus();
+          nextItem.scrollIntoView({ block: 'nearest' });
         }
       }
     }

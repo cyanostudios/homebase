@@ -32,7 +32,7 @@ export interface UseQuickContextPreviewReturn<T> {
   showQuickContext: boolean;
   /** Remember id then open full view so closing restores the panel. */
   markPendingAndOpen: (item: T, open: () => void) => void;
-  /** Desktop: set preview; compact: open full view via `openForView`. */
+  /** Desktop: set preview (same item again closes); compact: open full view via `openForView`. */
   activateRow: (item: T, openForView: (item: T) => void) => void;
 }
 
@@ -93,7 +93,8 @@ export function useQuickContextPreview<T>({
       markPendingAndOpen(item, () => openForView(item));
       return;
     }
-    setPreviewItem(item);
+    // Same row again closes quick context (Space / click toggle).
+    setPreviewItem((current) => (current && getItemId(current) === getItemId(item) ? null : item));
   };
 
   return {

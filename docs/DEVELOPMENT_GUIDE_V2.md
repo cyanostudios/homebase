@@ -31,7 +31,7 @@ Homebase is a modular plugin-based platform with service abstraction architectur
 - **React 18** + TypeScript + Vite
 - **Modular Contexts** - Plugin-specific state management
 - **Responsive Design** - Mobile-first with conditional rendering
-- **Universal Keyboard Navigation** - Space + Arrow keys
+- **List keyboard** — ArrowUp/Down between `[data-list-item]`; Space = row click (desktop quick-context toggle, not full view). See [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md).
 
 ### Backend
 

@@ -47,6 +47,8 @@ describe('ContactList table view wiring', () => {
     expect(listSrc).toMatch(/handleRowActivate/);
     expect(listSrc).toMatch(/isCompactViewport/);
     expect(listSrc).toMatch(/activeContactId/);
+    expect(listSrc).toMatch(/setPreviewContact\(\(current\) =>/);
+    expect(listSrc).toMatch(/String\(current\.id\) === String\(contact\.id\) \? null : contact/);
     expect(listSrc).not.toMatch(/bulkSelectionEnabled/);
     expect(tableSrc).toMatch(/activeContactId/);
     expect(tableSrc).toMatch(/selectionEnabled/);

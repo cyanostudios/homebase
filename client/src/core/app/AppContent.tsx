@@ -392,15 +392,13 @@ export function AppContent() {
     }
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps -- pluginContexts is stable
 
-  // Keyboard handler
+  // Keyboard handler (capture so Space on list items activates the row once,
+  // before local Enter/Space handlers also fire and double-toggle quick context)
   useEffect(() => {
-    const keyboardHandler = createKeyboardHandler(
-      () => pluginContextsRef.current,
-      attemptNavigation,
-    );
-    document.addEventListener('keydown', keyboardHandler);
-    return () => document.removeEventListener('keydown', keyboardHandler);
-  }, [attemptNavigation]);
+    const keyboardHandler = createKeyboardHandler(() => pluginContextsRef.current);
+    document.addEventListener('keydown', keyboardHandler, true);
+    return () => document.removeEventListener('keydown', keyboardHandler, true);
+  }, []);
 
   // All hooks must be before early returns
   const currentPagePlugin = useMemo(() => {

@@ -124,7 +124,8 @@ export function SortableListTable<TRow, TField extends string>({
                 key={id}
                 className={cn(
                   'group',
-                  onRowClick && 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/80',
+                  onRowClick &&
+                    'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/80 focus:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-plugin-subtle focus:ring-inset dark:focus:bg-slate-900/80',
                   selected && 'bg-plugin-subtle ring-1 border-plugin-subtle',
                   active && 'bg-primary/5 ring-1 ring-primary/40',
                   rowClassName?.(row),
@@ -134,6 +135,7 @@ export function SortableListTable<TRow, TField extends string>({
                 data-list-item={dataListItem ? JSON.stringify(dataListItem(row)) : undefined}
                 data-plugin-name={pluginName}
                 role={onRowClick ? 'button' : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
                 aria-label={rowAriaLabel?.(row)}
               >
                 {effectiveSelection ? (

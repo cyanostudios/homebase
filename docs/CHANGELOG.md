@@ -4,6 +4,30 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-03 – List keyboard: ArrowUp/Down + Space toggles quick context
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** UX / frontend  
+**Scope:** `keyboardHandlers.ts`; `AppContent` (capture `keydown`); `SortableListTable` `tabIndex={0}`; `useQuickContextPreview` same-row toggle; `ContactList.handleRowActivate` same-row toggle
+
+**Sammanfattning:** Pil upp/ner flyttar fokus mellan listobjekt (kort + tabell). Space på fokuserad rad aktiverar samma som klick — desktop quick context öppnas/stängs — och öppnar **inte** full view.
+
+**Beteende (verifierat i kod)**
+
+- ArrowUp/Down: wrap; tabell scoped till `<table>`; kort till närmaste ancestor med flera `[data-list-item]`; DOM-ordning (inte 2D-rutnät)
+- Space: `click()` på fokuserat `[data-list-item]`; globalt **inte** `open*ForView`
+- Desktop: samma rad igen stänger quick context (hook + Contacts lokal state)
+- Compact (`max-width: 1023px`): radaktivering öppnar fortfarande full view
+- Listor utan quick context: Space följer befintlig rad-`onClick` (ofta full view)
+- Öppen plugin-fullpanel: Space stänger panelen (oförändrat)
+
+**Begränsningar / avvägningar:** Capture-phase `keydown` så Space inte dubbelväxlar med lokala list-handlers. Security: inga accepterade residualrisker som kräver TPM; låg notis att capture-Space kan gå före en dialogknapp när en plugin-panel är öppen (stänger panel, raderar inte). `data-list-item` JSON i DOM oförändrat (utanför denna uppgift).
+
+**Guides:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) (hook + list keyboard + §8), [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md) (row attributes)
+
+---
+
 ## 2026-09-02 – Right rail widgets: multi-timer, persist, ripples; companion slide-out
 
 **Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.

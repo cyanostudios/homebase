@@ -31,20 +31,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import {
   useEffectiveCardColumnCount,
   useEffectiveColumnCount,
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
-import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
-import {
-  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
-  PLUGIN_PAGE_LIST_SHELL_CLASS,
-  PLUGIN_PAGE_SECTION_GAP_CLASS,
-  PLUGIN_PAGE_TITLE_CLASS,
-  PLUGIN_PAGE_TITLE_ROW_CLASS,
-} from '@/core/ui/pluginPageStyles';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
@@ -61,6 +54,13 @@ import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -70,12 +70,6 @@ import { cn } from '@/lib/utils';
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
 import {
-  contactMatchesListFilters,
-  toggleContactListFilter,
-  type ContactListFilter,
-  type ContactListFilterSelection,
-} from '../utils/contactListFilter';
-import {
   CONTACTS_COLUMN_COUNT_STORAGE_KEY,
   CONTACTS_SETTINGS_KEY,
   getInitialContactColumnCount,
@@ -84,17 +78,23 @@ import {
 } from '../utils/contactColumnCount';
 import { contactExportConfig } from '../utils/contactExportConfig';
 import {
-  getInitialContactListViewMode,
-  persistContactListViewModeSession,
-  resolveContactListViewMode,
-  type ContactListViewMode,
-} from '../utils/contactListViewMode';
+  contactMatchesListFilters,
+  toggleContactListFilter,
+  type ContactListFilter,
+  type ContactListFilterSelection,
+} from '../utils/contactListFilter';
 import {
   compareContactsByField,
   isContactAscDefaultField,
   type ContactSortField,
   type ContactSortOrder,
 } from '../utils/contactListSort';
+import {
+  getInitialContactListViewMode,
+  persistContactListViewModeSession,
+  resolveContactListViewMode,
+  type ContactListViewMode,
+} from '../utils/contactListViewMode';
 import {
   resolveVisibleContactTableColumns,
   type ContactTableColumnId,
@@ -449,7 +449,9 @@ export const ContactList: React.FC = () => {
       toggleContactSelected(String(contact.id));
       return;
     }
-    setPreviewContact(contact);
+    setPreviewContact((current) =>
+      current && String(current.id) === String(contact.id) ? null : contact,
+    );
   };
 
   const bulkMessageRecipients = useMemo(

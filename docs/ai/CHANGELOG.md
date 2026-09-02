@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## List keyboard Arrow/Space — docs sync (2026-09-03)
+
+Docs efter **QA Approved** + **Security Approved** för list-tangentbord: ArrowUp/Down mellan `[data-list-item]`; Space = radklick / desktop quick-context-toggle (inte `open*ForView`). Operator: `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` (hook + list keyboard + §8), `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` (row `onClick` → `handleRowActivate`), `DEVELOPMENT_GUIDE_V2.md` (list keyboard-rad). **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-03 – List keyboard.
+
+---
+
 ## App right rail + settings return-to — docs sync (2026-08-28)
 
 Docs efter **QA Approved** + **Security Approved** för fixed right rail (flyouts, ingen expand/portal), settings `RoundIconLabelButton`-actions, Core Settings Close return-to (`settingsReturnTo.ts`), Teams compact tab chips. Operator: `UI_AND_UX_STANDARDS_V3.md` §0 / §3 / §3.2; `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` (rail limits). Stale “preferring portal” / `openSettingsPanel`-formuleringar rättade. **Local-first; ej prod-release.**

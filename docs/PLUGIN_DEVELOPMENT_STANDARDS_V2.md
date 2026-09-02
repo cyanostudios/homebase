@@ -558,7 +558,7 @@ throw new AppError('Title is required', 400, 'VALIDATION_ERROR');
 module.exports = new MyPluginModel();
 
 Required Table Attributes for Keyboard Navigation
-All list components must support keyboard navigation:
+All list components must support keyboard navigation. Prefer `SortableListTable` (sets `tabIndex={0}` when `onRowClick` is set). Global ArrowUp/Down moves focus between `[data-list-item]`; Space activates the focused row (quick-context toggle on desktop — **not** `open*ForView`). See [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) (list keyboard).
 
 <tr 
   className="plugin-my-plugins hover:bg-plugin-subtle focus:bg-plugin-subtle focus:outline-none focus:ring-2 focus:ring-plugin-subtle focus:ring-inset cursor-pointer"
@@ -567,7 +567,7 @@ All list components must support keyboard navigation:
   data-plugin-name="my-plugins"    // Must match registry name exactly
   role="button"
   aria-label={`Open ${item.title}`}
-  onClick={() => openMyPluginForView(item)}
+  onClick={() => handleRowActivate(item)}
 >
 
 Naming Convention Summary
