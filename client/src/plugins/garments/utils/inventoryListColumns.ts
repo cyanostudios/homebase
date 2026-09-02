@@ -59,6 +59,9 @@ export function filterMatrixColumns(
     if (HIDDEN_PERSON_COLUMN_IDS.has(col.id)) {
       return false;
     }
+    if (col.hidden === true) {
+      return false;
+    }
     const group = col.group?.trim();
     if (!group) {
       return true;

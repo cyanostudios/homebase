@@ -15,8 +15,13 @@ export interface RoundExpandableQuickAddProps {
   /** Start expanded (input visible). Only initial state — outside click / Escape collapse to icon. */
   defaultExpanded?: boolean;
   /**
-   * Visual tone. `soft` = light blue (less prominent), e.g. when quick context is open.
-   * Default `primary` = solid blue.
+   * Keep the input expanded: no collapse on outside click / Escape / after save.
+   * Idle = soft (light blue); focused or with text = primary (solid blue).
+   */
+  alwaysExpanded?: boolean;
+  /**
+   * Visual tone when not `alwaysExpanded`.
+   * `soft` = light blue; default `primary` = solid blue.
    */
   variant?: 'primary' | 'soft';
 }
@@ -29,28 +34,42 @@ export function RoundExpandableQuickAdd({
   className,
   expandedWidthClass = 'w-80',
   defaultExpanded = false,
+  alwaysExpanded = false,
   variant = 'primary',
 }: RoundExpandableQuickAddProps) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [expanded, setExpanded] = useState(defaultExpanded || alwaysExpanded);
   const [title, setTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [blockAutofill, setBlockAutofill] = useState(true);
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const hasValue = title.trim().length > 0;
-  const isSoft = variant === 'soft';
+  const isActive = isFocused || hasValue || isSaving;
+  const isSoft = alwaysExpanded ? !isActive : variant === 'soft';
+  const showExpanded = alwaysExpanded || expanded;
 
   useEffect(() => {
-    if (!expanded) {
+    if (alwaysExpanded) {
+      setExpanded(true);
+    }
+  }, [alwaysExpanded]);
+
+  useEffect(() => {
+    if (!showExpanded) {
       setBlockAutofill(true);
       return;
     }
+    // Always-open fields must not steal focus from the detail view on mount.
+    if (alwaysExpanded) {
+      return;
+    }
     inputRef.current?.focus({ preventScroll: true });
-  }, [expanded]);
+  }, [showExpanded, alwaysExpanded]);
 
   useEffect(() => {
-    if (!expanded) {
+    if (!showExpanded || alwaysExpanded) {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
@@ -74,7 +93,7 @@ export function RoundExpandableQuickAdd({
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [expanded]);
+  }, [showExpanded, alwaysExpanded]);
 
   const handleSave = useCallback(async () => {
     const trimmed = title.trim();
@@ -85,13 +104,15 @@ export function RoundExpandableQuickAdd({
     try {
       await onCreate(trimmed);
       setTitle('');
-      setExpanded(false);
+      if (!alwaysExpanded) {
+        setExpanded(false);
+      }
     } catch (error) {
       console.error('Failed to quick-create:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [title, isSaving, onCreate]);
+  }, [title, isSaving, onCreate, alwaysExpanded]);
 
   return (
     <div
@@ -100,11 +121,11 @@ export function RoundExpandableQuickAdd({
         'inline-flex h-11 shrink-0 items-center overflow-hidden rounded-full',
         'transition-[width,padding,background-color,color] duration-200 ease-out',
         isSoft ? 'bg-primary/10 text-primary' : 'bg-primary text-primary-foreground',
-        expanded ? cn('px-3.5', expandedWidthClass) : 'w-11',
+        showExpanded ? cn('px-3.5', expandedWidthClass) : 'w-11',
         className,
       )}
     >
-      {!expanded ? (
+      {!showExpanded ? (
         <button
           type="button"
           className={cn(
@@ -133,11 +154,15 @@ export function RoundExpandableQuickAdd({
               isSoft ? 'hover:bg-primary/15' : 'hover:bg-primary-foreground/15',
             )}
             onClick={() => {
-              setExpanded(false);
               setTitle('');
+              if (!alwaysExpanded) {
+                setExpanded(false);
+              } else {
+                inputRef.current?.focus({ preventScroll: true });
+              }
             }}
-            aria-label={t('common.close')}
-            title={t('common.close')}
+            aria-label={alwaysExpanded ? label : t('common.close')}
+            title={alwaysExpanded ? label : t('common.close')}
             disabled={isSaving}
           >
             <Plus className="size-5 shrink-0 opacity-90" aria-hidden />
@@ -151,12 +176,23 @@ export function RoundExpandableQuickAdd({
             value={title}
             readOnly={blockAutofill || isSaving}
             disabled={isSaving}
-            onFocus={() => setBlockAutofill(false)}
+            onFocus={() => {
+              setBlockAutofill(false);
+              setIsFocused(true);
+            }}
+            onBlur={() => setIsFocused(false)}
             onChange={(event) => setTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && alwaysExpanded) {
+                event.preventDefault();
+                setTitle('');
+                (event.target as HTMLInputElement).blur();
+              }
+            }}
             placeholder={placeholder}
             className={cn(
               'min-w-0 flex-1 bg-transparent text-sm font-extrabold focus:outline-none',
-              isSoft ? 'placeholder:text-primary/50' : 'placeholder:text-primary-foreground/60',
+              isSoft ? 'placeholder:text-primary' : 'placeholder:text-primary-foreground/60',
             )}
             aria-label={label}
           />

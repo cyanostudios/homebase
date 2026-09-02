@@ -117,6 +117,15 @@ function createGarmentsRoutes(controller, context) {
       .isString()
       .isLength({ max: 2000 })
       .withMessage('comment must not exceed 2000 characters'),
+    body('tags')
+      .optional()
+      .isArray({ max: 50 })
+      .withMessage('tags must be an array of at most 50 strings'),
+    body('tags.*')
+      .optional()
+      .isString()
+      .isLength({ max: 100 })
+      .withMessage('each tag must be a string of at most 100 characters'),
     body('variants').optional().isArray({ max: 100 }).withMessage('variants must be an array'),
   ];
 

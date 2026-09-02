@@ -435,6 +435,8 @@ flex items-start justify-between gap-6
 
 **Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only). Do **not** add a settings **View** tab for cards/table — that lives on the list header (`ListColumnLayoutToggle`).
 
+**Table column visibility:** optional per-user `tableColumns: { order, hidden }` on the plugin settings category (Contacts, Notes, Tasks, Requests, Teams, Matches, Garments inventory, Estimates, Invoices, Slots, Cups). Persist the **full** object via `updateSettings` (JSONB shallow merge). Normalize unknown/missing prefs to defaults; keep a required identity column always visible (`name` / `title` / `age_group` / `matchup` / `articleName` / `estimateNumber` / `invoiceNumber`). Settings UI: shared `TableColumnsSettingsSection` (HTML5 drag-and-drop + toggles) or plugin-local equivalent. Apply order/visibility in `*ListTable` only — cards view ignores `tableColumns`. Do not put column pickers on the list toolbar in this pattern. Shared helpers: `client/src/core/list/tableColumnsPref.ts`. Garments **list** person-matrix column settings (identity + Paid/custom checkboxes) are separate — see [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (Person rows).
+
 ### Panel / page titles
 
 - List page title and primary Add action come from `MainLayout` / content header wiring in context (`getPanelTitle`, content view keys).

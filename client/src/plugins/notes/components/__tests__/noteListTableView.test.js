@@ -20,7 +20,13 @@ describe('NoteList table view wiring', () => {
     expect(tableSrc).toMatch(/selection=\{/);
     expect(tableSrc).toMatch(/field: 'title'/);
     expect(tableSrc).toMatch(/field: 'mentions'/);
-    expect(tableSrc).not.toMatch(/field: 'updatedAt'/);
-    expect(tableSrc).not.toMatch(/field: 'createdAt'/);
+    expect(tableSrc).toMatch(/field: 'updatedAt'/);
+    expect(tableSrc).toMatch(/field: 'createdAt'/);
+    expect(tableSrc).toMatch(/visibleColumnIds/);
+  });
+
+  test('list resolves and passes visible table columns from settings', () => {
+    expect(listSrc).toMatch(/resolveVisibleNoteTableColumns/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });
 });

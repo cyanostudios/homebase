@@ -20,7 +20,14 @@ describe('RequestList table view wiring', () => {
     expect(tableSrc).toMatch(/title/);
     expect(tableSrc).toMatch(/priority/);
     expect(tableSrc).toMatch(/responseDueAt/);
-    expect(tableSrc).not.toMatch(/field: 'source'/);
-    expect(tableSrc).not.toMatch(/field: 'updated_at'/);
+    expect(tableSrc).toMatch(/field: 'source'/);
+    expect(tableSrc).toMatch(/field: 'updated_at'/);
+    expect(tableSrc).toMatch(/field: 'created_at'/);
+    expect(tableSrc).toMatch(/visibleColumnIds/);
+  });
+
+  test('list resolves and passes visible table columns from settings', () => {
+    expect(listSrc).toMatch(/resolveVisibleRequestTableColumns/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });
 });

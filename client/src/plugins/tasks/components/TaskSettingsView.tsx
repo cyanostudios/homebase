@@ -1,21 +1,34 @@
 // Tasks settings as full-page content matching Core Settings layout.
 
 import { Download, Upload } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
 import {
   PluginSettingsPageShell,
+  SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
+import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import type { ImportSchema } from '@/core/utils/importUtils';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
 
 import { useTasks } from '../hooks/useTasks';
+import { TASKS_SETTINGS_KEY } from '../utils/taskColumnCount';
+import {
+  isTaskTableColumnId,
+  normalizeTaskTableColumns,
+  reorderTaskTableColumns,
+  setTaskTableColumnHidden,
+  taskTableColumnsEqual,
+  type TaskTableColumnId,
+  type TaskTableColumnsPref,
+} from '../utils/taskTableColumns';
 
 const getTaskImportSchema = (): ImportSchema => ({
   fields: [
@@ -33,7 +46,18 @@ const TASK_IMPORT_EXAMPLE_ROW: Record<string, string> = {
   priority: 'Medium',
 };
 
-export type TaskSettingsCategory = 'import';
+const COLUMN_LABEL_KEYS: Record<TaskTableColumnId, string> = {
+  title: 'tasks.title',
+  status: 'tasks.propertyStatus',
+  priority: 'tasks.propertyPriority',
+  dueDate: 'tasks.propertyDueDate',
+  assignedTo: 'tasks.assignee',
+  assignedTeam: 'tasks.assignedTeam',
+  createdAt: 'common.created',
+  updatedAt: 'common.updated',
+};
+
+export type TaskSettingsCategory = 'columns' | 'import';
 
 interface TaskSettingsViewProps {
   selectedCategory?: TaskSettingsCategory;
@@ -49,15 +73,31 @@ export function TaskSettingsView({
   onClose,
 }: TaskSettingsViewProps = {}) {
   const { t } = useTranslation();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { importTasks } = useTasks();
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
-  const [internalCategory, setInternalCategory] = useState<TaskSettingsCategory>('import');
+  const [internalCategory, setInternalCategory] = useState<TaskSettingsCategory>('columns');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
+  const [tableColumns, setTableColumns] = useState<TaskTableColumnsPref>(() =>
+    normalizeTaskTableColumns(null),
+  );
+  const [initialTableColumns, setInitialTableColumns] = useState<TaskTableColumnsPref>(() =>
+    normalizeTaskTableColumns(null),
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'columns',
+        label: t('tasks.settingsCategories.columns'),
+        description: t('tasks.settingsCategories.columnsDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.columns,
+      },
       {
         id: 'import',
         label: t('common.import'),
@@ -68,6 +108,52 @@ export function TaskSettingsView({
     [t],
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    getSettings(TASKS_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        const loaded = normalizeTaskTableColumns(settings?.tableColumns);
+        setTableColumns(loaded);
+        setInitialTableColumns(loaded);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  const isDirty =
+    activeCategory === 'columns' && !taskTableColumnsEqual(tableColumns, initialTableColumns);
+
+  const handleSave = useCallback(async () => {
+    if (activeCategory !== 'columns') {
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const next = normalizeTaskTableColumns(tableColumns);
+      await updateSettings(TASKS_SETTINGS_KEY, { tableColumns: next });
+      setTableColumns(next);
+      setInitialTableColumns(next);
+    } catch (error) {
+      console.error('Failed to save tasks table columns:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [activeCategory, tableColumns, updateSettings]);
+
+  if (isLoading) {
+    return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
+  }
+
   return (
     <>
       <PluginSettingsPageShell
@@ -77,7 +163,33 @@ export function TaskSettingsView({
         activeCategory={activeCategory}
         onCategoryChange={(id) => setActiveCategory(id as TaskSettingsCategory)}
         onClose={onClose}
+        onSave={isDirty ? () => void handleSave() : undefined}
+        isSaving={isSaving}
+        saveAction={
+          isDirty ? (
+            <SettingsHeaderSaveButton
+              onClick={() => void handleSave()}
+              isSaving={isSaving}
+              label={t('common.save')}
+              savingLabel={t('common.saving')}
+            />
+          ) : null
+        }
       >
+        {activeCategory === 'columns' && (
+          <TableColumnsSettingsSection
+            title={t('tasks.settingsCategories.columns')}
+            hint={t('tasks.settingsCategories.columnsHint')}
+            pref={tableColumns}
+            requiredColumnId="title"
+            labelFor={(id) => t(COLUMN_LABEL_KEYS[id])}
+            isColumnId={isTaskTableColumnId}
+            reorder={reorderTaskTableColumns}
+            setHidden={setTaskTableColumnHidden}
+            onChange={setTableColumns}
+          />
+        )}
+
         {activeCategory === 'import' && (
           <DetailSection title={t('common.import')} className="pt-0">
             <p className="mb-4 text-sm text-muted-foreground">{t('tasks.importDescription')}</p>

@@ -85,6 +85,7 @@ import {
   resolveTeamListViewMode,
   type TeamListViewMode,
 } from '../utils/teamListViewMode';
+import { resolveVisibleTeamTableColumns, type TeamTableColumnId } from '../utils/teamTableColumns';
 
 import { TeamCard } from './TeamCard';
 import { TeamListTable } from './TeamListTable';
@@ -165,6 +166,9 @@ export function TeamList() {
   const [listViewMode, setListViewModeState] = useState<TeamListViewMode>(
     getInitialTeamListViewMode,
   );
+  const [visibleColumnIds, setVisibleColumnIds] = useState<TeamTableColumnId[]>(() =>
+    resolveVisibleTeamTableColumns(null),
+  );
 
   const {
     previewItem: previewTeam,
@@ -190,7 +194,7 @@ export function TeamList() {
   useEffect(() => {
     let cancelled = false;
     getSettings(TEAMS_SETTINGS_KEY)
-      .then((settings: { columnCount?: unknown; listViewMode?: unknown }) => {
+      .then((settings) => {
         if (cancelled) {
           return;
         }
@@ -206,6 +210,7 @@ export function TeamList() {
         const nextView = resolveTeamListViewMode(settings);
         setListViewModeState(nextView);
         persistTeamListViewModeSession(nextView);
+        setVisibleColumnIds(resolveVisibleTeamTableColumns(settings));
       })
       .catch(() => {});
     return () => {
@@ -693,6 +698,7 @@ export function TeamList() {
                   recentlyDuplicatedTeamId={recentlyDuplicatedTeamId}
                   activeTeamId={previewTeam?.id ?? null}
                   selectionEnabled={selectionMode}
+                  visibleColumnIds={visibleColumnIds}
                 />
               ) : (
                 <div

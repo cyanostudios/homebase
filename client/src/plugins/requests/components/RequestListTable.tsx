@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import {
@@ -17,6 +18,11 @@ import {
   type Request,
 } from '../types/requests';
 import type { RequestSortField, RequestSortOrder } from '../utils/requestListSort';
+import {
+  DEFAULT_REQUEST_TABLE_COLUMNS,
+  type RequestTableColumnId,
+  resolveVisibleRequestTableColumns,
+} from '../utils/requestTableColumns';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
@@ -36,6 +42,7 @@ export type RequestListTableProps = {
   /** When false, the selection checkbox column is hidden (e.g. quick context open). */
   selectionEnabled?: boolean;
   activeRequestId?: string | number | null;
+  visibleColumnIds?: RequestTableColumnId[];
 };
 
 function responseDueStatusLabel(
@@ -72,6 +79,7 @@ export function RequestListTable({
   isRequestHighlighted,
   selectionEnabled = true,
   activeRequestId = null,
+  visibleColumnIds,
 }: RequestListTableProps) {
   const { t } = useTranslation();
 
@@ -82,9 +90,16 @@ export function RequestListTable({
     return highlighted ? 'bg-green-50 dark:bg-green-950/30' : undefined;
   };
 
-  const columns = useMemo<SortableListTableColumn<Request, RequestSortField>[]>(
-    () => [
-      {
+  const orderedVisibleIds = useMemo(() => {
+    if (visibleColumnIds && visibleColumnIds.length > 0) {
+      return visibleColumnIds;
+    }
+    return resolveVisibleRequestTableColumns({ tableColumns: DEFAULT_REQUEST_TABLE_COLUMNS });
+  }, [visibleColumnIds]);
+
+  const columnDefs = useMemo(() => {
+    const defs: Record<RequestTableColumnId, SortableListTableColumn<Request, RequestSortField>> = {
+      title: {
         field: 'title',
         header: t('requests.form.title'),
         cell: (request) => (
@@ -93,7 +108,7 @@ export function RequestListTable({
           </span>
         ),
       },
-      {
+      status: {
         field: 'status',
         header: t('requests.form.status'),
         cell: (request) => (
@@ -102,7 +117,7 @@ export function RequestListTable({
           </Badge>
         ),
       },
-      {
+      priority: {
         field: 'priority',
         header: t('requests.form.priority'),
         cell: (request) => (
@@ -111,7 +126,7 @@ export function RequestListTable({
           </Badge>
         ),
       },
-      {
+      type: {
         field: 'type',
         header: t('requests.form.requestType'),
         className: 'hidden sm:table-cell',
@@ -121,7 +136,7 @@ export function RequestListTable({
           </span>
         ),
       },
-      {
+      responseDueAt: {
         field: 'responseDueAt',
         header: t('requests.responseDue.label'),
         className: 'hidden lg:table-cell',
@@ -141,8 +156,44 @@ export function RequestListTable({
           );
         },
       },
-    ],
-    [t],
+      source: {
+        field: 'source',
+        header: t('requests.form.source'),
+        className: 'hidden md:table-cell',
+        cell: (request) => (
+          <span className="text-xs capitalize text-muted-foreground">{request.source || '—'}</span>
+        ),
+      },
+      created_at: {
+        field: 'created_at',
+        header: t('common.created'),
+        className: 'hidden lg:table-cell',
+        cell: (request) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(request.created_at) || '—'}
+          </span>
+        ),
+      },
+      updated_at: {
+        field: 'updated_at',
+        header: t('common.updated'),
+        className: 'hidden lg:table-cell',
+        cell: (request) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(request.updated_at) || '—'}
+          </span>
+        ),
+      },
+    };
+    return defs;
+  }, [t]);
+
+  const columns = useMemo(
+    () =>
+      orderedVisibleIds
+        .map((id) => columnDefs[id])
+        .filter((col): col is SortableListTableColumn<Request, RequestSortField> => Boolean(col)),
+    [orderedVisibleIds, columnDefs],
   );
 
   return (

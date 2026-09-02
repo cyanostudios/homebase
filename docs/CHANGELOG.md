@@ -4,6 +4,30 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-02 – Garments inventory: tags + bulk Tags
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** feature / frontend + backend  
+**Scope:** migration `156`; `plugins/garments` inventory tags field; `GarmentsInventorySettingsView` (Tags); form/QC/view/table; filter chips; `InventoryBulkTagsDialog`; `GarmentProvider` apply/clear; i18n; `docs/GARMENTS_PLUGIN.md`
+
+**Sammanfattning:** Inventory-artiklar får Contacts-liknande **taggar**: katalog under Inventory Settings, tilldelning per artikel, filterchips på listan, och bulk **Tags** (lägg till / rensa) från markeringsläge.
+
+**Beteende (verifierat i kod)**
+
+- DB: `garment_inventory_items.tags` JSONB (`156-garment-inventory-tags.sql`)
+- Katalog: user settings `garments.tags` (max 50 × 100 tecken, case-insensitive dedupe)
+- Assign i form; visning i full view / quick context; tabellkolumn `tags` default dold
+- Listfilter: All + katalogtaggar med antal; sök matchar taggar
+- Bulk: `InventoryBulkTagsDialog` → `applyTagToInventoryItem` / `clearTagsFromInventoryItem` → befintlig `PUT /inventory/:id`
+- API-validering: `tags` / `tags.*` + server `normalizeInventoryTags`; plugin gate + CSRF
+
+**Begränsningar / residual (Security R-INV-BULK-1, låg — ej ny TPM-gate):** Tag-only bulk skickar full inventory-payload inkl. variants sekventiellt (samma klass som Contacts bulk tags).
+
+**Guides:** [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md)
+
+---
+
 ## 2026-09-02 – Desktop left sidebar collapsible icon rail
 
 **Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.

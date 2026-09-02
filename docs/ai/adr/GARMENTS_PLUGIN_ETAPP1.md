@@ -8,10 +8,10 @@
 
 1. **Admin plugin `garments`** — Homebase plugin with `routeBase` `/api/garments`, CSRF on mutating routes, `requirePlugin('garments')`. Frontend registry route `/garments`, navigation `category: 'Sport'`, display name Kläder. Scaffold from [`templates/plugin-backend-template`](../../../templates/plugin-backend-template/) and [`templates/plugin-frontend-template`](../../../templates/plugin-frontend-template/) per [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](../../NEW_PLUGIN_INTEGRATION_CHECKLIST.md).
 
-2. **Two surfaces, one plugin (`contentView`)** — Provider state `garmentsContentView`: `'lists' | 'inventory' | 'settings'` (default `'lists'`). Same pattern as matches `matchesContentView`. **Not** Clubdesk submenu routing. Dual panel state (garment list vs inventory item) inside one Provider.
+2. **Two surfaces, one plugin (`contentView`)** — Provider state `garmentsContentView`: `'lists' | 'inventory' | 'settings'` (default `'lists'`). Same pattern as matches `matchesContentView`. **Not** Clubdesk submenu routing. Dual panel state (garment list vs inventory item) inside one Provider. **`settings` is not a third URL surface** — URL stays Lists (`/garments`) or Inventory (`/garments/inventory`); pathname sync maps those to `'lists' | 'inventory'` and **exits** settings on sidebar switch (so Lists settings does not become Inventory settings).
 
 3. **Lists schema (tenant DB, migration 131)** — Tables:
-   - `garment_lists` — `user_id`, `name`, optional `team_id` → `teams(id) ON DELETE SET NULL`, `checkbox_columns JSONB` (array of `{ id, label, sort_order }`), timestamps.
+   - `garment_lists` — `user_id`, `name`, optional `team_id` → `teams(id) ON DELETE SET NULL`, `checkbox_columns JSONB` (array of `{ id, label, sortOrder, group?, hidden? }`), timestamps.
    - `garment_list_persons` — free-text `name`, optional `contact_id` → `contacts(id)` ON DELETE SET NULL (migration **143**; set when importing From Contacts), optional `team_id` → `teams(id)` ON DELETE SET NULL (migration **155**; per-person team, distinct from list-level `garment_lists.team_id`), `shirt_size` / `shorts_size` / `socks_size`, `jersey_number`, `jersey_name`, `initials`, `comment`, `checkbox_values JSONB` map `{ [columnId]: boolean }`, `sort_order`, FK `list_id` CASCADE.
    - `garment_list_shares` — mirror [`067-note-shares.sql`](../../../server/migrations/067-note-shares.sql).
 

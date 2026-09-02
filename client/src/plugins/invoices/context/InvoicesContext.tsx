@@ -92,6 +92,9 @@ export interface InvoicesContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+  invoicesContentView: 'list' | 'settings';
+  openInvoiceSettings: () => void;
+  closeInvoiceSettingsView: () => void;
 }
 
 export const InvoicesContext = createContext<InvoicesContextType | undefined>(undefined);
@@ -154,6 +157,9 @@ const EMPTY_INVOICES_CONTEXT: InvoicesContextType = {
   hasNextItem: false,
   currentItemIndex: 0,
   totalItems: 0,
+  invoicesContentView: 'list',
+  openInvoiceSettings: () => {},
+  closeInvoiceSettingsView: () => {},
 };
 
 export function InvoicesNullProvider({ children }: { children: React.ReactNode }) {

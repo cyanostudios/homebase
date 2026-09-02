@@ -22,6 +22,24 @@ function parseJsonb(value, fallback) {
   }
 }
 
+/** Trim, drop empties, case-insensitive dedupe; cap length. */
+function normalizeInventoryTags(raw, max = 50) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const tag = item.trim().slice(0, 100);
+    if (!tag) continue;
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(tag);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 function normalizeCheckboxColumns(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -40,6 +58,9 @@ function normalizeCheckboxColumns(raw) {
       const normalized = { id, label, sortOrder };
       if (groupRaw) {
         normalized.group = groupRaw;
+      }
+      if (col.hidden === true) {
+        normalized.hidden = true;
       }
       return normalized;
     })
@@ -925,6 +946,7 @@ class GarmentsModel {
       const description =
         data.description !== undefined ? String(data.description ?? '').trim() || null : null;
       const comment = data.comment !== undefined ? String(data.comment ?? '').trim() || null : null;
+      const tags = normalizeInventoryTags(data.tags);
       const record = await db.insert('garment_inventory_items', {
         article_name: String(data.articleName ?? data.article_name ?? '').trim(),
         brand: String(data.brand ?? '').trim(),
@@ -937,6 +959,7 @@ class GarmentsModel {
         sale_price: this.normalizePurchasePrice(data.salePrice ?? data.sale_price),
         currency: this.normalizeCurrency(data.currency),
         comment,
+        tags: JSON.stringify(tags),
       });
       const itemId = record.id;
       if (Array.isArray(data.variants)) {
@@ -989,6 +1012,8 @@ class GarmentsModel {
           : existing.currency || 'SEK';
       const nextComment =
         data.comment !== undefined ? String(data.comment ?? '').trim() || null : existing.comment;
+      const nextTags =
+        data.tags !== undefined ? normalizeInventoryTags(data.tags) : (existing.tags ?? []);
 
       await db.query(
         `
@@ -1002,8 +1027,9 @@ class GarmentsModel {
           sale_price = $7,
           currency = $8,
           comment = $9,
+          tags = $10::jsonb,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $10
+        WHERE id = $11
         RETURNING *
         `,
         [
@@ -1016,6 +1042,7 @@ class GarmentsModel {
           nextSalePrice,
           nextCurrency,
           nextComment,
+          JSON.stringify(nextTags),
           id,
         ],
       );
@@ -1745,6 +1772,7 @@ class GarmentsModel {
       salePrice: parseMoney(row.sale_price),
       currency: row.currency ?? 'SEK',
       comment: row.comment ?? null,
+      tags: normalizeInventoryTags(parseJsonb(row.tags, [])),
       variants: [],
       totalQuantity: 0,
       variantCount: 0,

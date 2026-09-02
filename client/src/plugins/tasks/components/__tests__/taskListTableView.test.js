@@ -18,12 +18,23 @@ describe('TaskList table view wiring', () => {
 
   test('table uses SortableListTable with sortable columns and selection', () => {
     expect(tableSrc).toMatch(/SortableListTable/);
-    expect(tableSrc).toMatch(/onSort=\{onSort\}/);
+    expect(tableSrc).toMatch(/onSort=\{/);
     expect(tableSrc).toMatch(/selection=\{/);
     expect(tableSrc).toMatch(/field: 'title'/);
     expect(tableSrc).toMatch(/field: 'status'/);
     expect(tableSrc).toMatch(/field: 'priority'/);
     expect(tableSrc).toMatch(/field: 'dueDate'/);
-    expect(tableSrc).not.toMatch(/field: 'updatedAt'/);
+    expect(tableSrc).toMatch(/field: 'assignedTo'/);
+    expect(tableSrc).toMatch(/field: 'assignedTeam'/);
+    expect(tableSrc).toMatch(/field: 'updatedAt'/);
+    expect(tableSrc).toMatch(/field: 'createdAt'/);
+    expect(tableSrc).toMatch(/visibleColumnIds/);
+    expect(tableSrc).toMatch(/getAssignedNames/);
+    expect(tableSrc).toMatch(/getAssignedTeamName/);
+  });
+
+  test('list resolves and passes visible table columns from settings', () => {
+    expect(listSrc).toMatch(/resolveVisibleTaskTableColumns/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });
 });

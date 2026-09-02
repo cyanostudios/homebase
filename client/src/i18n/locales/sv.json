@@ -37,6 +37,7 @@
     "selectAllVisible": "Markera alla synliga",
     "selectRow": "Markera rad",
     "unselectRow": "Avmarkera rad",
+    "showColumn": "Visa kolumnen {{column}}",
     "updated": "Uppdaterad",
     "created": "Skapad",
     "selectSlot": "Välj slot",
@@ -278,8 +279,11 @@
     "dateTimePlaceholder": "Datum och tid",
     "dateTimeClear": "Rensa datum och tid",
     "dateTimePickerTime": "Tid",
-    "settingsSubtitle": "Hantera listvy och kategorier.",
+    "settingsSubtitle": "Hantera tabellkolumner och kategorier.",
     "settingsCategories": {
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i platstabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Namn är alltid synligt.",
       "view": "Vy",
       "viewDescription": "Standardkolumner för platskort.",
       "categories": "Kategorier",
@@ -426,6 +430,9 @@
     "noMatch": "Inga matcher matchar sökningen.",
     "settingsSubtitle": "Hantera listvy och API-anslutning.",
     "settingsCategories": {
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i matchtabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Matchning är alltid synlig.",
       "view": "Vy",
       "viewDescription": "Standardlista eller rutnät för matcher.",
       "apiDescription": "Fogis API-bas-URL och nyckel."
@@ -584,6 +591,7 @@
       "tags": "Taggar",
       "assignable": "Tilldelningsbar",
       "time": "Tid",
+      "created": "Skapad",
       "updated": "Uppdaterad"
     },
     "bulkTagsAction": "Taggar",
@@ -645,12 +653,16 @@
     "dashboardWidget": {
       "open": "Öppna Contacts"
     },
-    "settingsSubtitle": "Hantera vy, taggar och import.",
+    "settingsSubtitle": "Hantera taggar, tabellkolumner och import.",
     "settingsCategories": {
       "view": "Vy",
       "viewDescription": "Standardkort- eller tabellvy för kontakter.",
       "tags": "Taggar",
       "tagsDescription": "Taggar som kan tilldelas kontakter.",
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i kontakttabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Namn är alltid synligt.",
+      "columnsToggle": "Visa kolumnen {{column}}",
       "import": "Import",
       "importDescription": "Importera kontakter från CSV eller Excel."
     }
@@ -724,10 +736,13 @@
     "bulkStatusApplyingShort": "Uppdaterar…",
     "bulkStatusDone": "Klart",
     "bulkStatusResult": "{{updated}} uppdaterade, {{failed}} misslyckades",
-    "settingsSubtitle": "Hantera listvy och import.",
+    "settingsSubtitle": "Hantera tabellkolumner och import.",
     "settingsCategories": {
       "view": "Vy",
       "viewDescription": "Standardkolumner för uppgiftskort.",
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i uppgiftstabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Titel är alltid synlig.",
       "importDescription": "Importera uppgifter från CSV eller Excel."
     },
     "quickContext": {
@@ -784,10 +799,13 @@
     "focusMode": "Fokus",
     "exitFocusMode": "Avsluta fokus",
     "focusModeHint": "Döljer resten av vyn så du kan läsa eller skriva ostört. Esc eller klick utanför avslutar.",
-    "settingsSubtitle": "Hantera listvy och import.",
+    "settingsSubtitle": "Hantera tabellkolumner och import.",
     "settingsCategories": {
       "view": "Vy",
       "viewDescription": "Standardkolumner för anteckningskort.",
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i anteckningstabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Titel är alltid synlig.",
       "importDescription": "Importera anteckningar från CSV eller Excel."
     },
     "quickContext": {
@@ -802,6 +820,13 @@
   },
   "invoices": {
     "listDescription": "Granska utkast, betalningar och förfallna belopp.",
+    "settingsTitle": "Fakturor – Inställningar",
+    "settingsSubtitle": "Hantera tabellkolumner för fakturalistan.",
+    "settingsCategories": {
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i fakturatabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Fakturanummer är alltid synligt."
+    },
     "searchPlaceholder": "Sök fakturor...",
     "noMatch": "Inga fakturor matchar sökningen.",
     "noYet": "Inga fakturor ännu",
@@ -915,7 +940,12 @@
   "estimates": {
     "listDescription": "Skapa, skicka och följ offerter till godkännande.",
     "settingsTitle": "Offerter – Inställningar",
-    "settingsSubtitle": "Välj hur offerter visas i listan.",
+    "settingsSubtitle": "Hantera tabellkolumner för offertlistan.",
+    "settingsCategories": {
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i offerttabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Offertnummer är alltid synligt."
+    },
     "searchPlaceholder": "Sök offerter...",
     "noMatch": "Inga offerter matchar sökningen.",
     "noYet": "Inga offerter ännu",
@@ -2250,8 +2280,11 @@
     "columnsHelp": "Hur många kolumner cup-kort använder som standard (1 = full bredd, 2 = halv, 3 = en tredjedel).",
     "columnFeaturedVisible": "Utvald / Synlig",
     "columnRatings": "Betyg",
-    "settingsSubtitle": "Hantera vy, utseende och import.",
+    "settingsSubtitle": "Hantera tabellkolumner, utseende och import.",
     "settingsCategories": {
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i cuptabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Namn är alltid synligt.",
       "view": "Vy",
       "viewDescription": "Standardlistvy för cuper.",
       "appearance": "Utseende",
@@ -2307,7 +2340,7 @@
   },
   "teams": {
     "listDescription": "{{count}} lag registrerade · Säsong {{season}}",
-    "settingsSubtitle": "Säsong, spelplatser och ordning på översiktskort.",
+    "settingsSubtitle": "Säsong, spelplatser, översiktskort och tabellkolumner.",
     "addTeam": "Lägg till lag",
     "bulkCreate": "Lägg till flera",
     "bulkCreateTitle": "Lägg till flera lag",
@@ -2606,6 +2639,9 @@
       "requestsTotalCount": "{{count}} förfrågningar totalt"
     },
     "settingsCategories": {
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i lagtabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Åldersgrupp är alltid synlig.",
       "season": "Säsong",
       "seasonDescription": "Aktiv säsong som visas i listans sidhuvud.",
       "overview": "Översiktskort",
@@ -2722,7 +2758,14 @@
   },
   "requests": {
     "listDescription": "{{count}} ärenden",
-    "settingsSubtitle": "Hantera ärendetyper och deras ordning.",
+    "settingsSubtitle": "Hantera ärendetyper, tabellkolumner och ordning.",
+    "settingsCategories": {
+      "types": "Typer",
+      "typesDescription": "Ärendetyper och koppling till klädlistor.",
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i ärendetabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Titel är alltid synlig."
+    },
     "addRequest": "Lägg till ärende",
     "createRequest": "Skapa ärende",
     "newRequest": "Nytt ärende",
@@ -3173,6 +3216,19 @@
       "levererat": "Levererat",
       "utdelat": "Utdelat"
     },
+    "customColumnsTitle": "Egna kolumner",
+    "customColumnsHint": "Lägg till personnivå-kryssrutor på listan (visas bredvid Betalt i matrisen).",
+    "customColumnsAdd": "Lägg till kolumn",
+    "customColumnsAddPlaceholder": "Kolumnnamn",
+    "customColumnsRename": "Byt namn",
+    "customColumnsDelete": "Ta bort kolumn",
+    "customColumnsDeleteConfirm": "Ta bort kolumnen \"{{label}}\"? Kryssade värden för kolumnen tas bort.",
+    "customColumnsEmpty": "Inga egna kolumner ännu.",
+    "customColumnsSystemNote": "Betalt ingår som standard på nya listor och kan döljas eller tas bort. Inventariestatuskolumner (Beställt/Levererat/Utdelat) styrs när du kopplar artiklar till listan.",
+    "customColumnsSaveFailed": "Kunde inte spara egna kolumner. Försök igen.",
+    "customColumnsMaxReached": "Max 50 kryssrutekolumner är nått.",
+    "customColumnsRestorePaid": "Lägg till Betalt",
+    "customColumnsSettingsNotReady": "Kolumninställningarna laddas fortfarande. Försök spara igen om en stund.",
     "listsTab": "Listor",
     "inventoryTab": "Inventarie",
     "addList": "Lägg till lista",
@@ -3240,8 +3296,7 @@
       "readMore": "Läs mer",
       "showLess": "Visa mindre",
       "decreaseQuantity": "Minska antal",
-      "increaseQuantity": "Öka antal",
-      "notInAnyList": "Visas inte i någon lista ännu — redigera artikeln för att välja listor."
+      "increaseQuantity": "Öka antal"
     },
     "inventoryInListsHint": "Välj vilka klädlistor artikeln ska synas i. Varje person får kryssrutor för Beställt, Levererat och Utdelat samt storleksval från artikelns varianter.",
     "assignToLists": "Visa i listor",
@@ -3266,6 +3321,18 @@
     "bulkListsApplyingShort": "Uppdaterar…",
     "bulkListsDone": "Klart",
     "bulkListsResult": "{{updated}} uppdaterade, {{failed}} misslyckades",
+    "bulkTagsAction": "Taggar",
+    "bulkTagsTitle": "Lägg till tagg i bulk",
+    "bulkTagsSubtitle": "Lägg till en tagg på {{count}} inventarieartikel/artiklar. Befintliga taggar behålls.",
+    "bulkTagsLabel": "Tagg",
+    "bulkTagsHint": "Taggen läggs till på varje markerad artikel utan att andra taggar tas bort.",
+    "bulkTagsEmpty": "Inga taggar konfigurerade. Lägg till taggar under Kläder → Inventarie → Inställningar först.",
+    "bulkTagsApply": "Tillämpa",
+    "bulkTagsApplying": "Uppdaterar {{current}} av {{total}}…",
+    "bulkTagsApplyingShort": "Uppdaterar…",
+    "bulkTagsDone": "Klart",
+    "bulkTagsResult": "{{updated}} uppdaterade, {{failed}} misslyckades",
+    "bulkClearTagsAction": "Rensa taggar",
     "noSizes": "Inga storlekar — lägg till varianter under Inventarie",
     "defaultColumns": "Standardkolumner",
     "defaultColumnsHelp": "Hur många kolumner kort använder som standard (1 = full bredd, 2 = halv, 3 = tredjedel).",
@@ -3273,6 +3340,9 @@
     "jerseyDuplicateThisPerson": "Samma nummer finns redan på listan",
     "noPersons": "Inga personer på listan ännu.",
     "addPerson": "Lägg till person",
+    "quickAdd": "Snabbperson",
+    "quickAddPlaceholder": "Lägg till person...",
+    "filterAll": "Alla",
     "deletePerson": "Ta bort person",
     "deletePersonConfirm": "Ta bort personen från listan?",
     "shareList": "Dela lista",
@@ -3304,7 +3374,16 @@
     "publicReadOnly": "Delad klädlista (skrivskyddad)",
     "noListsForTeam": "Inga klädlistor för laget ännu.",
     "settingsInventory": "Lager – Inställningar",
-    "settingsInventorySubtitle": "Importera lagerartiklar från CSV eller Excel.",
+    "settingsInventorySubtitle": "Hantera taggar, tabellkolumner och importera lagerartiklar.",
+    "settingsLists": "Listor – Inställningar",
+    "settingsListsSubtitle": "Hantera personmatriskolumner för varje klädlista.",
+    "tags": "Taggar",
+    "noTags": "Inga taggar",
+    "noTagsYet": "Inga taggar ännu.",
+    "addTagPlaceholder": "Lägg till tagg...",
+    "noMoreTagsToAdd": "Inga fler taggar att lägga till",
+    "removeTagAria": "Ta bort tagg {{tag}}",
+    "tagsEmptyHint": "Lägg till taggar under Lager → Inställningar först.",
     "importInventory": "Importera lager",
     "importInventoryDescription": "Importera från CSV, Excel (.xlsx) eller inklistrad tabell. Ladda ner CSV-mallen — en rad per variant; rader med samma artikel och märke grupperas till en post. Mappa kolumner och importera.",
     "importFailureMissingArticle": "{{count}} rader saknade artikelnamn. Kontrollera kolumnmappning och avgränsare (komma eller semikolon).",
@@ -3318,6 +3397,21 @@
     "importFailureApiExamples": "{{count}} poster kunde inte sparas. Exempel: {{examples}}.",
     "importFailureUnexpected": "Importen kunde inte slutföras. Försök igen eller kontrollera filformatet.",
     "settingsCategories": {
+      "tags": "Taggar",
+      "tagsDescription": "Taggar du kan tilldela lagerartiklar.",
+      "tagsHint": "Taggar kan tilldelas lagerartiklar när du redigerar en artikel.",
+      "tagsPlaceholder": "Lägg till en tagg (t.ex. Matchställ, Träning)",
+      "columns": "Tabellkolumner",
+      "columnsDescription": "Välj vilka kolumner som visas i lagertabellen och i vilken ordning.",
+      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Artikelnamn är alltid synligt.",
+      "customColumns": "Personkolumner",
+      "customColumnsDescription": "Välj identitets- och kryssrutekolumner för en lista, och lägg till egna personnivå-kryssrutor.",
+      "customColumnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja. Betalt ingår som standard på nya listor och kan tas bort. Lägg till egna kolumner nedan.",
+      "customColumnsList": "Lista",
+      "customColumnsListHint": "Välj vilken klädlista som ska konfigureras.",
+      "customColumnsListPlaceholder": "Välj en lista",
+      "identityColumns": "Identitetskolumner",
+      "identityColumnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja. Namn är alltid synligt. Lag, tröjnamn, initialer och nummer är på som standard.",
       "importDescription": "Importera lagerartiklar från CSV eller Excel."
     }
   }

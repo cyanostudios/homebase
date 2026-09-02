@@ -1,4 +1,5 @@
 import { Hash, Minus, Plus, ShoppingBag, Shirt, Tag } from 'lucide-react';
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -304,12 +305,32 @@ export function InventoryQuickContextPanel({
 
         {factGrid}
 
-        <div>
-          <div className={FACT_LABEL_CLASS}>
-            <Shirt className="h-3 w-3" />
-            {t('garments.assignToLists')}
+        {Array.isArray(item.tags) && item.tags.length > 0 ? (
+          <div>
+            <div className={FACT_LABEL_CLASS}>
+              <Tag className="h-3 w-3" />
+              {t('garments.tags')}
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {item.tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="outline"
+                  className="rounded-md border-border/60 bg-primary/5 text-xs font-extrabold text-primary"
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
           </div>
-          {assignedLists.length > 0 ? (
+        ) : null}
+
+        {assignedLists.length > 0 ? (
+          <div>
+            <div className={FACT_LABEL_CLASS}>
+              <Shirt className="h-3 w-3" />
+              {t('garments.assignToLists')}
+            </div>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {assignedLists.map((list) => (
                 <Badge
@@ -321,12 +342,8 @@ export function InventoryQuickContextPanel({
                 </Badge>
               ))}
             </div>
-          ) : (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t('garments.quickContext.notInAnyList')}
-            </p>
-          )}
-        </div>
+          </div>
+        ) : null}
 
         {displayedDescription ? (
           <div>

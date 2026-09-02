@@ -12,6 +12,8 @@ import {
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
+import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 
@@ -20,12 +22,33 @@ import {
   normalizeCardOrder,
   type OverviewCardId,
 } from '../types/teamOverviewCards';
+import {
+  isTeamTableColumnId,
+  normalizeTeamTableColumns,
+  reorderTeamTableColumns,
+  setTeamTableColumnHidden,
+  teamTableColumnsEqual,
+  type TeamTableColumnId,
+  type TeamTableColumnsPref,
+} from '../utils/teamTableColumns';
 
 import { TeamsVenuesSettingsSection } from './TeamsVenuesSettingsSection';
 
 const TEAMS_SETTINGS_KEY = 'teams';
 
-export type TeamsSettingsCategory = 'season' | 'overview' | 'venues';
+const COLUMN_LABEL_KEYS: Record<TeamTableColumnId, string> = {
+  age_group: 'teams.table.age',
+  name: 'teams.table.name',
+  gender: 'teams.table.gender',
+  status: 'teams.table.status',
+  series_teams: 'teams.table.seriesTeams',
+  player_count: 'teams.table.players',
+  playing_format: 'teams.form.playingFormatLabel',
+  created_at: 'common.created',
+  updated_at: 'common.updated',
+};
+
+export type TeamsSettingsCategory = 'columns' | 'season' | 'overview' | 'venues';
 
 interface TeamsSettingsViewProps {
   onClose?: () => void;
@@ -33,7 +56,7 @@ interface TeamsSettingsViewProps {
 
 export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
   const { t } = useTranslation();
-  const { getSettings, updateSettings } = useApp();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const enabledPlugins = useEnabledPlugins();
   const hasMatchesPlugin = enabledPlugins.has('matches');
 
@@ -43,6 +66,12 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
   const [overviewCardOrder, setOverviewCardOrder] = useState<OverviewCardId[]>(() =>
     getAvailableOverviewCardIds(hasMatchesPlugin),
   );
+  const [tableColumns, setTableColumns] = useState<TeamTableColumnsPref>(() =>
+    normalizeTeamTableColumns(null),
+  );
+  const [initialTableColumns, setInitialTableColumns] = useState<TeamTableColumnsPref>(() =>
+    normalizeTeamTableColumns(null),
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isReorderingCards, setIsReorderingCards] = useState(false);
@@ -51,6 +80,12 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'columns',
+        label: t('teams.settingsCategories.columns'),
+        description: t('teams.settingsCategories.columnsDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.columns,
+      },
       {
         id: 'season',
         label: t('teams.settingsCategories.season'),
@@ -84,6 +119,9 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
         setActiveSeason(loaded);
         setInitialSeason(loaded);
         setOverviewCardOrder(normalizeCardOrder(settings?.overviewCardOrder, hasMatchesPlugin));
+        const loadedColumns = normalizeTeamTableColumns(settings?.tableColumns);
+        setTableColumns(loadedColumns);
+        setInitialTableColumns(loadedColumns);
       })
       .catch(() => {
         if (!cancelled) {
@@ -101,22 +139,30 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
     return () => {
       cancelled = true;
     };
-  }, [getSettings, hasMatchesPlugin]);
+  }, [getSettings, hasMatchesPlugin, settingsVersion]);
 
-  const isDirty = activeSeason !== initialSeason;
+  const isDirty =
+    (activeCategory === 'season' && activeSeason !== initialSeason) ||
+    (activeCategory === 'columns' && !teamTableColumnsEqual(tableColumns, initialTableColumns));
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await updateSettings(TEAMS_SETTINGS_KEY, { activeSeason: activeSeason.trim() });
-      setInitialSeason(activeSeason);
+      if (activeCategory === 'season') {
+        await updateSettings(TEAMS_SETTINGS_KEY, { activeSeason: activeSeason.trim() });
+        setInitialSeason(activeSeason);
+      } else if (activeCategory === 'columns') {
+        const next = normalizeTeamTableColumns(tableColumns);
+        await updateSettings(TEAMS_SETTINGS_KEY, { tableColumns: next });
+        setTableColumns(next);
+        setInitialTableColumns(next);
+      }
     } catch (error) {
       console.error('Failed to save teams settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [activeSeason, updateSettings]);
-
+  }, [activeCategory, activeSeason, tableColumns, updateSettings]);
   const reorderCards = useCallback(
     async (sourceId: OverviewCardId, targetId: OverviewCardId) => {
       if (sourceId === targetId) {
@@ -207,6 +253,20 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
         ) : null
       }
     >
+      {activeCategory === 'columns' && (
+        <TableColumnsSettingsSection
+          title={t('teams.settingsCategories.columns')}
+          hint={t('teams.settingsCategories.columnsHint')}
+          pref={tableColumns}
+          requiredColumnId="age_group"
+          labelFor={(id) => t(COLUMN_LABEL_KEYS[id])}
+          isColumnId={isTeamTableColumnId}
+          reorder={reorderTeamTableColumns}
+          setHidden={setTeamTableColumnHidden}
+          onChange={setTableColumns}
+        />
+      )}
+
       {activeCategory === 'season' && (
         <DetailSection title={t('teams.settings.seasonSection')} className="pt-0">
           <div className="space-y-1">

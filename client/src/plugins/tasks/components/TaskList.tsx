@@ -91,6 +91,7 @@ import {
   resolveTaskListViewMode,
   type TaskListViewMode,
 } from '../utils/taskListViewMode';
+import { resolveVisibleTaskTableColumns, type TaskTableColumnId } from '../utils/taskTableColumns';
 
 import { TaskBulkStatusDialog } from './TaskBulkStatusDialog';
 import { TaskListItem } from './TaskListItem';
@@ -170,9 +171,12 @@ export function TaskList() {
   const [listViewMode, setListViewModeState] = useState<TaskListViewMode>(
     getInitialTaskListViewMode,
   );
+  const [visibleColumnIds, setVisibleColumnIds] = useState<TaskTableColumnId[]>(() =>
+    resolveVisibleTaskTableColumns(null),
+  );
   const [activeFilters, setActiveFilters] =
     useState<TaskListFilterSelection>(TASK_LIST_FILTER_INITIAL);
-  const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('import');
+  const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('columns');
 
   useEffect(() => {
     let cancelled = false;
@@ -193,6 +197,7 @@ export function TaskList() {
         const nextView = resolveTaskListViewMode(settings);
         setListViewModeState(nextView);
         persistTaskListViewModeSession(nextView);
+        setVisibleColumnIds(resolveVisibleTaskTableColumns(settings));
       })
       .catch(() => {});
     return () => {
@@ -803,6 +808,11 @@ export function TaskList() {
                   recentlyDuplicatedTaskId={recentlyDuplicatedTaskId}
                   selectionEnabled={selectionMode}
                   activeTaskId={previewTask?.id ?? null}
+                  visibleColumnIds={visibleColumnIds}
+                  getAssignedNames={(task) =>
+                    getAssignedContacts(task).map((c) => c.companyName as string)
+                  }
+                  getAssignedTeamName={getAssignedTeamName}
                 />
               ) : (
                 <div

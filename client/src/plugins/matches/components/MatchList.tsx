@@ -84,6 +84,10 @@ import {
   resolveMatchListViewMode,
   type MatchListViewMode,
 } from '../utils/matchListViewMode';
+import {
+  resolveVisibleMatchTableColumns,
+  type MatchTableColumnId,
+} from '../utils/matchTableColumns';
 
 import { MatchesStatisticsView } from './MatchesStatisticsView';
 import { MatchListItem } from './MatchListItem';
@@ -161,7 +165,10 @@ export function MatchList() {
   );
   const [activeFilters, setActiveFilters] = useState<MatchListFilterSelection>([]);
   const [defaultHomeTeam, setDefaultHomeTeam] = useState('');
-  const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('api');
+  const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('columns');
+  const [visibleColumnIds, setVisibleColumnIds] = useState<MatchTableColumnId[]>(() =>
+    resolveVisibleMatchTableColumns(null),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -187,6 +194,7 @@ export function MatchList() {
         if (!nextDefaultHomeTeam) {
           setActiveFilters((prev) => withoutHomeTeamFilter(prev));
         }
+        setVisibleColumnIds(resolveVisibleMatchTableColumns(settings));
       })
       .catch(() => {});
     return () => {
@@ -671,6 +679,7 @@ export function MatchList() {
                   onHeaderCheckboxChange={handleHeaderCheckboxChange}
                   recentlyDuplicatedMatchId={recentlyDuplicatedMatchId}
                   selectionEnabled={selectionMode}
+                  visibleColumnIds={visibleColumnIds}
                 />
               ) : (
                 <div

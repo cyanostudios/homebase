@@ -27,7 +27,15 @@ describe('TeamList table view wiring', () => {
     expect(tableSrc).toMatch(/sortable: false/);
     expect(tableSrc).toMatch(/TeamSeriesTeamBadges/);
     expect(tableSrc).toMatch(/field: 'player_count'/);
-    expect(tableSrc).not.toMatch(/field: 'updated_at'/);
+    expect(tableSrc).toMatch(/field: 'playing_format'/);
+    expect(tableSrc).toMatch(/field: 'created_at'/);
+    expect(tableSrc).toMatch(/field: 'updated_at'/);
+    expect(tableSrc).toMatch(/visibleColumnIds/);
+  });
+
+  test('list resolves and passes visible table columns from settings', () => {
+    expect(listSrc).toMatch(/resolveVisibleTeamTableColumns/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });
 
   test('card and table show all series teams via shared badges helper', () => {

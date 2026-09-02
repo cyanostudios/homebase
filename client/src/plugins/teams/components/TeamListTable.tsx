@@ -7,15 +7,21 @@ import {
   type SortableListTableColumn,
   type SortableListTableSelection,
 } from '@/core/ui/SortableListTable';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import { isTeamOnBreak, TEAM_STATUS_BADGES, type Team, type TeamStatus } from '../types/teams';
 import { formatTeamLabel } from '../utils/formatTeamLabel';
 import type { TeamSortField, TeamSortOrder } from '../utils/teamListSort';
+import {
+  DEFAULT_TEAM_TABLE_COLUMNS,
+  type TeamTableColumnId,
+  resolveVisibleTeamTableColumns,
+} from '../utils/teamTableColumns';
 
 import { TeamSeriesTeamBadges } from './TeamSeriesTeamBadges';
 
-type TeamTableColumnField = TeamSortField | 'series_teams';
+type TeamTableColumnField = TeamSortField | 'series_teams' | 'playing_format';
 
 export type TeamListTableProps = {
   teams: Team[];
@@ -31,6 +37,7 @@ export type TeamListTableProps = {
   recentlyDuplicatedTeamId?: string | null;
   activeTeamId?: string | number | null;
   selectionEnabled?: boolean;
+  visibleColumnIds?: TeamTableColumnId[];
 };
 
 export function TeamListTable({
@@ -47,12 +54,20 @@ export function TeamListTable({
   recentlyDuplicatedTeamId = null,
   activeTeamId = null,
   selectionEnabled = true,
+  visibleColumnIds,
 }: TeamListTableProps) {
   const { t } = useTranslation();
 
-  const columns = useMemo(
-    (): SortableListTableColumn<Team, TeamTableColumnField>[] => [
-      {
+  const orderedVisibleIds = useMemo(() => {
+    if (visibleColumnIds && visibleColumnIds.length > 0) {
+      return visibleColumnIds;
+    }
+    return resolveVisibleTeamTableColumns({ tableColumns: DEFAULT_TEAM_TABLE_COLUMNS });
+  }, [visibleColumnIds]);
+
+  const columnDefs = useMemo(() => {
+    const defs: Record<TeamTableColumnId, SortableListTableColumn<Team, TeamTableColumnField>> = {
+      age_group: {
         field: 'age_group',
         header: t('teams.table.age'),
         cell: (team) => (
@@ -61,13 +76,13 @@ export function TeamListTable({
           </span>
         ),
       },
-      {
+      name: {
         field: 'name',
         header: t('teams.table.name'),
         className: 'hidden sm:table-cell',
         cell: (team) => <span className="text-xs text-muted-foreground">{team.name || '—'}</span>,
       },
-      {
+      gender: {
         field: 'gender',
         header: t('teams.table.gender'),
         className: 'hidden sm:table-cell',
@@ -77,7 +92,7 @@ export function TeamListTable({
           </span>
         ),
       },
-      {
+      status: {
         field: 'status',
         header: t('teams.table.status'),
         cell: (team) => {
@@ -94,7 +109,7 @@ export function TeamListTable({
           );
         },
       },
-      {
+      series_teams: {
         field: 'series_teams',
         header: t('teams.table.seriesTeams'),
         sortable: false,
@@ -106,7 +121,7 @@ export function TeamListTable({
           />
         ),
       },
-      {
+      player_count: {
         field: 'player_count',
         header: t('teams.table.players'),
         className: 'hidden md:table-cell',
@@ -114,8 +129,45 @@ export function TeamListTable({
           <span className="text-xs tabular-nums text-muted-foreground">{team.player_count}</span>
         ),
       },
-    ],
-    [t],
+      playing_format: {
+        field: 'playing_format',
+        header: t('teams.form.playingFormatLabel'),
+        sortable: false,
+        className: 'hidden md:table-cell',
+        cell: (team) => (
+          <span className="text-xs text-muted-foreground">{team.playing_format || '—'}</span>
+        ),
+      },
+      created_at: {
+        field: 'created_at',
+        header: t('common.created'),
+        className: 'hidden lg:table-cell',
+        cell: (team) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(team.created_at) || '—'}
+          </span>
+        ),
+      },
+      updated_at: {
+        field: 'updated_at',
+        header: t('common.updated'),
+        className: 'hidden lg:table-cell',
+        cell: (team) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(team.updated_at) || '—'}
+          </span>
+        ),
+      },
+    };
+    return defs;
+  }, [t]);
+
+  const columns = useMemo(
+    () =>
+      orderedVisibleIds
+        .map((id) => columnDefs[id])
+        .filter((col): col is SortableListTableColumn<Team, TeamTableColumnField> => Boolean(col)),
+    [orderedVisibleIds, columnDefs],
   );
 
   const selection: SortableListTableSelection | undefined = selectionEnabled
@@ -139,7 +191,7 @@ export function TeamListTable({
       primarySort={primarySort}
       sortOrder={sortOrder}
       onSort={(field) => {
-        if (field === 'series_teams') {
+        if (field === 'series_teams' || field === 'playing_format') {
           return;
         }
         onSort(field);

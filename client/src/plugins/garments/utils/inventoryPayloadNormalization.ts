@@ -1,4 +1,5 @@
 import type { InventoryItemPayload, InventoryVariantPayload } from '../types/garments';
+import { normalizeInventoryTags } from './inventoryTags';
 
 function parseOptionalPrice(raw: unknown): number | null {
   if (raw === undefined || raw === null || String(raw).trim() === '') {
@@ -39,6 +40,7 @@ export function normalizeInventoryItemPayload(raw: InventoryItemPayload): Invent
     salePrice: parseOptionalPrice(raw.salePrice),
     currency: (raw.currency ?? 'SEK').trim() || 'SEK',
     comment: commentRaw,
+    tags: normalizeInventoryTags(raw.tags),
     variants,
   };
 }

@@ -87,6 +87,7 @@ import {
   resolveCupListViewMode,
   type CupListViewMode,
 } from '../utils/cupListViewMode';
+import { resolveVisibleCupTableColumns, type CupTableColumnId } from '../utils/cupTableColumns';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
 import {
@@ -156,8 +157,11 @@ export function CupsList() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [columnCount, setColumnCountState] = useState<CupColumnCount>(getInitialCupColumnCount);
   const [listViewMode, setListViewModeState] = useState<CupListViewMode>(getInitialCupListViewMode);
+  const [visibleColumnIds, setVisibleColumnIds] = useState<CupTableColumnId[]>(() =>
+    resolveVisibleCupTableColumns(null),
+  );
   const [activeFilters, setActiveFilters] = useState<CupListFilterSelection>([]);
-  const [settingsCategory, setSettingsCategory] = useState<CupsSettingsCategory>('appearance');
+  const [settingsCategory, setSettingsCategory] = useState<CupsSettingsCategory>('columns');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkPropertiesDialog, setShowBulkPropertiesDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -242,6 +246,7 @@ export function CupsList() {
         const nextView = resolveCupListViewMode(settings);
         setListViewModeState(nextView);
         persistCupListViewModeSession(nextView);
+        setVisibleColumnIds(resolveVisibleCupTableColumns(settings));
       })
       .catch(() => {});
     return () => {
@@ -801,6 +806,7 @@ export function CupsList() {
               allVisibleSelected={allVisibleSelected}
               onHeaderCheckboxChange={handleHeaderCheckboxChange}
               selectionEnabled={selectionMode}
+              visibleColumnIds={visibleColumnIds}
             />
           ) : (
             <div

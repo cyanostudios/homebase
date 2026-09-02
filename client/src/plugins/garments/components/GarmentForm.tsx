@@ -1,7 +1,8 @@
-import { Copy, Info, Layers, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Copy, Info, Layers, Plus, SlidersHorizontal, Tag, Trash2, X } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useImperativeHandle, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -41,6 +43,8 @@ import {
   buildDuplicatedVariantPayload,
   findDuplicateVariantIndices,
 } from '../utils/inventoryValidation';
+import { GARMENTS_SETTINGS_KEY } from '../utils/garmentColumnCount';
+import { normalizeInventoryTags } from '../utils/inventoryTags';
 import {
   VARIANT_COMPACT_INPUT_CLASS,
   VARIANT_COMPACT_LABEL_CLASS,
@@ -75,6 +79,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
   ref,
 ) {
   const { t } = useTranslation();
+  const { getSettings, settingsVersion } = useApp();
   const { validationErrors, clearValidationErrors, panelKind, isSaving, currentInventoryItem } =
     useGarments();
   const enabledPlugins = useEnabledPlugins();
@@ -96,6 +101,8 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
   const isInventory = panelKind === 'inventory';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [tagToAdd, setTagToAdd] = useState('');
   const [listForm, setListForm] = useState<GarmentListPayload>({
     name: '',
     teamId: null,
@@ -110,6 +117,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     salePrice: null,
     currency: 'SEK',
     comment: null,
+    tags: [],
     variants: [],
   });
   const [pendingDeleteVariantIndex, setPendingDeleteVariantIndex] = useState<number | null>(null);
@@ -136,10 +144,31 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
       salePrice: null,
       currency: 'SEK',
       comment: null,
+      tags: [],
       variants: [],
     });
+    setTagToAdd('');
     markClean();
   }, [markClean]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings(GARMENTS_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        setAvailableTags(normalizeInventoryTags(settings?.tags));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAvailableTags([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
 
   useEffect(() => {
     if (isInventory) {
@@ -154,6 +183,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
           salePrice: currentInventoryItem.salePrice,
           currency: currentInventoryItem.currency || 'SEK',
           comment: currentInventoryItem.comment,
+          tags: normalizeInventoryTags(currentInventoryItem.tags),
           variants: (currentInventoryItem.variants || []).map((variant) => ({
             id: variant.id,
             sku: variant.sku ?? '',
@@ -164,6 +194,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
             sortOrder: variant.sortOrder,
           })),
         });
+        setTagToAdd('');
         markClean();
       } else {
         resetForm();
@@ -243,9 +274,37 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
 
   const updateInventoryField = (
     field: keyof InventoryItemPayload,
-    value: string | number | null | InventoryVariantPayload[],
+    value: string | number | null | string[] | InventoryVariantPayload[],
   ) => {
     setInventoryForm((prev) => ({ ...prev, [field]: value }));
+    markDirty();
+    clearValidationErrors();
+  };
+
+  const formTags = Array.isArray(inventoryForm.tags) ? inventoryForm.tags : [];
+  const addableTags = useMemo(
+    () =>
+      availableTags.filter(
+        (item) => !formTags.some((tag) => tag.toLowerCase() === item.toLowerCase()),
+      ),
+    [availableTags, formTags],
+  );
+
+  const addInventoryTag = (tag: string) => {
+    setInventoryForm((prev) => ({
+      ...prev,
+      tags: normalizeInventoryTags([...(prev.tags ?? []), tag]),
+    }));
+    setTagToAdd('');
+    markDirty();
+    clearValidationErrors();
+  };
+
+  const removeInventoryTag = (tag: string) => {
+    setInventoryForm((prev) => ({
+      ...prev,
+      tags: (prev.tags ?? []).filter((item) => item !== tag),
+    }));
     markDirty();
     clearValidationErrors();
   };
@@ -505,6 +564,62 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 onChange={(e) => updateInventoryField('comment', e.target.value)}
                 rows={3}
               />
+            </div>
+            <div>
+              <Label>{t('garments.tags')}</Label>
+              <div className="mt-1.5 space-y-2">
+                <Select
+                  value={tagToAdd || '__add_tag__'}
+                  onValueChange={(value) => {
+                    if (value && value !== '__add_tag__') {
+                      addInventoryTag(value);
+                    }
+                  }}
+                  disabled={addableTags.length === 0}
+                >
+                  <SelectTrigger className="h-8 w-full text-xs sm:w-[220px]">
+                    <SelectValue placeholder={t('garments.addTagPlaceholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__add_tag__">
+                      {addableTags.length === 0
+                        ? t('garments.noMoreTagsToAdd')
+                        : t('garments.addTagPlaceholder')}
+                    </SelectItem>
+                    {addableTags.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formTags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {formTags.map((item) => (
+                      <Badge
+                        key={item}
+                        className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-extrabold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                      >
+                        <Tag className="h-3 w-3" />
+                        {item}
+                        <button
+                          type="button"
+                          className="rounded p-0.5 hover:bg-muted"
+                          onClick={() => removeInventoryTag(item)}
+                          aria-label={t('garments.removeTagAria', { tag: item })}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">{t('garments.noTags')}</span>
+                )}
+                {availableTags.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">{t('garments.tagsEmptyHint')}</p>
+                ) : null}
+              </div>
             </div>
           </div>
         </DetailSection>

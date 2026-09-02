@@ -2,6 +2,7 @@ import { Layers, SlidersHorizontal, Users } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -136,6 +137,24 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
                     </div>
                   ))}
                 </div>
+                {Array.isArray(item.tags) && item.tags.length > 0 ? (
+                  <div className={DETAIL_PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                      {t('garments.tags')}
+                    </span>
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                      {item.tags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="outline"
+                          className="rounded-md border-border/60 bg-primary/5 text-xs font-extrabold text-primary"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 {description ? (
                   <div>
                     <div className={DETAIL_FIELD_LABEL_CLASS}>{t('garments.description')}</div>

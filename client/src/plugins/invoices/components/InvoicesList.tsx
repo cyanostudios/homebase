@@ -9,6 +9,7 @@ import {
   FileText,
   LayoutGrid,
   Plus,
+  Settings,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -80,10 +81,15 @@ import {
   resolveInvoiceListViewMode,
   type InvoiceListViewMode,
 } from '../utils/invoiceListViewMode';
+import {
+  resolveVisibleInvoiceTableColumns,
+  type InvoiceTableColumnId,
+} from '../utils/invoiceTableColumns';
 
 import { InvoiceListItem } from './InvoiceListItem';
 import { InvoiceListTable } from './InvoiceListTable';
 import { InvoiceQuickContextPanel } from './InvoiceQuickContextPanel';
+import { InvoiceSettingsView, type InvoiceSettingsCategory } from './InvoiceSettingsView';
 import {
   PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
   PLUGIN_PAGE_LIST_SHELL_CLASS,
@@ -122,12 +128,16 @@ export function InvoicesList() {
     selectedCount,
     isSelected,
     recentlyDuplicatedInvoiceId,
+    invoicesContentView,
+    openInvoiceSettings,
+    closeInvoiceSettingsView,
   } = useInvoices();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openInvoicesPanel(null)),
+    onSettings: openInvoiceSettings,
   });
 
   const [currentPage, setCurrentPage] = useState<string>('invoices');
@@ -148,7 +158,11 @@ export function InvoicesList() {
   const [listViewMode, setListViewModeState] = useState<InvoiceListViewMode>(
     getInitialInvoiceListViewMode,
   );
+  const [visibleColumnIds, setVisibleColumnIds] = useState<InvoiceTableColumnId[]>(() =>
+    resolveVisibleInvoiceTableColumns(null),
+  );
   const [activeFilters, setActiveFilters] = useState<InvoiceListFilterSelection>([]);
+  const [settingsCategory, setSettingsCategory] = useState<InvoiceSettingsCategory>('columns');
 
   useEffect(() => {
     const saved = localStorage.getItem('homebase:currentPage');
@@ -192,6 +206,7 @@ export function InvoicesList() {
         const nextView = resolveInvoiceListViewMode(settings);
         setListViewModeState(nextView);
         persistInvoiceListViewModeSession(nextView);
+        setVisibleColumnIds(resolveVisibleInvoiceTableColumns(settings));
       })
       .catch(() => {});
     return () => {
@@ -456,6 +471,21 @@ export function InvoicesList() {
     });
   };
 
+  if (invoicesContentView === 'settings') {
+    return (
+      <div className="plugin-invoices min-h-full bg-background">
+        <div className="px-6 py-4">
+          <InvoiceSettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            renderCategoryButtonsInline
+            onClose={closeInvoiceSettingsView}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn('plugin-invoices', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
       <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
@@ -465,6 +495,12 @@ export function InvoicesList() {
               <div className="min-w-0">
                 <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
                   <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.invoices')}</h2>
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('common.settings')}
+                    variant="soft"
+                    onClick={openInvoiceSettings}
+                  />
                   {sortedInvoices.length > 0 ? (
                     selectionMode ? (
                       <ExpandableIconButton
@@ -713,6 +749,7 @@ export function InvoicesList() {
                     recentlyDuplicatedInvoiceId={recentlyDuplicatedInvoiceId}
                     activeInvoiceId={previewInvoice?.id ?? null}
                     selectionEnabled={selectionMode}
+                    visibleColumnIds={visibleColumnIds}
                   />
                 ) : (
                   <div

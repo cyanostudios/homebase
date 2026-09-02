@@ -3,12 +3,18 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
 import type { Invoice } from '../context/InvoicesContext';
 import { formatInvoiceDueDate } from '../utils/invoiceDueDate';
 import type { InvoiceSortField, InvoiceSortOrder } from '../utils/invoiceListSort';
+import {
+  DEFAULT_INVOICE_TABLE_COLUMNS,
+  type InvoiceTableColumnId,
+  resolveVisibleInvoiceTableColumns,
+} from '../utils/invoiceTableColumns';
 
 import {
   INVOICE_STATUS_BADGE_CLASS,
@@ -30,6 +36,7 @@ export type InvoiceListTableProps = {
   recentlyDuplicatedInvoiceId?: string | null;
   activeInvoiceId?: string | number | null;
   selectionEnabled?: boolean;
+  visibleColumnIds?: InvoiceTableColumnId[];
 };
 
 function formatDate(value: Date | string | null | undefined): string {
@@ -53,12 +60,20 @@ export function InvoiceListTable({
   recentlyDuplicatedInvoiceId = null,
   activeInvoiceId = null,
   selectionEnabled = true,
+  visibleColumnIds,
 }: InvoiceListTableProps) {
   const { t } = useTranslation();
 
-  const columns = useMemo<SortableListTableColumn<Invoice, InvoiceSortField>[]>(
-    () => [
-      {
+  const orderedVisibleIds = useMemo(() => {
+    if (visibleColumnIds && visibleColumnIds.length > 0) {
+      return visibleColumnIds;
+    }
+    return resolveVisibleInvoiceTableColumns({ tableColumns: DEFAULT_INVOICE_TABLE_COLUMNS });
+  }, [visibleColumnIds]);
+
+  const columnDefs = useMemo(() => {
+    const defs: Record<InvoiceTableColumnId, SortableListTableColumn<Invoice, InvoiceSortField>> = {
+      invoiceNumber: {
         field: 'invoiceNumber',
         header: t('invoices.table.number', { defaultValue: 'Number' }),
         cell: (invoice) => (
@@ -67,7 +82,7 @@ export function InvoiceListTable({
           </span>
         ),
       },
-      {
+      contactName: {
         field: 'contactName',
         header: t('invoices.fieldContact', { defaultValue: 'Customer' }),
         cell: (invoice) => (
@@ -76,7 +91,7 @@ export function InvoiceListTable({
           </span>
         ),
       },
-      {
+      status: {
         field: 'status',
         header: t('invoices.fieldStatus', { defaultValue: 'Status' }),
         cell: (invoice) => {
@@ -93,7 +108,7 @@ export function InvoiceListTable({
           );
         },
       },
-      {
+      total: {
         field: 'total',
         header: t('invoices.table.total', { defaultValue: 'Total' }),
         className: 'hidden sm:table-cell',
@@ -104,7 +119,7 @@ export function InvoiceListTable({
           </span>
         ),
       },
-      {
+      dueDate: {
         field: 'dueDate',
         header: t('invoices.fieldDueDate', { defaultValue: 'Due' }),
         className: 'hidden md:table-cell',
@@ -119,8 +134,36 @@ export function InvoiceListTable({
           );
         },
       },
-    ],
-    [t],
+      createdAt: {
+        field: 'createdAt',
+        header: t('common.created'),
+        className: 'hidden lg:table-cell',
+        cell: (invoice) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(invoice.createdAt) || '—'}
+          </span>
+        ),
+      },
+      updatedAt: {
+        field: 'updatedAt',
+        header: t('common.updated'),
+        className: 'hidden lg:table-cell',
+        cell: (invoice) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(invoice.updatedAt) || '—'}
+          </span>
+        ),
+      },
+    };
+    return defs;
+  }, [t]);
+
+  const columns = useMemo(
+    () =>
+      orderedVisibleIds
+        .map((id) => columnDefs[id])
+        .filter((col): col is SortableListTableColumn<Invoice, InvoiceSortField> => Boolean(col)),
+    [orderedVisibleIds, columnDefs],
   );
 
   return (

@@ -4,8 +4,15 @@ import { useTranslation } from 'react-i18next';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
+import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
+import {
+  PluginSettingsPageShell,
+  SettingsHeaderSaveButton,
+  type PluginSettingsCategory,
+} from '@/core/ui/PluginSettingsPageShell';
+import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 import { garmentsApi } from '@/plugins/garments/api/garmentsApi';
@@ -19,16 +26,59 @@ import {
   intakeFieldLabelKey,
   type RequestTypeConfig,
 } from '../utils/requestTypeConfig';
+import {
+  REQUESTS_SETTINGS_KEY,
+  isRequestTableColumnId,
+  normalizeRequestTableColumns,
+  reorderRequestTableColumns,
+  requestTableColumnsEqual,
+  setRequestTableColumnHidden,
+  type RequestTableColumnId,
+  type RequestTableColumnsPref,
+} from '../utils/requestTableColumns';
+
+const COLUMN_LABEL_KEYS: Record<RequestTableColumnId, string> = {
+  title: 'requests.form.title',
+  status: 'requests.form.status',
+  priority: 'requests.form.priority',
+  type: 'requests.form.requestType',
+  responseDueAt: 'requests.responseDue.label',
+  source: 'requests.view.source',
+  created_at: 'common.created',
+  updated_at: 'common.updated',
+};
+
+export type RequestsSettingsCategory = 'types' | 'columns';
 
 interface RequestsSettingsViewProps {
+  selectedCategory?: RequestsSettingsCategory;
+  onSelectedCategoryChange?: (category: RequestsSettingsCategory) => void;
   onClose?: () => void;
 }
 
-export function RequestsSettingsView({ onClose }: RequestsSettingsViewProps = {}) {
+export function RequestsSettingsView({
+  selectedCategory,
+  onSelectedCategoryChange,
+  onClose,
+}: RequestsSettingsViewProps = {}) {
   const { t } = useTranslation();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { requestTypes, saveRequestTypes } = useRequests();
   const enabledPlugins = useEnabledPlugins();
   const garmentsEnabled = enabledPlugins.has('garments');
+
+  const [internalCategory, setInternalCategory] = useState<RequestsSettingsCategory>('types');
+  const activeCategory = selectedCategory ?? internalCategory;
+  const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
+
+  const [tableColumns, setTableColumns] = useState<RequestTableColumnsPref>(() =>
+    normalizeRequestTableColumns(null),
+  );
+  const [initialTableColumns, setInitialTableColumns] = useState<RequestTableColumnsPref>(() =>
+    normalizeRequestTableColumns(null),
+  );
+  const [isColumnsLoading, setIsColumnsLoading] = useState(true);
+  const [isColumnsSaving, setIsColumnsSaving] = useState(false);
 
   const [newTypeLabel, setNewTypeLabel] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -71,6 +121,63 @@ export function RequestsSettingsView({ onClose }: RequestsSettingsViewProps = {}
       cancelled = true;
     };
   }, [garmentsEnabled]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings(REQUESTS_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        const loaded = normalizeRequestTableColumns(settings?.tableColumns);
+        setTableColumns(loaded);
+        setInitialTableColumns(loaded);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) {
+          setIsColumnsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  const categories: PluginSettingsCategory[] = useMemo(
+    () => [
+      {
+        id: 'types',
+        label: t('requests.settingsCategories.types'),
+        description: t('requests.settingsCategories.typesDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.categories,
+      },
+      {
+        id: 'columns',
+        label: t('requests.settingsCategories.columns'),
+        description: t('requests.settingsCategories.columnsDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.columns,
+      },
+    ],
+    [t],
+  );
+
+  const columnsDirty =
+    activeCategory === 'columns' && !requestTableColumnsEqual(tableColumns, initialTableColumns);
+
+  const handleSaveColumns = useCallback(async () => {
+    setIsColumnsSaving(true);
+    try {
+      const next = normalizeRequestTableColumns(tableColumns);
+      await updateSettings(REQUESTS_SETTINGS_KEY, { tableColumns: next });
+      setTableColumns(next);
+      setInitialTableColumns(next);
+    } catch (error) {
+      console.error('Failed to save requests table columns:', error);
+    } finally {
+      setIsColumnsSaving(false);
+    }
+  }, [tableColumns, updateSettings]);
 
   const listById = useMemo(() => {
     const map = new Map<string, GarmentList>();
@@ -321,250 +428,284 @@ export function RequestsSettingsView({ onClose }: RequestsSettingsViewProps = {}
     <PluginSettingsPageShell
       title={t('requests.settings.title')}
       subtitle={t('requests.settingsSubtitle')}
+      categories={categories}
+      activeCategory={activeCategory}
+      onCategoryChange={(id) => setActiveCategory(id as RequestsSettingsCategory)}
       onClose={onClose}
+      onSave={columnsDirty ? () => void handleSaveColumns() : undefined}
+      isSaving={isColumnsSaving}
+      saveAction={
+        columnsDirty ? (
+          <SettingsHeaderSaveButton
+            onClick={() => void handleSaveColumns()}
+            isSaving={isColumnsSaving}
+            label={t('common.save')}
+            savingLabel={t('common.saving')}
+          />
+        ) : null
+      }
     >
-      <DetailSection
-        title={t('requests.settings.typesSection')}
-        icon={Settings2}
-        iconPlugin="requests"
-        className="pt-0"
-      >
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">{t('requests.settings.typesHint')}</p>
+      {activeCategory === 'columns' &&
+        (isColumnsLoading ? (
+          <div className="text-sm text-muted-foreground">{t('common.loading')}</div>
+        ) : (
+          <TableColumnsSettingsSection
+            title={t('requests.settingsCategories.columns')}
+            hint={t('requests.settingsCategories.columnsHint')}
+            pref={tableColumns}
+            requiredColumnId="title"
+            labelFor={(id) => t(COLUMN_LABEL_KEYS[id])}
+            isColumnId={isRequestTableColumnId}
+            reorder={reorderRequestTableColumns}
+            setHidden={setRequestTableColumnHidden}
+            onChange={setTableColumns}
+          />
+        ))}
 
-          {rowError ? (
-            <div
-              role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
-            >
-              {rowError}
-            </div>
-          ) : null}
+      {activeCategory === 'types' && (
+        <DetailSection
+          title={t('requests.settings.typesSection')}
+          icon={Settings2}
+          iconPlugin="requests"
+          className="pt-0"
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">{t('requests.settings.typesHint')}</p>
 
-          <ul className="divide-y divide-border/50 rounded-lg border border-border/50 bg-background">
-            {requestTypes.length === 0 && (
-              <li className="px-4 py-3 text-sm text-muted-foreground">
-                {t('requests.settings.noTypes')}
-              </li>
-            )}
-            {requestTypes.map((type) => {
-              const isBuiltin = BUILTIN_REQUEST_TYPE_KEYS.includes(type.key);
-              const label = getTypeLabel(type.key, t);
-              const isConfirming = confirmDeleteKey === type.key;
-              const isExpanded = expandedLinkKey === type.key;
-              const isLinked = type.plugin === 'garments';
-              const isUnlinkConfirming = confirmUnlinkKey === type.key;
-              const intakeFields = type.intakeSchema ?? DEFAULT_GARMENTS_INTAKE_SCHEMA;
+            {rowError ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+              >
+                {rowError}
+              </div>
+            ) : null}
 
-              return (
-                <li
-                  key={type.key}
-                  draggable={!isSaving}
-                  onDragStart={(e) => handleDragStart(e, type.key)}
-                  onDragOver={(e) => handleDragOver(e, type.key)}
-                  onDrop={(e) => void handleDrop(e, type.key)}
-                  onDragEnd={handleDragEnd}
-                  onDragLeave={() => {
-                    if (dragOverType === type.key) {
-                      setDragOverType(null);
-                    }
-                  }}
-                  className={cn(
-                    'px-4 py-2.5 transition-colors',
-                    draggingType === type.key && 'opacity-50',
-                    dragOverType === type.key && 'bg-muted/60',
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <Grip
-                        className="h-3.5 w-3.5 flex-shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
-                        aria-hidden
-                      />
-                      <span className="text-sm font-medium">{label}</span>
-                      {isBuiltin && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-extrabold text-muted-foreground">
-                          {t('requests.settings.builtIn')}
-                        </span>
-                      )}
-                      {garmentsEnabled && isLinked ? (
-                        <span className="sr-only">{t('requests.settings.linkedToGarments')}</span>
-                      ) : null}
-                      {garmentsEnabled && isLinked ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                          <Link2 className="h-3 w-3" aria-hidden />
-                          {t('requests.settings.linkGarments')}
-                        </span>
-                      ) : null}
-                    </div>
+            <ul className="divide-y divide-border/50 rounded-lg border border-border/50 bg-background">
+              {requestTypes.length === 0 && (
+                <li className="px-4 py-3 text-sm text-muted-foreground">
+                  {t('requests.settings.noTypes')}
+                </li>
+              )}
+              {requestTypes.map((type) => {
+                const isBuiltin = BUILTIN_REQUEST_TYPE_KEYS.includes(type.key);
+                const label = getTypeLabel(type.key, t);
+                const isConfirming = confirmDeleteKey === type.key;
+                const isExpanded = expandedLinkKey === type.key;
+                const isLinked = type.plugin === 'garments';
+                const isUnlinkConfirming = confirmUnlinkKey === type.key;
+                const intakeFields = type.intakeSchema ?? DEFAULT_GARMENTS_INTAKE_SCHEMA;
 
-                    <div className="flex items-center gap-1">
-                      {garmentsEnabled ? (
-                        <RoundIconLabelButton
-                          type="button"
-                          icon={ChevronDown}
-                          label={t('requests.settings.linkSection')}
-                          variant="secondary"
-                          size="xs"
-                          alwaysExpanded
-                          className={cn(isExpanded && 'bg-primary/20')}
-                          aria-expanded={isExpanded}
-                          onClick={() =>
-                            setExpandedLinkKey((prev) => (prev === type.key ? null : type.key))
-                          }
+                return (
+                  <li
+                    key={type.key}
+                    draggable={!isSaving}
+                    onDragStart={(e) => handleDragStart(e, type.key)}
+                    onDragOver={(e) => handleDragOver(e, type.key)}
+                    onDrop={(e) => void handleDrop(e, type.key)}
+                    onDragEnd={handleDragEnd}
+                    onDragLeave={() => {
+                      if (dragOverType === type.key) {
+                        setDragOverType(null);
+                      }
+                    }}
+                    className={cn(
+                      'px-4 py-2.5 transition-colors',
+                      draggingType === type.key && 'opacity-50',
+                      dragOverType === type.key && 'bg-muted/60',
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <Grip
+                          className="h-3.5 w-3.5 flex-shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
+                          aria-hidden
                         />
-                      ) : null}
-
-                      {isConfirming ? (
-                        <div className="flex items-center gap-1">
-                          <span className="mr-1 text-xs text-muted-foreground">
-                            {t('requests.settings.confirmRemove')}
+                        <span className="text-sm font-medium">{label}</span>
+                        {isBuiltin && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-extrabold text-muted-foreground">
+                            {t('requests.settings.builtIn')}
                           </span>
-                          <RoundIconLabelButton
-                            type="button"
-                            icon={Check}
-                            label={t('common.yes')}
-                            variant="danger"
-                            size="xs"
-                            alwaysExpanded
-                            disabled={isSaving}
-                            onClick={() => void handleRemove(type.key)}
-                          />
-                          <RoundIconLabelButton
-                            type="button"
-                            icon={X}
-                            label={t('common.cancel')}
-                            variant="secondary"
-                            size="xs"
-                            alwaysExpanded
-                            onClick={() => setConfirmDeleteKey(null)}
-                          />
-                        </div>
-                      ) : (
-                        <RoundIconLabelButton
-                          type="button"
-                          icon={Trash2}
-                          label={t('common.remove')}
-                          variant="dangerSoft"
-                          size="xs"
-                          expandOnHover={false}
-                          onClick={() => setConfirmDeleteKey(type.key)}
-                        />
-                      )}
-                    </div>
-                  </div>
-
-                  {garmentsEnabled && isExpanded ? (
-                    <div className="mt-3 space-y-3 border-t border-border/40 pt-3 pl-6">
-                      <div className="space-y-1.5">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          {t('requests.settings.destination')}
-                        </p>
-                        <div className="flex flex-wrap gap-3">
-                          <label className="inline-flex items-center gap-2 text-xs">
-                            <input
-                              type="radio"
-                              name={`plugin-${type.key}`}
-                              checked={!isLinked}
-                              disabled={isSaving}
-                              onChange={() => {
-                                if (isLinked && type.targetListId) {
-                                  setConfirmUnlinkKey(type.key);
-                                  return;
-                                }
-                                void unlinkPlugin(type.key);
-                              }}
-                            />
-                            {t('requests.settings.linkNone')}
-                          </label>
-                          <label className="inline-flex items-center gap-2 text-xs">
-                            <input
-                              type="radio"
-                              name={`plugin-${type.key}`}
-                              checked={isLinked}
-                              disabled={isSaving}
-                              onChange={() => void linkToGarments(type.key)}
-                            />
+                        )}
+                        {garmentsEnabled && isLinked ? (
+                          <span className="sr-only">{t('requests.settings.linkedToGarments')}</span>
+                        ) : null}
+                        {garmentsEnabled && isLinked ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <Link2 className="h-3 w-3" aria-hidden />
                             {t('requests.settings.linkGarments')}
-                          </label>
-                        </div>
+                          </span>
+                        ) : null}
                       </div>
 
-                      {isUnlinkConfirming ? (
-                        <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                          <span>{t('requests.settings.unlinkConfirm')}</span>
+                      <div className="flex items-center gap-1">
+                        {garmentsEnabled ? (
                           <RoundIconLabelButton
                             type="button"
-                            icon={Check}
-                            label={t('common.yes')}
+                            icon={ChevronDown}
+                            label={t('requests.settings.linkSection')}
                             variant="secondary"
                             size="xs"
                             alwaysExpanded
-                            disabled={isSaving}
-                            onClick={() => void unlinkPlugin(type.key)}
+                            className={cn(isExpanded && 'bg-primary/20')}
+                            aria-expanded={isExpanded}
+                            onClick={() =>
+                              setExpandedLinkKey((prev) => (prev === type.key ? null : type.key))
+                            }
                           />
-                          <RoundIconLabelButton
-                            type="button"
-                            icon={X}
-                            label={t('common.cancel')}
-                            variant="secondary"
-                            size="xs"
-                            alwaysExpanded
-                            onClick={() => setConfirmUnlinkKey(null)}
-                          />
-                        </div>
-                      ) : null}
+                        ) : null}
 
-                      {isLinked ? (
-                        <>
-                          {renderListOptions(type)}
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground">
-                              {t('requests.settings.intakeFieldsHint')}
-                            </p>
-                            <p className="text-xs text-foreground">
-                              {intakeFields
-                                .map((field) => {
-                                  const fieldLabel = t(intakeFieldLabelKey(field.key));
-                                  return field.required ? `${fieldLabel}*` : fieldLabel;
-                                })
-                                .join(' · ')}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {t('requests.settings.linkHint')}
-                            </p>
+                        {isConfirming ? (
+                          <div className="flex items-center gap-1">
+                            <span className="mr-1 text-xs text-muted-foreground">
+                              {t('requests.settings.confirmRemove')}
+                            </span>
+                            <RoundIconLabelButton
+                              type="button"
+                              icon={Check}
+                              label={t('common.yes')}
+                              variant="danger"
+                              size="xs"
+                              alwaysExpanded
+                              disabled={isSaving}
+                              onClick={() => void handleRemove(type.key)}
+                            />
+                            <RoundIconLabelButton
+                              type="button"
+                              icon={X}
+                              label={t('common.cancel')}
+                              variant="secondary"
+                              size="xs"
+                              alwaysExpanded
+                              onClick={() => setConfirmDeleteKey(null)}
+                            />
                           </div>
-                        </>
-                      ) : null}
+                        ) : (
+                          <RoundIconLabelButton
+                            type="button"
+                            icon={Trash2}
+                            label={t('common.remove')}
+                            variant="dangerSoft"
+                            size="xs"
+                            expandOnHover={false}
+                            onClick={() => setConfirmDeleteKey(type.key)}
+                          />
+                        )}
+                      </div>
                     </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
 
-          <div className="flex items-center gap-2 pt-1">
-            <Input
-              ref={inputRef}
-              value={newTypeLabel}
-              onChange={(e) => setNewTypeLabel(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={t('requests.settings.addTypePlaceholder')}
-              className="h-8 max-w-xs text-xs"
-            />
-            <RoundIconLabelButton
-              type="button"
-              icon={Plus}
-              label={t('requests.settings.addType')}
-              variant="secondary"
-              size="xs"
-              alwaysExpanded
-              disabled={!newTypeLabel.trim() || isSaving}
-              onClick={() => void handleAdd()}
-            />
+                    {garmentsEnabled && isExpanded ? (
+                      <div className="mt-3 space-y-3 border-t border-border/40 pt-3 pl-6">
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            {t('requests.settings.destination')}
+                          </p>
+                          <div className="flex flex-wrap gap-3">
+                            <label className="inline-flex items-center gap-2 text-xs">
+                              <input
+                                type="radio"
+                                name={`plugin-${type.key}`}
+                                checked={!isLinked}
+                                disabled={isSaving}
+                                onChange={() => {
+                                  if (isLinked && type.targetListId) {
+                                    setConfirmUnlinkKey(type.key);
+                                    return;
+                                  }
+                                  void unlinkPlugin(type.key);
+                                }}
+                              />
+                              {t('requests.settings.linkNone')}
+                            </label>
+                            <label className="inline-flex items-center gap-2 text-xs">
+                              <input
+                                type="radio"
+                                name={`plugin-${type.key}`}
+                                checked={isLinked}
+                                disabled={isSaving}
+                                onChange={() => void linkToGarments(type.key)}
+                              />
+                              {t('requests.settings.linkGarments')}
+                            </label>
+                          </div>
+                        </div>
+
+                        {isUnlinkConfirming ? (
+                          <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                            <span>{t('requests.settings.unlinkConfirm')}</span>
+                            <RoundIconLabelButton
+                              type="button"
+                              icon={Check}
+                              label={t('common.yes')}
+                              variant="secondary"
+                              size="xs"
+                              alwaysExpanded
+                              disabled={isSaving}
+                              onClick={() => void unlinkPlugin(type.key)}
+                            />
+                            <RoundIconLabelButton
+                              type="button"
+                              icon={X}
+                              label={t('common.cancel')}
+                              variant="secondary"
+                              size="xs"
+                              alwaysExpanded
+                              onClick={() => setConfirmUnlinkKey(null)}
+                            />
+                          </div>
+                        ) : null}
+
+                        {isLinked ? (
+                          <>
+                            {renderListOptions(type)}
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                {t('requests.settings.intakeFieldsHint')}
+                              </p>
+                              <p className="text-xs text-foreground">
+                                {intakeFields
+                                  .map((field) => {
+                                    const fieldLabel = t(intakeFieldLabelKey(field.key));
+                                    return field.required ? `${fieldLabel}*` : fieldLabel;
+                                  })
+                                  .join(' · ')}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {t('requests.settings.linkHint')}
+                              </p>
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Input
+                ref={inputRef}
+                value={newTypeLabel}
+                onChange={(e) => setNewTypeLabel(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={t('requests.settings.addTypePlaceholder')}
+                className="h-8 max-w-xs text-xs"
+              />
+              <RoundIconLabelButton
+                type="button"
+                icon={Plus}
+                label={t('requests.settings.addType')}
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
+                disabled={!newTypeLabel.trim() || isSaving}
+                onClick={() => void handleAdd()}
+              />
+            </div>
           </div>
-        </div>
-      </DetailSection>
+        </DetailSection>
+      )}
     </PluginSettingsPageShell>
   );
 }

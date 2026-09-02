@@ -37,6 +37,7 @@
     "selectAllVisible": "Select all visible",
     "selectRow": "Select row",
     "unselectRow": "Unselect row",
+    "showColumn": "Show {{column}} column",
     "updated": "Updated",
     "created": "Created",
     "selectSlot": "Select slot",
@@ -278,8 +279,11 @@
     "dateTimePlaceholder": "Date & time",
     "dateTimeClear": "Clear date & time",
     "dateTimePickerTime": "Time",
-    "settingsSubtitle": "Manage view layout and categories.",
+    "settingsSubtitle": "Manage table columns and categories.",
     "settingsCategories": {
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the slots table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Name is always visible.",
       "view": "View",
       "viewDescription": "Default column layout for slot cards.",
       "categories": "Categories",
@@ -432,6 +436,9 @@
     "importError": "Could not import matches. Check API key and team IDs.",
     "settingsSubtitle": "Manage list view and API connection.",
     "settingsCategories": {
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the matches table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Matchup is always visible.",
       "view": "View",
       "viewDescription": "Default list or grid for matches.",
       "apiDescription": "Fogis API base URL and key."
@@ -590,6 +597,7 @@
       "tags": "Tags",
       "assignable": "Assignable",
       "time": "Time",
+      "created": "Created",
       "updated": "Updated"
     },
     "bulkTagsAction": "Tags",
@@ -651,12 +659,16 @@
     "dashboardWidget": {
       "open": "Open Contacts"
     },
-    "settingsSubtitle": "Manage view, tags, and import.",
+    "settingsSubtitle": "Manage tags, table columns, and import.",
     "settingsCategories": {
       "view": "View",
       "viewDescription": "Default cards or table list view for contacts.",
       "tags": "Tags",
       "tagsDescription": "Tags you can assign on contacts.",
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the contacts table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Name is always visible.",
+      "columnsToggle": "Show {{column}} column",
       "import": "Import",
       "importDescription": "Import contacts from CSV or Excel."
     }
@@ -730,10 +742,13 @@
     "bulkStatusApplyingShort": "Updating…",
     "bulkStatusDone": "Done",
     "bulkStatusResult": "{{updated}} updated, {{failed}} failed",
-    "settingsSubtitle": "Manage view layout and import.",
+    "settingsSubtitle": "Manage table columns and import.",
     "settingsCategories": {
       "view": "View",
       "viewDescription": "Default column layout for task cards.",
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the tasks table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Title is always visible.",
       "importDescription": "Import tasks from CSV or Excel."
     },
     "quickContext": {
@@ -790,10 +805,13 @@
     "focusMode": "Focus",
     "exitFocusMode": "Exit focus",
     "focusModeHint": "Dim everything except the note. Press Esc or click outside to exit.",
-    "settingsSubtitle": "Manage view layout and import.",
+    "settingsSubtitle": "Manage table columns and import.",
     "settingsCategories": {
       "view": "View",
       "viewDescription": "Default column layout for note cards.",
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the notes table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Title is always visible.",
       "importDescription": "Import notes from CSV or Excel."
     },
     "quickContext": {
@@ -808,6 +826,13 @@
   },
   "invoices": {
     "listDescription": "Review drafts, payments, and overdue balances.",
+    "settingsTitle": "Invoices – Settings",
+    "settingsSubtitle": "Manage table columns for the invoices list.",
+    "settingsCategories": {
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the invoices table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Invoice number is always visible."
+    },
     "searchPlaceholder": "Search invoices...",
     "noMatch": "No invoices found matching your search.",
     "noYet": "No invoices yet",
@@ -921,7 +946,12 @@
   "estimates": {
     "listDescription": "Draft, send, and track quotes through acceptance.",
     "settingsTitle": "Estimates – Settings",
-    "settingsSubtitle": "Choose how estimates appear in the list.",
+    "settingsSubtitle": "Manage table columns for the estimates list.",
+    "settingsCategories": {
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the estimates table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Estimate number is always visible."
+    },
     "searchPlaceholder": "Search estimates...",
     "noMatch": "No estimates found matching your search.",
     "noYet": "No estimates yet",
@@ -2256,8 +2286,11 @@
     "columnsHelp": "How many columns cup cards use by default (1 = full width, 2 = half, 3 = one third).",
     "columnFeaturedVisible": "Featured / Visible",
     "columnRatings": "Ratings",
-    "settingsSubtitle": "Manage view, appearance, and import.",
+    "settingsSubtitle": "Manage table columns, appearance, and import.",
     "settingsCategories": {
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the cups table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Name is always visible.",
       "view": "View",
       "viewDescription": "Default list view for cups.",
       "appearance": "Appearance",
@@ -2313,7 +2346,7 @@
   },
   "teams": {
     "listDescription": "{{count}} teams registered · Season {{season}}",
-    "settingsSubtitle": "Season, venues, and overview card order.",
+    "settingsSubtitle": "Season, venues, overview cards, and table columns.",
     "addTeam": "Add team",
     "bulkCreate": "Add multiple",
     "bulkCreateTitle": "Add multiple teams",
@@ -2612,6 +2645,9 @@
       "requestsTotalCount": "{{count}} requests in total"
     },
     "settingsCategories": {
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the teams table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Age group is always visible.",
       "season": "Season",
       "seasonDescription": "Active season shown in the list header.",
       "overview": "Overview cards",
@@ -2728,7 +2764,14 @@
   },
   "requests": {
     "listDescription": "{{count}} requests",
-    "settingsSubtitle": "Manage request types and their order.",
+    "settingsSubtitle": "Manage request types, table columns, and their order.",
+    "settingsCategories": {
+      "types": "Types",
+      "typesDescription": "Request types and garment list linking.",
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the requests table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Title is always visible."
+    },
     "addRequest": "Add request",
     "createRequest": "Create request",
     "newRequest": "New request",
@@ -3179,6 +3222,19 @@
       "levererat": "Delivered",
       "utdelat": "Handed out"
     },
+    "customColumnsTitle": "Custom columns",
+    "customColumnsHint": "Add person-level checkbox columns to this list (shown next to Paid in the matrix).",
+    "customColumnsAdd": "Add column",
+    "customColumnsAddPlaceholder": "Column name",
+    "customColumnsRename": "Rename",
+    "customColumnsDelete": "Delete column",
+    "customColumnsDeleteConfirm": "Delete column \"{{label}}\"? Checked values for this column will be removed.",
+    "customColumnsEmpty": "No custom columns yet.",
+    "customColumnsSystemNote": "Paid is included by default on new lists and can be hidden or deleted. Inventory Ordered / Delivered / Handed out columns are managed when you assign articles to the list.",
+    "customColumnsSaveFailed": "Could not save custom columns. Please try again.",
+    "customColumnsMaxReached": "Maximum of 50 checkbox columns reached.",
+    "customColumnsRestorePaid": "Add Paid",
+    "customColumnsSettingsNotReady": "Column settings are still loading. Try save again in a moment.",
     "listsTab": "Lists",
     "inventoryTab": "Inventory",
     "addList": "Add list",
@@ -3246,8 +3302,7 @@
       "readMore": "Read more",
       "showLess": "Show less",
       "decreaseQuantity": "Decrease quantity",
-      "increaseQuantity": "Increase quantity",
-      "notInAnyList": "Not shown in any list yet — edit the item to assign lists."
+      "increaseQuantity": "Increase quantity"
     },
     "inventoryInListsHint": "Choose which garment lists this item appears in. Each person gets Ordered, Delivered and Handed out checkboxes plus size selection from the item variants.",
     "assignToLists": "Show in lists",
@@ -3272,6 +3327,18 @@
     "bulkListsApplyingShort": "Updating…",
     "bulkListsDone": "Done",
     "bulkListsResult": "{{updated}} updated, {{failed}} failed",
+    "bulkTagsAction": "Tags",
+    "bulkTagsTitle": "Bulk add tag",
+    "bulkTagsSubtitle": "Add a tag to {{count}} inventory item(s). Existing tags are kept.",
+    "bulkTagsLabel": "Tag",
+    "bulkTagsHint": "The tag is added to each selected item without removing other tags.",
+    "bulkTagsEmpty": "No tags configured. Add tags under Garments → Inventory → Settings first.",
+    "bulkTagsApply": "Apply",
+    "bulkTagsApplying": "Updating {{current}} of {{total}}…",
+    "bulkTagsApplyingShort": "Updating…",
+    "bulkTagsDone": "Done",
+    "bulkTagsResult": "{{updated}} updated, {{failed}} failed",
+    "bulkClearTagsAction": "Clear tags",
     "noSizes": "No sizes defined — add variants in Inventory",
     "defaultColumns": "Default columns",
     "defaultColumnsHelp": "How many columns cards use by default (1 = full width, 2 = half, 3 = one third).",
@@ -3279,6 +3346,9 @@
     "jerseyDuplicateThisPerson": "Duplicate number on this list",
     "noPersons": "No persons on this list yet.",
     "addPerson": "Add person",
+    "quickAdd": "Quick person",
+    "quickAddPlaceholder": "Add person...",
+    "filterAll": "All",
     "deletePerson": "Delete person",
     "deletePersonConfirm": "Remove this person from the list?",
     "shareList": "Share list",
@@ -3310,7 +3380,16 @@
     "publicReadOnly": "Shared garment list (read-only)",
     "noListsForTeam": "No garment lists for this team yet.",
     "settingsInventory": "Inventory – Settings",
-    "settingsInventorySubtitle": "Import inventory items from CSV or Excel.",
+    "settingsInventorySubtitle": "Manage tags, table columns, and import inventory items.",
+    "settingsLists": "Lists – Settings",
+    "settingsListsSubtitle": "Manage person matrix columns for each garment list.",
+    "tags": "Tags",
+    "noTags": "No tags",
+    "noTagsYet": "No tags yet.",
+    "addTagPlaceholder": "Add a tag...",
+    "noMoreTagsToAdd": "No more tags to add",
+    "removeTagAria": "Remove tag {{tag}}",
+    "tagsEmptyHint": "Add tags under Inventory → Settings first.",
     "importInventory": "Import inventory",
     "importInventoryDescription": "Import from CSV, Excel (.xlsx), or pasted table. Download the CSV template — use one row per variant; rows with the same article and brand are grouped into one item. Map columns and import.",
     "importFailureMissingArticle": "{{count}} rows had no Article value. Check column mapping and file delimiter (comma or semicolon).",
@@ -3324,6 +3403,21 @@
     "importFailureApiExamples": "{{count}} items could not be saved. Examples: {{examples}}.",
     "importFailureUnexpected": "Import could not be completed. Try again or check the file format.",
     "settingsCategories": {
+      "tags": "Tags",
+      "tagsDescription": "Tags you can assign on inventory items.",
+      "tagsHint": "Tags can be assigned to inventory items when editing an article.",
+      "tagsPlaceholder": "Add a tag (e.g. Match kit, Training)",
+      "columns": "Table columns",
+      "columnsDescription": "Choose which columns appear in the inventory table and their order.",
+      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Article name is always visible.",
+      "customColumns": "Person columns",
+      "customColumnsDescription": "Choose identity and checkbox columns for a list, and add custom person-level checkboxes.",
+      "customColumnsHint": "Drag to reorder. Toggle to show or hide. Paid is included by default on new lists and can be deleted. Add custom columns below.",
+      "customColumnsList": "List",
+      "customColumnsListHint": "Choose which garment list to configure.",
+      "customColumnsListPlaceholder": "Select a list",
+      "identityColumns": "Identity columns",
+      "identityColumnsHint": "Drag to reorder. Toggle to show or hide. Name is always visible. Team, jersey name, initials and number default on.",
       "importDescription": "Import inventory items from CSV or Excel."
     }
   }

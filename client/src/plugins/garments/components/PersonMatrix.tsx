@@ -1,10 +1,9 @@
-import { Check, ChevronDown, ChevronRight, Edit, Plus, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Edit, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   Select,
@@ -13,10 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useApp } from '@/core/api/AppContext';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DETAIL_FIELD_LABEL_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
 import { createSerialLatestQueue } from '@/core/utils/serialLatestQueue';
 import type { SerialLatestSettle } from '@/core/utils/serialLatestQueue';
@@ -48,6 +47,11 @@ import {
   translateCheckboxStatusLabel,
   type GarmentSizeField,
 } from '../utils/checkboxColumnI18n';
+import { GARMENTS_SETTINGS_KEY } from '../utils/garmentColumnCount';
+import {
+  resolveVisiblePersonMatrixIdentityColumns,
+  type PersonMatrixIdentityColumnId,
+} from '../utils/personMatrixIdentityColumns';
 import {
   buildGarmentListFitSummary,
   filterMatrixColumns,
@@ -271,11 +275,11 @@ export function PersonMatrix({
   hideComment?: boolean;
 }) {
   const { t } = useTranslation();
+  const { getSettings, settingsVersion } = useApp();
   const enabledPlugins = useEnabledPlugins();
   const hasTeams = enabledPlugins.has('teams');
   const { teams } = useTeams();
   const {
-    addPerson,
     updatePerson,
     patchPersonLocal,
     deletePerson,
@@ -290,6 +294,33 @@ export function PersonMatrix({
   const checkboxRollbackRef = useRef<Map<string, Record<string, boolean>>>(new Map());
   const latestCheckboxRef = useRef<Map<string, Record<string, boolean>>>(new Map());
   const [checkboxSaveError, setCheckboxSaveError] = useState<string | null>(null);
+  const [visibleIdentityIds, setVisibleIdentityIds] = useState<PersonMatrixIdentityColumnId[]>(() =>
+    resolveVisiblePersonMatrixIdentityColumns(null, list.id),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings(GARMENTS_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        setVisibleIdentityIds(resolveVisiblePersonMatrixIdentityColumns(settings, list.id));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setVisibleIdentityIds(resolveVisiblePersonMatrixIdentityColumns(null, list.id));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, list.id, settingsVersion]);
+
+  const matrixIdentityColumnIds = useMemo(
+    () => visibleIdentityIds.filter((id) => id !== 'team' || hasTeams),
+    [visibleIdentityIds, hasTeams],
+  );
 
   useEffect(() => {
     const queue = checkboxQueueRef.current;
@@ -323,7 +354,6 @@ export function PersonMatrix({
     [persons, garmentGroups, inventoryItems],
   );
 
-  const [draftName, setDraftName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<GarmentPerson>>({});
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -360,15 +390,6 @@ export function PersonMatrix({
       }
       return next;
     });
-  };
-
-  const handleAdd = async () => {
-    const name = draftName.trim();
-    if (!name) {
-      return;
-    }
-    await addPerson(list.id, { name });
-    setDraftName('');
   };
 
   const startEdit = (person: GarmentPerson) => {
@@ -645,84 +666,110 @@ export function PersonMatrix({
           <table className="w-max min-w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-border bg-primary/5">
-                <th
-                  className={cn(
-                    'border-r border-border bg-primary/5 px-3 py-2 text-left',
-                    MATRIX_HEADER_BASE,
-                    'cursor-pointer select-none hover:bg-primary/10',
-                  )}
-                  onClick={() => handleHeaderSort('name')}
-                  aria-sort={
-                    primarySort === 'name'
-                      ? sortOrder === 'asc'
-                        ? 'ascending'
-                        : 'descending'
-                      : 'none'
+                {matrixIdentityColumnIds.map((columnId) => {
+                  if (columnId === 'name') {
+                    return (
+                      <th
+                        key={columnId}
+                        className={cn(
+                          'border-r border-border bg-primary/5 px-3 py-2 text-left',
+                          MATRIX_HEADER_BASE,
+                          'cursor-pointer select-none hover:bg-primary/10',
+                        )}
+                        onClick={() => handleHeaderSort('name')}
+                        aria-sort={
+                          primarySort === 'name'
+                            ? sortOrder === 'asc'
+                              ? 'ascending'
+                              : 'descending'
+                            : 'none'
+                        }
+                      >
+                        <div className="flex items-center gap-2 leading-4">
+                          <span>{t('garments.personName')}</span>
+                          <ListTableSortIcon active={primarySort === 'name'} order={sortOrder} />
+                        </div>
+                      </th>
+                    );
                   }
-                >
-                  <div className="flex items-center gap-2 leading-4">
-                    <span>{t('garments.personName')}</span>
-                    <ListTableSortIcon active={primarySort === 'name'} order={sortOrder} />
-                  </div>
-                </th>
-                {hasTeams ? (
-                  <th
-                    className={cn(
-                      'min-w-[8rem] border-r border-border px-1.5 py-2 text-left',
-                      MATRIX_HEADER_BASE,
-                      'cursor-pointer select-none hover:bg-primary/10',
-                    )}
-                    onClick={() => handleHeaderSort('team')}
-                    aria-sort={
-                      primarySort === 'team'
-                        ? sortOrder === 'asc'
-                          ? 'ascending'
-                          : 'descending'
-                        : 'none'
-                    }
-                  >
-                    <div className="flex items-center gap-2 leading-4">
-                      <span>{t('garments.team')}</span>
-                      <ListTableSortIcon active={primarySort === 'team'} order={sortOrder} />
-                    </div>
-                  </th>
-                ) : null}
-                <th
-                  className={cn(
-                    'border-r border-border px-1.5 py-2 text-center',
-                    MATRIX_HEADER_BASE,
-                  )}
-                >
-                  {t('garments.jerseyName')}
-                </th>
-                <th
-                  className={cn(
-                    'w-11 border-r border-border px-0.5 py-2 text-center',
-                    MATRIX_HEADER_BASE,
-                  )}
-                >
-                  {t('garments.initials')}
-                </th>
-                <th
-                  className={cn(
-                    'w-12 border-r border-border px-0.5 py-2 text-center',
-                    MATRIX_HEADER_BASE,
-                    'cursor-pointer select-none hover:bg-primary/10',
-                  )}
-                  onClick={() => handleHeaderSort('jerseyNumber')}
-                  aria-sort={
-                    primarySort === 'jerseyNumber'
-                      ? sortOrder === 'asc'
-                        ? 'ascending'
-                        : 'descending'
-                      : 'none'
+                  if (columnId === 'team') {
+                    return (
+                      <th
+                        key={columnId}
+                        className={cn(
+                          'min-w-[8rem] border-r border-border px-1.5 py-2 text-left',
+                          MATRIX_HEADER_BASE,
+                          'cursor-pointer select-none hover:bg-primary/10',
+                        )}
+                        onClick={() => handleHeaderSort('team')}
+                        aria-sort={
+                          primarySort === 'team'
+                            ? sortOrder === 'asc'
+                              ? 'ascending'
+                              : 'descending'
+                            : 'none'
+                        }
+                      >
+                        <div className="flex items-center gap-2 leading-4">
+                          <span>{t('garments.team')}</span>
+                          <ListTableSortIcon active={primarySort === 'team'} order={sortOrder} />
+                        </div>
+                      </th>
+                    );
                   }
-                >
-                  <div className="flex items-center justify-center gap-1 leading-4">
-                    <span>{t('garments.jerseyNumber')}</span>
-                    <ListTableSortIcon active={primarySort === 'jerseyNumber'} order={sortOrder} />
-                  </div>
-                </th>
+                  if (columnId === 'jerseyName') {
+                    return (
+                      <th
+                        key={columnId}
+                        className={cn(
+                          'border-r border-border px-1.5 py-2 text-center',
+                          MATRIX_HEADER_BASE,
+                        )}
+                      >
+                        {t('garments.jerseyName')}
+                      </th>
+                    );
+                  }
+                  if (columnId === 'initials') {
+                    return (
+                      <th
+                        key={columnId}
+                        className={cn(
+                          'w-11 border-r border-border px-0.5 py-2 text-center',
+                          MATRIX_HEADER_BASE,
+                        )}
+                      >
+                        {t('garments.initials')}
+                      </th>
+                    );
+                  }
+                  return (
+                    <th
+                      key={columnId}
+                      className={cn(
+                        'w-12 border-r border-border px-0.5 py-2 text-center',
+                        MATRIX_HEADER_BASE,
+                        'cursor-pointer select-none hover:bg-primary/10',
+                      )}
+                      onClick={() => handleHeaderSort('jerseyNumber')}
+                      aria-sort={
+                        primarySort === 'jerseyNumber'
+                          ? sortOrder === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                    >
+                      <div className="flex items-center justify-center gap-1 leading-4">
+                        <span>{t('garments.jerseyNumber')}</span>
+                        <ListTableSortIcon
+                          active={primarySort === 'jerseyNumber'}
+                          order={sortOrder}
+                        />
+                      </div>
+                    </th>
+                  );
+                })}
                 {personColumns.map((col) => (
                   <th
                     key={col.id}
@@ -804,210 +851,253 @@ export function PersonMatrix({
                 return (
                   <React.Fragment key={person.id}>
                     <tr className="border-b border-border/60 hover:bg-muted/20">
-                      <td className="border-r border-border bg-background px-1 py-1.5">
-                        <div className="flex min-w-0 items-center gap-0.5">
-                          {showGarmentColumns ? (
-                            <button
-                              type="button"
-                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                              aria-expanded={isExpanded}
-                              aria-label={
-                                isExpanded
-                                  ? t('garments.collapsePersonRow')
-                                  : t('garments.expandPersonRow')
-                              }
-                              onClick={() => toggleExpanded(person.id)}
+                      {matrixIdentityColumnIds.map((columnId) => {
+                        if (columnId === 'name') {
+                          return (
+                            <td
+                              key={columnId}
+                              className="border-r border-border bg-background px-1 py-1.5"
                             >
-                              <Chevron className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                          <span
-                            className={cn(
-                              'h-2 w-2 shrink-0 rounded-full',
-                              personCompletionDotClass(completionStatus),
-                            )}
-                            title={completionLabel}
-                            aria-label={completionLabel}
-                          />
-                          {isEditing ? (
-                            <Input
-                              value={editDraft.name ?? ''}
-                              onChange={(e) =>
-                                setEditDraft((prev) => ({ ...prev, name: e.target.value }))
-                              }
-                              aria-label={t('garments.personName')}
-                              className={cn(
-                                'h-8 min-w-0 flex-1 text-sm',
-                                jerseyDup && 'border-amber-400',
+                              <div className="flex min-w-0 items-center gap-0.5">
+                                {showGarmentColumns ? (
+                                  <button
+                                    type="button"
+                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    aria-expanded={isExpanded}
+                                    aria-label={
+                                      isExpanded
+                                        ? t('garments.collapsePersonRow')
+                                        : t('garments.expandPersonRow')
+                                    }
+                                    onClick={() => toggleExpanded(person.id)}
+                                  >
+                                    <Chevron className="h-4 w-4" />
+                                  </button>
+                                ) : null}
+                                <span
+                                  className={cn(
+                                    'h-2 w-2 shrink-0 rounded-full',
+                                    personCompletionDotClass(completionStatus),
+                                  )}
+                                  title={completionLabel}
+                                  aria-label={completionLabel}
+                                />
+                                {isEditing ? (
+                                  <Input
+                                    value={editDraft.name ?? ''}
+                                    onChange={(e) =>
+                                      setEditDraft((prev) => ({ ...prev, name: e.target.value }))
+                                    }
+                                    aria-label={t('garments.personName')}
+                                    className={cn(
+                                      'h-8 min-w-0 flex-1 text-sm',
+                                      jerseyDup && 'border-amber-400',
+                                    )}
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="min-w-0 flex-1 truncate px-1 text-left text-sm font-medium hover:underline"
+                                    onClick={() => {
+                                      if (showGarmentColumns) {
+                                        toggleExpanded(person.id);
+                                      }
+                                    }}
+                                  >
+                                    {person.name || '—'}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        }
+                        if (columnId === 'team') {
+                          return (
+                            <td
+                              key={columnId}
+                              className="min-w-[8rem] border-r border-border/50 px-1 py-1.5"
+                            >
+                              {readOnly ? (
+                                <span className="block truncate px-1 text-xs">
+                                  {(() => {
+                                    const team = person.teamId
+                                      ? teams.find(
+                                          (entry) => String(entry.id) === String(person.teamId),
+                                        )
+                                      : null;
+                                    return team ? formatTeamLabel(team) || team.name : '—';
+                                  })()}
+                                </span>
+                              ) : isEditing ? (
+                                <Select
+                                  value={editDraft.teamId ?? '__none__'}
+                                  onValueChange={(value) =>
+                                    setEditDraft((prev) => ({
+                                      ...prev,
+                                      teamId: value === '__none__' ? null : value,
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger
+                                    aria-label={t('garments.team')}
+                                    className="h-8 text-xs"
+                                  >
+                                    <SelectValue placeholder={t('garments.teamNone')} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItemCompact value="__none__">
+                                      {t('garments.teamNone')}
+                                    </SelectItemCompact>
+                                    {teams.map((team) => (
+                                      <SelectItemCompact key={team.id} value={String(team.id)}>
+                                        {formatTeamLabel(team)}
+                                      </SelectItemCompact>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Select
+                                  value={person.teamId ?? '__none__'}
+                                  onValueChange={(value) =>
+                                    void saveTeamField(person, value === '__none__' ? null : value)
+                                  }
+                                >
+                                  <SelectTrigger
+                                    aria-label={`${person.name} — ${t('garments.team')}`}
+                                    className="h-8 text-xs"
+                                  >
+                                    <SelectValue placeholder={t('garments.teamNone')} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItemCompact value="__none__">
+                                      {t('garments.teamNone')}
+                                    </SelectItemCompact>
+                                    {teams.map((team) => (
+                                      <SelectItemCompact key={team.id} value={String(team.id)}>
+                                        {formatTeamLabel(team)}
+                                      </SelectItemCompact>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               )}
-                            />
-                          ) : (
-                            <button
-                              type="button"
-                              className="min-w-0 flex-1 truncate px-1 text-left text-sm font-medium hover:underline"
-                              onClick={() => {
-                                if (showGarmentColumns) {
-                                  toggleExpanded(person.id);
-                                }
-                              }}
+                            </td>
+                          );
+                        }
+                        if (columnId === 'jerseyName') {
+                          return (
+                            <td key={columnId} className="border-r border-border/50 px-1 py-1.5">
+                              {readOnly ? (
+                                <span className="block truncate px-1 text-xs">
+                                  {person.jerseyName?.trim() || '—'}
+                                </span>
+                              ) : isEditing ? (
+                                <Input
+                                  value={editDraft.jerseyName ?? ''}
+                                  onChange={(e) =>
+                                    setEditDraft((prev) => ({
+                                      ...prev,
+                                      jerseyName: e.target.value,
+                                    }))
+                                  }
+                                  aria-label={t('garments.jerseyName')}
+                                  className="h-8 text-xs"
+                                />
+                              ) : (
+                                <Input
+                                  defaultValue={person.jerseyName ?? ''}
+                                  key={`${person.id}-jerseyName-${person.jerseyName ?? ''}`}
+                                  onBlur={(e) =>
+                                    void saveTextField(person, 'jerseyName', e.target.value)
+                                  }
+                                  aria-label={t('garments.jerseyName')}
+                                  className="h-8 text-xs"
+                                />
+                              )}
+                            </td>
+                          );
+                        }
+                        if (columnId === 'initials') {
+                          return (
+                            <td
+                              key={columnId}
+                              className="w-11 border-r border-border/50 px-0.5 py-1.5"
                             >
-                              {person.name || '—'}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      {hasTeams ? (
-                        <td className="min-w-[8rem] border-r border-border/50 px-1 py-1.5">
-                          {readOnly ? (
-                            <span className="block truncate px-1 text-xs">
-                              {(() => {
-                                const team = person.teamId
-                                  ? teams.find(
-                                      (entry) => String(entry.id) === String(person.teamId),
-                                    )
-                                  : null;
-                                return team ? formatTeamLabel(team) || team.name : '—';
-                              })()}
-                            </span>
-                          ) : isEditing ? (
-                            <Select
-                              value={editDraft.teamId ?? '__none__'}
-                              onValueChange={(value) =>
-                                setEditDraft((prev) => ({
-                                  ...prev,
-                                  teamId: value === '__none__' ? null : value,
-                                }))
-                              }
-                            >
-                              <SelectTrigger
-                                aria-label={t('garments.team')}
-                                className="h-8 text-xs"
-                              >
-                                <SelectValue placeholder={t('garments.teamNone')} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItemCompact value="__none__">
-                                  {t('garments.teamNone')}
-                                </SelectItemCompact>
-                                {teams.map((team) => (
-                                  <SelectItemCompact key={team.id} value={String(team.id)}>
-                                    {formatTeamLabel(team)}
-                                  </SelectItemCompact>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Select
-                              value={person.teamId ?? '__none__'}
-                              onValueChange={(value) =>
-                                void saveTeamField(person, value === '__none__' ? null : value)
-                              }
-                            >
-                              <SelectTrigger
-                                aria-label={`${person.name} — ${t('garments.team')}`}
-                                className="h-8 text-xs"
-                              >
-                                <SelectValue placeholder={t('garments.teamNone')} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItemCompact value="__none__">
-                                  {t('garments.teamNone')}
-                                </SelectItemCompact>
-                                {teams.map((team) => (
-                                  <SelectItemCompact key={team.id} value={String(team.id)}>
-                                    {formatTeamLabel(team)}
-                                  </SelectItemCompact>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </td>
-                      ) : null}
-                      <td className="border-r border-border/50 px-1 py-1.5">
-                        {readOnly ? (
-                          <span className="block truncate px-1 text-xs">
-                            {person.jerseyName?.trim() || '—'}
-                          </span>
-                        ) : isEditing ? (
-                          <Input
-                            value={editDraft.jerseyName ?? ''}
-                            onChange={(e) =>
-                              setEditDraft((prev) => ({ ...prev, jerseyName: e.target.value }))
-                            }
-                            aria-label={t('garments.jerseyName')}
-                            className="h-8 text-xs"
-                          />
-                        ) : (
-                          <Input
-                            defaultValue={person.jerseyName ?? ''}
-                            key={`${person.id}-jerseyName-${person.jerseyName ?? ''}`}
-                            onBlur={(e) => void saveTextField(person, 'jerseyName', e.target.value)}
-                            aria-label={t('garments.jerseyName')}
-                            className="h-8 text-xs"
-                          />
-                        )}
-                      </td>
-                      <td className="w-11 border-r border-border/50 px-0.5 py-1.5">
-                        {readOnly ? (
-                          <span className="block truncate px-0.5 text-center text-xs">
-                            {person.initials?.trim() || '—'}
-                          </span>
-                        ) : isEditing ? (
-                          <Input
-                            value={editDraft.initials ?? ''}
-                            onChange={(e) =>
-                              setEditDraft((prev) => ({ ...prev, initials: e.target.value }))
-                            }
-                            aria-label={t('garments.initials')}
-                            className="h-8 w-full px-1 text-center text-xs"
-                          />
-                        ) : (
-                          <Input
-                            defaultValue={person.initials ?? ''}
-                            key={`${person.id}-initials-${person.initials ?? ''}`}
-                            onBlur={(e) => void saveTextField(person, 'initials', e.target.value)}
-                            aria-label={t('garments.initials')}
-                            className="h-8 w-full px-1 text-center text-xs"
-                          />
-                        )}
-                      </td>
-                      <td className="w-12 border-r border-border/50 px-0.5 py-1.5">
-                        {readOnly ? (
-                          <span
-                            className={cn(
-                              'block truncate px-0.5 text-center text-xs font-medium',
-                              jerseyDup && 'text-amber-700 dark:text-amber-300',
-                            )}
+                              {readOnly ? (
+                                <span className="block truncate px-0.5 text-center text-xs">
+                                  {person.initials?.trim() || '—'}
+                                </span>
+                              ) : isEditing ? (
+                                <Input
+                                  value={editDraft.initials ?? ''}
+                                  onChange={(e) =>
+                                    setEditDraft((prev) => ({
+                                      ...prev,
+                                      initials: e.target.value,
+                                    }))
+                                  }
+                                  aria-label={t('garments.initials')}
+                                  className="h-8 w-full px-1 text-center text-xs"
+                                />
+                              ) : (
+                                <Input
+                                  defaultValue={person.initials ?? ''}
+                                  key={`${person.id}-initials-${person.initials ?? ''}`}
+                                  onBlur={(e) =>
+                                    void saveTextField(person, 'initials', e.target.value)
+                                  }
+                                  aria-label={t('garments.initials')}
+                                  className="h-8 w-full px-1 text-center text-xs"
+                                />
+                              )}
+                            </td>
+                          );
+                        }
+                        return (
+                          <td
+                            key={columnId}
+                            className="w-12 border-r border-border/50 px-0.5 py-1.5"
                           >
-                            {person.jerseyNumber?.trim() || '—'}
-                          </span>
-                        ) : isEditing ? (
-                          <Input
-                            value={editDraft.jerseyNumber ?? ''}
-                            onChange={(e) =>
-                              setEditDraft((prev) => ({ ...prev, jerseyNumber: e.target.value }))
-                            }
-                            aria-label={t('garments.jerseyNumber')}
-                            className={cn(
-                              'h-8 w-full px-1 text-center text-xs',
-                              jerseyDup && 'border-amber-400',
+                            {readOnly ? (
+                              <span
+                                className={cn(
+                                  'block truncate px-0.5 text-center text-xs font-medium',
+                                  jerseyDup && 'text-amber-700 dark:text-amber-300',
+                                )}
+                              >
+                                {person.jerseyNumber?.trim() || '—'}
+                              </span>
+                            ) : isEditing ? (
+                              <Input
+                                value={editDraft.jerseyNumber ?? ''}
+                                onChange={(e) =>
+                                  setEditDraft((prev) => ({
+                                    ...prev,
+                                    jerseyNumber: e.target.value,
+                                  }))
+                                }
+                                aria-label={t('garments.jerseyNumber')}
+                                className={cn(
+                                  'h-8 w-full px-1 text-center text-xs',
+                                  jerseyDup && 'border-amber-400',
+                                )}
+                              />
+                            ) : (
+                              <Input
+                                defaultValue={person.jerseyNumber ?? ''}
+                                key={`${person.id}-jerseyNumber-${person.jerseyNumber ?? ''}`}
+                                onBlur={(e) =>
+                                  void saveTextField(person, 'jerseyNumber', e.target.value)
+                                }
+                                aria-label={t('garments.jerseyNumber')}
+                                className={cn(
+                                  'h-8 w-full px-1 text-center text-xs',
+                                  jerseyDup && 'border-amber-400',
+                                )}
+                              />
                             )}
-                          />
-                        ) : (
-                          <Input
-                            defaultValue={person.jerseyNumber ?? ''}
-                            key={`${person.id}-jerseyNumber-${person.jerseyNumber ?? ''}`}
-                            onBlur={(e) =>
-                              void saveTextField(person, 'jerseyNumber', e.target.value)
-                            }
-                            aria-label={t('garments.jerseyNumber')}
-                            className={cn(
-                              'h-8 w-full px-1 text-center text-xs',
-                              jerseyDup && 'border-amber-400',
-                            )}
-                          />
-                        )}
-                      </td>
+                          </td>
+                        );
+                      })}
                       {personColumns.map((col) => (
                         <td key={col.id} className={PERSON_CHECKBOX_CELL_CLASS}>
                           <input
@@ -1130,15 +1220,26 @@ export function PersonMatrix({
                               key={`${person.id}-${group}`}
                               className="border-b border-border/40 bg-muted/10"
                             >
-                              <td className="border-r border-border bg-muted/10 py-1.5 pl-9 pr-2 text-xs text-muted-foreground">
-                                {translateCheckboxGroupLabel(t, group)}
-                              </td>
-                              {hasTeams ? (
-                                <td className="border-r border-border/40 px-1 py-1.5" />
-                              ) : null}
-                              <td className="border-r border-border/40 px-1 py-1.5" />
-                              <td className="border-r border-border/40 px-0.5 py-1.5" />
-                              <td className="border-r border-border/40 px-0.5 py-1.5" />
+                              {matrixIdentityColumnIds.map((columnId) =>
+                                columnId === 'name' ? (
+                                  <td
+                                    key={columnId}
+                                    className="border-r border-border bg-muted/10 py-1.5 pl-9 pr-2 text-xs text-muted-foreground"
+                                  >
+                                    {translateCheckboxGroupLabel(t, group)}
+                                  </td>
+                                ) : (
+                                  <td
+                                    key={columnId}
+                                    className={cn(
+                                      'border-r border-border/40 py-1.5',
+                                      columnId === 'team' || columnId === 'jerseyName'
+                                        ? 'px-1'
+                                        : 'px-0.5',
+                                    )}
+                                  />
+                                ),
+                              )}
                               {personColumns.map((col) => (
                                 <td
                                   key={`${person.id}-${group}-${col.id}`}
@@ -1282,43 +1383,6 @@ export function PersonMatrix({
       )}
 
       <GarmentListFitSummary entries={fitSummary} />
-
-      {!readOnly ? (
-        <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-border/50 pt-4">
-          <div className="min-w-[12rem] flex-1">
-            <Label htmlFor="add-person-name" className={DETAIL_FIELD_LABEL_CLASS}>
-              {t('garments.addPerson')}
-            </Label>
-            <Input
-              id="add-person-name"
-              name="garment-person-name"
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  void handleAdd();
-                }
-              }}
-              placeholder={t('garments.personNamePlaceholder')}
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
-              className="h-9"
-            />
-          </div>
-          <RoundIconLabelButton
-            type="button"
-            icon={Plus}
-            label={t('garments.addPerson')}
-            variant="soft"
-            size="xs"
-            alwaysExpanded
-            onClick={() => void handleAdd()}
-            disabled={!draftName.trim()}
-          />
-        </div>
-      ) : null}
 
       <ConfirmDialog
         isOpen={deletingId != null}

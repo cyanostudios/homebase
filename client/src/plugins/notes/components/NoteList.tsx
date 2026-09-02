@@ -85,6 +85,7 @@ import {
   resolveNoteListViewMode,
   type NoteListViewMode,
 } from '../utils/noteListViewMode';
+import { resolveVisibleNoteTableColumns, type NoteTableColumnId } from '../utils/noteTableColumns';
 
 import { NoteListItem } from './NoteListItem';
 import { NoteListTable } from './NoteListTable';
@@ -154,8 +155,11 @@ export const NoteList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<NoteListViewMode>(
     getInitialNoteListViewMode,
   );
+  const [visibleColumnIds, setVisibleColumnIds] = useState<NoteTableColumnId[]>(() =>
+    resolveVisibleNoteTableColumns(null),
+  );
   const [activeFilters, setActiveFilters] = useState<NoteListFilterSelection>([]);
-  const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('import');
+  const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('columns');
 
   useEffect(() => {
     let cancelled = false;
@@ -176,6 +180,7 @@ export const NoteList: React.FC = () => {
         const nextView = resolveNoteListViewMode(settings);
         setListViewModeState(nextView);
         persistNoteListViewModeSession(nextView);
+        setVisibleColumnIds(resolveVisibleNoteTableColumns(settings));
       })
       .catch(() => {});
     return () => {
@@ -666,6 +671,7 @@ export const NoteList: React.FC = () => {
                   recentlyDuplicatedNoteId={recentlyDuplicatedNoteId}
                   selectionEnabled={selectionMode}
                   activeNoteId={previewNote?.id ?? null}
+                  visibleColumnIds={visibleColumnIds}
                 />
               ) : (
                 <div

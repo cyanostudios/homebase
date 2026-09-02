@@ -23,10 +23,19 @@ describe('CupsList table view wiring', () => {
     expect(tableSrc).toMatch(/start_date/);
     expect(tableSrc).toMatch(/featured/);
     expect(tableSrc).toMatch(/ratings_count/);
-    expect(tableSrc).not.toMatch(/updatedAt/);
+    expect(tableSrc).toMatch(/created_at/);
+    expect(tableSrc).toMatch(/updated_at/);
+    expect(tableSrc).toMatch(/visibleColumnIds/);
   });
 
-  test('settings do not expose list view mode toggle', () => {
+  test('list loads visible columns and passes them to the table', () => {
+    expect(listSrc).toMatch(/resolveVisibleCupTableColumns/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
+  });
+
+  test('settings expose columns category and do not expose list view mode toggle', () => {
+    expect(settingsSrc).toMatch(/TableColumnsSettingsSection/);
+    expect(settingsSrc).toMatch(/'columns'/);
     expect(settingsSrc).not.toMatch(/SettingsListViewModeToggle/);
     expect(settingsSrc).not.toMatch(/common\.defaultListView/);
     expect(settingsSrc).not.toMatch(/CupsViewMode/);

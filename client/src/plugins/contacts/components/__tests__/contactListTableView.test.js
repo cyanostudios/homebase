@@ -27,9 +27,18 @@ describe('ContactList table view wiring', () => {
     expect(tableSrc).toMatch(/contacts\.table\.tags/);
     expect(tableSrc).toMatch(/contacts\.table\.assignable/);
     expect(tableSrc).toMatch(/contacts\.table\.time/);
+    expect(tableSrc).toMatch(/contacts\.table\.email/);
+    expect(tableSrc).toMatch(/contacts\.table\.phone/);
+    expect(tableSrc).toMatch(/contacts\.table\.created/);
+    expect(tableSrc).toMatch(/contacts\.table\.updated/);
+    expect(tableSrc).toMatch(/visibleColumnIds/);
     expect(tableSrc).toMatch(/selectionEnabled/);
     expect(tableSrc).toMatch(/activeContactId/);
-    expect(tableSrc).not.toMatch(/contacts\.table\.updated/);
+  });
+
+  test('list resolves and passes visible table columns from settings', () => {
+    expect(listSrc).toMatch(/resolveVisibleContactTableColumns/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });
 
   test('list split view previews contacts on wide screens without opening the global panel', () => {

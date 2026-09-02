@@ -32,6 +32,27 @@ describe('GarmentsModel transforms', () => {
     expect(list.checkboxColumns[1].group).toBeUndefined();
   });
 
+  it('preserves hidden flag on checkbox columns', () => {
+    const list = model.transformListRow({
+      id: 1,
+      name: 'P2015',
+      team_id: null,
+      checkbox_columns: JSON.stringify([
+        { id: 'person_betalt', label: 'Paid', sortOrder: 0 },
+        { id: 'custom_1', label: 'New order', sortOrder: 1, hidden: true },
+      ]),
+      person_count: 0,
+      created_at: '2026-01-01',
+      updated_at: '2026-01-02',
+    });
+    expect(list.checkboxColumns[1]).toEqual({
+      id: 'custom_1',
+      label: 'New order',
+      sortOrder: 1,
+      hidden: true,
+    });
+  });
+
   it('transforms person and filters checkbox values to allowed ids', () => {
     const person = model.transformPersonRow(
       {
@@ -76,6 +97,7 @@ describe('GarmentsModel transforms', () => {
         jersey_name: null,
         initials: null,
         comment: null,
+        tags: [],
         contact_id: null,
         team_id: null,
         checkbox_values: {},
@@ -132,6 +154,7 @@ describe('GarmentsModel transforms', () => {
         purchase_price: null,
         currency: 'SEK',
         comment: null,
+        tags: [],
         created_at: null,
         updated_at: null,
       }),
@@ -252,6 +275,7 @@ describe('GarmentsModel person teamId', () => {
     jersey_name: null,
     initials: null,
     comment: null,
+    tags: [],
     contact_id: null,
     team_id: 5,
     checkbox_values: {},

@@ -7,6 +7,11 @@ import { formatDateTimeShort } from '@/core/utils/dateFormat';
 
 import type { Match } from '../types/match';
 import type { MatchSortField, MatchSortOrder } from '../utils/matchListSort';
+import {
+  DEFAULT_MATCH_TABLE_COLUMNS,
+  type MatchTableColumnId,
+  resolveVisibleMatchTableColumns,
+} from '../utils/matchTableColumns';
 
 import { MatchTeamBadge } from './MatchTeamBadge';
 
@@ -26,6 +31,7 @@ export type MatchListTableProps = {
   recentlyDuplicatedMatchId: string | null;
   activeMatchId?: string | number | null;
   selectionEnabled?: boolean;
+  visibleColumnIds?: MatchTableColumnId[];
 };
 
 function formatStart(value: string | null | undefined): string {
@@ -49,13 +55,24 @@ export function MatchListTable({
   recentlyDuplicatedMatchId,
   activeMatchId = null,
   selectionEnabled = true,
+  visibleColumnIds,
 }: MatchListTableProps) {
   useTimeFormat();
   const { t } = useTranslation();
 
-  const columns = useMemo<SortableListTableColumn<Match, MatchTableColumnField>[]>(
-    () => [
-      {
+  const orderedVisibleIds = useMemo(() => {
+    if (visibleColumnIds && visibleColumnIds.length > 0) {
+      return visibleColumnIds;
+    }
+    return resolveVisibleMatchTableColumns({ tableColumns: DEFAULT_MATCH_TABLE_COLUMNS });
+  }, [visibleColumnIds]);
+
+  const columnDefs = useMemo(() => {
+    const defs: Record<
+      MatchTableColumnId,
+      SortableListTableColumn<Match, MatchTableColumnField>
+    > = {
+      matchup: {
         field: 'matchup',
         header: t('matches.matchupLabel'),
         className: 'md:hidden',
@@ -66,7 +83,7 @@ export function MatchListTable({
           </span>
         ),
       },
-      {
+      start_time: {
         field: 'start_time',
         header: t('matches.timeLabel'),
         cell: (match) => (
@@ -75,7 +92,7 @@ export function MatchListTable({
           </span>
         ),
       },
-      {
+      home_team: {
         field: 'home_team',
         header: t('matches.homeTeamLabel'),
         className: 'hidden md:table-cell',
@@ -83,13 +100,13 @@ export function MatchListTable({
           <span className="font-medium text-foreground">{match.home_team || '—'}</span>
         ),
       },
-      {
+      away_team: {
         field: 'away_team',
         header: t('matches.awayTeamLabel'),
         className: 'hidden md:table-cell',
         cell: (match) => <span className="text-foreground">{match.away_team || '—'}</span>,
       },
-      {
+      team_id: {
         field: 'team_id',
         header: t('matches.team'),
         className: 'hidden sm:table-cell',
@@ -100,7 +117,7 @@ export function MatchListTable({
             <span className="text-xs text-muted-foreground">—</span>
           ),
       },
-      {
+      location: {
         field: 'location',
         header: t('matches.locationLabel'),
         className: 'hidden sm:table-cell',
@@ -108,7 +125,7 @@ export function MatchListTable({
           <span className="text-xs text-muted-foreground">{match.location || '—'}</span>
         ),
       },
-      {
+      competition_name: {
         field: 'competition_name',
         header: t('matches.competitionName'),
         className: 'hidden md:table-cell',
@@ -116,8 +133,38 @@ export function MatchListTable({
           <span className="text-xs text-muted-foreground">{match.competition_name || '—'}</span>
         ),
       },
-    ],
-    [t],
+      created_at: {
+        field: 'created_at',
+        header: t('common.created'),
+        className: 'hidden lg:table-cell',
+        cell: (match) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(match.created_at) || '—'}
+          </span>
+        ),
+      },
+      updated_at: {
+        field: 'updated_at',
+        header: t('common.updated'),
+        className: 'hidden lg:table-cell',
+        cell: (match) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(match.updated_at) || '—'}
+          </span>
+        ),
+      },
+    };
+    return defs;
+  }, [t]);
+
+  const columns = useMemo(
+    () =>
+      orderedVisibleIds
+        .map((id) => columnDefs[id])
+        .filter((col): col is SortableListTableColumn<Match, MatchTableColumnField> =>
+          Boolean(col),
+        ),
+    [orderedVisibleIds, columnDefs],
   );
 
   return (

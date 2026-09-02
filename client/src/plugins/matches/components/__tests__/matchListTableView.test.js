@@ -23,12 +23,20 @@ describe('MatchList table view wiring', () => {
     expect(tableSrc).toMatch(/competition_name/);
     expect(tableSrc).toMatch(/team_id/);
     expect(tableSrc).toMatch(/MatchTeamBadge/);
-    expect(tableSrc).not.toMatch(/updated_at/);
+    expect(tableSrc).toMatch(/created_at/);
+    expect(tableSrc).toMatch(/updated_at/);
+    expect(tableSrc).toMatch(/visibleColumnIds/);
+  });
+
+  test('list resolves and passes visible table columns from settings', () => {
+    expect(listSrc).toMatch(/resolveVisibleMatchTableColumns/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });
 
   test('settings do not expose list view mode toggle', () => {
     expect(settingsSrc).not.toMatch(/SettingsListViewModeToggle/);
     expect(settingsSrc).not.toMatch(/common\.defaultListView/);
     expect(settingsSrc).not.toMatch(/MatchViewMode/);
+    expect(settingsSrc).toMatch(/TableColumnsSettingsSection/);
   });
 });

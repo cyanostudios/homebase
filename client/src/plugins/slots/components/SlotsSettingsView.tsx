@@ -1,24 +1,47 @@
 // Slots settings as full-page content matching Core Settings layout.
 
 import { Plus, X } from 'lucide-react';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
+import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 
 import { useSlotSettings } from '../hooks/useSlotSettings';
+import { SLOTS_SETTINGS_KEY } from '../utils/slotColumnCount';
+import {
+  isSlotTableColumnId,
+  normalizeSlotTableColumns,
+  reorderSlotTableColumns,
+  setSlotTableColumnHidden,
+  slotTableColumnsEqual,
+  type SlotTableColumnId,
+  type SlotTableColumnsPref,
+} from '../utils/slotTableColumns';
 
-export type SlotsSettingsCategory = 'categories';
+const COLUMN_LABEL_KEYS: Record<SlotTableColumnId, string> = {
+  name: 'slots.nameLabel',
+  category: 'slots.categoryLabel',
+  location: 'slots.locationLabel',
+  slot_time: 'slots.timeLabel',
+  visible: 'common.visible',
+  booked_count: 'slots.publicBookings',
+  created_at: 'common.created',
+  updated_at: 'common.updated',
+};
+
+export type SlotsSettingsCategory = 'columns' | 'categories';
 
 interface SlotsSettingsViewProps {
   selectedCategory?: SlotsSettingsCategory;
@@ -34,15 +57,38 @@ export function SlotsSettingsView({
   onClose,
 }: SlotsSettingsViewProps = {}) {
   const { t } = useTranslation();
-  const { tags, setTags, isDirty, isLoading, isSaving, save } = useSlotSettings();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
+  const {
+    tags,
+    setTags,
+    isDirty: tagsDirty,
+    isLoading: tagsLoading,
+    isSaving: tagsSaving,
+    save: saveTags,
+  } = useSlotSettings();
   const [internalSelectedCategory, setInternalSelectedCategory] =
-    useState<SlotsSettingsCategory>('categories');
+    useState<SlotsSettingsCategory>('columns');
   const [newTag, setNewTag] = useState('');
   const activeCategory = selectedCategory ?? internalSelectedCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalSelectedCategory;
 
+  const [tableColumns, setTableColumns] = useState<SlotTableColumnsPref>(() =>
+    normalizeSlotTableColumns(null),
+  );
+  const [initialTableColumns, setInitialTableColumns] = useState<SlotTableColumnsPref>(() =>
+    normalizeSlotTableColumns(null),
+  );
+  const [columnsLoading, setColumnsLoading] = useState(true);
+  const [columnsSaving, setColumnsSaving] = useState(false);
+
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'columns',
+        label: t('slots.settingsCategories.columns'),
+        description: t('slots.settingsCategories.columnsDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.columns,
+      },
       {
         id: 'categories',
         label: t('slots.settingsCategories.categories'),
@@ -52,6 +98,59 @@ export function SlotsSettingsView({
     ],
     [t],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings(SLOTS_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        const loaded = normalizeSlotTableColumns(settings?.tableColumns);
+        setTableColumns(loaded);
+        setInitialTableColumns(loaded);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) {
+          setColumnsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  const columnsDirty = !slotTableColumnsEqual(tableColumns, initialTableColumns);
+  const isDirty =
+    (activeCategory === 'columns' && columnsDirty) ||
+    (activeCategory === 'categories' && tagsDirty);
+  const isSaving = activeCategory === 'columns' ? columnsSaving : tagsSaving;
+  const isLoading = tagsLoading || columnsLoading;
+
+  const handleSaveColumns = useCallback(async () => {
+    setColumnsSaving(true);
+    try {
+      const next = normalizeSlotTableColumns(tableColumns);
+      await updateSettings(SLOTS_SETTINGS_KEY, { tableColumns: next });
+      setTableColumns(next);
+      setInitialTableColumns(next);
+    } catch (error) {
+      console.error('Failed to save slots table columns:', error);
+    } finally {
+      setColumnsSaving(false);
+    }
+  }, [tableColumns, updateSettings]);
+
+  const handleSave = useCallback(async () => {
+    if (activeCategory === 'columns') {
+      await handleSaveColumns();
+      return;
+    }
+    if (activeCategory === 'categories') {
+      await saveTags();
+    }
+  }, [activeCategory, handleSaveColumns, saveTags]);
 
   const addTag = useCallback(() => {
     const next = newTag.trim();
@@ -86,14 +185,28 @@ export function SlotsSettingsView({
       activeCategory={activeCategory}
       onCategoryChange={(id) => setActiveCategory(id as SlotsSettingsCategory)}
       onClose={onClose}
-      onSave={isDirty ? () => void save() : undefined}
+      onSave={isDirty ? () => void handleSave() : undefined}
       isSaving={isSaving}
       saveAction={
         isDirty ? (
-          <SettingsHeaderSaveButton onClick={() => void save()} isSaving={isSaving} />
+          <SettingsHeaderSaveButton onClick={() => void handleSave()} isSaving={isSaving} />
         ) : null
       }
     >
+      {activeCategory === 'columns' && (
+        <TableColumnsSettingsSection
+          title={t('slots.settingsCategories.columns')}
+          hint={t('slots.settingsCategories.columnsHint')}
+          pref={tableColumns}
+          requiredColumnId="name"
+          labelFor={(id) => t(COLUMN_LABEL_KEYS[id])}
+          isColumnId={isSlotTableColumnId}
+          reorder={reorderSlotTableColumns}
+          setHidden={setSlotTableColumnHidden}
+          onChange={setTableColumns}
+        />
+      )}
+
       {activeCategory === 'categories' && (
         <DetailSection title="Categories" className="pt-0">
           <div className="space-y-3">

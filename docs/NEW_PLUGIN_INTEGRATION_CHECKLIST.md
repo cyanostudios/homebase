@@ -19,7 +19,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - **Routes factory:** `createYourRoutes(controller, context)` — pass `context` through; do not thread `requirePlugin` as a separate top-level argument.
 - **Validation:** use `validateRequest` and `commonRules` / `body` from `server/core/middleware/validation.js` (same stack as production plugins).
 - **CSRF:** import `csrfProtection` from `server/core/middleware/csrf.js` on all POST/PUT/PATCH/DELETE routes (template already does). Server uses session-backed `csrf({ cookie: false })` when `ENABLE_CSRF=true` — see `docs/RAILWAY_HOMEBASE_SETUP.md` §5. Frontend must use `createApiClient` / `apiFetch` (template `templateApi.ts`).
-- **List layout settings:** persist `listViewMode` / `columnCount` with AppContext `getSettings` / `updateSettings` (core `user_settings`). Do **not** add a plugin `GET/PUT /settings` for that (template has none).
+- **List layout settings:** persist `listViewMode` / `columnCount` with AppContext `getSettings` / `updateSettings` (core `user_settings`). Do **not** add a plugin `GET/PUT /settings` for that (template has none). Optional table column prefs (Contacts, Notes, Tasks, Requests): same channel — `tableColumns: { order, hidden }` under the plugin category; see `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` (table column visibility) and `client/src/core/list/tableColumnsPref.ts`.
 - **Discovery:** folder under `plugins/<name>/` with `index.js` + `plugin.config.js` so `plugin-loader.js` picks it up.
 - **Schema:** add tenant migrations under `server/migrations/` for plugin tables; optional extra runner under `scripts/` if you need data backfills.
 

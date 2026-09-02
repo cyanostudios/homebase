@@ -4,11 +4,17 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { SortableListTable } from '@/core/ui/SortableListTable';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import type { Contact } from '../types/contacts';
 import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
 import type { ContactSortField, ContactSortOrder } from '../utils/contactListSort';
+import {
+  DEFAULT_CONTACT_TABLE_COLUMNS,
+  type ContactTableColumnId,
+  resolveVisibleContactTableColumns,
+} from '../utils/contactTableColumns';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
@@ -29,7 +35,17 @@ export type ContactListTableProps = {
   contactIdsWithTimeEntries: ReadonlySet<string | number>;
   recentlyDuplicatedContactId: string | null;
   activeContactId?: string | number | null;
+  /** Ordered visible table column ids from user settings. */
+  visibleColumnIds?: ContactTableColumnId[];
 };
+
+function formatContactPhone(contact: Contact): string {
+  const primary = contact.phone?.trim();
+  if (primary) {
+    return primary;
+  }
+  return contact.phone2?.trim() || '';
+}
 
 export function ContactListTable({
   contacts,
@@ -47,13 +63,29 @@ export function ContactListTable({
   contactIdsWithTimeEntries,
   recentlyDuplicatedContactId,
   activeContactId = null,
+  visibleColumnIds,
 }: ContactListTableProps) {
   const { t } = useTranslation();
 
-  const columns = useMemo(
-    () => [
+  const orderedVisibleIds = useMemo(() => {
+    if (visibleColumnIds && visibleColumnIds.length > 0) {
+      return visibleColumnIds;
+    }
+    return resolveVisibleContactTableColumns({ tableColumns: DEFAULT_CONTACT_TABLE_COLUMNS });
+  }, [visibleColumnIds]);
+
+  const columnDefs = useMemo(() => {
+    const defs: Record<
+      ContactTableColumnId,
       {
-        field: 'name' as const,
+        field: ContactSortField;
+        header: React.ReactNode;
+        className?: string;
+        cell: (contact: Contact) => React.ReactNode;
+      }
+    > = {
+      name: {
+        field: 'name',
         header: t('contacts.table.name'),
         cell: (contact: Contact) => (
           <span className="font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary">
@@ -61,8 +93,8 @@ export function ContactListTable({
           </span>
         ),
       },
-      {
-        field: 'type' as const,
+      type: {
+        field: 'type',
         header: t('contacts.table.type'),
         cell: (contact: Contact) => (
           <Badge
@@ -76,8 +108,8 @@ export function ContactListTable({
           </Badge>
         ),
       },
-      {
-        field: 'tags' as const,
+      tags: {
+        field: 'tags',
         header: t('contacts.table.tags'),
         className: 'hidden lg:table-cell',
         cell: (contact: Contact) => {
@@ -103,8 +135,8 @@ export function ContactListTable({
           );
         },
       },
-      {
-        field: 'assignable' as const,
+      assignable: {
+        field: 'assignable',
         header: t('contacts.table.assignable'),
         cell: (contact: Contact) => (
           <span
@@ -119,8 +151,8 @@ export function ContactListTable({
           />
         ),
       },
-      {
-        field: 'time' as const,
+      time: {
+        field: 'time',
         header: t('contacts.table.time'),
         className: 'hidden md:table-cell',
         cell: (contact: Contact) => {
@@ -156,8 +188,62 @@ export function ContactListTable({
           return <span className="text-xs text-muted-foreground">—</span>;
         },
       },
-    ],
-    [t, activeTimeTrackingContactId, contactIdsWithTimeEntries],
+      email: {
+        field: 'email',
+        header: t('contacts.table.email'),
+        className: 'hidden md:table-cell',
+        cell: (contact: Contact) => {
+          const email = contact.email?.trim();
+          return email ? (
+            <span className="truncate text-sm text-muted-foreground">{email}</span>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          );
+        },
+      },
+      phone: {
+        field: 'phone',
+        header: t('contacts.table.phone'),
+        className: 'hidden md:table-cell',
+        cell: (contact: Contact) => {
+          const phone = formatContactPhone(contact);
+          return phone ? (
+            <span className="truncate text-sm text-muted-foreground">{phone}</span>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          );
+        },
+      },
+      createdAt: {
+        field: 'createdAt',
+        header: t('contacts.table.created'),
+        className: 'hidden lg:table-cell',
+        cell: (contact: Contact) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(contact.createdAt) || '—'}
+          </span>
+        ),
+      },
+      updatedAt: {
+        field: 'updatedAt',
+        header: t('contacts.table.updated'),
+        className: 'hidden lg:table-cell',
+        cell: (contact: Contact) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(contact.updatedAt) || '—'}
+          </span>
+        ),
+      },
+    };
+    return defs;
+  }, [t, activeTimeTrackingContactId, contactIdsWithTimeEntries]);
+
+  const columns = useMemo(
+    () =>
+      orderedVisibleIds
+        .map((id) => columnDefs[id])
+        .filter((col): col is (typeof columnDefs)[ContactTableColumnId] => Boolean(col)),
+    [orderedVisibleIds, columnDefs],
   );
 
   return (

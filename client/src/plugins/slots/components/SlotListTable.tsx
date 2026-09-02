@@ -2,18 +2,25 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
-import { SortableListTable } from '@/core/ui/SortableListTable';
+import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import type { Slot } from '../types/slots';
 import type { SlotSortField, SlotSortOrder } from '../utils/slotListSort';
+import {
+  DEFAULT_SLOT_TABLE_COLUMNS,
+  type SlotTableColumnId,
+  resolveVisibleSlotTableColumns,
+} from '../utils/slotTableColumns';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function formatSlotDateTime(s: string | null) {
   return s ? formatDateTimeShort(s) : '—';
 }
+
+type SlotTableColumnField = SlotSortField | 'created_at' | 'updated_at';
 
 export type SlotListTableProps = {
   slots: Slot[];
@@ -29,6 +36,7 @@ export type SlotListTableProps = {
   recentlyDuplicatedSlotId: string | null;
   activeSlotId?: string | number | null;
   selectionEnabled?: boolean;
+  visibleColumnIds?: SlotTableColumnId[];
 };
 
 export function SlotListTable({
@@ -45,25 +53,33 @@ export function SlotListTable({
   recentlyDuplicatedSlotId,
   activeSlotId = null,
   selectionEnabled = true,
+  visibleColumnIds,
 }: SlotListTableProps) {
   const { t } = useTranslation();
 
-  const columns = useMemo(
-    () => [
-      {
-        field: 'name' as const,
+  const orderedVisibleIds = useMemo(() => {
+    if (visibleColumnIds && visibleColumnIds.length > 0) {
+      return visibleColumnIds;
+    }
+    return resolveVisibleSlotTableColumns({ tableColumns: DEFAULT_SLOT_TABLE_COLUMNS });
+  }, [visibleColumnIds]);
+
+  const columnDefs = useMemo(() => {
+    const defs: Record<SlotTableColumnId, SortableListTableColumn<Slot, SlotTableColumnField>> = {
+      name: {
+        field: 'name',
         header: t('slots.nameLabel'),
-        cell: (slot: Slot) => (
+        cell: (slot) => (
           <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
             {slot.name?.trim() || `SLT ${slot.id}`}
           </span>
         ),
       },
-      {
-        field: 'category' as const,
+      category: {
+        field: 'category',
         header: t('slots.categoryLabel'),
         className: 'hidden sm:table-cell',
-        cell: (slot: Slot) =>
+        cell: (slot) =>
           slot.category?.trim() ? (
             <Badge className={cn(BADGE_CLASS, 'bg-muted text-muted-foreground')}>
               {slot.category.trim()}
@@ -72,27 +88,27 @@ export function SlotListTable({
             <span className="text-xs text-muted-foreground">—</span>
           ),
       },
-      {
-        field: 'location' as const,
+      location: {
+        field: 'location',
         header: t('slots.locationLabel'),
         className: 'hidden md:table-cell',
-        cell: (slot: Slot) => (
+        cell: (slot) => (
           <span className="text-xs text-muted-foreground">{slot.location?.trim() || '—'}</span>
         ),
       },
-      {
-        field: 'slot_time' as const,
+      slot_time: {
+        field: 'slot_time',
         header: t('slots.timeLabel'),
-        cell: (slot: Slot) => (
+        cell: (slot) => (
           <span className="text-xs tabular-nums text-muted-foreground">
             {formatSlotDateTime(slot.slot_time ?? null)}
           </span>
         ),
       },
-      {
-        field: 'visible' as const,
+      visible: {
+        field: 'visible',
         header: t('common.visible'),
-        cell: (slot: Slot) => (
+        cell: (slot) => (
           <span
             className={cn(
               'inline-block h-2 w-2 rounded-full',
@@ -103,18 +119,48 @@ export function SlotListTable({
           />
         ),
       },
-      {
-        field: 'booked_count' as const,
+      booked_count: {
+        field: 'booked_count',
         header: t('slots.publicBookings'),
         className: 'hidden lg:table-cell',
-        cell: (slot: Slot) => (
+        cell: (slot) => (
           <span className="text-xs tabular-nums text-muted-foreground">
             {slot.booked_count ?? 0}
           </span>
         ),
       },
-    ],
-    [t],
+      created_at: {
+        field: 'created_at',
+        header: t('common.created'),
+        className: 'hidden lg:table-cell',
+        sortable: false,
+        cell: (slot) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(slot.created_at) || '—'}
+          </span>
+        ),
+      },
+      updated_at: {
+        field: 'updated_at',
+        header: t('common.updated'),
+        className: 'hidden lg:table-cell',
+        sortable: false,
+        cell: (slot) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(slot.updated_at) || '—'}
+          </span>
+        ),
+      },
+    };
+    return defs;
+  }, [t]);
+
+  const columns = useMemo(
+    () =>
+      orderedVisibleIds
+        .map((id) => columnDefs[id])
+        .filter((col): col is SortableListTableColumn<Slot, SlotTableColumnField> => Boolean(col)),
+    [orderedVisibleIds, columnDefs],
   );
 
   return (
@@ -124,7 +170,12 @@ export function SlotListTable({
       getRowId={(slot) => String(slot.id)}
       primarySort={primarySort}
       sortOrder={sortOrder}
-      onSort={onSort}
+      onSort={(field) => {
+        if (field === 'created_at' || field === 'updated_at') {
+          return;
+        }
+        onSort(field);
+      }}
       onRowClick={onRowClick}
       rowAriaLabel={(slot) => slot.name?.trim() || `SLT ${slot.id}`}
       rowClassName={(slot) =>

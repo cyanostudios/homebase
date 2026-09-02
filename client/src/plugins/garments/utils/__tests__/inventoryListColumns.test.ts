@@ -28,6 +28,7 @@ const sampleItem: InventoryItem = {
   salePrice: null,
   currency: 'SEK',
   comment: null,
+  tags: [],
   variants: [
     {
       id: '1',
@@ -87,6 +88,18 @@ describe('inventoryListColumns', () => {
       { id: 'shorts_bestallt', label: 'Ordered', group: 'Shorts', sortOrder: 2 },
       { id: 'inv_3_ordered', label: 'Ordered', group: 'Jacket', sortOrder: 3 },
       { id: 'inv_5_ordered', label: 'Ordered', group: 'Pants', sortOrder: 4 },
+    ];
+    expect(filterMatrixColumns(columns, ['3']).map((c) => c.id)).toEqual([
+      'person_betalt',
+      'inv_3_ordered',
+    ]);
+  });
+
+  it('filters out person columns marked hidden', () => {
+    const columns: GarmentCheckboxColumn[] = [
+      { id: 'person_betalt', label: 'Paid', sortOrder: 0 },
+      { id: 'custom_1', label: 'New order', sortOrder: 1, hidden: true },
+      { id: 'inv_3_ordered', label: 'Ordered', group: 'Jacket', sortOrder: 2 },
     ];
     expect(filterMatrixColumns(columns, ['3']).map((c) => c.id)).toEqual([
       'person_betalt',

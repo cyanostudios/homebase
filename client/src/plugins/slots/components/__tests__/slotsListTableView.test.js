@@ -17,7 +17,7 @@ describe('SlotsList table view wiring', () => {
 
   test('table uses SortableListTable with sortable columns and selection', () => {
     expect(tableSrc).toMatch(/SortableListTable/);
-    expect(tableSrc).toMatch(/onSort=\{onSort\}/);
+    expect(tableSrc).toMatch(/onSort=\{/);
     expect(tableSrc).toMatch(/selectionEnabled/);
     expect(tableSrc).toMatch(/field: 'name'/);
     expect(tableSrc).toMatch(/field: 'category'/);
@@ -25,6 +25,14 @@ describe('SlotsList table view wiring', () => {
     expect(tableSrc).toMatch(/field: 'slot_time'/);
     expect(tableSrc).toMatch(/field: 'visible'/);
     expect(tableSrc).toMatch(/field: 'booked_count'/);
-    expect(tableSrc).not.toMatch(/field: 'updatedAt'/);
+    expect(tableSrc).toMatch(/field: 'created_at'/);
+    expect(tableSrc).toMatch(/field: 'updated_at'/);
+    expect(tableSrc).toMatch(/visibleColumnIds/);
+  });
+
+  test('list loads visible columns and passes them to the table', () => {
+    expect(listSrc).toMatch(/resolveVisibleSlotTableColumns/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
+    expect(listSrc).toMatch(/SlotsSettingsView/);
   });
 });

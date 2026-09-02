@@ -15,6 +15,8 @@ export interface GarmentCheckboxColumn {
   /** Category grouping for spreadsheet headers, e.g. Shorts | Shirt | Socks */
   group?: string;
   sortOrder: number;
+  /** When true, column is stored but hidden from the person matrix (custom columns). */
+  hidden?: boolean;
 }
 
 export interface GarmentList {
@@ -111,6 +113,7 @@ export interface InventoryItem {
   salePrice: number | null;
   currency: string;
   comment: string | null;
+  tags: string[];
   variants: InventoryVariant[];
   totalQuantity: number;
   variantCount: number;
@@ -130,6 +133,7 @@ export interface InventoryItemPayload {
   salePrice?: number | null;
   currency?: string;
   comment?: string | null;
+  tags?: string[];
   variants?: InventoryVariantPayload[];
 }
 
@@ -157,4 +161,6 @@ export interface PublicGarmentList extends GarmentList {
 export interface GarmentsSettings {
   listViewMode?: 'cards' | 'table';
   columnCount?: 1 | 2 | 3;
+  /** Catalog of tags assignable on inventory items (Contacts-style). */
+  tags?: string[];
 }

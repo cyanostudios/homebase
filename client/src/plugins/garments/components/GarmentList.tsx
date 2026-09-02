@@ -2,9 +2,11 @@ import {
   ArrowDown,
   ArrowUp,
   CheckSquare,
+  LayoutGrid,
   Plus,
   Settings,
   Shirt,
+  Tag,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -35,6 +37,8 @@ import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActi
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
@@ -57,7 +61,13 @@ import {
   GARMENTS_SETTINGS_KEY,
   type GarmentColumnCount,
 } from '../utils/garmentColumnCount';
-import { garmentListMatchesSearch, inventoryItemMatchesSearch } from '../utils/garmentListFilter';
+import {
+  countInventoryItemsWithTag,
+  garmentListMatchesSearch,
+  inventoryItemMatchesSearch,
+  inventoryItemMatchesTagFilter,
+} from '../utils/garmentListFilter';
+import { normalizeInventoryTags } from '../utils/inventoryTags';
 import {
   compareGarmentListsByField,
   compareInventoryByField,
@@ -74,13 +84,22 @@ import {
   resolveGarmentListViewMode,
   type GarmentListViewMode,
 } from '../utils/garmentListViewMode';
+import {
+  resolveVisibleInventoryTableColumns,
+  type InventoryTableColumnId,
+} from '../utils/inventoryTableColumns';
 
 import { GarmentListItem } from './GarmentListItem';
 import {
   GarmentsInventorySettingsView,
   type GarmentsInventorySettingsCategory,
 } from './GarmentsInventorySettingsView';
+import {
+  GarmentsListsSettingsView,
+  type GarmentsListsSettingsCategory,
+} from './GarmentsListsSettingsView';
 import { InventoryBulkListsDialog } from './InventoryBulkListsDialog';
+import { InventoryBulkTagsDialog } from './InventoryBulkTagsDialog';
 import { GarmentListTable } from './GarmentListTable';
 import { InventoryListItem } from './InventoryListItem';
 import { InventoryListTable } from './InventoryListTable';
@@ -124,6 +143,8 @@ export const GarmentList: React.FC = () => {
     deleteInventoryItems,
     assignInventoryItemToList,
     unassignInventoryItemFromList,
+    applyTagToInventoryItem,
+    clearTagsFromInventoryItem,
     recentlyDuplicatedInventoryId,
     recentlyDuplicatedListId,
     garmentsContentView,
@@ -137,13 +158,15 @@ export const GarmentList: React.FC = () => {
 
   const isInventory = garmentsNavPage === 'garments-inventory';
 
-  const [settingsCategory, setSettingsCategory] =
-    useState<GarmentsInventorySettingsCategory>('import');
+  const [inventorySettingsCategory, setInventorySettingsCategory] =
+    useState<GarmentsInventorySettingsCategory>('tags');
+  const [listsSettingsCategory, setListsSettingsCategory] =
+    useState<GarmentsListsSettingsCategory>('customColumns');
 
   useMobileActions({
     onAdd: () =>
       attemptNavigation(() => (isInventory ? openInventoryPanel(null) : openGarmentPanel(null))),
-    ...(isInventory ? { onSettings: () => openGarmentsSettings() } : {}),
+    onSettings: () => openGarmentsSettings(isInventory ? 'inventory' : 'lists'),
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -162,9 +185,15 @@ export const GarmentList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<GarmentListViewMode>(
     getInitialGarmentListViewMode,
   );
+  const [visibleColumnIds, setVisibleColumnIds] = useState<InventoryTableColumnId[]>(() =>
+    resolveVisibleInventoryTableColumns(null),
+  );
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [inventoryTagFilter, setInventoryTagFilter] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkListsDialog, setShowBulkListsDialog] = useState(false);
+  const [showBulkTagsDialog, setShowBulkTagsDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const {
@@ -182,6 +211,7 @@ export const GarmentList: React.FC = () => {
   useEffect(() => {
     setSelectedIds([]);
     setSearchTerm('');
+    setInventoryTagFilter(null);
   }, [garmentsNavPage]);
 
   useEffect(() => {
@@ -191,12 +221,20 @@ export const GarmentList: React.FC = () => {
   }, [isInventory, setPreviewInventory]);
 
   useEffect(() => {
+    if (inventoryTagFilter && !availableTags.includes(inventoryTagFilter)) {
+      setInventoryTagFilter(null);
+    }
+  }, [availableTags, inventoryTagFilter]);
+
+  useEffect(() => {
     let cancelled = false;
     getSettings(GARMENTS_SETTINGS_KEY)
       .then((settings) => {
         if (cancelled) {
           return;
         }
+        setAvailableTags(normalizeInventoryTags(settings?.tags));
+        setVisibleColumnIds(resolveVisibleInventoryTableColumns(settings));
         const hasColumnPref = settingsHasGarmentColumnPreference(settings);
         const hasListViewPref = isGarmentListViewMode(settings?.listViewMode);
         if (!hasColumnPref && !hasListViewPref) {
@@ -293,9 +331,21 @@ export const GarmentList: React.FC = () => {
   }, [garmentLists, searchTerm, listSort, sortOrder]);
 
   const filteredInventory = useMemo(() => {
-    const filtered = inventoryItems.filter((item) => inventoryItemMatchesSearch(item, searchTerm));
+    const filtered = inventoryItems.filter(
+      (item) =>
+        inventoryItemMatchesTagFilter(item, inventoryTagFilter) &&
+        inventoryItemMatchesSearch(item, searchTerm),
+    );
     return [...filtered].sort((a, b) => compareInventoryByField(a, b, inventorySort, sortOrder));
-  }, [inventoryItems, searchTerm, inventorySort, sortOrder]);
+  }, [inventoryItems, inventorySort, inventoryTagFilter, searchTerm, sortOrder]);
+
+  const inventoryTagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const tag of availableTags) {
+      counts[tag] = countInventoryItemsWithTag(inventoryItems, tag);
+    }
+    return counts;
+  }, [availableTags, inventoryItems]);
 
   const visibleIds = useMemo(
     () => (isInventory ? filteredInventory : filteredLists).map((item) => String(item.id)),
@@ -403,6 +453,13 @@ export const GarmentList: React.FC = () => {
     const actions: BulkActionRoundItem[] = [];
     if (isInventory) {
       actions.push({
+        key: 'tags',
+        label: t('garments.bulkTagsAction'),
+        icon: Tag,
+        disabled,
+        onClick: () => setShowBulkTagsDialog(true),
+      });
+      actions.push({
         key: 'lists',
         label: t('garments.bulkListsAction'),
         icon: Shirt,
@@ -424,16 +481,25 @@ export const GarmentList: React.FC = () => {
   const totalCount = isInventory ? inventoryItems.length : garmentLists.length;
   const filteredCount = isInventory ? filteredInventory.length : filteredLists.length;
 
-  if (isInventory && garmentsContentView === 'settings') {
+  if (garmentsContentView === 'settings') {
     return (
       <div className="plugin-garments min-h-full bg-background">
         <div className="px-4 py-4 md:px-6">
-          <GarmentsInventorySettingsView
-            selectedCategory={settingsCategory}
-            onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
-            onClose={closeGarmentsSettingsView}
-          />
+          {isInventory ? (
+            <GarmentsInventorySettingsView
+              selectedCategory={inventorySettingsCategory}
+              onSelectedCategoryChange={setInventorySettingsCategory}
+              renderCategoryButtonsInline
+              onClose={closeGarmentsSettingsView}
+            />
+          ) : (
+            <GarmentsListsSettingsView
+              selectedCategory={listsSettingsCategory}
+              onSelectedCategoryChange={setListsSettingsCategory}
+              renderCategoryButtonsInline
+              onClose={closeGarmentsSettingsView}
+            />
+          )}
         </div>
       </div>
     );
@@ -450,14 +516,12 @@ export const GarmentList: React.FC = () => {
                   <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
                     {t(isInventory ? 'nav.garments-inventory' : 'nav.garments-lists')}
                   </h2>
-                  {isInventory ? (
-                    <ExpandableIconButton
-                      icon={Settings}
-                      label={t('common.settings')}
-                      variant="soft"
-                      onClick={() => openGarmentsSettings()}
-                    />
-                  ) : null}
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('common.settings')}
+                    variant="soft"
+                    onClick={() => openGarmentsSettings(isInventory ? 'inventory' : 'lists')}
+                  />
                   {filteredCount > 0 ? (
                     selectionMode ? (
                       <ExpandableIconButton
@@ -519,7 +583,52 @@ export const GarmentList: React.FC = () => {
         </div>
 
         <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
-          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)} />
+          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+            {isInventory ? (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setInventoryTagFilter(null)}
+                  className={cn(
+                    inventoryTagFilter == null
+                      ? LIST_FILTER_CHIP_ACTIVE_CLASS
+                      : LIST_FILTER_CHIP_CLASS,
+                  )}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span>
+                    {t('garments.filterAll')}{' '}
+                    <span className="tabular-nums font-semibold">({inventoryItems.length})</span>
+                  </span>
+                </Button>
+                {availableTags.map((tag) => {
+                  const isActive = inventoryTagFilter === tag;
+                  return (
+                    <Button
+                      key={tag}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setInventoryTagFilter(isActive ? null : tag)}
+                      className={cn(
+                        isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                      )}
+                    >
+                      <Tag className="h-3.5 w-3.5" />
+                      <span>
+                        {tag}{' '}
+                        <span className="tabular-nums font-semibold">
+                          ({inventoryTagCounts[tag] ?? 0})
+                        </span>
+                      </span>
+                    </Button>
+                  );
+                })}
+              </>
+            ) : null}
+          </div>
           <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
             {isInventory ? (
               <Select
@@ -601,15 +710,26 @@ export const GarmentList: React.FC = () => {
         />
 
         {isInventory ? (
-          <InventoryBulkListsDialog
-            isOpen={showBulkListsDialog}
-            onClose={() => setShowBulkListsDialog(false)}
-            selectedItems={selectedInventoryItems}
-            garmentLists={garmentLists}
-            assignInventoryItemToList={assignInventoryItemToList}
-            unassignInventoryItemFromList={unassignInventoryItemFromList}
-            onSuccess={clearSelection}
-          />
+          <>
+            <InventoryBulkTagsDialog
+              isOpen={showBulkTagsDialog}
+              onClose={() => setShowBulkTagsDialog(false)}
+              selectedItems={selectedInventoryItems}
+              availableTags={availableTags}
+              applyTagToInventoryItem={applyTagToInventoryItem}
+              clearTagsFromInventoryItem={clearTagsFromInventoryItem}
+              onSuccess={clearSelection}
+            />
+            <InventoryBulkListsDialog
+              isOpen={showBulkListsDialog}
+              onClose={() => setShowBulkListsDialog(false)}
+              selectedItems={selectedInventoryItems}
+              garmentLists={garmentLists}
+              assignInventoryItemToList={assignInventoryItemToList}
+              unassignInventoryItemFromList={unassignInventoryItemFromList}
+              onSuccess={clearSelection}
+            />
+          </>
         ) : null}
 
         <div className="flex min-w-0 flex-col gap-3">
@@ -670,6 +790,7 @@ export const GarmentList: React.FC = () => {
                     selectionEnabled={selectionMode}
                     activeInventoryId={previewInventory?.id ?? null}
                     recentlyDuplicatedInventoryId={recentlyDuplicatedInventoryId}
+                    visibleColumnIds={visibleColumnIds}
                   />
                 ) : (
                   <div

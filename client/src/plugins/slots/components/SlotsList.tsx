@@ -98,6 +98,7 @@ import {
   resolveSlotListViewMode,
   type SlotListViewMode,
 } from '../utils/slotListViewMode';
+import { resolveVisibleSlotTableColumns, type SlotTableColumnId } from '../utils/slotTableColumns';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
 import { SlotListItem } from './SlotListItem';
@@ -172,7 +173,10 @@ export function SlotsList() {
   const [listViewMode, setListViewModeState] = useState<SlotListViewMode>(
     getInitialSlotListViewMode,
   );
-  const [settingsCategory, setSettingsCategory] = useState<SlotsSettingsCategory>('categories');
+  const [visibleColumnIds, setVisibleColumnIds] = useState<SlotTableColumnId[]>(() =>
+    resolveVisibleSlotTableColumns(null),
+  );
+  const [settingsCategory, setSettingsCategory] = useState<SlotsSettingsCategory>('columns');
 
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
@@ -207,6 +211,7 @@ export function SlotsList() {
         const nextView = resolveSlotListViewMode(settings);
         setListViewModeState(nextView);
         persistSlotListViewModeSession(nextView);
+        setVisibleColumnIds(resolveVisibleSlotTableColumns(settings));
       })
       .catch(() => {});
     return () => {
@@ -795,6 +800,7 @@ export function SlotsList() {
                 onHeaderCheckboxChange={onToggleAllVisible}
                 recentlyDuplicatedSlotId={recentlyDuplicatedSlotId}
                 selectionEnabled={selectionMode}
+                visibleColumnIds={visibleColumnIds}
               />
             ) : (
               <div

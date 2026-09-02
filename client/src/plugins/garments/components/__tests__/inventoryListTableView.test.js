@@ -36,6 +36,8 @@ describe('Garment inventory list split view wiring', () => {
     expect(panelSrc).toMatch(/onVariantQuantityChange/);
     expect(panelSrc).toMatch(/decreaseQuantity/);
     expect(panelSrc).toMatch(/increaseQuantity/);
+    expect(panelSrc).toMatch(/assignedLists\.length > 0/);
+    expect(panelSrc).not.toMatch(/notInAnyList/);
     expect(listSrc).toMatch(/updateInventoryVariantQuantity/);
     expect(listSrc).toMatch(/onVariantQuantityChange=/);
     expect(formSrc).toMatch(/addVariant/);
@@ -47,6 +49,9 @@ describe('Garment inventory list split view wiring', () => {
     expect(formSrc).toMatch(/garments\.variants/);
     expect(tableSrc).toMatch(/totalQuantity/);
     expect(tableSrc).toMatch(/variantCount/);
+    expect(tableSrc).toMatch(/visibleColumnIds/);
+    expect(listSrc).toMatch(/resolveVisibleInventoryTableColumns/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });
 
   test('inventory bulk select supports list visibility like contacts assignable', () => {

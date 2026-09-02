@@ -1,7 +1,8 @@
 import { Copy, Edit, Share2, Trash2, Upload } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { RoundExpandableQuickAdd } from '@/components/ui/round-expandable-quick-add';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/DetailHeaderMenus';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
@@ -135,6 +136,7 @@ export function GarmentListDetailHeaderMenus({ list }: { list: GarmentList }) {
     handleGarmentShareClick,
     garmentShareIsCreatingShare,
     importPersons,
+    addPerson,
   } = useGarments();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -143,6 +145,16 @@ export function GarmentListDetailHeaderMenus({ list }: { list: GarmentList }) {
 
   const duplicateConfig = getDuplicateConfig(list);
   const canDuplicate = Boolean(duplicateConfig);
+
+  const handleQuickAddPerson = useCallback(
+    async (name: string) => {
+      const created = await addPerson(list.id, { name });
+      if (!created) {
+        throw new Error('Failed to add person');
+      }
+    },
+    [addPerson, list.id],
+  );
 
   const actions = useMemo((): DetailHeaderMenuAction[] => {
     const buttons: DetailHeaderMenuAction[] = [
@@ -208,6 +220,14 @@ export function GarmentListDetailHeaderMenus({ list }: { list: GarmentList }) {
       actions={actions}
       actionsLabel={t('common.headerActions')}
       exportLabel={t('common.headerExport')}
+      afterActions={
+        <RoundExpandableQuickAdd
+          label={t('garments.quickAdd')}
+          placeholder={t('garments.quickAddPlaceholder')}
+          onCreate={handleQuickAddPerson}
+          alwaysExpanded
+        />
+      }
     >
       <ConfirmDialog
         isOpen={showDeleteConfirm}

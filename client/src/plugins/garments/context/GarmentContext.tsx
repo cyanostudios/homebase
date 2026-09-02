@@ -3,6 +3,7 @@ import React, { createContext, useContext } from 'react';
 import type { ImportResult } from '@/core/utils/importUtils';
 
 import type {
+  GarmentCheckboxColumn,
   GarmentList,
   GarmentListPayload,
   GarmentPanelKind,
@@ -39,7 +40,7 @@ export interface GarmentContextType {
 
   openGarmentsInventory: () => void;
   openGarmentsLists: () => void;
-  openGarmentsSettings: () => void;
+  openGarmentsSettings: (returnView?: 'lists' | 'inventory') => void;
   closeGarmentsSettingsView: () => void;
 
   assignInventoryItemToList: (listId: string, itemId: string) => Promise<boolean>;
@@ -51,6 +52,8 @@ export interface GarmentContextType {
   ) => Promise<GarmentPerson | null>;
 
   saveGarment: (data: GarmentListPayload | InventoryItemPayload) => Promise<boolean>;
+  /** Persist full checkboxColumns for a list (must include all system columns). */
+  updateListCheckboxColumns: (listId: string, columns: GarmentCheckboxColumn[]) => Promise<boolean>;
   deleteGarment: (id: string) => Promise<void>;
   deleteGarments: (ids: string[]) => Promise<void>;
   saveInventoryItem: (data: InventoryItemPayload) => Promise<boolean>;
@@ -60,6 +63,10 @@ export interface GarmentContextType {
     variantId: string,
     quantity: number,
   ) => Promise<boolean>;
+  /** Add a tag to an inventory item (keeps existing tags). */
+  applyTagToInventoryItem: (item: InventoryItem, tag: string) => Promise<boolean>;
+  /** Remove all tags from an inventory item. */
+  clearTagsFromInventoryItem: (item: InventoryItem) => Promise<boolean>;
   deleteInventoryItem: (id: string) => Promise<string | null>;
   deleteInventoryItems: (ids: string[]) => Promise<void>;
 
@@ -151,10 +158,13 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   unassignInventoryItemFromList: async () => false,
   updatePersonCtSizes: async () => null,
   saveGarment: async () => false,
+  updateListCheckboxColumns: async () => false,
   deleteGarment: async () => {},
   deleteGarments: async () => {},
   saveInventoryItem: async () => false,
   updateInventoryVariantQuantity: async () => false,
+  applyTagToInventoryItem: async () => false,
+  clearTagsFromInventoryItem: async () => false,
   deleteInventoryItem: async () => null,
   deleteInventoryItems: async () => {},
   getDuplicateConfig: () => null,

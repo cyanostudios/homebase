@@ -33,6 +33,8 @@ export type DetailHeaderMenusProps = {
   exportActions?: DetailHeaderMenuAction[];
   /** Optional extra toggle menus (e.g. Contacts time log). */
   extraMenus?: DetailHeaderExtraMenu[];
+  /** Rendered in the trigger row immediately after the Actions control (e.g. quick-add). */
+  afterActions?: React.ReactNode;
   actionsLabel?: string;
   exportLabel?: string;
   /** Dialogs / portals owned by the caller (delete confirm, duplicate, …). */
@@ -107,6 +109,7 @@ export function DetailHeaderMenus({
   actions,
   exportActions = [],
   extraMenus = [],
+  afterActions,
   actionsLabel,
   exportLabel,
   children,
@@ -139,6 +142,7 @@ export function DetailHeaderMenus({
               onClick={() => toggleMenu('actions')}
             />
           </span>
+          {afterActions ? <span className="inline-flex shrink-0">{afterActions}</span> : null}
           {actionsOpen ? (
             <div className={DETAIL_HEADER_SUBMENU_INLINE_CLASS}>
               <DetailHeaderActionPills actions={actions} />

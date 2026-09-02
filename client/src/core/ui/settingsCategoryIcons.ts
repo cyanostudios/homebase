@@ -4,6 +4,7 @@
  */
 import {
   BookOpen,
+  Columns3,
   Image,
   LayoutGrid,
   Settings2,
@@ -15,6 +16,7 @@ import {
 
 export const SETTINGS_CATEGORY_ICONS = {
   view: LayoutGrid,
+  columns: Columns3,
   import: Upload,
   appearance: Image,
   tags: Tag,

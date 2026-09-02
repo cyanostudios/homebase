@@ -3,10 +3,16 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import type { Cup } from '../types/cups';
 import type { CupSortField, CupSortOrder } from '../utils/cupListSort';
+import {
+  DEFAULT_CUP_TABLE_COLUMNS,
+  type CupTableColumnId,
+  resolveVisibleCupTableColumns,
+} from '../utils/cupTableColumns';
 
 const CUP_VISIBLE_BADGE =
   'inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400';
@@ -14,6 +20,8 @@ const CUP_HIDDEN_BADGE =
   'inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-500 dark:bg-slate-800 dark:text-slate-400';
 const CUP_FEATURED_BADGE =
   'inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400';
+
+type CupTableColumnField = CupSortField | 'created_at' | 'updated_at';
 
 export type CupListTableProps = {
   cups: Cup[];
@@ -28,6 +36,7 @@ export type CupListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   selectionEnabled?: boolean;
+  visibleColumnIds?: CupTableColumnId[];
 };
 
 function formatDate(value: string | null | undefined): string {
@@ -50,12 +59,20 @@ export function CupListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   selectionEnabled = true,
+  visibleColumnIds,
 }: CupListTableProps) {
   const { t } = useTranslation();
 
-  const columns = useMemo<SortableListTableColumn<Cup, CupSortField>[]>(
-    () => [
-      {
+  const orderedVisibleIds = useMemo(() => {
+    if (visibleColumnIds && visibleColumnIds.length > 0) {
+      return visibleColumnIds;
+    }
+    return resolveVisibleCupTableColumns({ tableColumns: DEFAULT_CUP_TABLE_COLUMNS });
+  }, [visibleColumnIds]);
+
+  const columnDefs = useMemo(() => {
+    const defs: Record<CupTableColumnId, SortableListTableColumn<Cup, CupTableColumnField>> = {
+      name: {
         field: 'name',
         header: t('cups.columnName'),
         cell: (cup) => (
@@ -64,7 +81,7 @@ export function CupListTable({
           </span>
         ),
       },
-      {
+      ingest: {
         field: 'ingest',
         header: t('cups.columnDistrict'),
         className: 'hidden md:table-cell',
@@ -77,7 +94,7 @@ export function CupListTable({
           );
         },
       },
-      {
+      start_date: {
         field: 'start_date',
         header: t('cups.columnStart'),
         cell: (cup) => (
@@ -86,13 +103,13 @@ export function CupListTable({
           </span>
         ),
       },
-      {
+      location: {
         field: 'location',
         header: t('cups.columnLocation'),
         className: 'hidden md:table-cell',
         cell: (cup) => <span className="text-xs text-muted-foreground">{cup.location || '—'}</span>,
       },
-      {
+      featured: {
         field: 'featured',
         header: t('cups.columnFeaturedVisible'),
         className: 'hidden md:table-cell',
@@ -105,7 +122,7 @@ export function CupListTable({
           </div>
         ),
       },
-      {
+      ratings_count: {
         field: 'ratings_count',
         header: t('cups.columnRatings'),
         className: 'hidden lg:table-cell',
@@ -119,8 +136,38 @@ export function CupListTable({
             <span className="text-xs text-muted-foreground">—</span>
           ),
       },
-    ],
-    [t, ingestTitleForCup],
+      created_at: {
+        field: 'created_at',
+        header: t('common.created'),
+        className: 'hidden lg:table-cell',
+        sortable: false,
+        cell: (cup) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(cup.created_at) || '—'}
+          </span>
+        ),
+      },
+      updated_at: {
+        field: 'updated_at',
+        header: t('common.updated'),
+        className: 'hidden lg:table-cell',
+        sortable: false,
+        cell: (cup) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(cup.updated_at) || '—'}
+          </span>
+        ),
+      },
+    };
+    return defs;
+  }, [t, ingestTitleForCup]);
+
+  const columns = useMemo(
+    () =>
+      orderedVisibleIds
+        .map((id) => columnDefs[id])
+        .filter((col): col is SortableListTableColumn<Cup, CupTableColumnField> => Boolean(col)),
+    [orderedVisibleIds, columnDefs],
   );
 
   return (
@@ -130,7 +177,12 @@ export function CupListTable({
       getRowId={(cup) => String(cup.id)}
       primarySort={primarySort}
       sortOrder={sortOrder}
-      onSort={onSort}
+      onSort={(field) => {
+        if (field === 'created_at' || field === 'updated_at') {
+          return;
+        }
+        onSort(field);
+      }}
       onRowClick={onRowClick}
       rowAriaLabel={(cup) => `Open cup ${cup.name}`}
       rowClassName={(cup) =>

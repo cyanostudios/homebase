@@ -86,12 +86,16 @@ import {
   persistRequestListViewModeSession,
   type RequestListViewMode,
 } from '../utils/requestListViewMode';
+import {
+  resolveVisibleRequestTableColumns,
+  type RequestTableColumnId,
+} from '../utils/requestTableColumns';
 
 import { RequestBulkStatusDialog } from './RequestBulkStatusDialog';
 import { RequestListItem } from './RequestListItem';
 import { RequestListTable } from './RequestListTable';
 import { RequestQuickContextPanel } from './RequestQuickContextPanel';
-import { RequestsSettingsView } from './RequestsSettingsView';
+import { RequestsSettingsView, type RequestsSettingsCategory } from './RequestsSettingsView';
 import {
   PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
   PLUGIN_PAGE_LIST_SHELL_CLASS,
@@ -117,7 +121,7 @@ const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
 
 export function RequestList() {
   const { t } = useTranslation();
-  const { contacts } = useApp();
+  const { contacts, getSettings, settingsVersion } = useApp();
   const teams = useRequestTeams();
   const {
     requests,
@@ -167,9 +171,28 @@ export function RequestList() {
   const [listViewMode, setListViewModeState] = useState<RequestListViewMode>(
     getInitialRequestListViewMode,
   );
+  const [visibleColumnIds, setVisibleColumnIds] = useState<RequestTableColumnId[]>(() =>
+    resolveVisibleRequestTableColumns(null),
+  );
+  const [settingsCategory, setSettingsCategory] = useState<RequestsSettingsCategory>('types');
   const [primarySort, setPrimarySort] = useState<SortField>('updated_at');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [recentlyQuickAddedId, setRecentlyQuickAddedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings('requests')
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        setVisibleColumnIds(resolveVisibleRequestTableColumns(settings));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback((_count: RequestColumnCount) => {
     const next = 3 as RequestColumnCount;
@@ -427,7 +450,11 @@ export function RequestList() {
     return (
       <div className="plugin-requests min-h-full bg-background">
         <div className="px-4 py-4 md:px-6">
-          <RequestsSettingsView onClose={closeRequestSettingsView} />
+          <RequestsSettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            onClose={closeRequestSettingsView}
+          />
         </div>
       </div>
     );
@@ -697,6 +724,7 @@ export function RequestList() {
                   isRequestHighlighted={isRequestHighlighted}
                   selectionEnabled={selectionMode}
                   activeRequestId={previewRequest?.id ?? null}
+                  visibleColumnIds={visibleColumnIds}
                 />
               ) : (
                 <div

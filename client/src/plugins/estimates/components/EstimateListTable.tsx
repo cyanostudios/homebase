@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +13,11 @@ import {
   type Estimate,
 } from '../types/estimate';
 import type { EstimateSortField, EstimateSortOrder } from '../utils/estimateListSort';
+import {
+  DEFAULT_ESTIMATE_TABLE_COLUMNS,
+  type EstimateTableColumnId,
+  resolveVisibleEstimateTableColumns,
+} from '../utils/estimateTableColumns';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
@@ -28,6 +34,7 @@ export type EstimateListTableProps = {
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedEstimateId: string | null;
   selectionEnabled?: boolean;
+  visibleColumnIds?: EstimateTableColumnId[];
 };
 
 function formatDate(value: Date | string | null | undefined): string {
@@ -50,12 +57,23 @@ export function EstimateListTable({
   onHeaderCheckboxChange,
   recentlyDuplicatedEstimateId,
   selectionEnabled = true,
+  visibleColumnIds,
 }: EstimateListTableProps) {
   const { t } = useTranslation();
 
-  const columns = useMemo<SortableListTableColumn<Estimate, EstimateSortField>[]>(
-    () => [
-      {
+  const orderedVisibleIds = useMemo(() => {
+    if (visibleColumnIds && visibleColumnIds.length > 0) {
+      return visibleColumnIds;
+    }
+    return resolveVisibleEstimateTableColumns({ tableColumns: DEFAULT_ESTIMATE_TABLE_COLUMNS });
+  }, [visibleColumnIds]);
+
+  const columnDefs = useMemo(() => {
+    const defs: Record<
+      EstimateTableColumnId,
+      SortableListTableColumn<Estimate, EstimateSortField>
+    > = {
+      estimateNumber: {
         field: 'estimateNumber',
         header: t('estimates.table.number'),
         cell: (estimate) => (
@@ -64,7 +82,7 @@ export function EstimateListTable({
           </span>
         ),
       },
-      {
+      contactName: {
         field: 'contactName',
         header: t('estimates.fieldContact'),
         cell: (estimate) => (
@@ -73,7 +91,7 @@ export function EstimateListTable({
           </span>
         ),
       },
-      {
+      status: {
         field: 'status',
         header: t('estimates.fieldStatus'),
         cell: (estimate) => (
@@ -87,7 +105,7 @@ export function EstimateListTable({
           </Badge>
         ),
       },
-      {
+      total: {
         field: 'total',
         header: t('estimates.table.total'),
         className: 'hidden sm:table-cell',
@@ -98,7 +116,7 @@ export function EstimateListTable({
           </span>
         ),
       },
-      {
+      validTo: {
         field: 'validTo',
         header: t('estimates.fieldValidTo'),
         className: 'hidden md:table-cell',
@@ -106,8 +124,36 @@ export function EstimateListTable({
           <span className="text-xs text-muted-foreground">{formatDate(estimate.validTo)}</span>
         ),
       },
-    ],
-    [t],
+      createdAt: {
+        field: 'createdAt',
+        header: t('common.created'),
+        className: 'hidden lg:table-cell',
+        cell: (estimate) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(estimate.createdAt) || '—'}
+          </span>
+        ),
+      },
+      updatedAt: {
+        field: 'updatedAt',
+        header: t('common.updated'),
+        className: 'hidden lg:table-cell',
+        cell: (estimate) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {formatDateTimeShort(estimate.updatedAt) || '—'}
+          </span>
+        ),
+      },
+    };
+    return defs;
+  }, [t]);
+
+  const columns = useMemo(
+    () =>
+      orderedVisibleIds
+        .map((id) => columnDefs[id])
+        .filter((col): col is SortableListTableColumn<Estimate, EstimateSortField> => Boolean(col)),
+    [orderedVisibleIds, columnDefs],
   );
 
   return (

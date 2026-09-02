@@ -21,12 +21,17 @@ describe('EstimateList table view wiring', () => {
     expect(tableSrc).toMatch(/contactName/);
     expect(tableSrc).toMatch(/status/);
     expect(tableSrc).toMatch(/validTo/);
-    expect(tableSrc).not.toMatch(/updatedAt/);
+    expect(tableSrc).toMatch(/updatedAt/);
+    expect(tableSrc).toMatch(/visibleColumnIds/);
   });
 
-  test('settings view removed; list header owns listViewMode', () => {
-    expect(fs.existsSync(path.join(__dirname, '../EstimateSettingsView.tsx'))).toBe(false);
+  test('settings view exists; list header owns listViewMode and passes visibleColumnIds', () => {
+    expect(fs.existsSync(path.join(__dirname, '../EstimateSettingsView.tsx'))).toBe(true);
+    expect(listSrc).toMatch(/EstimateSettingsView/);
+    expect(listSrc).toMatch(/openEstimateSettings/);
     expect(listSrc).toMatch(/ListColumnLayoutToggle/);
     expect(listSrc).toMatch(/listViewMode/);
+    expect(listSrc).toMatch(/resolveVisibleEstimateTableColumns/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });
 });

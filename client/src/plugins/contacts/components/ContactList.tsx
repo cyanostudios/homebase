@@ -95,6 +95,10 @@ import {
   type ContactSortField,
   type ContactSortOrder,
 } from '../utils/contactListSort';
+import {
+  resolveVisibleContactTableColumns,
+  type ContactTableColumnId,
+} from '../utils/contactTableColumns';
 
 import { ContactBulkAssignableDialog } from './ContactBulkAssignableDialog';
 import { ContactBulkTagsDialog } from './ContactBulkTagsDialog';
@@ -183,6 +187,9 @@ export const ContactList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<ContactListViewMode>(
     getInitialContactListViewMode,
   );
+  const [visibleColumnIds, setVisibleColumnIds] = useState<ContactTableColumnId[]>(() =>
+    resolveVisibleContactTableColumns(null),
+  );
   const [activeFilters, setActiveFilters] = useState<ContactListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('tags');
   const [selectionMode, setSelectionMode] = useState(false);
@@ -224,6 +231,7 @@ export const ContactList: React.FC = () => {
         const nextView = resolveContactListViewMode(settings);
         setListViewModeState(nextView);
         persistContactListViewModeSession(nextView);
+        setVisibleColumnIds(resolveVisibleContactTableColumns(settings));
       })
       .catch(() => {});
     return () => {
@@ -851,6 +859,7 @@ export const ContactList: React.FC = () => {
                   contactIdsWithTimeEntries={contactIdsWithTimeEntries}
                   recentlyDuplicatedContactId={recentlyDuplicatedContactId}
                   activeContactId={previewContact?.id ?? null}
+                  visibleColumnIds={visibleColumnIds}
                 />
               ) : (
                 <div

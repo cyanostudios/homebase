@@ -56,6 +56,7 @@ export function InvoicesProvider({
     usePluginValidation<ValidationError>();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoicesContentView, setInvoicesContentView] = useState<'list' | 'settings'>('list');
   const [recentlyDuplicatedInvoiceId, setRecentlyDuplicatedInvoiceId] = useState<string | null>(
     null,
   );
@@ -578,6 +579,9 @@ export function InvoicesProvider({
     hasNextItem,
     currentItemIndex,
     totalItems,
+    invoicesContentView,
+    openInvoiceSettings: () => setInvoicesContentView('settings'),
+    closeInvoiceSettingsView: () => setInvoicesContentView('list'),
   };
 
   return <InvoicesContext.Provider value={value}>{children}</InvoicesContext.Provider>;

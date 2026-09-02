@@ -19,7 +19,9 @@ export function inventoryItemMatchesSearch(item: InventoryItem, searchTerm: stri
     (item.material || '').toLowerCase().includes(needle) ||
     (item.description || '').toLowerCase().includes(needle) ||
     (item.comment || '').toLowerCase().includes(needle) ||
-    String(item.id).toLowerCase().includes(needle)
+    String(item.id).toLowerCase().includes(needle) ||
+    (Array.isArray(item.tags) &&
+      item.tags.some((tag) => typeof tag === 'string' && tag.toLowerCase().includes(needle)))
   ) {
     return true;
   }
@@ -30,6 +32,29 @@ export function inventoryItemMatchesSearch(item: InventoryItem, searchTerm: stri
       (variant.color || '').toLowerCase().includes(needle) ||
       (variant.size || '').toLowerCase().includes(needle),
   );
+}
+
+/** `null` / empty = all items. Match is case-insensitive on assigned item tags. */
+export function inventoryItemMatchesTagFilter(
+  item: Pick<InventoryItem, 'tags'>,
+  tagFilter: string | null,
+): boolean {
+  if (!tagFilter) {
+    return true;
+  }
+  const needle = tagFilter.trim().toLowerCase();
+  if (!needle) {
+    return true;
+  }
+  const tags = Array.isArray(item.tags) ? item.tags : [];
+  return tags.some((tag) => typeof tag === 'string' && tag.trim().toLowerCase() === needle);
+}
+
+export function countInventoryItemsWithTag(
+  items: Array<Pick<InventoryItem, 'tags'>>,
+  tag: string,
+): number {
+  return items.filter((item) => inventoryItemMatchesTagFilter(item, tag)).length;
 }
 
 /** Overlay in-progress jersey edit so duplicate warnings update before Save. */

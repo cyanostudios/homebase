@@ -17,6 +17,7 @@ import {
   InventoryDetailHeaderMenus,
 } from '../components/GarmentDetailHeaderMenus';
 import type {
+  GarmentCheckboxColumn,
   GarmentList,
   GarmentListPayload,
   GarmentPanelKind,
@@ -43,6 +44,11 @@ import {
   recordInventoryValidationFailure,
 } from '../utils/inventoryImportFailures';
 import { normalizeInventoryItemPayload } from '../utils/inventoryPayloadNormalization';
+import {
+  buildInventoryTagsSavePayload,
+  inventoryTagsEqual,
+  mergeInventoryTag,
+} from '../utils/inventoryTags';
 
 import { GarmentContext, type GarmentContextType } from './GarmentContext';
 
@@ -146,11 +152,9 @@ export function GarmentProvider({
       return;
     }
     const page = pathToNavPage(location.pathname);
-    if (page !== 'garments-inventory') {
-      setGarmentsContentView('lists');
-      return;
-    }
-    setGarmentsContentView((current) => (current === 'settings' ? 'settings' : 'inventory'));
+    // Sidebar/nav switches must leave settings: lists settings must not become
+    // inventory settings (and vice versa) just because contentView stayed 'settings'.
+    setGarmentsContentView(page === 'garments-inventory' ? 'inventory' : 'lists');
   }, [location.pathname]);
 
   const closeGarmentPanel = useCallback(() => {
@@ -375,21 +379,27 @@ export function GarmentProvider({
     navigate('/garments');
   }, [navigate]);
 
-  const openGarmentsSettings = useCallback(() => {
-    setRecentlyDuplicatedInventoryId(null);
-    setRecentlyDuplicatedListId(null);
-    setIsGarmentPanelOpen(false);
-    setCurrentGarment(null);
-    setCurrentInventoryItem(null);
-    setPanelMode('create');
-    setPanelKind('list');
-    clearValidationErrors();
-    setGarmentsContentView('settings');
-    onCloseOtherPanels();
-  }, [clearValidationErrors, onCloseOtherPanels]);
+  const settingsReturnViewRef = useRef<'lists' | 'inventory'>('inventory');
+
+  const openGarmentsSettings = useCallback(
+    (returnView: 'lists' | 'inventory' = 'inventory') => {
+      settingsReturnViewRef.current = returnView;
+      setRecentlyDuplicatedInventoryId(null);
+      setRecentlyDuplicatedListId(null);
+      setIsGarmentPanelOpen(false);
+      setCurrentGarment(null);
+      setCurrentInventoryItem(null);
+      setPanelMode('create');
+      setPanelKind('list');
+      clearValidationErrors();
+      setGarmentsContentView('settings');
+      onCloseOtherPanels();
+    },
+    [clearValidationErrors, onCloseOtherPanels],
+  );
 
   const closeGarmentsSettingsView = useCallback(() => {
-    setGarmentsContentView('inventory');
+    setGarmentsContentView(settingsReturnViewRef.current);
   }, []);
 
   const validateList = useCallback(
@@ -426,6 +436,38 @@ export function GarmentProvider({
       current && String(current.id) === String(saved.id) ? inventoryProxyList(saved) : current,
     );
   }, []);
+
+  const setInventoryItemTags = useCallback(
+    async (item: InventoryItem, nextTags: string[]): Promise<boolean> => {
+      const existing = Array.isArray(item.tags) ? item.tags : [];
+      if (inventoryTagsEqual(existing, nextTags)) {
+        return true;
+      }
+      try {
+        const payload = buildInventoryTagsSavePayload(item, nextTags);
+        const saved = await garmentsApi.updateInventoryItem(String(item.id), payload);
+        applyInventoryItemUpdate(saved);
+        return true;
+      } catch (error) {
+        console.error('Failed to update inventory item tags:', error);
+        return false;
+      }
+    },
+    [applyInventoryItemUpdate],
+  );
+
+  const applyTagToInventoryItem = useCallback(
+    async (item: InventoryItem, tag: string): Promise<boolean> => {
+      const nextTags = mergeInventoryTag(item.tags, tag);
+      return setInventoryItemTags(item, nextTags);
+    },
+    [setInventoryItemTags],
+  );
+
+  const clearTagsFromInventoryItem = useCallback(
+    async (item: InventoryItem): Promise<boolean> => setInventoryItemTags(item, []),
+    [setInventoryItemTags],
+  );
 
   const updateInventoryVariantQuantity = useCallback(
     async (itemId: string, variantId: string, quantity: number): Promise<boolean> => {
@@ -532,6 +574,7 @@ export function GarmentProvider({
         salePrice,
         currency: (raw.currency ?? 'SEK').trim() || 'SEK',
         comment: raw.comment?.trim() ? raw.comment.trim() : null,
+        tags: Array.isArray(raw.tags) ? raw.tags : [],
         variants,
       };
       const errors = validateInventory(payload);
@@ -588,6 +631,7 @@ export function GarmentProvider({
         purchasePrice: item.purchasePrice,
         currency: item.currency || 'SEK',
         comment: item.comment,
+        tags: Array.isArray(item.tags) ? item.tags : [],
         variants: buildDuplicatedItemVariantPayloads(item.variants || []),
       };
       const created = await garmentsApi.createInventoryItem(payload);
@@ -811,6 +855,48 @@ export function GarmentProvider({
       return null;
     }
   }, []);
+
+  const updateListCheckboxColumns = useCallback(
+    async (listId: string, columns: GarmentCheckboxColumn[]): Promise<boolean> => {
+      const source =
+        (currentGarment?.id === listId ? currentGarment : null) ??
+        garmentLists.find((list) => list.id === listId) ??
+        null;
+      if (!source) {
+        return false;
+      }
+      try {
+        setIsSaving(true);
+        const saved = await garmentsApi.updateList(listId, {
+          name: source.name,
+          teamId: source.teamId ?? null,
+          checkboxColumns: columns,
+        });
+        setGarmentLists((prev) =>
+          prev.map((list) => (list.id === saved.id ? { ...list, ...saved } : list)),
+        );
+        setCurrentGarment((prev) => {
+          if (!prev || prev.id !== saved.id) {
+            return prev;
+          }
+          return {
+            ...prev,
+            ...saved,
+            persons: saved.persons ?? prev.persons,
+          };
+        });
+        // Refresh so person checkbox_values reflect keys stripped after column delete.
+        await refreshGarmentList(listId);
+        return true;
+      } catch (err) {
+        console.error('Failed to update list checkbox columns:', err);
+        return false;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [currentGarment, garmentLists, refreshGarmentList],
+  );
 
   const addPerson = useCallback(
     async (listId: string, data: GarmentPersonPayload): Promise<GarmentPerson | null> => {
@@ -1273,10 +1359,13 @@ export function GarmentProvider({
       unassignInventoryItemFromList,
       updatePersonCtSizes,
       saveGarment,
+      updateListCheckboxColumns,
       deleteGarment,
       deleteGarments,
       saveInventoryItem,
       updateInventoryVariantQuantity,
+      applyTagToInventoryItem,
+      clearTagsFromInventoryItem,
       deleteInventoryItem,
       deleteInventoryItems,
       getDuplicateConfig,
@@ -1336,10 +1425,13 @@ export function GarmentProvider({
       unassignInventoryItemFromList,
       updatePersonCtSizes,
       saveGarment,
+      updateListCheckboxColumns,
       deleteGarment,
       deleteGarments,
       saveInventoryItem,
       updateInventoryVariantQuantity,
+      applyTagToInventoryItem,
+      clearTagsFromInventoryItem,
       deleteInventoryItem,
       deleteInventoryItems,
       getDuplicateConfig,

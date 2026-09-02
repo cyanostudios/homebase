@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   Plus,
   Send,
+  Settings,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -85,9 +86,14 @@ import {
   resolveEstimateListViewMode,
   type EstimateListViewMode,
 } from '../utils/estimateListViewMode';
+import {
+  resolveVisibleEstimateTableColumns,
+  type EstimateTableColumnId,
+} from '../utils/estimateTableColumns';
 
 import { EstimateListItem } from './EstimateListItem';
 import { EstimateListTable } from './EstimateListTable';
+import { EstimateSettingsView, type EstimateSettingsCategory } from './EstimateSettingsView';
 
 type SortField = EstimateSortField;
 type SortOrder = EstimateSortOrder;
@@ -118,12 +124,16 @@ export function EstimateList() {
     isSelected,
     recentlyDuplicatedEstimateId,
     saveEstimate,
+    estimatesContentView,
+    openEstimateSettings,
+    closeEstimateSettingsView,
   } = useEstimates();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openEstimatePanel(null)),
+    onSettings: openEstimateSettings,
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,7 +155,11 @@ export function EstimateList() {
   const [listViewMode, setListViewModeState] = useState<EstimateListViewMode>(
     getInitialEstimateListViewMode,
   );
+  const [visibleColumnIds, setVisibleColumnIds] = useState<EstimateTableColumnId[]>(() =>
+    resolveVisibleEstimateTableColumns(null),
+  );
   const [activeFilters, setActiveFilters] = useState<EstimateListFilterSelection>([]);
+  const [settingsCategory, setSettingsCategory] = useState<EstimateSettingsCategory>('columns');
 
   useEffect(() => {
     let cancelled = false;
@@ -166,6 +180,7 @@ export function EstimateList() {
         const nextView = resolveEstimateListViewMode(settings);
         setListViewModeState(nextView);
         persistEstimateListViewModeSession(nextView);
+        setVisibleColumnIds(resolveVisibleEstimateTableColumns(settings));
       })
       .catch(() => {});
     return () => {
@@ -427,6 +442,21 @@ export function EstimateList() {
     [saveEstimate],
   );
 
+  if (estimatesContentView === 'settings') {
+    return (
+      <div className="plugin-estimates min-h-full bg-background">
+        <div className="px-6 py-4">
+          <EstimateSettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            renderCategoryButtonsInline
+            onClose={closeEstimateSettingsView}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn('plugin-estimates', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
       <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
@@ -436,6 +466,12 @@ export function EstimateList() {
               <div className="min-w-0">
                 <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
                   <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.estimates')}</h2>
+                  <ExpandableIconButton
+                    icon={Settings}
+                    label={t('common.settings')}
+                    variant="soft"
+                    onClick={openEstimateSettings}
+                  />
                   {sortedEstimates.length > 0 ? (
                     selectionMode ? (
                       <ExpandableIconButton
@@ -625,6 +661,7 @@ export function EstimateList() {
               onHeaderCheckboxChange={handleHeaderCheckboxChange}
               recentlyDuplicatedEstimateId={recentlyDuplicatedEstimateId}
               selectionEnabled={selectionMode}
+              visibleColumnIds={visibleColumnIds}
             />
           ) : (
             <div
