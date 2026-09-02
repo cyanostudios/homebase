@@ -1,14 +1,13 @@
 import { Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
-import React, { useEffect } from 'react';
+import React from 'react';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Switch } from '@/components/ui/switch';
-import { Text } from '@/core/ui/Typography';
-import { cn } from '@/lib/utils';
-
 import { usePomodoro } from '@/core/ui/rightSidebar/PomodoroContext';
+import { Text } from '@/core/ui/Typography';
 import { pomodoroAudio } from '@/core/widgets/pomodoro/pomodoroAudio';
 import type { PomodoroSettings } from '@/core/widgets/pomodoro/pomodoroSettings';
+import { cn } from '@/lib/utils';
 
 const DURATION_FIELDS = [
   ['workDuration', 'Work (min)', 1, 120],
@@ -16,6 +15,9 @@ const DURATION_FIELDS = [
   ['longBreakDuration', 'Long break (min)', 1, 60],
   ['sessionsUntilLongBreak', 'Sessions to long break', 2, 10],
 ] as const;
+
+const RESET_BUTTON_CLASS =
+  'border-none bg-amber-600 text-white hover:bg-amber-700 hover:text-white dark:bg-amber-600 dark:hover:bg-amber-700';
 
 export function PomodoroPanel() {
   const {
@@ -32,12 +34,6 @@ export function PomodoroPanel() {
     skip,
     updateSettings,
   } = usePomodoro();
-
-  useEffect(() => {
-    return () => {
-      pomodoroAudio.close();
-    };
-  }, []);
 
   const handleSettingsChange = (
     field: keyof PomodoroSettings,
@@ -120,7 +116,7 @@ export function PomodoroPanel() {
           <RoundIconLabelButton
             icon={Play}
             label="Start"
-            variant="primary"
+            variant="success"
             size="xs"
             alwaysExpanded
             onClick={start}
@@ -129,7 +125,7 @@ export function PomodoroPanel() {
           <RoundIconLabelButton
             icon={Pause}
             label="Pause"
-            variant="soft"
+            variant="success"
             size="xs"
             alwaysExpanded
             onClick={pause}
@@ -141,6 +137,7 @@ export function PomodoroPanel() {
           variant="secondary"
           size="xs"
           alwaysExpanded
+          className={RESET_BUTTON_CLASS}
           onClick={reset}
         />
         <RoundIconLabelButton
@@ -153,7 +150,7 @@ export function PomodoroPanel() {
         />
       </div>
 
-      <div className="space-y-3 pt-6">
+      <div className="space-y-3 pt-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Settings
         </p>

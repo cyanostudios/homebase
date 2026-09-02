@@ -1,4 +1,4 @@
-import { CalendarDays, Moon, Settings2, Sun, Timer } from 'lucide-react';
+import { CalendarDays, Moon, Settings2, Sun } from 'lucide-react';
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -7,21 +7,18 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useCompanionPanel } from '@/core/app/CompanionPanelContext';
 import { pathToNavPage } from '@/core/routing/routeMap';
 import { navigateToSettings } from '@/core/routing/settingsReturnTo';
-import {
-  RIGHT_SIDEBAR_WIDTH_PX,
-  type RightSidebarPanelId,
-  useRightSidebar,
-} from '@/core/ui/RightSidebarContext';
+import { RIGHT_SIDEBAR_WIDTH_PX, useRightSidebar } from '@/core/ui/RightSidebarContext';
 import { PomodoroProvider } from '@/core/ui/rightSidebar/PomodoroContext';
 import { PomodoroPanel } from '@/core/ui/rightSidebar/PomodoroPanel';
 import { PomodoroRailButton } from '@/core/ui/rightSidebar/PomodoroRailButton';
 import { RightSidebarFlyout } from '@/core/ui/rightSidebar/RightSidebarFlyout';
+import { TimerProvider } from '@/core/ui/rightSidebar/TimerContext';
 import { TimerPanel } from '@/core/ui/rightSidebar/TimerPanel';
+import { TimerRailButton } from '@/core/ui/rightSidebar/TimerRailButton';
 import { UserAvatarButton } from '@/core/ui/rightSidebar/UserAvatarButton';
 import { UserPrefsPanel } from '@/core/ui/rightSidebar/UserPrefsPanel';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useTheme } from '@/hooks/useTheme';
-import type { AppIcon } from '@/types/icons';
 
 export function AppRightSidebar() {
   const { t } = useTranslation();
@@ -73,81 +70,69 @@ export function AppRightSidebar() {
     }
   };
 
-  const toolButton = (
-    id: Exclude<RightSidebarPanelId, 'user' | 'pomodoro'>,
-    icon: AppIcon,
-    label: string,
-  ) => (
-    <RoundIconLabelButton
-      key={id}
-      icon={icon}
-      label={label}
-      variant={activePanel === id ? 'soft' : 'secondary'}
-      size="xs"
-      expandOnHover={false}
-      aria-pressed={activePanel === id}
-      onClick={() => togglePanel(id)}
-    />
-  );
-
   return (
     <PomodoroProvider>
-      <div
-        className="relative hidden h-full shrink-0 lg:block"
-        style={{ width: RIGHT_SIDEBAR_WIDTH_PX }}
-      >
-        <RightSidebarFlyout title={flyoutTitle} open={activePanel !== null} onClose={closePanel}>
-          {renderFlyoutBody()}
-        </RightSidebarFlyout>
-
-        <aside
-          className="relative z-40 flex h-full w-full flex-col items-start gap-2 bg-workspace py-3 pl-0.5 pr-4"
+      <TimerProvider>
+        <div
+          className="relative hidden h-full shrink-0 lg:block"
           style={{ width: RIGHT_SIDEBAR_WIDTH_PX }}
-          aria-label={t('rightSidebar.rail')}
         >
-          <UserAvatarButton active={activePanel === 'user'} onClick={() => togglePanel('user')} />
-          <RoundIconLabelButton
-            icon={isDark ? Moon : Sun}
-            label={
-              isDark
-                ? t('rightSidebar.darkMode', { defaultValue: 'Dark mode' })
-                : t('rightSidebar.lightMode', { defaultValue: 'Light mode' })
-            }
-            variant="secondary"
-            size="xs"
-            expandOnHover={false}
-            onClick={toggleTheme}
-          />
-          <RoundIconLabelButton
-            icon={Settings2}
-            label={t('rightSidebar.settings')}
-            variant="secondary"
-            size="xs"
-            expandOnHover={false}
-            onClick={handleOpenSettingsPage}
-          />
-          <div className="flex flex-col items-start gap-2 pt-4">
-            <PomodoroRailButton
-              selected={activePanel === 'pomodoro'}
-              onClick={() => togglePanel('pomodoro')}
+          <RightSidebarFlyout title={flyoutTitle} open={activePanel !== null} onClose={closePanel}>
+            {renderFlyoutBody()}
+          </RightSidebarFlyout>
+
+          <aside
+            className="relative z-40 flex h-full w-full flex-col items-start gap-2 bg-workspace py-3 pl-0.5 pr-4"
+            style={{ width: RIGHT_SIDEBAR_WIDTH_PX }}
+            aria-label={t('rightSidebar.rail')}
+          >
+            <UserAvatarButton active={activePanel === 'user'} onClick={() => togglePanel('user')} />
+            <RoundIconLabelButton
+              icon={isDark ? Moon : Sun}
+              label={
+                isDark
+                  ? t('rightSidebar.darkMode', { defaultValue: 'Dark mode' })
+                  : t('rightSidebar.lightMode', { defaultValue: 'Light mode' })
+              }
+              variant="secondary"
+              size="xs"
+              expandOnHover={false}
+              onClick={toggleTheme}
             />
-            {toolButton('timer', Timer, t('rightSidebar.timer'))}
-          </div>
-          {showScheduleCompanion ? (
+            <RoundIconLabelButton
+              icon={Settings2}
+              label={t('rightSidebar.settings')}
+              variant="secondary"
+              size="xs"
+              expandOnHover={false}
+              onClick={handleOpenSettingsPage}
+            />
             <div className="flex flex-col items-start gap-2 pt-4">
-              <RoundIconLabelButton
-                icon={CalendarDays}
-                label={t('rightSidebar.openScheduleCompanion')}
-                variant={scheduleCompanionOpen ? 'soft' : 'secondary'}
-                size="xs"
-                expandOnHover={false}
-                aria-pressed={scheduleCompanionOpen}
-                onClick={handleToggleScheduleCompanion}
+              <PomodoroRailButton
+                selected={activePanel === 'pomodoro'}
+                onClick={() => togglePanel('pomodoro')}
+              />
+              <TimerRailButton
+                selected={activePanel === 'timer'}
+                onClick={() => togglePanel('timer')}
               />
             </div>
-          ) : null}
-        </aside>
-      </div>
+            {showScheduleCompanion ? (
+              <div className="flex flex-col items-start gap-2 pt-4">
+                <RoundIconLabelButton
+                  icon={CalendarDays}
+                  label={t('rightSidebar.openScheduleCompanion')}
+                  variant={scheduleCompanionOpen ? 'soft' : 'secondary'}
+                  size="xs"
+                  expandOnHover={false}
+                  aria-pressed={scheduleCompanionOpen}
+                  onClick={handleToggleScheduleCompanion}
+                />
+              </div>
+            ) : null}
+          </aside>
+        </div>
+      </TimerProvider>
     </PomodoroProvider>
   );
 }

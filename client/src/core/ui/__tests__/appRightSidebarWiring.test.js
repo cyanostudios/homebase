@@ -36,6 +36,8 @@ describe('App right sidebar wiring', () => {
     expect(appRightSidebar).toMatch(/PomodoroRailButton/);
     expect(appRightSidebar).toMatch(/PomodoroProvider/);
     expect(appRightSidebar).toMatch(/TimerPanel/);
+    expect(appRightSidebar).toMatch(/TimerProvider/);
+    expect(appRightSidebar).toMatch(/TimerRailButton/);
     expect(appRightSidebar).toMatch(/UserPrefsPanel/);
     expect(appRightSidebar).toMatch(/UserAvatarButton/);
     expect(appRightSidebar).toMatch(/RoundIconLabelButton/);
@@ -66,6 +68,7 @@ describe('App right sidebar wiring', () => {
       expect(locale).toMatch(/"rail"\s*:/);
       expect(locale).toMatch(/"pomodoro"\s*:/);
       expect(locale).toMatch(/"timer"\s*:/);
+      expect(locale).toMatch(/"addTimer"\s*:/);
       expect(locale).toMatch(/"settings"\s*:/);
       expect(locale).toMatch(/"userPrefs"\s*:/);
       expect(locale).toMatch(/"openNavigation"\s*:/);

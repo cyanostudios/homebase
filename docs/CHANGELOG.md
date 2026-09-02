@@ -4,6 +4,29 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-02 – Right rail widgets: multi-timer, persist, ripples; companion slide-out
+
+**Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** UX / frontend / shell  
+**Scope:** `TimerContext` / `TimerPanel` / `TimerRailButton`; `PomodoroPanel` / `PomodoroRailButton`; `RightSidebarFlyout`; `CompanionPanel` / `MainLayout`; `AppRightSidebar`; `index.css` (`.widget-rail-ripple`); i18n `rightSidebar.addTimer` / `removeTimer` / `timerN`
+
+**Sammanfattning:** Timer-state ligger i `TimerProvider` (fortsätter när flyout stängs). Upp till tre parallella timers i samma panel med Add/Remove. Rail-ikoner för timer och pomodoro visar grön pill + 1s vattenringar när något kör. Pomodoro får samma kontrollfärger (grön start/paus, amber reset) men förblir en session. Companion Panel slidar ut (~200 ms) istället för att unmountas direkt. Flyout-rubrik `text-lg`.
+
+**Beteende (verifierat i kod)**
+
+- `MAX_TIMERS = 3`; Add timer = `soft`; remove = `dangerSoft` (garments-liknande)
+- Start/Stop (timer) och Start/Pause (pomodoro) = `success`; Reset = amber `bg-amber-600` (time-log)
+- Rail ripples: `.widget-rail-ripple`, 1s, max scale 1.4; pomodoro idle = röd tomat-ikon utan röd bg
+- `CompanionPanel`: presence + cache under exit; desktop `MainLayout` monterar alltid companion-slot
+- Time-entry POST oförändrad (`apiFetch` → `/api/contacts/:id/time-entries`)
+
+**Begränsningar / avvägningar:** Phone/pad saknar fortfarande pomodoro/timer-rail. Vid flera running timers syns högst en kontakt som “active tracking” i Contacts-listan. Ingen ny backend.
+
+**Guides:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §3 App right sidebar
+
+---
+
 ## 2026-09-02 – Garments inventory: tags + bulk Tags
 
 **Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.

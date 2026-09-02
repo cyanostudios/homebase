@@ -180,23 +180,23 @@ function MainLayoutShell(props: MainLayoutProps) {
     listSurface
   );
 
-  const showCompanion = !isPhone && !isPad && companionPanelOpen;
-
-  const desktopMain = showCompanion ? (
-    <div className="flex min-h-0 w-full flex-1 gap-4">
-      <div className="min-h-0 min-w-0 flex-1">{primarySurface}</div>
-      <CompanionPanel
-        isOpen
-        title={companionPanelTitle}
-        onClose={onCompanionPanelClose ?? (() => undefined)}
-        closeOnEscape={!detailPanelOpen}
-      >
-        {companionPanelContent}
-      </CompanionPanel>
-    </div>
-  ) : (
-    primarySurface
-  );
+  // Keep CompanionPanel mounted on desktop so close can finish its slide-out.
+  const desktopMain =
+    !isPhone && !isPad ? (
+      <div className="flex min-h-0 w-full flex-1 gap-4">
+        <div className="min-h-0 min-w-0 flex-1">{primarySurface}</div>
+        <CompanionPanel
+          isOpen={companionPanelOpen}
+          title={companionPanelTitle}
+          onClose={onCompanionPanelClose ?? (() => undefined)}
+          closeOnEscape={!detailPanelOpen}
+        >
+          {companionPanelContent}
+        </CompanionPanel>
+      </div>
+    ) : (
+      primarySurface
+    );
 
   return (
     <div className="flex h-dvh flex-col bg-workspace">

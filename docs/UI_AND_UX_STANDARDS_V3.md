@@ -196,10 +196,13 @@ Detail panel chrome for plugins (quick context, full view, view/edit sync, Quick
 
 ### App right sidebar (`AppRightSidebar`)
 
-- Desktop only (`hidden lg:block`). Fixed ~48px rail — **does not expand**. Slide-out flyout (~320px) opens from the rail’s inner edge when a tool is active.
+- Desktop only (`hidden lg:block`). Fixed ~48px rail — **does not expand**. Slide-out flyout (~320px) opens from the rail’s inner edge when a tool is active (`RightSidebarFlyout`: transform/opacity transition both open and close; title `text-lg`).
 - Rail tools (top → bottom): User, Theme, Settings, then a gap, then Pomodoro / Timer widgets, then (when on Teams and schedule is enabled) Open schedule companion toggle. User / Pomodoro / Timer toggle flyouts; Settings navigates to `/settings` (via `navigateToSettings`); Theme toggles light/dark; schedule companion opens the desktop Companion Panel inside `main`.
+- **Timer widget:** state lives in `TimerProvider` (outside the flyout) so closing the panel does **not** stop running timers. Up to **`MAX_TIMERS` (3)** parallel stopwatches in one flyout; **Add timer** (`soft`); remove extra slots with `dangerSoft` trash (same pattern as garments variant/person delete). Start/Stop `success` (green); Reset amber (`bg-amber-600`, time-log chrome). Rail icon (`TimerRailButton`): green + 1s water-ripple rings (`.widget-rail-ripple`, max scale 1.4) while any timer is running.
+- **Pomodoro widget:** single session via `PomodoroProvider` (unchanged; no multi-timer). Start/Pause green; Reset amber; Skip secondary. Rail (`PomodoroRailButton`): idle tomato icon **red** (`contentClassName`, no red pill bg); selected soft; running green + same water-ripple as timer. Session badge/ring colors (work/break) stay in the panel.
+- **Companion Panel:** desktop secondary surface; keep mounted through close (~200 ms) so slide-out can finish (`CompanionPanel` presence + `MainLayout` always mounts on desktop with `isOpen={companionPanelOpen}`).
 - Phone/pad: rail not shown; account menu via floating `MobileUserMenu` (`MobileShellControls`, `lg:hidden`). Plugin detail `sidebar` stays inline in `DetailLayout` (no portal into the rail).
-- **Limits:** tools/flyouts are desktop-only. Pomodoro / timer / account prefs are not available on phone/pad chrome (only Settings + Log out via the floating account menu).
+- **Limits:** tools/flyouts are desktop-only. Pomodoro / timer / account prefs are not available on phone/pad chrome (only Settings + Log out via the floating account menu). Contact list “active tracking” badge uses at most one running timer’s contact id when several timers run.
 
 ### Layout (`DetailLayout`)
 

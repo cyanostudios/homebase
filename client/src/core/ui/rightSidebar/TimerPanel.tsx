@@ -1,13 +1,15 @@
 import {
   Calendar as CalendarIcon,
   Play,
+  Plus,
   RotateCcw,
   Search,
   Square,
+  Trash2,
   UserPlus,
   X,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
@@ -17,176 +19,86 @@ import { Input } from '@/components/ui/input';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
-import { apiFetch } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
 import { LIST_SEARCH_FIELD_PROPS } from '@/core/ui/listSearchFieldProps';
+import { useTimer, type TimerSlotView } from '@/core/ui/rightSidebar/TimerContext';
 import { Text } from '@/core/ui/Typography';
-import type { Contact } from '@/plugins/contacts/types/contacts';
-import { useOptionalTimeTrackingActivityDispatch } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
+import { cn } from '@/lib/utils';
 
-function contactLabel(contact: Contact): string {
-  return contact.companyName?.trim() || contact.email?.trim() || `Contact ${contact.id}`;
-}
-
-export function TimerPanel() {
+function TimerSlotCard({
+  timer,
+  index,
+  total,
+}: {
+  timer: TimerSlotView;
+  index: number;
+  total: number;
+}) {
   const { t } = useTranslation();
   const { contacts } = useApp();
-  const setActiveTrackingContactId = useOptionalTimeTrackingActivityDispatch();
-  const [isRunning, setIsRunning] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [selectedContactId, setSelectedContactId] = useState('');
-  const [contactSearch, setContactSearch] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [useManualEntry, setUseManualEntry] = useState(false);
-  const [manualMinutes, setManualMinutes] = useState('');
-  const [manualDate, setManualDate] = useState<Date>(() => new Date());
-  const [manualDateOpen, setManualDateOpen] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const {
+    contactLabel,
+    removeTimer,
+    start,
+    stop,
+    reset,
+    setContactSearch,
+    setShowSuggestions,
+    selectContact,
+    clearContact,
+    setUseManualEntry,
+    setManualMinutes,
+    setManualDate,
+    setManualDateOpen,
+    addToContact,
+  } = useTimer();
 
-  const selectedContact = useMemo(
-    () => contacts.find((c) => String(c.id) === selectedContactId) ?? null,
-    [contacts, selectedContactId],
-  );
-
-  const filteredSuggestions = useMemo(() => {
-    const q = contactSearch.trim().toLowerCase();
-    const list = contacts as Contact[];
-    if (!q) {
-      return list.slice(0, 40);
-    }
-    return list
-      .filter((c) => {
-        const name = (c.companyName ?? '').toLowerCase();
-        const email = (c.email ?? '').toLowerCase();
-        const phone = (c.phone ?? '').toLowerCase();
-        return name.includes(q) || email.includes(q) || phone.includes(q);
-      })
-      .slice(0, 40);
-  }, [contacts, contactSearch]);
-
-  const openPopover = showSuggestions && contacts.length > 0 && !selectedContactId;
-
-  useEffect(() => {
-    const id = selectedContactId.trim();
-    if (isRunning && id) {
-      setActiveTrackingContactId(id);
-    } else {
-      setActiveTrackingContactId(null);
-    }
-  }, [isRunning, selectedContactId, setActiveTrackingContactId]);
-
-  useEffect(() => {
-    if (isRunning) {
-      intervalRef.current = setInterval(() => {
-        setElapsedSeconds((s) => s + 1);
-      }, 1000);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [isRunning]);
-
-  const formatTime = (totalSeconds: number) => {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    if (h > 0) {
-      return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    }
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const handleSelectContact = (contact: Contact) => {
-    setSelectedContactId(String(contact.id));
-    setContactSearch('');
-    setShowSuggestions(false);
-  };
-
-  const handleClearContact = () => {
-    setSelectedContactId('');
-    setContactSearch('');
-  };
-
-  const handleAddToContact = async () => {
-    if (!selectedContactId) {
-      return;
-    }
-    const minutes = parseInt(manualMinutes, 10);
-    if (useManualEntry && (Number.isNaN(minutes) || minutes <= 0)) {
-      return;
-    }
-    if (!useManualEntry && elapsedSeconds <= 0) {
-      return;
-    }
-    setAddError(null);
-    setAdding(true);
-    try {
-      const seconds = useManualEntry ? minutes * 60 : elapsedSeconds;
-      const loggedAt = useManualEntry ? manualDate.toISOString() : new Date().toISOString();
-      const res = await apiFetch(`/api/contacts/${selectedContactId}/time-entries`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seconds, loggedAt }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to add time');
-      }
-      window.dispatchEvent(
-        new CustomEvent('homebase:contact-time-entry-added', {
-          detail: { contactId: selectedContactId },
-        }),
-      );
-      if (!useManualEntry) {
-        setElapsedSeconds(0);
-      } else {
-        setManualMinutes('');
-        setManualDate(new Date());
-      }
-    } catch (e) {
-      setAddError(e instanceof Error ? e.message : 'Failed to add time');
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const canAdd =
-    selectedContactId &&
-    (useManualEntry
-      ? manualMinutes.trim() !== '' && parseInt(manualMinutes, 10) > 0
-      : elapsedSeconds > 0);
+  const canRemove = total > 1;
 
   return (
-    <div className="space-y-4">
+    <div className={cn('space-y-4', index > 0 && 'border-t border-border/60 pt-4')}>
+      <div className="flex items-center justify-between gap-2">
+        <Text className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
+          {t('rightSidebar.timerN', {
+            defaultValue: 'Timer {{n}}',
+            n: index + 1,
+          })}
+        </Text>
+        {canRemove ? (
+          <RoundIconLabelButton
+            type="button"
+            icon={Trash2}
+            label={t('rightSidebar.removeTimer', { defaultValue: 'Remove timer' })}
+            variant="dangerSoft"
+            size="xs"
+            expandOnHover={false}
+            onClick={() => removeTimer(timer.id)}
+          />
+        ) : null}
+      </div>
+
       <div className="text-center text-4xl font-bold tabular-nums text-foreground">
-        {formatTime(elapsedSeconds)}
+        {timer.timeDisplay}
       </div>
 
       <div className="flex flex-wrap justify-center gap-2">
-        {!isRunning ? (
+        {!timer.isRunning ? (
           <RoundIconLabelButton
             icon={Play}
             label="Start"
-            variant="primary"
+            variant="success"
             size="xs"
             alwaysExpanded
-            onClick={() => setIsRunning(true)}
+            onClick={() => start(timer.id)}
           />
         ) : (
           <RoundIconLabelButton
             icon={Square}
             label="Stop"
-            variant="soft"
+            variant="success"
             size="xs"
             alwaysExpanded
-            onClick={() => setIsRunning(false)}
+            onClick={() => stop(timer.id)}
           />
         )}
         <RoundIconLabelButton
@@ -195,32 +107,36 @@ export function TimerPanel() {
           variant="secondary"
           size="xs"
           alwaysExpanded
-          onClick={() => {
-            setIsRunning(false);
-            setElapsedSeconds(0);
-          }}
+          className="border-none bg-amber-600 text-white hover:bg-amber-700 hover:text-white dark:bg-amber-600 dark:hover:bg-amber-700"
+          onClick={() => reset(timer.id)}
         />
       </div>
 
-      <div className="space-y-3 pt-6">
+      <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between gap-3">
           <Text className="text-sm font-medium">Add time manually</Text>
-          <Switch checked={useManualEntry} onCheckedChange={setUseManualEntry} />
+          <Switch
+            checked={timer.useManualEntry}
+            onCheckedChange={(checked) => setUseManualEntry(timer.id, checked)}
+          />
         </div>
-        {useManualEntry ? (
+        {timer.useManualEntry ? (
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="sr-only">Minutes</label>
               <input
                 type="number"
                 min={1}
-                value={manualMinutes}
-                onChange={(e) => setManualMinutes(e.target.value)}
+                value={timer.manualMinutes}
+                onChange={(e) => setManualMinutes(timer.id, e.target.value)}
                 placeholder="Min"
                 className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               />
             </div>
-            <Popover open={manualDateOpen} onOpenChange={setManualDateOpen}>
+            <Popover
+              open={timer.manualDateOpen}
+              onOpenChange={(open) => setManualDateOpen(timer.id, open)}
+            >
               <PopoverTrigger asChild>
                 <Button
                   type="button"
@@ -229,17 +145,17 @@ export function TimerPanel() {
                   icon={CalendarIcon}
                   className="w-full"
                 >
-                  {manualDate.toLocaleDateString()}
+                  {timer.manualDate.toLocaleDateString()}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="z-[120] w-auto p-2" align="end">
                 <DayPicker
                   mode="single"
-                  selected={manualDate}
+                  selected={timer.manualDate}
                   onSelect={(d) => {
                     if (d) {
-                      setManualDate(d);
-                      setManualDateOpen(false);
+                      setManualDate(timer.id, d);
+                      setManualDateOpen(timer.id, false);
                     }
                   }}
                 />
@@ -248,13 +164,13 @@ export function TimerPanel() {
           </div>
         ) : null}
 
-        {selectedContact ? (
+        {timer.selectedContact ? (
           <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-background px-2.5 py-2">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium">{contactLabel(selectedContact)}</p>
-              {selectedContact.email ? (
+              <p className="truncate text-xs font-medium">{contactLabel(timer.selectedContact)}</p>
+              {timer.selectedContact.email ? (
                 <p className="truncate text-[11px] text-muted-foreground">
-                  {selectedContact.email}
+                  {timer.selectedContact.email}
                 </p>
               ) : null}
             </div>
@@ -265,23 +181,26 @@ export function TimerPanel() {
               icon={X}
               className="h-7 w-7 shrink-0 p-0 text-muted-foreground"
               aria-label={t('common.clear', { defaultValue: 'Clear' })}
-              onClick={handleClearContact}
+              onClick={() => clearContact(timer.id)}
             />
           </div>
         ) : (
-          <Popover open={openPopover} onOpenChange={setShowSuggestions}>
+          <Popover
+            open={timer.openPopover}
+            onOpenChange={(open) => setShowSuggestions(timer.id, open)}
+          >
             <PopoverAnchor asChild>
               <div className="relative w-full min-w-0">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   {...LIST_SEARCH_FIELD_PROPS}
-                  name="homebase-contact-search"
-                  value={contactSearch}
+                  name={`homebase-contact-search-${timer.id}`}
+                  value={timer.contactSearch}
                   onChange={(event) => {
-                    setContactSearch(event.target.value);
-                    setShowSuggestions(true);
+                    setContactSearch(timer.id, event.target.value);
+                    setShowSuggestions(timer.id, true);
                   }}
-                  onFocus={() => setShowSuggestions(true)}
+                  onFocus={() => setShowSuggestions(timer.id, true)}
                   placeholder={
                     contacts.length === 0
                       ? t('common.noContacts', { defaultValue: 'No contacts' })
@@ -298,8 +217,8 @@ export function TimerPanel() {
               sideOffset={6}
               className="z-[120] w-[var(--radix-popover-trigger-width)] max-h-64 overflow-y-auto rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
             >
-              {filteredSuggestions.length > 0 ? (
-                filteredSuggestions.map((contact) => {
+              {timer.filteredSuggestions.length > 0 ? (
+                timer.filteredSuggestions.map((contact) => {
                   const name = contactLabel(contact);
                   const meta = [contact.email, contact.phone].filter(Boolean).join(' · ');
                   return (
@@ -307,7 +226,7 @@ export function TimerPanel() {
                       key={contact.id}
                       type="button"
                       className="flex w-full items-start justify-between gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-accent"
-                      onClick={() => handleSelectContact(contact)}
+                      onClick={() => selectContact(timer.id, contact)}
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-xs font-medium">{name}</span>
@@ -322,7 +241,9 @@ export function TimerPanel() {
                 })
               ) : (
                 <div className="px-2.5 py-2 text-[11px] text-muted-foreground">
-                  {contactSearch.trim() ? t('common.noResults') : t('tasks.addAssigneePlaceholder')}
+                  {timer.contactSearch.trim()
+                    ? t('common.noResults')
+                    : t('tasks.addAssigneePlaceholder')}
                 </div>
               )}
             </PopoverContent>
@@ -331,19 +252,50 @@ export function TimerPanel() {
 
         <RoundIconLabelButton
           icon={UserPlus}
-          label={adding ? 'Adding…' : 'Add time to contact'}
+          label={timer.adding ? 'Adding…' : 'Add time to contact'}
           variant="soft"
           size="xs"
           alwaysExpanded
-          disabled={!canAdd || adding}
-          onClick={() => void handleAddToContact()}
+          disabled={!timer.canAddToContact || timer.adding}
+          onClick={() => void addToContact(timer.id)}
         />
-        {addError ? (
+        {timer.addError ? (
           <Text variant="muted" className="text-xs text-destructive">
-            {addError}
+            {timer.addError}
           </Text>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+export function TimerPanel() {
+  const { t } = useTranslation();
+  const { timers, canAddTimer, addTimer } = useTimer();
+
+  return (
+    <div className="space-y-4">
+      {timers.map((timer, index) => (
+        <TimerSlotCard key={timer.id} timer={timer} index={index} total={timers.length} />
+      ))}
+
+      {canAddTimer ? (
+        <div className={cn(timers.length > 0 && 'border-t border-border/60 pt-4')}>
+          <RoundIconLabelButton
+            icon={Plus}
+            label={t('rightSidebar.addTimer', {
+              defaultValue: 'Add timer',
+            })}
+            variant="soft"
+            size="xs"
+            alwaysExpanded
+            onClick={addTimer}
+            aria-label={t('rightSidebar.addTimer', {
+              defaultValue: 'Add timer',
+            })}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
