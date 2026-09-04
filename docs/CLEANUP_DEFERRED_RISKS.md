@@ -2,6 +2,8 @@
 
 Detta dokument fångar det som **medvetet lämnades utanför** eller bara **delvis** åtgärdades i femkategoriers-städningen (`homebase-v3.6` → `main`, commits `c5049b3`–`28293bf`). Använd det som backlog inför **nästa cleanup-runda**.
 
+**Uppdatering 2026-09-03:** §8 punkt 3 (SSRF `apiBaseUrl` / `svffFogisClient`) stängd — se CHANGELOG samma datum.
+
 Risknivåer: **Hög** = säkerhet/data/prod synligt, **Medel** = teknisk skuld/regression över tid, **Låg** = kosmetik/konsistens.
 
 ---
@@ -124,7 +126,7 @@ Se `docs/RAILWAY_HOMEBASE_SETUP.md`.
 
 1. **CSRF-migration** (csurf bort) + prod-checklista — **Hög**
 2. **TenantContextService** — dokumentera och testa alla upplösningsvägar; ev. feature-flagga bort legacy — **Hög**
-3. **SSRF – `apiBaseUrl` i `svffFogisClient.js`** — validera med `validatePublicHttpsUrl` eller motsvarande vit-lista; utökar angreppsyta med Jul 2026-release (lagväljare kallar API vid varje formuläröppning, inte bara vid import). Se §2026-07-23 i CHANGELOG. — **Hög**
+3. ~~**SSRF – `apiBaseUrl` i `svffFogisClient.js`**~~ — **Stängd 2026-09-03.** `validatePublicHttpsUrl` i `getFogisSettings` + redirect-check efter FOGIS-axios. Residual (låg): ingen DNS-upplösning vid connect (samma som ingest), ingen SvFF-domän-allowlist, ingen save-time-validering av URL. Se CHANGELOG 2026-09-03.
 4. **Notes V2-tester** (ersätt arkiverad suite) — **Medel**
 5. **Resten av `createApiClient` + `dateFormat`** — **Medel**, plugin för plugin
 6. **`parseCupSource.js` split** — **Medel**, egen PR

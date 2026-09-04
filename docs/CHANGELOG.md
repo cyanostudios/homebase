@@ -4,6 +4,52 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-03 – Matches FOGIS: SSRF-guard, kickoff-tid, sökpersistens
+
+**Status:** Implementerat lokalt. **QA: approved (unit).** **Security: approved (SSRF-1 mitigerad).** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** security / bugfix / UX  
+**Scope:** `svffFogisClient.js` (`validatePublicHttpsUrl`); `matchImportService.parseFogisStartTime`; `RoundExpandableSearch`; `MatchProvider` `searchTerm`
+
+**Sammanfattning:** FOGIS-anrop validerar `apiBaseUrl` mot `validatePublicHttpsUrl` innan axios (samma guard som ingest). Import bevarar FOGIS `timeAsDateTime` som wall-clock när tidszon saknas. List-sök stängs inte av outside-click när fältet har värde; Matches behåller söktext inom pluginet.
+
+**Verifierat (kod)**
+
+- `getFogisSettings`: `apiBaseUrl` trimmas, trailing `/` tas bort, sedan `validatePublicHttpsUrl`; vid `!ok` → `AppError` 400 `VALIDATION_ERROR`
+- Efter axios i `fetchUpcomingGamesFromApi`, `fetchClubDetailsFromApi`, `fetchTeamStandingsFromApi`: om `response.request.res.responseUrl` finns, samma HTTPS/public-host-check
+- `parseFogisStartTime` (import, objekt med `timeAsDateTime`): `Z` eller `±HH:mm` → UTC ISO; annars oförändrad sträng. Redan importerade rader med fel tid kräver ny import
+- `RoundExpandableSearch`: expanded om `value` inte är tomt; Escape/X tömmer och stänger
+- `searchTerm` i `MatchProvider` — överlever view/edit i Matches; rensas när plugin-provider unmountas
+
+**Säkerhet (Security Expert, 2026-09-03):** SSRF-1 stängd. Accepterade residualrisker: **SSRF-2** (ingen DNS-upplösning vid connect; samma baseline som ingest), **SSRF-3** (ingen strikt SvFF-domän-allowlist), **AUTH-1** (tenant + plugin-gate, ingen extra per-team policy), **SAVE-1** (ingen validering vid settings-spar — fail-closed vid fetch).
+
+**Guides:** denna post; [`CLEANUP_DEFERRED_RISKS.md`](CLEANUP_DEFERRED_RISKS.md) §8 punkt 3 stängd
+
+---
+
+## 2026-09-03 – Matches: serie-statistik prototyp (FOGIS tabell + importerade matcher)
+
+**Status:** Implementerat lokalt. **QA: approved (unit/wiring).** **Security: approved** (proxy + SSRF-1 mitigerad 2026-09-03, se post ovan). **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** feature / Matches + FOGIS  
+**Scope:** `svffFogisClient` (`game`-nyckel, `team-standings`, `club/details`); `matchSeriesService`; `GET /api/matches/series?teamId=`; Matches Statistik-flik **Serie**; i18n
+
+**Sammanfattning:** Under Matches → Statistik finns fliken **Serie**. Välj FOGIS-kopplat lag → se serier från `team-standings`, tabell (FOGIS när `standingsExtended` finns, annars beräknad från importerade matcher) och matcher/resultat i vald serie.
+
+**Spike (API):**
+
+- `club/details[?seasonIds]` — klubb, lag, `teamEngagements` (serienamn/ID); `seasonIds` är FOGIS-säsongs-id (t.ex. 119 = 2026), inte kalenderår
+- `upcoming-games` — svar `{ game: [...] }` (import normaliserar nu `game`)
+- `team-standings/{teamId}` — lista serier; `standingsExtended` var `null` för testklubbens ungdomsserier → derived tabell används
+
+**API (verifierat):** `GET /api/matches/series` — `requirePlugin(matches)`; query `teamId` obligatoriskt positivt heltal; `seasonIds` valfritt, max 100 tecken. SQL mot `teams`/`matches` är parameteriserad. FOGIS path-`teamId` måste matcha `^\d{1,20}$`.
+
+**Begränsningar:** Derived tabell är ofullständig (bara matcher ni importerat). Målgörare ingår inte. Nyckel stannar server-side. **Barnserier (t.ex. F10):** Club API returnerar ofta `goalsScored* = -1`, `isResultsMadePublic = false` och `standingsExtended = null` även när resultat syns inloggad i Fogis — då saknas resultat/tabell i Homebase. Full serie (alla lags matcher) finns inte i Club API:t (bara klubbens matcher + ev. tabell när SvFF publicerar den).
+
+**Guides:** denna changelog; befintlig Matches-inställning / Teams FOGIS-koppling
+
+---
+
 ## 2026-09-03 – List keyboard: ArrowUp/Down + Space toggles quick context
 
 **Status:** Implementerat lokalt. **QA: approved.** **Security: approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
@@ -2862,7 +2908,7 @@ DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:task-shares
 
 ## 2026-07-23 – FOGIS lagväljare i TeamForm
 
-**Status:** Implementerat på `homebase-v3.7`. QA Approved; Security Approved (SSRF-risk dokumenterad och eskalerad till TPM, se nedan). **Ej prod-release** utan explicit beslut.
+**Status:** Implementerat på `homebase-v3.7`. QA Approved; Security Approved (SSRF-1 eskalerad 2026-07-23; **mitigerad 2026-09-03**, se changelog-post samma datum). **Ej prod-release** utan explicit beslut.
 
 **Sammanfattning:** TeamForm fick en FOGIS-lagväljare som ersätter det tidigare fria textfältet för `external_team_id`. Användaren filtrerar och väljer lag direkt i formuläret; `Import Now` i Matcher → Inställningar är oförändrat.
 
@@ -2890,9 +2936,9 @@ Teams `require`:ar `svffFogisClient` direkt (code-beroende, ej HTTP); samma mön
 
 ### Accepterad säkerhetsrisk (eskalerad till TPM)
 
-| ID     | Risk                                                                                                                                                                    | Beslut                                                                                                                            |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| SSRF-1 | Användarstyrd `apiBaseUrl` (Matcher → Inställningar) utan `ssrfUrlGuard` — ny `GET`-trigger vid formuläröppning utökar angreppsyta jämfört med tidigare (enbart import) | **Kräver explicit TPM-godkännande**; åtgärd rekommenderas: validera `apiBaseUrl` med `validatePublicHttpsUrl` i `svffFogisClient` |
+| ID     | Risk                                                                                                                                                                    | Beslut                                                                                                                                                                                                             |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| SSRF-1 | Användarstyrd `apiBaseUrl` (Matcher → Inställningar) utan `ssrfUrlGuard` — ny `GET`-trigger vid formuläröppning utökar angreppsyta jämfört med tidigare (enbart import) | **2026-07-23:** eskalerad till TPM. **2026-09-03:** mitigerad — `validatePublicHttpsUrl` i `getFogisSettings` + redirect-check efter axios. Residualer SSRF-2/3, AUTH-1, SAVE-1: se changelog 2026-09-03 SSRF-post |
 
 ### Inaktuell dokumentation åtgärdad
 

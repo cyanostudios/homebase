@@ -16,10 +16,11 @@ import {
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -50,7 +51,7 @@ export const MailHistoryView: React.FC = () => {
     mergeIntoSelection,
     deleteHistory,
   } = useMail();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('mail-history');
   const [pluginFilter, setPluginFilter] = useState('');
   const [activeFilters, setActiveFilters] = useState<MailHistoryListFilter[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);

@@ -21,6 +21,7 @@ import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -53,7 +54,7 @@ export const PulseHistoryView: React.FC = () => {
     mergeIntoSelection,
     deleteHistory,
   } = usePulses();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('pulses-history');
   const [pluginFilter, setPluginFilter] = useState('');
   const [activeFilters, setActiveFilters] = useState<PulseHistoryListFilter[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);

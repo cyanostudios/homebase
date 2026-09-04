@@ -56,6 +56,7 @@ import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useMatches } from '../hooks/useMatches';
 import { type Match } from '../types/match';
+import { useMatchContext } from '../context/MatchContext';
 import {
   getInitialMatchColumnCount,
   resolveMatchColumnCount,
@@ -147,7 +148,7 @@ export function MatchList() {
     onSettings: () => openMatchSettings(),
   });
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = useMatchContext();
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,

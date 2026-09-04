@@ -97,6 +97,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 
 type SortField = InvoiceSortField;
 type SortOrder = InvoiceSortOrder;
@@ -141,7 +142,7 @@ export function InvoicesList() {
   });
 
   const [currentPage, setCurrentPage] = useState<string>('invoices');
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('invoices');
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,

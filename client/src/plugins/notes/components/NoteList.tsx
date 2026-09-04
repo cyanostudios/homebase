@@ -29,13 +29,13 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
-import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
   useEffectiveCardColumnCount,
   useEffectiveColumnCount,
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
@@ -91,6 +91,7 @@ import { NoteListItem } from './NoteListItem';
 import { NoteListTable } from './NoteListTable';
 import { NoteQuickContextPanel } from './NoteQuickContextPanel';
 import { NotesSettingsView, type NotesSettingsCategory } from './NotesSettingsView';
+
 import {
   PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
   PLUGIN_PAGE_LIST_SHELL_CLASS,
@@ -98,6 +99,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 
 type SortField = NoteSortField;
 type SortOrder = NoteSortOrder;
@@ -138,7 +140,7 @@ export const NoteList: React.FC = () => {
     onSettings: () => openNoteSettings(),
   });
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('notes');
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,

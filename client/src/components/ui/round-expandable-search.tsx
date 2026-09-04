@@ -32,6 +32,20 @@ export function RoundExpandableSearch({
   const rootRef = useRef<HTMLDivElement>(null);
   const resolvedLabel = label ?? t('common.search');
   const hasValue = value.trim().length > 0;
+  const hasValueRef = useRef(hasValue);
+
+  useEffect(() => {
+    hasValueRef.current = hasValue;
+  }, [hasValue]);
+
+  // "Always open if it has value".
+  // If search text exists when the component remounts (e.g. opening full view/edit),
+  // keep it expanded.
+  useEffect(() => {
+    if (hasValue) {
+      setExpanded(true);
+    }
+  }, [hasValue]);
 
   useEffect(() => {
     if (!expanded) {
@@ -49,10 +63,16 @@ export function RoundExpandableSearch({
       if (rootRef.current?.contains(event.target as Node)) {
         return;
       }
+      // Keep expanded when the user already entered a search value.
+      // This avoids accidental collapse when clicking other UI elements.
+      if (hasValueRef.current) return;
       setExpanded(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (hasValueRef.current) {
+          onChange('');
+        }
         setExpanded(false);
       }
     };
@@ -102,7 +122,10 @@ export function RoundExpandableSearch({
           <button
             type="button"
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-primary-foreground/15"
-            onClick={() => setExpanded(false)}
+            onClick={() => {
+              onChange('');
+              setExpanded(false);
+            }}
             aria-label={t('common.close')}
             title={t('common.close')}
           >

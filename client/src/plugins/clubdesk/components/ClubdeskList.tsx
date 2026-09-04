@@ -54,6 +54,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -148,7 +149,7 @@ const ClubdeskGuidesList: React.FC = () => {
     onAdd: () => attemptNavigation(() => openClubdeskPanel(null)),
   });
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('clubdesk');
   const [selectionMode, setSelectionMode] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);

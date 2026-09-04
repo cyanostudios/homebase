@@ -1,6 +1,7 @@
 import { createApiClient } from '@/core/api/createApiClient';
 
 import { Match, MatchImportResult, MatchMention } from '../types/match';
+import type { MatchSeriesResponse } from '../types/matchSeries';
 
 function parseMentions(row: Record<string, unknown>): MatchMention[] {
   let raw = row.mentions;
@@ -78,6 +79,14 @@ class MatchesApi {
   async getMatchesByTeam(teamId: string): Promise<Match[]> {
     const rows = await this.request(`/by-team/${teamId}`);
     return (rows || []).map((row: Record<string, unknown>) => rowToMatch(row));
+  }
+
+  async getSeries(teamId: string, seasonIds?: string): Promise<MatchSeriesResponse> {
+    const params = new URLSearchParams({ teamId: String(teamId) });
+    if (seasonIds != null && String(seasonIds).trim()) {
+      params.set('seasonIds', String(seasonIds).trim());
+    }
+    return this.request(`/series?${params.toString()}`);
   }
 
   async importMatches(teamId?: string): Promise<MatchImportResult> {

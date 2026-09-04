@@ -4,6 +4,7 @@ const router = express.Router();
 const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const { query } = require('express-validator');
 
 const MATCH_FORMATS = ['3vs3', '5vs5', '6vs6', '7vs7', '8vs8', '9vs9', '11vs11'];
 
@@ -16,6 +17,23 @@ function createMatchRoutes(controller, context) {
 
   router.get('/by-team/:teamId', gate, commonRules.id('teamId'), validateRequest, (req, res) =>
     controller.getAllByTeam(req, res),
+  );
+
+  router.get(
+    '/series',
+    gate,
+    query('teamId')
+      .exists({ checkFalsy: true })
+      .withMessage('teamId is required')
+      .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+      .withMessage('teamId must be a positive integer'),
+    query('seasonIds')
+      .optional({ values: 'falsy' })
+      .isString()
+      .isLength({ max: 100 })
+      .withMessage('seasonIds must be a short string'),
+    validateRequest,
+    (req, res) => controller.getSeries(req, res),
   );
 
   router.post(

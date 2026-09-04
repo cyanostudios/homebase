@@ -16,9 +16,13 @@ const EXTERNAL_SOURCE = 'svff-forening';
 function parseFogisStartTime(raw) {
   const timeAsDateTime = raw?.timeAsDateTime;
   if (timeAsDateTime != null && String(timeAsDateTime).trim()) {
-    const parsed = new Date(String(timeAsDateTime).trim());
+    const str = String(timeAsDateTime).trim();
+    const hasTimezone = /([zZ]|[+-]\d{2}:\d{2})$/.test(str);
+    const parsed = new Date(str);
     if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toISOString();
+      // If no timezone is included, keep wall-clock time as-is to avoid -2h display shifts.
+      // If timezone is present, normalize to UTC ISO.
+      return hasTimezone ? parsed.toISOString() : str;
     }
   }
   return null;
@@ -197,5 +201,6 @@ module.exports = {
   normalizeApiMatches,
   filterGamesForTeam,
   parseSeasonYear,
+  parseFogisStartTime,
   DEFAULT_API_BASE_URL,
 };

@@ -27,8 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useCompanionPanel } from '@/core/app/CompanionPanelContext';
 import { useApp } from '@/core/api/AppContext';
+import { useCompanionPanel } from '@/core/app/CompanionPanelContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import {
@@ -93,6 +93,7 @@ import { TeamQuickContextPanel } from './TeamQuickContextPanel';
 import { TeamsBulkCreateView } from './TeamsBulkCreateView';
 import { TeamsSettingsView } from './TeamsSettingsView';
 import { TeamsStatisticsView } from './TeamsStatisticsView';
+
 import {
   PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
   PLUGIN_PAGE_LIST_SHELL_CLASS,
@@ -100,6 +101,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 
 type SortField = TeamSortField;
 type SortOrder = TeamSortOrder;
@@ -150,7 +152,7 @@ export function TeamList() {
   const enabledPlugins = useEnabledPlugins();
   const hasMatchesPlugin = enabledPlugins.has('matches');
   const { matches } = useMatches();
-  const [search, setSearch] = useState('');
+  const { searchTerm: search, setSearchTerm: setSearch } = usePersistedListSearch('teams');
   useRegisterMobileSearch({
     value: search,
     onChange: setSearch,

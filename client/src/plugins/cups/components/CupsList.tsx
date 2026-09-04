@@ -56,6 +56,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
@@ -144,7 +145,7 @@ export function CupsList() {
     onSettings: openCupSettings,
   });
 
-  const [search, setSearch] = useState('');
+  const { searchTerm: search, setSearchTerm: setSearch } = usePersistedListSearch('cups');
   const [selectionMode, setSelectionMode] = useState(false);
 
   useRegisterMobileSearch({

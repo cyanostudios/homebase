@@ -2,10 +2,27 @@
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const { importMatches } = require('./services/matchImportService');
+const { getSeriesForTeam } = require('./services/matchSeriesService');
 
 class MatchController {
   constructor(model) {
     this.model = model;
+  }
+
+  async getSeries(req, res) {
+    try {
+      const teamId = req.query?.teamId ?? req.query?.team_id;
+      const seasonIds = req.query?.seasonIds ?? req.query?.season_ids ?? null;
+      const result = await getSeriesForTeam(req, { teamId, seasonIds });
+      res.json(result);
+    } catch (error) {
+      Logger.error('Get match series failed', error, {
+        teamId: req.query?.teamId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch series data' });
+    }
   }
 
   async getAll(req, res) {

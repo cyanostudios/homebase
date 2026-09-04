@@ -61,6 +61,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -163,7 +164,7 @@ export const ContactList: React.FC = () => {
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
   const canSendEmail =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('contacts');
 
   useRegisterMobileSearch({
     value: searchTerm,

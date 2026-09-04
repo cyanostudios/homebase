@@ -329,6 +329,23 @@
       "goals": "Goals",
       "noTeamsMatchFilter": "No teams match the current filter."
     },
+    "series": {
+      "tabResults": "Results",
+      "tabSeries": "Series",
+      "description": "FOGIS series for teams with a FOGIS link. Table from FOGIS when available, otherwise derived from imported matches (only games you have).",
+      "noFogisTeams": "No teams with a FOGIS link. Link a team under Teams and import matches under Matches → Settings.",
+      "loadFailed": "Could not load series data.",
+      "noCompetitions": "No series found for this team.",
+      "active": "Active",
+      "tableTitle": "Table",
+      "matchesTitle": "Matches in series",
+      "noStandings": "No standings to show yet.",
+      "noStandingsNoScores": "Matches exist, but the FOGIS Club API does not expose scores for this series (common for children’s leagues). We cannot build a table or show results — even if Fogis shows them when you are logged in.",
+      "noMatches": "No imported matches in the selected series.",
+      "sourceFogis": "Source: FOGIS standings",
+      "sourceDerived": "Source: derived from imported matches (only teams that appear in games you have — not the full series).",
+      "sourceNone": "No standings data available. The Club API does not provide a full series table for this competition."
+    },
     "match": "Match",
     "nameLabel": "Name",
     "namePlaceholder": "Leave empty to use Home team + Away team",

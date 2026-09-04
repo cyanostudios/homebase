@@ -329,6 +329,23 @@
       "goals": "Mål",
       "noTeamsMatchFilter": "Inga lag matchar det valda filtret."
     },
+    "series": {
+      "tabResults": "Resultat",
+      "tabSeries": "Serie",
+      "description": "Serier från FOGIS för lag med FOGIS-koppling. Tabell från FOGIS när den finns, annars beräknad från importerade matcher (endast matcher ni har).",
+      "noFogisTeams": "Inga lag med FOGIS-koppling. Koppla lag under Teams och importera matcher under Matches → Inställningar.",
+      "loadFailed": "Kunde inte hämta seriedata.",
+      "noCompetitions": "Inga serier hittades för laget.",
+      "active": "Aktiv",
+      "tableTitle": "Tabell",
+      "matchesTitle": "Matcher i serien",
+      "noStandings": "Ingen tabell att visa ännu.",
+      "noStandingsNoScores": "Matcher finns, men FOGIS Club API lämnar inte ut resultat för den här serien (vanligt för barnserier). Då kan vi inte bygga tabell eller visa siffror — även om resultaten syns inloggad i Fogis.",
+      "noMatches": "Inga importerade matcher i den valda serien.",
+      "sourceFogis": "Källa: FOGIS-tabell",
+      "sourceDerived": "Källa: beräknad från importerade matcher (bara lag som ingår i matcher ni har — inte hela serien).",
+      "sourceNone": "Ingen tabelldata tillgänglig. Club API ger inte full serietabell för den här tävlingen."
+    },
     "match": "Match",
     "nameLabel": "Namn",
     "namePlaceholder": "Lämna tomt för Hemmalag + Bortalag",

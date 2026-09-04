@@ -111,6 +111,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 
 const LIST_SORT_OPTIONS: { value: GarmentSortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'common.updated' },
@@ -169,7 +170,7 @@ export const GarmentList: React.FC = () => {
     onSettings: () => openGarmentsSettings(isInventory ? 'inventory' : 'lists'),
   });
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('garments');
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,

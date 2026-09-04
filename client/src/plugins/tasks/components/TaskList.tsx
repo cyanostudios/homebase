@@ -29,18 +29,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import {
   useEffectiveCardColumnCount,
   useEffectiveColumnCount,
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
-import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
-import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
-import { exportItems } from '@/core/utils/exportUtils';
-import { stripHtml } from '@/core/utils/textUtils';
 import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
@@ -49,11 +46,14 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
+import { exportItems } from '@/core/utils/exportUtils';
+import { stripHtml } from '@/core/utils/textUtils';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
-import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
@@ -98,6 +98,7 @@ import { TaskListItem } from './TaskListItem';
 import { TaskListTable } from './TaskListTable';
 import { TaskQuickContextPanel } from './TaskQuickContextPanel';
 import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView';
+
 import {
   PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
   PLUGIN_PAGE_LIST_SHELL_CLASS,
@@ -105,6 +106,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 
 type SortField = TaskSortField;
 type SortOrder = TaskSortOrder;
@@ -154,7 +156,7 @@ export function TaskList() {
   const enabledPlugins = useEnabledPlugins();
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const { teams } = useTeams();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('tasks');
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,

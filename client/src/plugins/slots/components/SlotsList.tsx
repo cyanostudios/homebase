@@ -31,18 +31,15 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
-import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
-import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import {
   useEffectiveCardColumnCount,
   useEffectiveColumnCount,
   useIsEffectiveTableView,
 } from '@/core/list/effectiveListViewMode';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
-import { exportItems } from '@/core/utils/exportUtils';
-import { formatDateTime, formatDateTimeShort } from '@/core/utils/dateFormat';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
+import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
@@ -51,6 +48,9 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
+import { formatDateTime, formatDateTimeShort } from '@/core/utils/dateFormat';
+import { exportItems } from '@/core/utils/exportUtils';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -62,6 +62,13 @@ import { slotsApi } from '../api/slotsApi';
 import { useSlotsContext as useSlots } from '../context/SlotsContext';
 import type { Slot } from '../types/slots';
 import {
+  getInitialSlotColumnCount,
+  resolveSlotColumnCount,
+  SLOTS_COLUMN_COUNT_STORAGE_KEY,
+  SLOTS_SETTINGS_KEY,
+  type SlotColumnCount,
+} from '../utils/slotColumnCount';
+import {
   appendPublicBookingsToEmailRecipients,
   appendPublicBookingsToMessageRecipients,
   formatSlotInfoHtml,
@@ -69,13 +76,6 @@ import {
   resolveSlotsToContacts,
   resolveSlotsToEmailContacts,
 } from '../utils/slotContactUtils';
-import {
-  getInitialSlotColumnCount,
-  resolveSlotColumnCount,
-  SLOTS_COLUMN_COUNT_STORAGE_KEY,
-  SLOTS_SETTINGS_KEY,
-  type SlotColumnCount,
-} from '../utils/slotColumnCount';
 import {
   slotHasCategory,
   slotIsUpcoming,
@@ -105,6 +105,7 @@ import { SlotListItem } from './SlotListItem';
 import { SlotListTable } from './SlotListTable';
 import { SlotQuickContextPanel } from './SlotQuickContextPanel';
 import { SlotsSettingsView, type SlotsSettingsCategory } from './SlotsSettingsView';
+
 import {
   PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
   PLUGIN_PAGE_LIST_SHELL_CLASS,
@@ -112,6 +113,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 
 type SortField = SlotSortField;
 type SortOrder = SlotSortOrder;
@@ -159,7 +161,7 @@ export function SlotsList() {
     onSettings: () => openSlotSettings(),
   });
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('slots');
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,

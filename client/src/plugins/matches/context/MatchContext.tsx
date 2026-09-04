@@ -10,6 +10,10 @@ export interface MatchContextType {
   validationErrors: ValidationError[];
   matches: Match[];
 
+  /** Search text from MatchList header; persisted during full view/edit navigation. */
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+
   openMatchPanel: (match: Match | null) => void;
   openMatchForView: (match: Match) => void;
   openMatchForEdit: (match: Match) => void;
@@ -92,6 +96,8 @@ const EMPTY_MATCH_CONTEXT: MatchContextType = {
   panelMode: 'create',
   validationErrors: [],
   matches: [],
+  searchTerm: '',
+  setSearchTerm: () => {},
   openMatchPanel: () => {},
   openMatchForView: () => {},
   openMatchForEdit: () => {},

@@ -58,6 +58,7 @@ export function MatchProvider({
   const [matchesContentView, setMatchesContentView] = useState<'list' | 'settings' | 'statistics'>(
     'list',
   );
+  const [searchTerm, setSearchTerm] = useState('');
   const [recentlyDuplicatedMatchId, setRecentlyDuplicatedMatchId] = useState<string | null>(null);
   const [mentionsDraft, setMentionsDraft] = useState<MatchMention[] | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
@@ -571,6 +572,8 @@ export function MatchProvider({
       closeMatchStatisticsView,
       closeMatchPanel,
       matchesContentView,
+      searchTerm,
+      setSearchTerm,
       saveMatch,
       deleteMatch,
       deleteMatches,
@@ -624,6 +627,7 @@ export function MatchProvider({
       closeMatchStatisticsView,
       closeMatchPanel,
       matchesContentView,
+      searchTerm,
       saveMatch,
       deleteMatch,
       deleteMatches,

@@ -51,6 +51,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -121,7 +122,7 @@ export const IngestSourceList: React.FC = () => {
     deleteIngestSources,
   } = useIngest();
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('ingest');
   const [selectionMode, setSelectionMode] = useState(false);
 
   useRegisterMobileSearch({

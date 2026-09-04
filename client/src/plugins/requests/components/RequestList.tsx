@@ -103,6 +103,7 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 
 type TypeFilter = 'all' | string;
 type TeamFilter = 'all' | 'unlinked';
@@ -150,7 +151,7 @@ export function RequestList() {
     onSettings: openRequestSettings,
   });
 
-  const [search, setSearch] = useState('');
+  const { searchTerm: search, setSearchTerm: setSearch } = usePersistedListSearch('requests');
   useRegisterMobileSearch({
     value: search,
     onChange: setSearch,
