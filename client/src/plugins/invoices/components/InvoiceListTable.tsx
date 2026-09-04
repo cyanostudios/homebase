@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
-import { formatDateTimeShort } from '@/core/utils/dateFormat';
+import { formatDate, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
 import type { Invoice } from '../context/InvoicesContext';
+import { formatInvoiceMoney } from '../utils/formatInvoiceAmount';
 import { formatInvoiceDueDate } from '../utils/invoiceDueDate';
 import type { InvoiceSortField, InvoiceSortOrder } from '../utils/invoiceListSort';
 import {
@@ -15,6 +16,7 @@ import {
   type InvoiceTableColumnId,
   resolveVisibleInvoiceTableColumns,
 } from '../utils/invoiceTableColumns';
+import { resolveInvoiceTotals } from '../utils/invoiceTotals';
 
 import {
   INVOICE_STATUS_BADGE_CLASS,
@@ -39,11 +41,8 @@ export type InvoiceListTableProps = {
   visibleColumnIds?: InvoiceTableColumnId[];
 };
 
-function formatDate(value: Date | string | null | undefined): string {
-  if (!value) {
-    return '—';
-  }
-  return new Date(value).toLocaleDateString();
+function formatInvoiceListDate(value: Date | string | null | undefined): string {
+  return formatDate(value) || '—';
 }
 
 export function InvoiceListTable({
@@ -114,8 +113,7 @@ export function InvoiceListTable({
         className: 'hidden sm:table-cell',
         cell: (invoice) => (
           <span className="tabular-nums text-xs text-foreground">
-            {typeof invoice.total === 'number' ? invoice.total.toFixed(2) : invoice.total}{' '}
-            {invoice.currency || 'SEK'}
+            {formatInvoiceMoney(resolveInvoiceTotals(invoice).total, invoice.currency || 'SEK')}
           </span>
         ),
       },
@@ -130,7 +128,9 @@ export function InvoiceListTable({
             return <span className={cn('text-xs', due.className)}>{due.text}</span>;
           }
           return (
-            <span className="text-xs text-muted-foreground">{formatDate(invoice.dueDate)}</span>
+            <span className="text-xs text-muted-foreground">
+              {formatInvoiceListDate(invoice.dueDate)}
+            </span>
           );
         },
       },

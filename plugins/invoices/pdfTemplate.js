@@ -1,13 +1,36 @@
 // plugins/invoices/pdfTemplate.js
 // Swedish Facio-style invoice PDF (issuer from Settings → Account organization).
 
-const { escapeHtml } = require('../../server/core/utils/htmlEscape');
+const { escapeHtml, escapeHtmlText } = require('../../server/core/utils/htmlEscape');
+const { resolveInvoiceTotals } = require('./invoiceTotals');
+
+function escapeAttr(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
 
 function formatDate(d) {
   if (!d) return '';
   const date = new Date(d);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString('sv-SE');
+}
+
+/** Swedish document title from invoice type (header + browser title). */
+function formatInvoiceDocumentTitle(invoiceType) {
+  switch (String(invoiceType || 'invoice').trim()) {
+    case 'credit_note':
+      return 'Kreditfaktura';
+    case 'cash_invoice':
+      return 'Kontantfaktura';
+    case 'receipt':
+      return 'Kvitto';
+    case 'invoice':
+    default:
+      return 'Faktura';
+  }
 }
 
 /** Swedish number: 64 900,00 (no currency symbol). */
@@ -50,37 +73,18 @@ function formatPaymentTermsSv(paymentTerms) {
   return raw;
 }
 
-function fallbackTotals(lineItems = [], invoiceDiscount = 0, vatRateDefault = 0.25) {
-  const subtotal = lineItems.reduce(
-    (sum, li) => sum + Number(li.quantity || 0) * Number(li.unitPrice || 0),
-    0,
-  );
-  const invoiceDiscountAmount = subtotal * (Number(invoiceDiscount || 0) / 100);
-  const afterDiscount = subtotal - invoiceDiscountAmount;
-  const totalVat = afterDiscount * vatRateDefault;
-  const total = afterDiscount + totalVat;
-  return {
-    subtotal,
-    totalDiscount: 0,
-    subtotalAfterDiscount: subtotal,
-    invoiceDiscountAmount,
-    subtotalAfterInvoiceDiscount: afterDiscount,
-    totalVat,
-    total,
-  };
-}
-
-function resolveVatLabel(lineItems, totalVat) {
-  if (!totalVat || !Array.isArray(lineItems) || lineItems.length === 0) {
-    return 'Moms 25%';
-  }
+function resolveVatLabel(lineItems, _totalVat) {
+  const priced = Array.isArray(lineItems) ? lineItems.filter((li) => li && li.kind !== 'text') : [];
   const rates = [
-    ...new Set(lineItems.map((li) => Number(li.vatRate ?? 25)).filter((r) => Number.isFinite(r))),
+    ...new Set(priced.map((li) => Number(li.vatRate ?? 25)).filter((r) => Number.isFinite(r))),
   ];
   if (rates.length === 1) {
-    return `Moms ${rates[0]}%`;
+    return `Moms (${rates[0]}%)`;
   }
-  return 'Moms';
+  if (rates.length > 1) {
+    return `Moms (${rates.map((r) => `${r}%`).join(', ')})`;
+  }
+  return 'Moms (25%)';
 }
 
 function lineDescription(li) {
@@ -100,6 +104,14 @@ function lineSum(li) {
     return li.lineSubtotal;
   }
   return Number(li.quantity || 0) * Number(li.unitPrice || 0);
+}
+
+function formatDisc(li) {
+  const d = Number(li.discount || 0);
+  if (!Number.isFinite(d) || d <= 0) {
+    return '—';
+  }
+  return `${formatSvNumber(d, { minFrac: 0, maxFrac: 2 })}%`;
 }
 
 function formatQty(li) {
@@ -128,36 +140,83 @@ function facioDocumentStyles() {
       .page {
         max-width: 720px;
         margin: 0 auto;
-        padding: 10mm 8mm;
+        /* Top clearance for repeating page label is in Puppeteer margin. */
+        padding: 2mm 10mm 6mm;
+      }
+      .doc-header {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        align-items: center;
+        margin-bottom: 28px;
+      }
+      .doc-header .issuer-brand {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+      }
+      .doc-header .issuer-logo {
+        display: block;
+        max-height: 64px;
+        max-width: 220px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        margin: 0;
+        flex-shrink: 0;
+      }
+      .doc-header .issuer-name {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #0f172a;
+        line-height: 1.2;
+      }
+      .doc-header .title-block {
+        display: block;
+        min-width: 0;
+      }
+      .doc-header .title-row {
+        display: block;
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        text-align: left;
+        line-height: 1.2;
+      }
+      .doc-header .title-row .lbl {
+        font-size: inherit;
+        font-weight: inherit;
+        color: inherit;
+      }
+      .doc-header .title-row .lbl::after { content: none; }
+      .doc-header .title-row .val {
+        font-size: inherit;
+        font-weight: inherit;
+        margin-left: 0.35em;
       }
       .top {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 32px;
+        grid-template-rows: auto auto;
+        column-gap: 32px;
+        row-gap: 16px;
         margin-bottom: 28px;
         align-items: start;
       }
-      .issuer-name, .doc-title {
-        margin: 0 0 10px 0;
-        font-size: 22px;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        color: #0f172a;
-      }
-      .issuer-logo {
-        display: block;
-        max-height: 56px;
-        max-width: 180px;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-        margin: 0 0 10px 0;
-      }
-      .issuer-lines, .customer-block {
+      .top-customer { grid-column: 1; grid-row: 1; }
+      .top-payment { grid-column: 2; grid-row: 1; }
+      .top-left-meta { grid-column: 1; grid-row: 2; }
+      .top-right-meta { grid-column: 2; grid-row: 2; }
+      .issuer-lines {
         color: #334155;
         font-size: 12px;
       }
-      .issuer-lines p, .customer-block p { margin: 1px 0; }
+      .issuer-lines p { margin: 1px 0; }
       .summary {
         text-align: left;
         max-width: 220px;
@@ -169,25 +228,51 @@ function facioDocumentStyles() {
         gap: 8px;
         margin-bottom: 6px;
       }
+      .summary .row.customer-row {
+        align-items: flex-start;
+        justify-content: flex-start;
+      }
+      .summary .row.plain .val {
+        font-weight: 400;
+      }
+      .summary .row.customer-row > .lbl {
+        line-height: 1.35;
+        padding-top: 0;
+        width: 7.5em;
+        flex-shrink: 0;
+      }
       .summary .lbl {
         font-size: 12px;
         color: #64748b;
         flex-shrink: 0;
       }
       .summary .lbl::after { content: ':'; }
-      .summary .val {
-        font-size: 14px;
+      .summary .val,
+      .summary .amount {
+        font-size: 12px;
         font-weight: 700;
         color: #0f172a;
         text-align: right;
         margin-left: auto;
       }
-      .summary .amount {
-        font-size: 18px;
-        font-weight: 800;
+      .summary .val.details {
+        text-align: left;
+        margin-left: 0;
+        font-weight: 400;
+        line-height: 1.35;
+      }
+      .summary .val.details p {
+        margin: 0;
+        font-weight: 400;
+        color: #334155;
+        line-height: 1.35;
+      }
+      .summary .val.details p + p {
+        margin-top: 1px;
+      }
+      .summary .val.details p:first-child {
+        font-weight: 700;
         color: #0f172a;
-        text-align: right;
-        margin-left: auto;
       }
       .customer-wrap { margin-top: 22px; }
       .rule {
@@ -205,7 +290,7 @@ function facioDocumentStyles() {
       .meta .pair { display: flex; gap: 6px; flex-wrap: wrap; }
       .meta .k { color: #64748b; }
       .meta .k::after { content: ':'; }
-      .meta .v { font-weight: 600; color: #0f172a; }
+      .meta .v { font-weight: 400; color: #0f172a; }
       .items {
         width: 100%;
         border-collapse: collapse;
@@ -233,15 +318,46 @@ function facioDocumentStyles() {
       .items .num { white-space: nowrap; font-variant-numeric: tabular-nums; }
       .totals-wrap {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 32px;
         margin-top: 18px;
+      }
+      .notes-block {
+        flex: 1;
+        min-width: 0;
+        max-width: 22rem;
+        margin: 0;
+        padding: 0;
+        align-self: flex-start;
+      }
+      .notes-block table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .notes-block td {
+        padding: 4px 0;
+        color: #334155;
+        line-height: 1.45;
+        vertical-align: top;
+      }
+      .notes-block tr:first-child td { padding-top: 0; }
+      .notes-block .notes-body {
+        white-space: pre-wrap;
+        color: #0f172a;
       }
       .totals {
         width: 260px;
         border-collapse: collapse;
         font-size: 12px;
+        margin: 0 0 0 auto;
+        padding: 0;
+        flex-shrink: 0;
+        align-self: flex-start;
       }
-      .totals td { padding: 4px 0; color: #334155; }
+      .totals td { padding: 4px 0; color: #334155; line-height: 1.45; vertical-align: top; }
+      .totals tr:first-child td { padding-top: 0; }
       .totals .amount {
         text-align: right;
         font-variant-numeric: tabular-nums;
@@ -258,13 +374,30 @@ function facioDocumentStyles() {
         padding-top: 16px;
         border-top: 1px solid #93c5fd;
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
-        font-size: 11px;
-        color: #475569;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px 24px;
+        font-size: 10px;
+        font-weight: 400;
+        color: #0f172a;
+        line-height: 1.4;
       }
-      .footer strong { color: #0f172a; font-weight: 700; }
-      .footer .lab { font-weight: 700; color: #0f172a; min-width: 4.5rem; display: inline-block; }
+      .footer strong {
+        color: #0f172a;
+        font-weight: 400;
+      }
+      .footer .lab {
+        font-weight: 400;
+        color: #64748b;
+        min-width: 4rem;
+        display: inline-block;
+      }
+      .footer-company p { margin: 1px 0; color: #0f172a; }
+      .footer-company p:first-child { margin-bottom: 2px; color: #0f172a; }
+      .footer-company .footer-site {
+        margin-top: 10px;
+        color: #0f172a;
+      }
+      .footer-col > div { margin: 1px 0; color: #0f172a; }
       .expired-banner {
         background: #dc2626;
         color: #fff;
@@ -285,7 +418,7 @@ function facioDocumentStyles() {
 /**
  * @param {object} invoice
  * @param {object} [organization] - tenant OrganizationProfile from Settings → Account
- * @param {object} [customer] - optional { name, organizationNumber, line1, line2, postalCode, city }
+ * @param {object} [customer] - optional { name, organizationNumber, line1, line2, postalCode, city, country }
  * @param {{ expired?: boolean, referencePerson?: string }} [options]
  */
 function generatePDFHTML(invoice, organization = {}, customer = null, options = {}) {
@@ -293,35 +426,31 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
   const address = org.address || {};
   const billing = org.billing || {};
 
-  const totals = {
-    subtotal: invoice.subtotal ?? undefined,
-    totalDiscount: invoice.totalDiscount ?? undefined,
-    subtotalAfterDiscount: invoice.subtotalAfterDiscount ?? undefined,
-    invoiceDiscountAmount: invoice.invoiceDiscountAmount ?? undefined,
-    subtotalAfterInvoiceDiscount: invoice.subtotalAfterInvoiceDiscount ?? undefined,
-    totalVat: invoice.totalVat ?? undefined,
-    total: invoice.total ?? undefined,
-  };
-  const needFallback = Object.values(totals).some((v) => typeof v !== 'number' || Number.isNaN(v));
-  const safeTotals = needFallback
-    ? fallbackTotals(invoice.lineItems, invoice.invoiceDiscount)
-    : totals;
+  const safeTotals = resolveInvoiceTotals(invoice);
 
   const numberLabel = escapeHtml(invoice.invoiceNumber || `UTKAST-${invoice.id}`);
+  const documentTitle = formatInvoiceDocumentTitle(invoice.invoiceType);
   const issuerName = escapeHtml(org.name || 'Företag');
   const logoUrl = typeof org.logoUrl === 'string' ? org.logoUrl.trim() : '';
-  const logoSrc = logoUrl ? escapeHtml(logoUrl) : '';
+  const logoSrc = logoUrl ? escapeAttr(logoUrl) : '';
   const issuerLine1 = escapeHtml(address.line1 || '');
   const issuerLine2 = escapeHtml(address.line2 || '');
   const issuerCity = escapeHtml([address.postalCode, address.city].filter(Boolean).join(' ') || '');
+  const issuerCountry = escapeHtml(address.country || '');
   const issuerEmail = escapeHtml(org.email || billing.invoiceEmail || '');
-  const referencePerson = escapeHtml(options.referencePerson || invoice.referencePerson || '');
+  const issuerPhone = escapeHtml(org.phone || '');
+  const issuerSite = escapeHtml(org.website || '');
   const orgNr = escapeHtml(billing.organizationNumber || '');
   const vatNr = escapeHtml(billing.vatNumber || '');
   const bankgiro = escapeHtml(billing.bankgiro || '');
+  const plusgiro = escapeHtml(billing.plusgiro || '');
+  const iban = escapeHtml(billing.iban || '');
+  const bic = escapeHtml(billing.bic || '');
+  const swish = escapeHtml(billing.swishNumber || '');
   const fTaxApproved = (billing.fTax || 'yes') !== 'no';
   const lateInterest = escapeHtml(String(billing.latePaymentInterest || '12'));
   const paymentTerms = escapeHtml(formatPaymentTermsSv(invoice.paymentTerms));
+  const notesText = escapeHtmlText(String(invoice.notes || '').trim());
 
   const cust = customer || {};
   const customerName = escapeHtml(cust.name || invoice.contactName || 'Kund');
@@ -329,6 +458,56 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
   const customerLine1 = escapeHtml(cust.line1 || '');
   const customerLine2 = escapeHtml(cust.line2 || '');
   const customerCity = escapeHtml([cust.postalCode, cust.city].filter(Boolean).join(' ') || '');
+  const customerCountry = escapeHtml(cust.country || '');
+  const customerReference = escapeHtml(
+    cust.reference || invoice.customerReference || invoice.customerRef || '',
+  );
+  const customerNumber = escapeHtml(
+    String(cust.customerNumber || invoice.customerNumber || '').trim(),
+  );
+  const deliveryMethod = escapeHtml(
+    String(cust.deliveryMethod || invoice.deliveryMethod || invoice.delivery || '').trim(),
+  );
+  const orderNumber = escapeHtml(
+    String(invoice.orderNumber || invoice.order_number || cust.orderNumber || '').trim(),
+  );
+  const customerBlockHtml = `
+        <div class="top-customer">
+          <div class="summary">
+            <div class="row customer-row">
+              <span class="lbl">Kund</span>
+              <div class="val details">
+                <p>${customerName}</p>
+                ${customerOrg ? `<p>Org.nr ${customerOrg}</p>` : ''}
+                ${customerLine1 ? `<p>${customerLine1}</p>` : ''}
+                ${customerLine2 ? `<p>${customerLine2}</p>` : ''}
+                ${customerCity ? `<p>${customerCity}</p>` : ''}
+                ${customerCountry ? `<p>${customerCountry}</p>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>`;
+  const leftMetaHtml = `
+        <div class="top-left-meta">
+          <div class="summary">
+            <div class="row customer-row">
+              <span class="lbl">Kundreferens</span>
+              <span class="val details">${customerReference || '—'}</span>
+            </div>
+            <div class="row customer-row">
+              <span class="lbl">Kundnummer</span>
+              <span class="val details">${customerNumber || '—'}</span>
+            </div>
+            <div class="row customer-row">
+              <span class="lbl">Ordernummer</span>
+              <span class="val details">${orderNumber || '—'}</span>
+            </div>
+            <div class="row customer-row">
+              <span class="lbl">Leveranssätt</span>
+              <span class="val details">${deliveryMethod || '—'}</span>
+            </div>
+          </div>
+        </div>`;
 
   const dueDate = formatDate(invoice.dueDate);
   const issueDate = formatDate(invoice.issueDate || invoice.createdAt);
@@ -336,6 +515,23 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
   const amountDuePlain = `${formatSvNumber(safeTotals.total, { minFrac: 0, maxFrac: 2 })} kr`;
   const amountDueBold = formatSvNumber(safeTotals.total, { minFrac: 0, maxFrac: 2 });
   const expired = Boolean(options.expired);
+  const invoiceDiscountPct = Number(invoice.invoiceDiscount || 0);
+  const invoiceDiscountAmount = Number(safeTotals.invoiceDiscountAmount || 0);
+  const subtotalAfterDiscount = Number(
+    safeTotals.subtotalAfterDiscount ?? safeTotals.subtotal ?? 0,
+  );
+  const showInvoiceDiscount = invoiceDiscountAmount > 0.004;
+  const invoiceDiscountRows = showInvoiceDiscount
+    ? `
+          <tr>
+            <td>Summa</td>
+            <td class="amount">${formatSvNumber(subtotalAfterDiscount)}</td>
+          </tr>
+          <tr>
+            <td>Fakturarabatt ${formatSvNumber(invoiceDiscountPct, { minFrac: 0, maxFrac: 2 })}%</td>
+            <td class="amount">−${formatSvNumber(invoiceDiscountAmount)}</td>
+          </tr>`
+    : '';
 
   return `
   <!DOCTYPE html>
@@ -343,29 +539,30 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Faktura ${numberLabel}</title>
+    <title>${documentTitle} ${numberLabel}</title>
     <style>${facioDocumentStyles()}</style>
   </head>
   <body>
     <div class="page">
       ${expired ? '<div class="expired-banner">Denna delningslänk har gått ut.</div>' : ''}
 
-      <div class="top">
-        <div class="issuer">
+      <header class="doc-header">
+        <div class="issuer-brand">
           ${logoSrc ? `<img class="issuer-logo" src="${logoSrc}" alt="" />` : ''}
           <h1 class="issuer-name">${issuerName}</h1>
-          <div class="issuer-lines">
-            ${issuerLine1 ? `<p>${issuerLine1}</p>` : ''}
-            ${issuerLine2 ? `<p>${issuerLine2}</p>` : ''}
-            ${issuerCity ? `<p>${issuerCity}</p>` : ''}
-            ${orgNr ? `<p>${orgNr}</p>` : ''}
-            ${referencePerson ? `<p>${referencePerson}</p>` : ''}
-            ${issuerEmail ? `<p>${issuerEmail}</p>` : ''}
+        </div>
+        <div class="title-block">
+          <div class="title-row">
+            <span class="lbl">${documentTitle}</span>
+            <span class="val">${numberLabel}</span>
           </div>
         </div>
+      </header>
 
-        <div>
-          <h1 class="doc-title">Faktura</h1>
+      <div class="top">
+        ${customerBlockHtml}
+
+        <div class="top-payment">
           <div class="summary">
             <div class="row">
               <span class="lbl">Förfallodatum</span>
@@ -388,55 +585,73 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
                 : ''
             }
           </div>
-
-          <div class="customer-wrap customer-block">
-            <p><strong>${customerName}</strong></p>
-            ${customerLine1 ? `<p>${customerLine1}</p>` : ''}
-            ${customerLine2 ? `<p>${customerLine2}</p>` : ''}
-            ${customerCity ? `<p>${customerCity}</p>` : ''}
-            ${customerOrg ? `<p>${customerOrg}</p>` : ''}
+        </div>
+        ${leftMetaHtml}
+        <div class="top-right-meta">
+          <div class="summary">
+            <div class="row plain">
+              <span class="lbl">Fakturadatum</span>
+              <span class="val">${issueDate || '—'}</span>
+            </div>
+            <div class="row plain">
+              <span class="lbl">Betalningsvillkor</span>
+              <span class="val">${paymentTerms}</span>
+            </div>
+            <div class="row plain">
+              <span class="lbl">Dröjsmålsränta</span>
+              <span class="val">${lateInterest}%</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <hr class="rule" />
-      <div class="meta">
-        <div class="pair"><span class="k">Fakturanummer</span><span class="v">${numberLabel}</span></div>
-        <div class="pair"><span class="k">Fakturadatum</span><span class="v">${issueDate || '—'}</span></div>
-        <div class="pair"><span class="k">Kund</span><span class="v">${customerName}</span></div>
-        <div class="pair"><span class="k">Betalningsvillkor</span><span class="v">${paymentTerms}</span></div>
-        <div class="pair"><span class="k">Referens</span><span class="v">${referencePerson || '—'}</span></div>
-        <div class="pair"><span class="k">Dröjsmålsränta</span><span class="v">${lateInterest}%</span></div>
-      </div>
-      <hr class="rule" />
-
       <table class="items">
         <thead>
           <tr>
-            <th style="width:46%;">Beskrivning</th>
-            <th class="right" style="width:18%;">Antal</th>
-            <th class="right" style="width:18%;">À-pris</th>
-            <th class="right" style="width:18%;">Summa</th>
+            <th style="width:40%;">Beskrivning</th>
+            <th class="right" style="width:14%;">Antal</th>
+            <th class="right" style="width:16%;">À-pris</th>
+            <th class="right" style="width:14%;">Rabatt</th>
+            <th class="right" style="width:16%;">Summa</th>
           </tr>
         </thead>
         <tbody>
           ${(invoice.lineItems || [])
-            .map(
-              (li) => `
+            .map((li) => {
+              if (li.kind === 'text') {
+                return `
+            <tr>
+              <td class="desc" colspan="5">${escapeHtml(lineDescription(li))}</td>
+            </tr>
+          `;
+              }
+              return `
             <tr>
               <td class="desc">${escapeHtml(lineDescription(li))}</td>
               <td class="right num">${formatQty(li)}</td>
               <td class="right num">${formatSvNumber(li.unitPrice || 0)}</td>
+              <td class="right num">${formatDisc(li)}</td>
               <td class="right num">${formatSvNumber(lineSum(li))}</td>
             </tr>
-          `,
-            )
+          `;
+            })
             .join('')}
         </tbody>
       </table>
 
       <div class="totals-wrap">
+        ${
+          notesText
+            ? `<div class="notes-block">
+          <table>
+            <tr><td>Anteckningar och villkor</td></tr>
+            <tr><td class="notes-body">${notesText}</td></tr>
+          </table>
+        </div>`
+            : '<div class="notes-block"></div>'
+        }
         <table class="totals">
+          ${invoiceDiscountRows}
           <tr>
             <td>Summa ex moms</td>
             <td class="amount">${formatSvNumber(
@@ -455,18 +670,27 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
       </div>
 
       <div class="footer">
-        <div>
-          <strong>${issuerName}</strong><br/>
-          ${issuerLine1 ? `${issuerLine1}<br/>` : ''}
-          ${issuerCity ? `${issuerCity}<br/>` : ''}
-          ${referencePerson ? `${referencePerson}<br/>` : ''}
-          ${issuerEmail || ''}
+        <div class="footer-company">
+          <p><strong>${issuerName}</strong></p>
+          ${issuerLine1 ? `<p>${issuerLine1}</p>` : ''}
+          ${issuerLine2 ? `<p>${issuerLine2}</p>` : ''}
+          ${issuerCity ? `<p>${issuerCity}</p>` : ''}
+          ${issuerCountry ? `<p>${issuerCountry}</p>` : ''}
+          ${fTaxApproved ? '<p>Godkänd för F-skatt</p>' : ''}
+          ${issuerSite ? `<p class="footer-site">${issuerSite}</p>` : ''}
         </div>
-        <div>
-          ${orgNr ? `<div><span class="lab">Org-nr</span> ${orgNr}</div>` : ''}
+        <div class="footer-col">
+          ${orgNr ? `<div><span class="lab">Org.nr</span> ${orgNr}</div>` : ''}
           ${vatNr ? `<div><span class="lab">VAT-nr</span> ${vatNr}</div>` : ''}
+          ${issuerPhone ? `<div><span class="lab">Tel</span> ${issuerPhone}</div>` : ''}
+          ${issuerEmail ? `<div><span class="lab">Mail</span> ${issuerEmail}</div>` : ''}
+        </div>
+        <div class="footer-col">
           ${bankgiro ? `<div><span class="lab">Bankgiro</span> ${bankgiro}</div>` : ''}
-          ${fTaxApproved ? '<div><strong>Godkänd för F-skatt</strong></div>' : ''}
+          ${plusgiro ? `<div><span class="lab">Plusgiro</span> ${plusgiro}</div>` : ''}
+          ${iban ? `<div><span class="lab">IBAN</span> ${iban}</div>` : ''}
+          ${bic ? `<div><span class="lab">BIC</span> ${bic}</div>` : ''}
+          ${swish ? `<div><span class="lab">Swish</span> ${swish}</div>` : ''}
         </div>
       </div>
     </div>
@@ -480,6 +704,5 @@ module.exports = {
   formatDate,
   formatCurrency,
   formatSvNumber,
-  fallbackTotals,
   facioDocumentStyles,
 };

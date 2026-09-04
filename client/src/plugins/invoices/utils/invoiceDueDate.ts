@@ -1,12 +1,17 @@
 /**
  * Due-date urgency formatting for invoices (mirrors Tasks formatDueDate).
  * Payment terms (days) drive due date from issue date.
+ * Calendar dates always use YYYY-MM-DD (`formatDate` / sv-SE).
  */
+
+import { formatDate } from '@/core/utils/dateFormat';
 
 export type InvoiceDueDateDisplay = {
   text: string;
   className: string;
   badgeClassName: string;
+  /** When true, UI may show YYYY-MM-DD as a second line under the relative label. */
+  isRelative: boolean;
 };
 
 const BADGE_SHELL = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
@@ -92,6 +97,7 @@ export function formatInvoiceDueDate(
       text: `${Math.abs(diffDays)} days overdue`,
       className: 'text-destructive font-medium',
       badgeClassName: `${BADGE_SHELL} bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300`,
+      isRelative: true,
     };
   }
   if (diffDays === 0) {
@@ -99,6 +105,7 @@ export function formatInvoiceDueDate(
       text: 'Due today',
       className: 'text-orange-600 dark:text-orange-400 font-medium',
       badgeClassName: `${BADGE_SHELL} bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300`,
+      isRelative: true,
     };
   }
   if (diffDays === 1) {
@@ -106,11 +113,13 @@ export function formatInvoiceDueDate(
       text: 'Due tomorrow',
       className: 'text-yellow-600 dark:text-yellow-400',
       badgeClassName: `${BADGE_SHELL} bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300`,
+      isRelative: true,
     };
   }
   return {
-    text: due.toLocaleDateString(),
+    text: formatDate(due) || '—',
     className: 'text-muted-foreground',
     badgeClassName: `${BADGE_SHELL} bg-muted text-muted-foreground`,
+    isRelative: false,
   };
 }

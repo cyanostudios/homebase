@@ -1,12 +1,10 @@
 import type { NavPage } from '@/core/navigation/navTypes';
 import { CLUBDESK_SUBPAGE_SET } from '@/core/routing/clubdeskRoutes';
 import { GARMENTS_SUBPAGE_SET } from '@/core/routing/garmentsRoutes';
-import { INVOICES_SUBPAGE_SET } from '@/core/routing/invoicesRoutes';
+import { INVOICES_LEGACY_SUBPAGE_SET } from '@/core/routing/invoicesRoutes';
 
 /**
  * Maps every NavPage value to its canonical URL path.
- * The invoices sub-pages use named segments to avoid collision with item IDs
- * (e.g. /invoices/recurring vs /invoices/42).
  */
 export const navPageToPath: Record<NavPage, string> = {
   dashboard: '/',
@@ -24,9 +22,6 @@ export const navPageToPath: Record<NavPage, string> = {
   cups: '/cups',
   estimates: '/estimates',
   invoices: '/invoices',
-  'invoices-recurring': '/invoices/recurring',
-  'invoices-payments': '/invoices/payments',
-  'invoices-reports': '/invoices/reports',
   files: '/files',
   ingest: '/ingest',
   guides: '/guides',
@@ -43,7 +38,8 @@ export const navPageToPath: Record<NavPage, string> = {
 
 /**
  * Derives the active NavPage from a URL pathname.
- * Handles invoices / clubdesk / garments sub-routes and tolerates trailing slashes.
+ * Handles clubdesk / garments sub-routes and tolerates trailing slashes.
+ * Legacy invoices subpaths (recurring/payments/reports) map to the invoices list.
  */
 export function pathToNavPage(pathname: string): NavPage {
   const clean = pathname.replace(/\/+$/, '') || '/';
@@ -58,8 +54,8 @@ export function pathToNavPage(pathname: string): NavPage {
   const plugin = parts[0] as NavPage;
   const sub = parts[1];
 
-  if (plugin === 'invoices' && sub && INVOICES_SUBPAGE_SET.has(sub)) {
-    return `invoices-${sub}` as NavPage;
+  if (plugin === 'invoices' && sub && INVOICES_LEGACY_SUBPAGE_SET.has(sub)) {
+    return 'invoices';
   }
 
   if (plugin === 'clubdesk') {

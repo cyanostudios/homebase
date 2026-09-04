@@ -288,7 +288,7 @@ List views place toolbar actions inside the main list card (same shell as table/
 Primary action pattern for dialogs, bulk bars, and quick context chrome.
 
 - **Component:** `RoundIconLabelButton` (`@/components/ui/round-icon-label-button.tsx`); alias `ExpandableIconButton` for legacy imports.
-- **Variants:** `primary` (blue), `soft` (light primary idle → solid primary hover), `secondary` (gray), `success` (green), `danger` (red), `dangerSoft` (soft idle → red hover). Rail tools and settings body actions commonly use `secondary` / `soft` / `dangerSoft` at `size="xs"`.
+- **Variants:** `primary` (blue), `soft` (light primary idle → solid primary hover), `secondary` (gray), `success` (green), `successSoft` (soft green idle → solid green hover), `danger` (red), `dangerSoft` (soft idle → red hover). Rail tools and settings body actions commonly use `secondary` / `soft` / `dangerSoft` at `size="xs"`.
 - **Expansion:** `alwaysExpanded` — icon + label always visible (dialog Save/Close, bulk pills). Default collapsed — icon-only; label on hover unless `expandOnHover={false}` (e.g. quick context Close, prev/next chevrons).
 - **Dialog wrappers:** `DialogRoundButtons`, `AlertDialogRound*` (`@/core/ui/DialogRoundButtons.tsx`).
 - **Quick context:** `QuickContextHeaderActions` + `QuickContextOpenFullFooter` (`@/core/ui/QuickContextHeaderActions.tsx`) — reuse in all `*QuickContextPanel` headers/footers; do not duplicate ghost icon buttons.

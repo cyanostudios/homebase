@@ -70,6 +70,11 @@ describe('formatInvoiceDueDate', () => {
     const result = formatInvoiceDueDate(new Date(2026, 7, 26));
     expect(result?.text).toBe('Due tomorrow');
   });
+
+  it('formats later due dates as YYYY-MM-DD', () => {
+    const result = formatInvoiceDueDate(new Date(2026, 8, 10, 12, 0, 0));
+    expect(result?.text).toBe('2026-09-10');
+  });
 });
 
 describe('compareInvoicesByField', () => {

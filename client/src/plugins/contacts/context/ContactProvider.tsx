@@ -1,4 +1,4 @@
-import { Mail, MessageSquare } from 'lucide-react';
+import { FileText, Mail, MessageSquare } from 'lucide-react';
 import React, { useCallback, useMemo, useState, useEffect, useRef, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
@@ -15,6 +15,8 @@ import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { requestInvoiceCreateFromContact } from '@/plugins/invoices/utils/pendingInvoiceCreate';
 
 import { contactsApi } from '../api/contactsApi';
 import { Contact, ValidationError } from '../types/contacts';
@@ -60,10 +62,12 @@ export function ContactProvider({
     registerSharedDataRefresh,
   } = useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/contacts');
+  const enabledPlugins = useEnabledPlugins();
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
   const canSendEmail =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
+  const canCreateInvoice = enabledPlugins.has('invoices');
 
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
@@ -169,8 +173,26 @@ export function ContactProvider({
       });
     }
 
+    if (canCreateInvoice) {
+      actions.push({
+        id: 'create-invoice',
+        label: t('contacts.actionInvoice'),
+        icon: FileText,
+        onClick: (item: Contact) => {
+          // Module bridge — ContactProvider sits outside InvoicesProvider in the tree.
+          requestInvoiceCreateFromContact({
+            contactId: String(item.id),
+            contactName: item.companyName || '',
+            organizationNumber: item.organizationNumber || '',
+            currency: item.currency || 'SEK',
+            paymentTerms: item.paymentTerms || '30',
+          });
+        },
+      });
+    }
+
     return actions;
-  }, [t, canSendMessages, canSendEmail]);
+  }, [t, canSendMessages, canSendEmail, canCreateInvoice]);
 
   const {
     selectedIds: selectedContactIds,

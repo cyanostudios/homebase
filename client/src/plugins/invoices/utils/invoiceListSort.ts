@@ -1,4 +1,5 @@
 import type { Invoice } from '../types/invoices';
+import { resolveInvoiceTotals } from './invoiceTotals';
 
 export type InvoiceSortField =
   | 'invoiceNumber'
@@ -47,7 +48,7 @@ export function getInvoiceSortValue(
     return invoice.status || 'draft';
   }
   if (field === 'total') {
-    return typeof invoice.total === 'number' ? invoice.total : Number(invoice.total ?? 0);
+    return resolveInvoiceTotals(invoice as Invoice).total;
   }
   if (field === 'createdAt') {
     return invoice.createdAt ?? null;

@@ -10,12 +10,21 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
-export const INVOICE_STATUS_OPTIONS = ['draft', 'sent', 'paid', 'overdue', 'canceled'] as const;
+export const INVOICE_STATUS_OPTIONS = [
+  'draft',
+  'sent',
+  'partially_paid',
+  'paid',
+  'overdue',
+  'canceled',
+] as const;
 
 /** Platform status badge fills (Estimates / Tasks pattern). Pair with `INVOICE_STATUS_BADGE_CLASS`. */
 export const INVOICE_STATUS_COLORS: Record<string, string> = {
   draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
   sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
+  partially_paid:
+    'bg-amber-50/50 text-amber-700 dark:text-amber-300 border-amber-100/50 font-medium',
   paid: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
   overdue: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
   canceled: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
@@ -28,6 +37,9 @@ export function formatInvoiceStatusForDisplay(status: string): string {
   if (!status) {
     return '—';
   }
+  if (status === 'partially_paid') {
+    return 'Partially paid';
+  }
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
@@ -38,6 +50,8 @@ interface InvoiceStatusSelectProps {
   hideInlineLabel?: boolean;
   /** Smaller trigger for inline lists. */
   compact?: boolean;
+  /** Prototype: borderless muted control (invoice edit properties). */
+  filled?: boolean;
 }
 
 export function InvoiceStatusSelect({
@@ -45,6 +59,7 @@ export function InvoiceStatusSelect({
   onStatusChange,
   hideInlineLabel = false,
   compact = false,
+  filled = false,
 }: InvoiceStatusSelectProps) {
   const status = invoice.status || 'draft';
 
@@ -52,8 +67,11 @@ export function InvoiceStatusSelect({
     <Select value={status} onValueChange={onStatusChange}>
       <SelectTrigger
         className={cn(
-          'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50',
-          compact ? 'h-8 min-h-8 w-[130px] sm:h-7' : 'h-9 w-[180px]',
+          'rounded-md px-2 text-xs shadow-none transition-colors',
+          filled
+            ? 'h-7 w-[180px] border-0 bg-muted hover:bg-muted/80 focus:ring-1 focus:ring-ring focus:ring-offset-0'
+            : 'border-border/50 bg-background hover:bg-accent/50',
+          !filled && (compact ? 'h-8 min-h-8 w-[130px] sm:h-7' : 'h-9 w-[180px]'),
         )}
       >
         <SelectValue placeholder="Select status">

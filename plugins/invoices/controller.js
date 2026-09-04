@@ -1,7 +1,7 @@
 // plugins/invoices/controller.js
 // Invoices controller - V3 with @homebase/core SDK
 const puppeteer = require('puppeteer');
-const { setPdfHtmlContent } = require('../../server/core/utils/puppeteerPdf');
+const { renderInvoicePdf } = require('../../server/core/utils/puppeteerPdf');
 const { generatePDFHTML } = require('./pdfTemplate');
 const { displayNameFromEmail, resolveLogoDataUrl } = require('./documentAssets');
 const { Logger, Context } = require('@homebase/core');
@@ -31,7 +31,25 @@ function pickContactAddress(addresses) {
     line2: preferred.addressLine2 || preferred.line2 || '',
     postalCode: preferred.postalCode || '',
     city: preferred.city || '',
+    country: preferred.country || '',
   };
+}
+
+/** First non-empty contact person name on a contact card (kundreferens). */
+function pickFirstContactPersonName(contactPersons) {
+  if (!Array.isArray(contactPersons) || contactPersons.length === 0) {
+    return '';
+  }
+  for (const person of contactPersons) {
+    if (!person || typeof person !== 'object') {
+      continue;
+    }
+    const name = String(person.name || '').trim();
+    if (name) {
+      return name;
+    }
+  }
+  return '';
 }
 
 class InvoiceController {
@@ -114,6 +132,9 @@ class InvoiceController {
       line2: '',
       postalCode: '',
       city: '',
+      country: '',
+      reference: '',
+      customerNumber: '',
     };
 
     if (!invoice?.contactId) {
@@ -136,6 +157,14 @@ class InvoiceController {
           addresses = [];
         }
       }
+      let contactPersons = row.contact_persons || [];
+      if (typeof contactPersons === 'string') {
+        try {
+          contactPersons = JSON.parse(contactPersons);
+        } catch {
+          contactPersons = [];
+        }
+      }
       const addr = pickContactAddress(addresses) || {};
       return {
         name: row.company_name || base.name,
@@ -144,6 +173,9 @@ class InvoiceController {
         line2: addr.line2 || '',
         postalCode: addr.postalCode || '',
         city: addr.city || '',
+        country: addr.country || '',
+        reference: pickFirstContactPersonName(contactPersons),
+        customerNumber: String(row.contact_number || '').trim(),
       };
     } catch (error) {
       Logger.warn('Failed to load contact for invoice document', {
@@ -308,13 +340,7 @@ class InvoiceController {
       const page = await browser.newPage();
 
       const html = generatePDFHTML(invoice, organization, customer, { referencePerson });
-      await setPdfHtmlContent(page, html);
-
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '12mm', right: '12mm', bottom: '16mm', left: '12mm' },
-      });
+      const pdfBuffer = await renderInvoicePdf(page, html);
 
       Logger.info('PDF generated', { invoiceId: id, invoiceNumber: invoice.invoiceNumber });
 
@@ -328,6 +354,68 @@ class InvoiceController {
       res.end(pdfBuffer);
     } catch (error) {
       Logger.error('PDF generation failed', error, { invoiceId: req.params.id });
+      res.status(500).json({ error: 'Failed to generate PDF' });
+    } finally {
+      if (browser) {
+        try {
+          await browser.close();
+        } catch {}
+      }
+    }
+  }
+
+  async generatePublicPDF(req, res) {
+    let browser = null;
+    try {
+      const { token } = req.params;
+      if (!token) {
+        return res.status(400).json({ error: 'Share token is required' });
+      }
+
+      const invoice = await this.model.getInvoiceByShareToken(req, token);
+      if (!invoice) {
+        return res.status(404).json({ error: 'Invoice not found or link expired' });
+      }
+
+      const ownerUserId = invoice.shareOwnerUserId;
+      const [organizationRaw, customer, referencePerson] = await Promise.all([
+        this.loadOrganization(req, ownerUserId),
+        this.loadCustomerForInvoice(req, invoice),
+        this.loadReferencePerson(ownerUserId),
+      ]);
+      const organization = await this.prepareOrganizationForDocument(organizationRaw);
+      const publicInvoice = stripInternalShareFields(invoice);
+
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+      const page = await browser.newPage();
+
+      const html = generatePDFHTML(publicInvoice, organization, customer, { referencePerson });
+      const pdfBuffer = await renderInvoicePdf(page, html);
+
+      Logger.info('Public PDF generated', {
+        invoiceId: publicInvoice.id,
+        invoiceNumber: publicInvoice.invoiceNumber,
+        token: token.substring(0, 10),
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="faktura-${publicInvoice.invoiceNumber || publicInvoice.id}.pdf"`,
+      );
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.removeHeader('Content-Encoding');
+      res.end(pdfBuffer);
+    } catch (error) {
+      Logger.error('Public PDF generation failed', error, {
+        token: req.params.token?.substring(0, 10),
+      });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
       res.status(500).json({ error: 'Failed to generate PDF' });
     } finally {
       if (browser) {
@@ -439,6 +527,56 @@ class InvoiceController {
       }
 
       res.status(500).json({ error: 'Failed to revoke share' });
+    }
+  }
+
+  // === Payments ===
+
+  async getPayments(req, res) {
+    try {
+      const payments = await this.model.getPaymentsForInvoice(req, req.params.invoiceId);
+      res.json(payments);
+    } catch (error) {
+      Logger.error('Get payments failed', error, {
+        invoiceId: req.params.invoiceId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to get payments' });
+    }
+  }
+
+  async createPayment(req, res) {
+    try {
+      const result = await this.model.createPayment(req, req.params.invoiceId, req.body || {});
+      res.json(result);
+    } catch (error) {
+      Logger.error('Create payment failed', error, {
+        invoiceId: req.params.invoiceId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to create payment' });
+    }
+  }
+
+  async deletePayment(req, res) {
+    try {
+      const result = await this.model.deletePayment(req, req.params.paymentId);
+      res.json(result);
+    } catch (error) {
+      Logger.error('Delete payment failed', error, {
+        paymentId: req.params.paymentId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to delete payment' });
     }
   }
 }

@@ -47,6 +47,14 @@ export function InvoiceStatusModal({
           helpText: 'This action can be undone if needed.',
           buttonText: 'Mark as Paid',
         };
+      case 'partially_paid':
+        return {
+          title: 'Mark invoice as partially paid?',
+          message:
+            'This will change the status to "Partially paid" indicating that some payment has been received.',
+          helpText: 'You can update to "Paid" once the full amount is received.',
+          buttonText: 'Mark as Partially paid',
+        };
       case 'overdue':
         return {
           title: 'Mark invoice as overdue?',

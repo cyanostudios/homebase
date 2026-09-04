@@ -105,6 +105,27 @@ export class InvoicesApi {
     });
   }
 
+  async downloadPublicPdf(token: string): Promise<Blob> {
+    const response = await fetch(`${this.basePath}/public/${token}/pdf`, { method: 'GET' });
+    if (!response.ok) {
+      let errorMessage = 'Failed to download PDF';
+      try {
+        const text = await response.text();
+        const match = text.match(/"error"\s*:\s*"([^"]+)"/);
+        if (match) {
+          errorMessage = match[1];
+        }
+      } catch {
+        // Ignore parse errors when response body isn't JSON
+      }
+      const err: any = new Error(errorMessage);
+      err.status = response.status;
+      throw err;
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return new Blob([arrayBuffer], { type: 'application/pdf' });
+  }
+
   async downloadPdf(id: string): Promise<Blob> {
     const response = await apiFetch(`${this.basePath}/${id}/pdf`, {
       method: 'GET',
@@ -126,6 +147,21 @@ export class InvoicesApi {
     }
     const arrayBuffer = await response.arrayBuffer();
     return new Blob([arrayBuffer], { type: 'application/pdf' });
+  }
+
+  getPayments(invoiceId: string) {
+    return this.request(`/${invoiceId}/payments`);
+  }
+
+  createPayment(invoiceId: string, data: { amount: number; paidOn?: string; reference?: string }) {
+    return this.request(`/${invoiceId}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  deletePayment(paymentId: string) {
+    return this.request(`/payments/${paymentId}`, { method: 'DELETE' });
   }
 }
 

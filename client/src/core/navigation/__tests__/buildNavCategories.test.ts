@@ -24,15 +24,21 @@ describe('buildNavCategories', () => {
     expect(main?.items.map((i) => i.page)).toEqual(['dashboard', 'contacts', 'notes', 'tasks']);
   });
 
-  it('sorts submenu items by order', () => {
+  it('invoices has no submenu (content views replace stubs)', () => {
     const categories = buildNavCategories(new Set(['invoices']), t);
     const business = categories.find((c) => c.id === 'Business');
     const invoices = business?.items.find((i) => i.page === 'invoices');
-    expect(invoices?.submenu?.map((s) => s.page)).toEqual([
-      'invoices',
-      'invoices-recurring',
-      'invoices-payments',
-      'invoices-reports',
+    expect(invoices?.submenu).toBeUndefined();
+  });
+
+  it('sorts clubdesk submenu items by order', () => {
+    const categories = buildNavCategories(new Set(['clubdesk']), t);
+    const apps = categories.find((c) => c.id === 'Apps');
+    const clubdesk = apps?.items.find((i) => i.page === 'clubdesk');
+    expect(clubdesk?.submenu?.map((s) => s.page)).toEqual([
+      'clubdesk-guides',
+      'clubdesk-price-list',
+      'clubdesk-info',
     ]);
   });
 

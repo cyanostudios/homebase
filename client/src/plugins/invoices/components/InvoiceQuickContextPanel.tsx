@@ -1,4 +1,4 @@
-import { Calendar, Hash, ListOrdered, Receipt, Wallet } from 'lucide-react';
+import { Calculator, Calendar, CreditCard, Hash, ListOrdered, Receipt, Wallet } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -10,19 +10,25 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { BADGE_CHIP_CLASS, QC_INVOICE_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { SubtleSectionHeading } from '@/core/ui/DetailSection';
 import { QuickContextActiveShareLink } from '@/core/ui/QuickContextActiveShareLink';
 import {
   QuickContextHeaderActions,
   QuickContextOpenFullFooter,
 } from '@/core/ui/QuickContextHeaderActions';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { formatDate, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
 import { invoicesApi } from '../api/invoicesApi';
 import type { Invoice, InvoiceShare } from '../context/InvoicesContext';
+import { formatInvoiceAmount, formatInvoiceMoney } from '../utils/formatInvoiceAmount';
+import { resolveInvoiceTotals } from '../utils/invoiceTotals';
+import { displayPlainText } from '../utils/htmlText';
 import { formatInvoiceDueDate, formatPaymentTermsLabel } from '../utils/invoiceDueDate';
 
+import { InvoicePricingSummary } from './InvoicePricingSummary';
 import { formatInvoiceStatusForDisplay } from './InvoiceStatusSelect';
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
@@ -54,32 +60,26 @@ export function InvoiceQuickContextPanel({
   children?: React.ReactNode;
 }) {
   const isFullView = variant === 'full';
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [listShareUrl, setListShareUrl] = useState<string | null>(null);
   const status = invoice.status || 'draft';
   const due = formatInvoiceDueDate(invoice.dueDate);
   const showDueUrgency = status !== 'paid' && status !== 'canceled';
   const numberLabel = formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id);
-  const issueDate = invoice.issueDate ? new Date(invoice.issueDate) : null;
-  const amountLabel =
-    typeof invoice.total === 'number'
-      ? invoice.total.toFixed(2)
-      : invoice.total !== null && invoice.total !== undefined
-        ? String(invoice.total)
-        : '—';
+  const issueDateLabel = formatDate(invoice.issueDate) || '—';
+  const dueDateLabel = formatDate(invoice.dueDate) || '—';
   const currency = invoice.currency || 'SEK';
   const paymentTermsLabel = formatPaymentTermsLabel(invoice.paymentTerms);
   const lineItemCount = Array.isArray(invoice.lineItems) ? invoice.lineItems.length : 0;
-  const invoiceNotes = invoice.notes?.trim() || '';
-  const updatedLabel = invoice.updatedAt
-    ? new Date(invoice.updatedAt).toLocaleString(undefined, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
+  const invoiceNotes = displayPlainText(invoice.notes).trim();
+  const amountPaid = Number(invoice.amountPaid || 0);
+  const invoiceDiscount = Number(invoice.invoiceDiscount || 0);
+  const totals = resolveInvoiceTotals(invoice);
+  const totalAmount = totals.total;
+  const amountLabel = formatInvoiceAmount(totalAmount);
+  const remaining = Math.max(0, Math.round((totalAmount - amountPaid) * 100) / 100);
+  const hasPayments = amountPaid > 0;
+  const updatedLabel = invoice.updatedAt ? formatDateTimeShort(invoice.updatedAt) : null;
 
   useEffect(() => {
     if (isFullView) {
@@ -130,6 +130,9 @@ export function InvoiceQuickContextPanel({
     </div>
   );
 
+  const factValueClass = 'text-base font-medium text-foreground';
+  const factValueEmphasisClass = DETAIL_FIELD_VALUE_CLASS;
+
   const factGrid = (
     <div className="grid grid-cols-1 gap-y-3 md:grid-cols-2 md:gap-x-4">
       <div>
@@ -137,16 +140,14 @@ export function InvoiceQuickContextPanel({
           <Hash className="h-3 w-3" />
           {t('invoices.table.number')}
         </div>
-        <div className={DETAIL_FIELD_VALUE_CLASS}>{numberLabel || '—'}</div>
+        <div className={factValueClass}>{numberLabel || '—'}</div>
       </div>
       <div>
         <div className={FACT_LABEL_CLASS}>
           <Calendar className="h-3 w-3" />
           {t('invoices.issueDate')}
         </div>
-        <div className={DETAIL_FIELD_VALUE_CLASS}>
-          {issueDate ? issueDate.toLocaleDateString(i18n.language) : '—'}
-        </div>
+        <div className={factValueClass}>{issueDateLabel}</div>
       </div>
       <div>
         <div className={FACT_LABEL_CLASS}>
@@ -154,16 +155,9 @@ export function InvoiceQuickContextPanel({
           {t('invoices.fieldDueDate')}
         </div>
         <div
-          className={cn(
-            DETAIL_FIELD_VALUE_CLASS,
-            showDueUrgency && due ? due.className : undefined,
-          )}
+          className={cn(factValueEmphasisClass, showDueUrgency && due ? due.className : undefined)}
         >
-          {due && showDueUrgency
-            ? due.text
-            : invoice.dueDate
-              ? new Date(invoice.dueDate).toLocaleDateString(i18n.language)
-              : '—'}
+          {due && showDueUrgency ? due.text : dueDateLabel}
         </div>
       </div>
       <div>
@@ -171,7 +165,7 @@ export function InvoiceQuickContextPanel({
           <Wallet className="h-3 w-3" />
           {t('invoices.table.total')}
         </div>
-        <div className={cn(DETAIL_FIELD_VALUE_CLASS, 'tabular-nums')}>
+        <div className={cn(factValueEmphasisClass, 'tabular-nums')}>
           {amountLabel} {currency}
         </div>
       </div>
@@ -180,11 +174,11 @@ export function InvoiceQuickContextPanel({
           <Receipt className="h-3 w-3" />
           {t('invoices.currency')}
         </div>
-        <div className={DETAIL_FIELD_VALUE_CLASS}>{currency}</div>
+        <div className={factValueClass}>{currency}</div>
       </div>
       <div>
         <div className={FACT_LABEL_CLASS}>{t('invoices.paymentTerms')}</div>
-        <div className={cn(DETAIL_FIELD_VALUE_CLASS, 'truncate')}>{paymentTermsLabel}</div>
+        <div className={cn(factValueClass, 'truncate')}>{paymentTermsLabel}</div>
       </div>
       {!isFullView ? (
         <div>
@@ -192,7 +186,7 @@ export function InvoiceQuickContextPanel({
             <ListOrdered className="h-3 w-3" />
             {t('invoices.quickInfo.items')}
           </div>
-          <div className={DETAIL_FIELD_VALUE_CLASS}>
+          <div className={factValueClass}>
             {t('invoices.quickInfo.itemsCount', { count: lineItemCount })}
           </div>
         </div>
@@ -243,6 +237,52 @@ export function InvoiceQuickContextPanel({
               <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
                 {invoiceNotes}
               </p>
+            </div>
+          </div>
+        ) : null}
+
+        {!isFullView && lineItemCount > 0 ? (
+          <div className="space-y-2">
+            <SubtleSectionHeading title={t('invoices.pricingSummary')} icon={Calculator} />
+            <InvoicePricingSummary
+              totals={totals}
+              currency={currency}
+              invoiceDiscount={invoiceDiscount}
+            />
+          </div>
+        ) : null}
+
+        {!isFullView && hasPayments ? (
+          <div className="space-y-2">
+            <SubtleSectionHeading
+              title={t('invoices.payments.title', { defaultValue: 'Payments' })}
+              icon={CreditCard}
+            />
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">
+                  {t('invoices.payments.paid', { defaultValue: 'Paid' })}
+                </span>
+                <span className="text-xs font-medium tabular-nums text-foreground">
+                  {formatInvoiceMoney(amountPaid, currency)}
+                </span>
+              </div>
+              {remaining > 0 ? (
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">
+                    {t('invoices.payments.remaining', { defaultValue: 'Remaining' })}
+                  </span>
+                  <span className="text-xs font-medium tabular-nums text-foreground">
+                    {formatInvoiceMoney(remaining, currency)}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                  {t('invoices.payments.fullyPaidHint', {
+                    defaultValue: 'This invoice is fully paid.',
+                  })}
+                </p>
+              )}
             </div>
           </div>
         ) : null}

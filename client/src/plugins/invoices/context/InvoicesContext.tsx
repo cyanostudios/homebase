@@ -13,10 +13,14 @@ export interface Invoice {
   invoiceDiscount?: number;
   notes?: string;
   paymentTerms?: string;
+  orderNumber?: string;
+  deliveryMethod?: string;
   issueDate?: Date | string | null;
   dueDate?: Date | string | null;
-  status?: 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled';
+  status?: 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled' | 'partially_paid';
   invoiceType?: 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt';
+  paidAt?: Date | string | null;
+  amountPaid?: number;
   createdAt?: Date | string | null;
   updatedAt?: Date | string | null;
   estimateId?: string | null;
@@ -36,13 +40,26 @@ export interface InvoiceShare {
   lastAccessedAt?: string;
 }
 
+/** Prefill when opening create (e.g. contact → new invoice). */
+export type InvoiceCreatePrefill = {
+  contactId: string;
+  contactName?: string;
+  organizationNumber?: string;
+  currency?: string;
+  paymentTerms?: string;
+};
+
 export interface InvoicesContextType {
   isInvoicesPanelOpen: boolean;
   currentInvoice: Invoice | null;
   panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   invoices: Invoice[];
+  /** Contact (etc.) defaults applied while the create form is open. */
+  invoiceCreatePrefill: InvoiceCreatePrefill | null;
   openInvoicesPanel: (item: Invoice | null) => void;
+  /** Open create form; optionally prefill customer and navigate to /invoices. */
+  openInvoiceForCreate: (prefill?: InvoiceCreatePrefill | null) => void;
   openInvoiceForEdit: (item: Invoice) => void;
   openInvoiceForView: (item: Invoice) => void;
   closeInvoicesPanel: () => void;
@@ -92,9 +109,14 @@ export interface InvoicesContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
-  invoicesContentView: 'list' | 'settings';
+  invoicesContentView: 'list' | 'settings' | 'statistics';
   openInvoiceSettings: () => void;
   closeInvoiceSettingsView: () => void;
+  openInvoiceStatistics: () => void;
+  closeInvoiceStatisticsView: () => void;
+  refreshInvoices: () => Promise<void>;
+  /** Merge a server invoice into list + open panel item (e.g. after recording a payment). */
+  applyInvoiceSnapshot: (invoice: Invoice) => void;
 }
 
 export const InvoicesContext = createContext<InvoicesContextType | undefined>(undefined);
@@ -113,7 +135,9 @@ const EMPTY_INVOICES_CONTEXT: InvoicesContextType = {
   panelMode: 'create',
   validationErrors: [],
   invoices: [],
+  invoiceCreatePrefill: null,
   openInvoicesPanel: () => {},
+  openInvoiceForCreate: () => {},
   openInvoiceForEdit: () => {},
   openInvoiceForView: () => {},
   closeInvoicesPanel: () => {},
@@ -160,6 +184,10 @@ const EMPTY_INVOICES_CONTEXT: InvoicesContextType = {
   invoicesContentView: 'list',
   openInvoiceSettings: () => {},
   closeInvoiceSettingsView: () => {},
+  openInvoiceStatistics: () => {},
+  closeInvoiceStatisticsView: () => {},
+  refreshInvoices: async () => {},
+  applyInvoiceSnapshot: () => {},
 };
 
 export function InvoicesNullProvider({ children }: { children: React.ReactNode }) {

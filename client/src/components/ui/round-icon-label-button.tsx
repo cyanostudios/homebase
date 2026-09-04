@@ -8,6 +8,7 @@ export type RoundIconLabelButtonVariant =
   | 'soft'
   | 'secondary'
   | 'success'
+  | 'successSoft'
   | 'danger'
   | 'dangerSoft';
 
@@ -38,6 +39,9 @@ const variantClasses: Record<RoundIconLabelButtonVariant, string> = {
   secondary: 'bg-secondary text-secondary-foreground hover:bg-primary/10 hover:text-primary',
   success:
     'border-none bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700',
+  /** Idle: soft green; hover: solid green. */
+  successSoft:
+    'bg-green-600/10 text-green-700 hover:bg-green-600 hover:text-white dark:text-green-400 dark:hover:bg-green-600 dark:hover:text-white',
   danger:
     'border-none bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700',
   /** Idle: soft primary; hover: solid red. */

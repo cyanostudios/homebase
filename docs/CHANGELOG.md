@@ -4,6 +4,103 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-04 – Contacts ↔ Invoices: linked + create from Actions
+
+- Contact Linked shows invoices for the contact; quick context caps at 2 tiles + “more linked”.
+- Contact Actions → Invoice opens create on `/invoices` with contact prefilled.
+- **Bridge:** `requestInvoiceCreateFromContact` / `pendingInvoiceCreate` (Contacts must not use `useInvoices` — provider order).
+- App shell keeps **create** panels open on plugin list URLs; `navigateToBase` only strips item segments.
+- **QA + Security approved** (2026-09-04); local-first, not a prod release by itself.
+
+Files: `ContactLinkedItemsSection.tsx`, `ContactQuickContextPanel.tsx`, `ContactProvider.tsx`, `InvoicesProvider.tsx`, `InvoicesForm.tsx`, `pendingInvoiceCreate.ts`, `AppContent.tsx`, `useItemUrl.ts`, i18n `actionInvoice` / `openInvoice`.
+
+## 2026-09-04 – Invoices: single totals source of truth
+
+**Typ:** fix / architecture / invoices  
+**Scope:** `invoiceTotals` (client + `plugins/invoices/invoiceTotals.js`), provider hydrate, view/list/preview/PDF/stats
+
+**Ändringar:**
+
+- **Inputs of truth:** `lineItems` + `invoiceDiscount` (%); derivation only via `resolveInvoiceTotals`
+- Server + client share the same algorithm (parity-tested); API `transformRow` and provider stamp resolved totals
+- List / QC / full view / edit preview / web+PDF templates / stats all use the same path — no view-specific totals
+
+## 2026-09-04 – Invoices: fix totals with mixed discounts
+
+**Typ:** fix / invoices  
+**Scope:** `calculateInvoiceTotals`, `plugins/invoices/model.js` `calculateTotals`, `InvoicesView` Pricing Summary
+
+**Ändringar:**
+
+- Moms beräknas på **slutligt netto efter fakturarabatt** (proportionellt per rad) — samma logik klient + server
+- Full view Pricing Summary räknar om från line items (samma som preview/edit) i stället för eventuellt felaktiga DB-fält
+- `discountAmount` härleds från `discount %` om belopp saknas; text-rader räknas inte
+
+## 2026-09-04 – Invoices: payment ledger owns paid state
+
+**Typ:** security / fix / invoices  
+**Scope:** `plugins/invoices/{model,paymentLedger,routes}.js`, ADR, `docs/INVOICES_PLUGIN.md`
+
+**Ändringar:**
+
+- Invoice create/update ignorerar klientens `amountPaid` och status `paid`/`partially_paid`
+- Begärd payment-status via create/update behåller **nuvarande** workflow-status (t.ex. `sent`) — demoterar inte till `draft`
+- Efter update synkas `amount_paid` + paid-status från `invoice_payments` via `refreshInvoicePaymentState`
+- Payment POST validerar `amount` (>0), valfri `paidOn`/`reference` (CSRF + plugin-gate)
+
+## 2026-09-04 – Invoices: live preview in edit/create
+
+**Typ:** enhancement / invoices UX  
+**Scope:** `InvoicesForm.tsx`, `InvoiceDocumentPreview.tsx`, `openInvoicePreviewWindow.ts`, `detailPanelHeaderRight.tsx`, `webTemplate.ts` (`forceDesktop`), docs
+
+**Ändringar:**
+
+- Edit/create **~40/60**: vänster = kund, egenskaper, rabatt, summering; höger = line items ovanför sticky live-preview
+- Live-preview: desktop-layout (`forceDesktop`), contain-skalning till fakturans storlek, tunn A4-border, ingen grå bakgrund
+- **Preview**-knapp (header + preview-kort) öppnar shared-style dokument i nytt fönster
+
+## 2026-09-04 – Invoices: numbering settings (prefix + start)
+
+**Typ:** enhancement / invoices  
+**Scope:** `InvoiceSettingsView`, `plugins/invoices/{model,invoiceNumbering}.js`, `displayNumber.ts`, i18n, docs
+
+**Ändringar:**
+
+- Settings → Numrering: **Prefix → Year → Start number**, plus checkbox **Show year** (`includeYear`, default on)
+- `getNextInvoiceNumber` läser inställningarna och allokerar `PREFIX-YYYY-NNN` / `YYYY-NNN` (eller utan år: `PREFIX-NNN` / `NNN`)
+- Display undviker dubbel `INV-` när numret redan har lagrat prefix
+
+## 2026-09-04 – Invoices: Recurring paused (removed from app)
+
+**Status:** Implementerat lokalt. **QA: pending.** **Security: pending.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** chore / scope  
+**Scope:** invoices plugin (UI, API, filters, stats); ADR + `docs/INVOICES_PLUGIN.md`
+
+**Sammanfattning:** Recurring pausat — content view, list chip, API routes/model, client types och stats-metrik borttagna. Payments + Statistics kvar. DB-migrationer 157–158 behålls (payments); scheman kan ligga oanvända lokalt.
+
+---
+
+## 2026-09-04 – Invoices: streamlining, Payments, Stats
+
+**Status:** Implementerat lokalt. **QA: pending.** **Security: pending.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** feature / UX  
+**Scope:** invoices plugin (nav, list chips, content views, API, migrations 157–158); routing legacy subpaths; `docs/INVOICES_PLUGIN.md`; ADR `docs/ai/adr/INVOICES_RECURRING_PAYMENTS_STATS.md`
+
+**Sammanfattning:** Stub-submenu (Recurring/Payments/Reports) borttaget. En listvy med status- + unpaid/partial-chips. Matches-liknande **Statistics**-content view från list header. Betalningsledger (`invoice_payments`) med delbetalning i full view. _(Recurring togs bort i efterföljande scope-paus.)_
+
+**Verifierat (kod)**
+
+- Nav: ingen submenu; legacy `/invoices/recurring|payments|reports` → `invoices`
+- Content views: `list | settings | statistics`
+- API: `/:id/payments`, `/payments/:id` (CSRF på skrivande)
+- Migrationer: `npm run migrate:invoices-recurring-payments`, `migrate:invoices-recurring-payments-user-id` (local; inkluderar payments)
+
+**Guides:** [`INVOICES_PLUGIN.md`](INVOICES_PLUGIN.md), [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md)
+
+---
+
 ## 2026-09-04 – Listor: default A–Ö + magnitud högst först
 
 **Status:** Implementerat lokalt. **QA: pending.** **Security: N/A (UI-only).** **Docs Updated.** **Ej prod-release** utan explicit beslut.

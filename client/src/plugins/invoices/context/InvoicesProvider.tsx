@@ -1,6 +1,7 @@
 import { Receipt } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
@@ -11,20 +12,42 @@ import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
+import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
 import { InvoiceDetailHeaderMenus } from '../components/InvoiceDetailHeaderMenus';
 import { computeDueDateFromPaymentTerms } from '../utils/invoiceDueDate';
+import { withResolvedInvoiceTotals } from '../utils/invoiceTotals';
+import {
+  clearPendingInvoiceCreate,
+  hasPendingInvoiceCreate,
+  peekPendingInvoiceCreate,
+  setPendingInvoiceCreate,
+  subscribeInvoiceCreateRequests,
+  takePendingInvoiceCreate,
+} from '../utils/pendingInvoiceCreate';
 
 import { InvoicesContext } from './InvoicesContext';
 import type {
   Invoice,
+  InvoiceCreatePrefill,
   InvoiceShare,
   InvoicesContextType,
   ValidationError,
 } from './InvoicesContext';
+
+function normalizeInvoiceDates(invoice: any): Invoice {
+  return withResolvedInvoiceTotals({
+    ...invoice,
+    createdAt: invoice.createdAt ? new Date(invoice.createdAt) : null,
+    updatedAt: invoice.updatedAt ? new Date(invoice.updatedAt) : null,
+    issueDate: invoice.issueDate ? new Date(invoice.issueDate) : null,
+    dueDate: invoice.dueDate ? new Date(invoice.dueDate) : null,
+    paidAt: invoice.paidAt ? new Date(invoice.paidAt) : null,
+  }) as Invoice;
+}
 
 function defaultShareValidUntilDate(): string {
   const thirtyDaysFromNow = new Date();
@@ -46,17 +69,24 @@ export function InvoicesProvider({
   api = invoicesApi,
 }: ProviderProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/invoices');
 
   const [isInvoicesPanelOpen, setIsInvoicesPanelOpen] = useState(false);
   const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [invoiceCreatePrefill, setInvoiceCreatePrefill] = useState<InvoiceCreatePrefill | null>(
+    null,
+  );
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<ValidationError>();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [invoicesContentView, setInvoicesContentView] = useState<'list' | 'settings'>('list');
+  const [invoicesContentView, setInvoicesContentView] = useState<
+    'list' | 'settings' | 'statistics'
+  >('list');
   const [recentlyDuplicatedInvoiceId, setRecentlyDuplicatedInvoiceId] = useState<string | null>(
     null,
   );
@@ -112,26 +142,63 @@ export function InvoicesProvider({
   const loadInvoices = async () => {
     try {
       const items = await api.getItems();
-      const normalized = items.map((it: any) => ({
-        ...it,
-        createdAt: it.createdAt ? new Date(it.createdAt) : null,
-        updatedAt: it.updatedAt ? new Date(it.updatedAt) : null,
-        issueDate: it.issueDate ? new Date(it.issueDate) : null,
-        dueDate: it.dueDate ? new Date(it.dueDate) : null,
-      }));
+      const normalized = items.map((it: any) => normalizeInvoiceDates(it));
       setInvoices(normalized);
+      setCurrentInvoice((prev) => {
+        if (!prev?.id) {
+          return prev;
+        }
+        const updated = normalized.find((i: Invoice) => String(i.id) === String(prev.id));
+        return updated ?? prev;
+      });
     } catch (err) {
       console.error('Failed to load invoices:', err);
     }
   };
 
+  const applyInvoiceSnapshot = useCallback((invoice: any) => {
+    if (!invoice?.id) {
+      return;
+    }
+    const normalized = normalizeInvoiceDates(invoice);
+    setInvoices((prev) => {
+      const exists = prev.some((i) => String(i.id) === String(normalized.id));
+      if (!exists) {
+        return [normalized, ...prev];
+      }
+      return prev.map((i) => (String(i.id) === String(normalized.id) ? normalized : i));
+    });
+    setCurrentInvoice((prev) =>
+      prev && String(prev.id) === String(normalized.id) ? normalized : (prev ?? normalized),
+    );
+  }, []);
+
   const validate = (_data: any): ValidationError[] => {
     return [];
   };
 
+  const openCreateInvoicePanel = useCallback(
+    (prefill?: InvoiceCreatePrefill | null) => {
+      clearInvoiceSelectionCore();
+      setRecentlyDuplicatedInvoiceId(null);
+      setInvoiceCreatePrefill(prefill ?? null);
+      setCurrentInvoice(null);
+      setPanelMode('create');
+      setIsInvoicesPanelOpen(true);
+      setValidationErrors([]);
+      setInvoicesContentView('list');
+      onCloseOtherPanels();
+    },
+    [clearInvoiceSelectionCore, onCloseOtherPanels, setValidationErrors],
+  );
+  const openCreateInvoicePanelRef = useRef(openCreateInvoicePanel);
+  openCreateInvoicePanelRef.current = openCreateInvoicePanel;
+
   const openInvoicesPanel = (item: Invoice | null) => {
+    clearPendingInvoiceCreate();
     clearInvoiceSelectionCore();
     setRecentlyDuplicatedInvoiceId(null);
+    setInvoiceCreatePrefill(null);
     setCurrentInvoice(item);
     setPanelMode(item ? 'edit' : 'create');
     setIsInvoicesPanelOpen(true);
@@ -142,9 +209,64 @@ export function InvoicesProvider({
     }
   };
 
+  const openInvoiceForCreate = useCallback(
+    (prefill?: InvoiceCreatePrefill | null) => {
+      setPendingInvoiceCreate(prefill);
+      if (window.location.pathname === '/invoices') {
+        const pending = takePendingInvoiceCreate();
+        if (pending === undefined) {
+          return;
+        }
+        openCreateInvoicePanelRef.current(pending);
+        return;
+      }
+      navigate('/invoices');
+    },
+    [navigate],
+  );
+
+  const flushPendingInvoiceCreate = useCallback(() => {
+    if (!hasPendingInvoiceCreate()) {
+      return;
+    }
+    if (window.location.pathname !== '/invoices') {
+      navigate('/invoices');
+      return;
+    }
+    const pending = peekPendingInvoiceCreate();
+    openCreateInvoicePanelRef.current(pending ?? null);
+    window.setTimeout(() => {
+      takePendingInvoiceCreate();
+    }, 0);
+  }, [navigate]);
+
+  useEffect(() => {
+    return subscribeInvoiceCreateRequests(() => {
+      flushPendingInvoiceCreate();
+    });
+  }, [flushPendingInvoiceCreate]);
+
+  useEffect(() => {
+    if (location.pathname !== '/invoices') {
+      return;
+    }
+    if (!hasPendingInvoiceCreate()) {
+      return;
+    }
+    // Peek + open first; take deferred so Strict Mode remount still sees pending.
+    const pending = peekPendingInvoiceCreate();
+    openCreateInvoicePanelRef.current(pending ?? null);
+    const timer = window.setTimeout(() => {
+      takePendingInvoiceCreate();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [location.pathname]);
+
   const openInvoiceForEdit = (item: Invoice) => {
+    clearPendingInvoiceCreate();
     clearInvoiceSelectionCore();
     setRecentlyDuplicatedInvoiceId(null);
+    setInvoiceCreatePrefill(null);
     setCurrentInvoice(item);
     setPanelMode('edit');
     setIsInvoicesPanelOpen(true);
@@ -155,7 +277,9 @@ export function InvoicesProvider({
 
   const openInvoiceForView = useCallback(
     (item: Invoice) => {
+      clearPendingInvoiceCreate();
       setRecentlyDuplicatedInvoiceId(null);
+      setInvoiceCreatePrefill(null);
       setCurrentInvoice(item);
       setPanelMode('view');
       setIsInvoicesPanelOpen(true);
@@ -172,8 +296,10 @@ export function InvoicesProvider({
   }, [openInvoiceForView]);
 
   const closeInvoicesPanel = useCallback(() => {
+    clearPendingInvoiceCreate();
     setIsInvoicesPanelOpen(false);
     setCurrentInvoice(null);
+    setInvoiceCreatePrefill(null);
     setPanelMode('create');
     setValidationErrors([]);
     navigateToBase();
@@ -208,28 +334,16 @@ export function InvoicesProvider({
 
       if (currentInvoice) {
         const saved = await api.updateItem((currentInvoice as any).id, formattedData);
-        const normalized = {
-          ...saved,
-          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
-          updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
-          issueDate: saved.issueDate ? new Date(saved.issueDate) : null,
-          dueDate: saved.dueDate ? new Date(saved.dueDate) : null,
-        };
+        const normalized = normalizeInvoiceDates(saved);
         setInvoices((prev) =>
           prev.map((i) => (i.id === (currentInvoice as any).id ? normalized : i)),
         );
-        setCurrentInvoice(normalized as any);
+        setCurrentInvoice(normalized);
         setPanelMode('view');
         setValidationErrors([]);
       } else {
         const saved = await api.createItem(formattedData);
-        const normalized = {
-          ...saved,
-          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
-          updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
-          issueDate: saved.issueDate ? new Date(saved.issueDate) : null,
-          dueDate: saved.dueDate ? new Date(saved.dueDate) : null,
-        };
+        const normalized = normalizeInvoiceDates(saved);
         setInvoices((prev) => [...prev, normalized]);
         closeInvoicesPanel();
       }
@@ -301,6 +415,8 @@ export function InvoicesProvider({
       const statusColors: Record<string, string> = {
         draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
         sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
+        partially_paid:
+          'bg-amber-50/50 text-amber-700 dark:text-amber-300 border-amber-100/50 font-medium',
         paid: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
         overdue: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
         canceled: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
@@ -324,9 +440,12 @@ export function InvoicesProvider({
       const invoiceType = item.invoiceType || 'invoice';
       const badgeColor = statusColors[status] || statusColors.draft;
       const typeBadgeColor = typeColors[invoiceType] || typeColors.invoice;
-      const badgeText = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+      const badgeText =
+        status === 'partially_paid'
+          ? 'Partially paid'
+          : status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
       const typeText = typeLabels[invoiceType] || 'Faktura';
-      const dueDateText = item.dueDate ? `Due ${new Date(item.dueDate).toLocaleDateString()}` : '';
+      const dueDateText = item.dueDate ? `Due ${formatDate(item.dueDate) || '—'}` : '';
 
       return (
         <div className="flex items-center gap-2">
@@ -483,6 +602,7 @@ export function InvoicesProvider({
           invoiceNumber,
           status: 'draft',
           paidAt: null,
+          amountPaid: 0,
           paymentTerms,
           lineItems: (original.lineItems || []).map((item: any) => ({
             ...item,
@@ -501,15 +621,9 @@ export function InvoicesProvider({
           issueDate: duplicateData.issueDate.toISOString(),
           dueDate: duplicateData.dueDate.toISOString(),
         });
-        const normalized = {
-          ...saved,
-          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
-          updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
-          issueDate: saved.issueDate ? new Date(saved.issueDate) : null,
-          dueDate: saved.dueDate ? new Date(saved.dueDate) : null,
-        };
+        const normalized = normalizeInvoiceDates(saved);
         setInvoices((prev) => [normalized, ...prev]);
-        return normalized as Invoice;
+        return normalized;
       } catch (err) {
         console.error('Failed to duplicate invoice:', err);
         return null;
@@ -535,7 +649,9 @@ export function InvoicesProvider({
     panelMode,
     validationErrors,
     invoices,
+    invoiceCreatePrefill,
     openInvoicesPanel,
+    openInvoiceForCreate,
     openInvoiceForEdit,
     openInvoiceForView,
     closeInvoicesPanel,
@@ -580,8 +696,22 @@ export function InvoicesProvider({
     currentItemIndex,
     totalItems,
     invoicesContentView,
-    openInvoiceSettings: () => setInvoicesContentView('settings'),
+    openInvoiceSettings: () => {
+      clearInvoiceSelectionCore();
+      setRecentlyDuplicatedInvoiceId(null);
+      setInvoicesContentView('settings');
+      onCloseOtherPanels();
+    },
     closeInvoiceSettingsView: () => setInvoicesContentView('list'),
+    openInvoiceStatistics: () => {
+      clearInvoiceSelectionCore();
+      setRecentlyDuplicatedInvoiceId(null);
+      setInvoicesContentView('statistics');
+      onCloseOtherPanels();
+    },
+    closeInvoiceStatisticsView: () => setInvoicesContentView('list'),
+    refreshInvoices: loadInvoices,
+    applyInvoiceSnapshot,
   };
 
   return <InvoicesContext.Provider value={value}>{children}</InvoicesContext.Provider>;

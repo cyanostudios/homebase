@@ -113,6 +113,9 @@ export function ContactDetailHeaderMenus({ contact }: { contact: Contact }) {
     if (actionId === 'send-email') {
       return 'text-red-800 dark:text-red-500';
     }
+    if (actionId === 'create-invoice') {
+      return 'text-emerald-600 dark:text-emerald-400';
+    }
     return '';
   };
 

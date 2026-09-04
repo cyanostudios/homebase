@@ -51,7 +51,11 @@ export function useItemUrl(basePath: string) {
 
   /** Navigate to basePath (strip item segment) — only when URL has one. */
   const navigateToBase = useCallback(() => {
-    if (window.location.pathname.startsWith(basePath)) {
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (path === basePath) {
+      return;
+    }
+    if (path.startsWith(`${basePath}/`)) {
       navigate(basePath);
     }
   }, [navigate, basePath]);

@@ -12,7 +12,7 @@ export type DetailHeaderMenuAction = {
   label: string;
   icon: AppIcon | LucideIcon;
   onClick: () => void;
-  variant?: 'soft' | 'secondary' | 'primary' | 'danger' | 'dangerSoft' | 'success';
+  variant?: 'soft' | 'secondary' | 'primary' | 'danger' | 'dangerSoft' | 'success' | 'successSoft';
   contentClassName?: string;
   disabled?: boolean;
 };

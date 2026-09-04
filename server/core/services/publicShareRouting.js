@@ -117,7 +117,7 @@ async function attachPublicShareTenantPool(req) {
 
   const path = req.path || '';
   const match = path.match(
-    /^\/api\/(tasks|notes|estimates|invoices|garments)\/public\/([^/]+)\/?$/,
+    /^\/api\/(tasks|notes|estimates|invoices|garments)\/public\/([^/]+)(?:\/pdf)?\/?$/,
   );
   if (!match) {
     return;

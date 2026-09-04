@@ -23,9 +23,11 @@ CREATE TABLE IF NOT EXISTS invoices (
   subtotal_after_invoice_discount DECIMAL(12,2) DEFAULT 0,
   total_vat DECIMAL(12,2) DEFAULT 0,
   total DECIMAL(12,2) DEFAULT 0,
-  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'paid', 'overdue', 'canceled')),
+  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'paid', 'overdue', 'canceled', 'partially_paid')),
   paid_at TIMESTAMP WITH TIME ZONE,
   estimate_id INT,
+  order_number VARCHAR(100),
+  delivery_method VARCHAR(100),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

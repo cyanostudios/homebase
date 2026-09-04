@@ -1,7 +1,7 @@
 // plugins/invoices/model.js
 // Invoices model - V3 with @homebase/core SDK
 const crypto = require('crypto');
-const { Logger, Database } = require('@homebase/core');
+const { Logger, Database, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 const {
@@ -11,6 +11,14 @@ const {
 const {
   resolveTenantConnectionStringForShare,
 } = require('../../server/core/utils/shareRoutingHelper');
+const {
+  resolveInvoiceNumbering,
+  buildInvoiceNumberMatchRegex,
+  buildInvoiceNumber,
+  parseSequenceFromInvoiceNumber,
+} = require('./invoiceNumbering');
+const { sanitizeClientInvoiceStatus, derivePaymentStatus } = require('./paymentLedger');
+const { calculateInvoiceTotals, withResolvedInvoiceTotals } = require('./invoiceTotals');
 
 class InvoiceModel {
   constructor() {
@@ -33,49 +41,9 @@ class InvoiceModel {
     };
   }
 
+  /** @deprecated Prefer calculateInvoiceTotals from ./invoiceTotals — kept as instance method for call sites. */
   calculateTotals(lineItems, invoiceDiscount = 0) {
-    let subtotal = 0;
-    let totalDiscount = 0;
-    let totalVat = 0;
-
-    if (!Array.isArray(lineItems) || lineItems.length === 0) {
-      return {
-        subtotal: 0,
-        totalDiscount: 0,
-        subtotalAfterDiscount: 0,
-        invoiceDiscountAmount: 0,
-        subtotalAfterInvoiceDiscount: 0,
-        totalVat: 0,
-        total: 0,
-      };
-    }
-
-    lineItems.forEach((item) => {
-      const lineSubtotal = item.lineSubtotal ?? (item.quantity || 0) * (item.unitPrice || 0);
-      const discountAmount = item.discountAmount ?? lineSubtotal * ((item.discount || 0) / 100);
-      const lineSubtotalAfterDiscount = lineSubtotal - discountAmount;
-      const vatRate = item.vatRate || 25;
-      const vatAmount = item.vatAmount ?? lineSubtotalAfterDiscount * (vatRate / 100);
-
-      subtotal += lineSubtotal;
-      totalDiscount += discountAmount;
-      totalVat += vatAmount;
-    });
-
-    const subtotalAfterDiscount = subtotal - totalDiscount;
-    const invoiceDiscountAmount = subtotalAfterDiscount * (invoiceDiscount / 100);
-    const subtotalAfterInvoiceDiscount = subtotalAfterDiscount - invoiceDiscountAmount;
-    const total = subtotalAfterInvoiceDiscount + totalVat;
-
-    return {
-      subtotal: Math.round(subtotal * 100) / 100,
-      totalDiscount: Math.round(totalDiscount * 100) / 100,
-      subtotalAfterDiscount: Math.round(subtotalAfterDiscount * 100) / 100,
-      invoiceDiscountAmount: Math.round(invoiceDiscountAmount * 100) / 100,
-      subtotalAfterInvoiceDiscount: Math.round(subtotalAfterInvoiceDiscount * 100) / 100,
-      totalVat: Math.round(totalVat * 100) / 100,
-      total: Math.round(total * 100) / 100,
-    };
+    return calculateInvoiceTotals(lineItems, invoiceDiscount);
   }
 
   /**
@@ -152,6 +120,8 @@ class InvoiceModel {
       invoiceDiscount: parseFloat(row.invoice_discount || 0),
       notes: row.notes || '',
       paymentTerms: row.payment_terms || '',
+      orderNumber: row.order_number || '',
+      deliveryMethod: row.delivery_method || '',
       issueDate: row.issue_date,
       dueDate: row.due_date,
       invoiceType: row.invoice_type || 'invoice',
@@ -164,24 +134,107 @@ class InvoiceModel {
       total: parseFloat(row.total || 0),
       status: row.status || 'draft',
       paidAt: row.paid_at,
+      amountPaid: parseFloat(row.amount_paid || 0),
       estimateId: row.estimate_id ? row.estimate_id.toString() : null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
 
-    return this.applyEffectiveStatus(invoice);
+    return this.applyEffectiveStatus(withResolvedInvoiceTotals(invoice));
+  }
+
+  transformPaymentRow(row) {
+    if (!row) return null;
+    return {
+      id: row.id.toString(),
+      invoiceId: row.invoice_id.toString(),
+      amount: parseFloat(row.amount || 0),
+      paidOn: row.paid_on,
+      reference: row.reference || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async refreshInvoicePaymentState(req, invoiceId) {
+    const db = Database.get(req);
+    const invoice = await this.getById(req, invoiceId);
+    if (!invoice) {
+      throw new AppError('Invoice not found', 404, AppError.CODES.NOT_FOUND);
+    }
+
+    const sumRows = await db.query(
+      'SELECT COALESCE(SUM(amount), 0) AS total_paid FROM invoice_payments WHERE invoice_id = $1',
+      [invoiceId],
+    );
+    const amountPaid = Math.round(parseFloat(sumRows[0]?.total_paid || 0) * 100) / 100;
+    const derived = derivePaymentStatus({
+      currentStatus: invoice.status,
+      amountPaid,
+      total: invoice.total,
+      dueDate: invoice.dueDate,
+      isPastDue: (d) => this.isPastDue(d),
+      currentPaidAt: invoice.paidAt,
+    });
+
+    const updatedRows = await db.query(
+      `UPDATE invoices
+       SET amount_paid = $1, status = $2, paid_at = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4
+       RETURNING *`,
+      [derived.amountPaid, derived.status, derived.paidAt, invoiceId],
+    );
+
+    if (!updatedRows?.length) {
+      throw new AppError(
+        'Failed to update invoice payment state',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
+    }
+
+    Logger.info('Invoice payment state refreshed', {
+      invoiceId,
+      amountPaid: derived.amountPaid,
+      status: derived.status,
+      previousStatus: invoice.status,
+    });
+
+    return this.transformRow(updatedRows[0]);
+  }
+
+  async _loadInvoiceNumbering(req) {
+    const userId = Context.getUserId(req);
+    if (!userId) {
+      return resolveInvoiceNumbering(null);
+    }
+    try {
+      const ServiceManager = require('../../server/core/ServiceManager');
+      const SettingsModel = require('../settings/model');
+      const settingsModel = new SettingsModel(ServiceManager.getMainPool());
+      const settings = await settingsModel.getCategory(userId, 'invoices');
+      return resolveInvoiceNumbering(settings);
+    } catch (error) {
+      Logger.warn('Failed to load invoice numbering settings; using defaults', {
+        error: error?.message,
+        userId,
+      });
+      return resolveInvoiceNumbering(null);
+    }
   }
 
   async getNextInvoiceNumber(req) {
     try {
       const context = this._getContext(req);
       const pool = context.pool;
+      const { numberPrefix, numberStart, includeYear } = await this._loadInvoiceNumbering(req);
 
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
 
         const currentYear = new Date().getFullYear();
+        const matchRegex = buildInvoiceNumberMatchRegex(numberPrefix, currentYear, includeYear);
         let attempts = 0;
         const maxAttempts = 100;
 
@@ -190,26 +243,38 @@ class InvoiceModel {
             `
             SELECT invoice_number
             FROM invoices
-            WHERE invoice_number LIKE $1
-            ORDER BY invoice_number DESC
+            WHERE invoice_number ~ $1
+            ORDER BY COALESCE(
+              NULLIF(substring(invoice_number from '[0-9]+$'), '')::int,
+              0
+            ) DESC
             LIMIT 1
           `,
-            [`${currentYear}-%`],
+            [matchRegex],
           );
 
-          let nextNumber = 1;
+          let nextNumber = numberStart;
           if (result.rows.length > 0 && result.rows[0].invoice_number) {
-            const lastNumber = result.rows[0].invoice_number;
-            const parts = lastNumber.split('-');
-            if (parts.length >= 2) {
-              const numberPart = parseInt(parts[1], 10);
-              if (!isNaN(numberPart) && numberPart > 0) {
-                nextNumber = numberPart + 1;
-              }
+            const parsed = parseSequenceFromInvoiceNumber(
+              result.rows[0].invoice_number,
+              numberPrefix,
+              currentYear,
+              includeYear,
+            );
+            if (parsed != null) {
+              nextNumber = Math.max(parsed + 1, numberStart);
             }
           }
 
-          const invoiceNumber = `${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+          // Collision retries bump the sequence (e.g. race with another create).
+          nextNumber += attempts;
+
+          const invoiceNumber = buildInvoiceNumber(
+            numberPrefix,
+            currentYear,
+            nextNumber,
+            includeYear,
+          );
 
           const checkResult = await client.query(
             'SELECT id FROM invoices WHERE invoice_number = $1',
@@ -218,7 +283,12 @@ class InvoiceModel {
 
           if (checkResult.rows.length === 0) {
             await client.query('COMMIT');
-            Logger.info('Next invoice number generated', { invoiceNumber });
+            Logger.info('Next invoice number generated', {
+              invoiceNumber,
+              numberPrefix,
+              numberStart,
+              includeYear,
+            });
             return invoiceNumber;
           }
 
@@ -308,7 +378,7 @@ class InvoiceModel {
       const issueDate = formatDateForDB(invoiceData.issueDate);
       const dueDate = formatDateForDB(invoiceData.dueDate);
 
-      let status = invoiceData.status || 'draft';
+      let status = sanitizeClientInvoiceStatus(invoiceData.status, 'draft');
       if (status === 'sent' && this.isPastDue(dueDate)) {
         status = 'overdue';
       }
@@ -323,6 +393,8 @@ class InvoiceModel {
         invoice_discount: invoiceData.invoiceDiscount || 0,
         notes: invoiceData.notes || '',
         payment_terms: invoiceData.paymentTerms || '',
+        order_number: invoiceData.orderNumber || '',
+        delivery_method: invoiceData.deliveryMethod || '',
         issue_date: issueDate,
         due_date: dueDate,
         invoice_type: invoiceData.invoiceType || 'invoice',
@@ -334,7 +406,8 @@ class InvoiceModel {
         total_vat: totalVat,
         total: total,
         status,
-        paid_at: status === 'paid' ? new Date().toISOString() : null,
+        paid_at: null,
+        amount_paid: 0,
         estimate_id: estimateId,
       });
 
@@ -404,8 +477,6 @@ class InvoiceModel {
         throw new AppError('Invoice not found', 404, AppError.CODES.NOT_FOUND);
       }
 
-      const isBecomingPaid = currentInvoice.status !== 'paid' && invoiceData.status === 'paid';
-
       const {
         subtotal,
         totalDiscount,
@@ -416,23 +487,34 @@ class InvoiceModel {
         total,
       } = this.calculateTotals(invoiceData.lineItems || [], invoiceData.invoiceDiscount || 0);
 
-      const contactId = invoiceData.contactId
+      let contactId = invoiceData.contactId
         ? typeof invoiceData.contactId === 'string'
           ? parseInt(invoiceData.contactId, 10)
           : invoiceData.contactId
         : null;
+      // Customer is immutable once the invoice leaves draft.
+      if (currentInvoice.status && currentInvoice.status !== 'draft') {
+        contactId = currentInvoice.contactId
+          ? typeof currentInvoice.contactId === 'string'
+            ? parseInt(currentInvoice.contactId, 10)
+            : currentInvoice.contactId
+          : null;
+        invoiceData.contactName = currentInvoice.contactName;
+        invoiceData.organizationNumber = currentInvoice.organizationNumber;
+      }
       const estimateId = invoiceData.estimateId
         ? typeof invoiceData.estimateId === 'string'
           ? parseInt(invoiceData.estimateId, 10)
           : invoiceData.estimateId
         : null;
 
-      let status = invoiceData.status || 'draft';
+      // amountPaid / paid / partially_paid are owned by invoice_payments (refresh below).
+      let status = sanitizeClientInvoiceStatus(invoiceData.status, currentInvoice.status);
       if (status === 'sent' && this.isPastDue(invoiceData.dueDate || currentInvoice.dueDate)) {
         status = 'overdue';
       }
 
-      const result = await db.update('invoices', invoiceId, {
+      await db.update('invoices', invoiceId, {
         contact_id: contactId,
         contact_name: invoiceData.contactName || '',
         organization_number: invoiceData.organizationNumber || '',
@@ -441,6 +523,8 @@ class InvoiceModel {
         invoice_discount: invoiceData.invoiceDiscount || 0,
         notes: invoiceData.notes || '',
         payment_terms: invoiceData.paymentTerms || '',
+        order_number: invoiceData.orderNumber || '',
+        delivery_method: invoiceData.deliveryMethod || '',
         issue_date: invoiceData.issueDate || null,
         due_date: invoiceData.dueDate || null,
         invoice_type: invoiceData.invoiceType || 'invoice',
@@ -452,13 +536,13 @@ class InvoiceModel {
         total_vat: totalVat,
         total: total,
         status,
-        paid_at: isBecomingPaid ? new Date() : currentInvoice.paidAt,
         estimate_id: estimateId,
       });
 
       Logger.info('Invoice updated', { invoiceId });
 
-      return this.transformRow(result);
+      // Reconcile denormalized amount_paid + payment-derived status from ledger.
+      return this.refreshInvoicePaymentState(req, invoiceId);
     } catch (error) {
       Logger.error('Failed to update invoice', error, { invoiceId });
 
@@ -742,6 +826,89 @@ class InvoiceModel {
     } catch (error) {
       Logger.error('Failed to clean expired shares', error);
       throw new AppError('Failed to clean expired shares', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  // === Payments ===
+
+  async getPaymentsForInvoice(req, invoiceId) {
+    try {
+      const invoice = await this.getById(req, invoiceId);
+      if (!invoice) {
+        throw new AppError('Invoice not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const db = Database.get(req);
+      const rows = await db.query(
+        'SELECT * FROM invoice_payments WHERE invoice_id = $1 ORDER BY paid_on DESC, id DESC',
+        [invoiceId],
+      );
+      return rows.map((row) => this.transformPaymentRow(row));
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to get invoice payments', error, { invoiceId });
+      throw new AppError('Failed to get invoice payments', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async createPayment(req, invoiceId, paymentData) {
+    try {
+      const invoice = await this.getById(req, invoiceId);
+      if (!invoice) {
+        throw new AppError('Invoice not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      if (invoice.status === 'canceled') {
+        throw new AppError(
+          'Cannot record payment on a canceled invoice',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+      const amount = Number(paymentData.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new AppError(
+          'Payment amount must be greater than 0',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+
+      const context = this._getContext(req);
+      const db = Database.get(req);
+      const paidOn = paymentData.paidOn || new Date().toISOString().slice(0, 10);
+      const rows = await db.query(
+        `INSERT INTO invoice_payments (invoice_id, amount, paid_on, reference, user_id)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [invoiceId, amount, paidOn, paymentData.reference || '', context.userId],
+      );
+
+      const payment = this.transformPaymentRow(rows[0]);
+      const updatedInvoice = await this.refreshInvoicePaymentState(req, invoiceId);
+      Logger.info('Invoice payment recorded', { invoiceId, paymentId: payment.id });
+      return { payment, invoice: updatedInvoice };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to create invoice payment', error, { invoiceId });
+      throw new AppError('Failed to create invoice payment', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async deletePayment(req, paymentId) {
+    try {
+      const db = Database.get(req);
+      const rows = await db.query('SELECT * FROM invoice_payments WHERE id = $1', [paymentId]);
+      if (!rows.length) {
+        throw new AppError('Payment not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const invoiceId = rows[0].invoice_id;
+      await db.query('DELETE FROM invoice_payments WHERE id = $1', [paymentId]);
+      const updatedInvoice = await this.refreshInvoicePaymentState(req, invoiceId);
+      Logger.info('Invoice payment deleted', { paymentId, invoiceId });
+      return { invoice: updatedInvoice };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to delete invoice payment', error, { paymentId });
+      throw new AppError('Failed to delete invoice payment', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 }

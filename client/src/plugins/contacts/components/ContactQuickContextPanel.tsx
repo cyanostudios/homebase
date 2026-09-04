@@ -302,7 +302,7 @@ export function ContactQuickContextPanel({
         ) : null}
 
         {!isFullView ? (
-          <ContactLinkedItemsSection contact={contact} previewLimit={6} hideWhenEmpty />
+          <ContactLinkedItemsSection contact={contact} previewLimit={2} hideWhenEmpty />
         ) : null}
 
         {!isFullView && timeEntries !== null && timeEntries.length > 0 ? (

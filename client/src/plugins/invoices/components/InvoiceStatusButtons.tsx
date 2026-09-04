@@ -9,7 +9,14 @@ interface InvoiceStatusButtonsProps {
   onStatusChange: (status: string) => void;
 }
 
-const INVOICE_STATUS_OPTIONS = ['draft', 'sent', 'paid', 'overdue', 'canceled'] as const;
+const INVOICE_STATUS_OPTIONS = [
+  'draft',
+  'sent',
+  'partially_paid',
+  'paid',
+  'overdue',
+  'canceled',
+] as const;
 
 export function InvoiceStatusButtons({ invoice, onStatusChange }: InvoiceStatusButtonsProps) {
   return (

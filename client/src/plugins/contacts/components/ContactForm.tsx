@@ -1,4 +1,6 @@
 import {
+  ArrowDown,
+  ArrowUp,
   Building,
   Globe,
   Hash,
@@ -342,6 +344,23 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
         person.id === id ? { ...person, [field]: value } : person,
       ),
     }));
+    markDirty();
+  };
+
+  const moveContactPerson = (id: string, direction: 'up' | 'down') => {
+    setFormData((prev) => {
+      const persons = [...prev.contactPersons];
+      const index = persons.findIndex((person) => person.id === id);
+      if (index < 0) {
+        return prev;
+      }
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= persons.length) {
+        return prev;
+      }
+      [persons[index], persons[targetIndex]] = [persons[targetIndex], persons[index]];
+      return { ...prev, contactPersons: persons };
+    });
     markDirty();
   };
 
@@ -910,12 +929,23 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
 
             {formData.contactType === 'company' ? (
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title="Contact Persons" icon={Users} subtleTitle className="p-6">
+                <DetailSection
+                  title={t('contacts.contactPersons', { defaultValue: 'Contact Persons' })}
+                  icon={Users}
+                  subtleTitle
+                  className="p-6"
+                >
                   <div className="space-y-4">
+                    <p className="text-xs text-muted-foreground">
+                      {t('contacts.contactPersonsInvoiceReferenceHint', {
+                        defaultValue:
+                          'The first person is used as invoice customer reference (kundreferens).',
+                      })}
+                    </p>
                     <RoundIconLabelButton
                       type="button"
                       icon={Plus}
-                      label="Add Contact"
+                      label={t('contacts.addContactPerson', { defaultValue: 'Add Contact' })}
                       variant="soft"
                       size="xs"
                       alwaysExpanded
@@ -923,29 +953,67 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                     />
                     {formData.contactPersons.length === 0 ? (
                       <p className="text-xs italic text-muted-foreground">
-                        No contact persons added yet.
+                        {t('contacts.noContactPersons', {
+                          defaultValue: 'No contact persons added yet.',
+                        })}
                       </p>
                     ) : (
-                      formData.contactPersons.map((person) => (
+                      formData.contactPersons.map((person, index) => (
                         <div
                           key={person.id}
                           className="space-y-4 rounded-lg border border-border p-4"
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">{person.name || 'Person'}</span>
-                            <RoundIconLabelButton
-                              type="button"
-                              icon={Trash2}
-                              label="Remove"
-                              variant="dangerSoft"
-                              size="xs"
-                              expandOnHover={false}
-                              onClick={() => removeContactPerson(person.id)}
-                            />
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                              <span className="text-sm font-medium">
+                                {person.name ||
+                                  t('contacts.personFallback', { defaultValue: 'Person' })}
+                              </span>
+                              {index === 0 ? (
+                                <Badge variant="secondary" className="text-[10px] font-semibold">
+                                  {t('contacts.invoiceReferenceBadge', {
+                                    defaultValue: 'Invoice reference',
+                                  })}
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <RoundIconLabelButton
+                                type="button"
+                                icon={ArrowUp}
+                                label={t('common.moveUp')}
+                                variant="secondary"
+                                size="xs"
+                                expandOnHover={false}
+                                disabled={index === 0}
+                                onClick={() => moveContactPerson(person.id, 'up')}
+                              />
+                              <RoundIconLabelButton
+                                type="button"
+                                icon={ArrowDown}
+                                label={t('common.moveDown')}
+                                variant="secondary"
+                                size="xs"
+                                expandOnHover={false}
+                                disabled={index === formData.contactPersons.length - 1}
+                                onClick={() => moveContactPerson(person.id, 'down')}
+                              />
+                              <RoundIconLabelButton
+                                type="button"
+                                icon={Trash2}
+                                label={t('common.delete')}
+                                variant="dangerSoft"
+                                size="xs"
+                                expandOnHover={false}
+                                onClick={() => removeContactPerson(person.id)}
+                              />
+                            </div>
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="sm:col-span-2">
-                              <Label className={FACT_LABEL_CLASS}>Name</Label>
+                              <Label className={FACT_LABEL_CLASS}>
+                                {t('contacts.personName', { defaultValue: 'Name' })}
+                              </Label>
                               <Input
                                 value={person.name}
                                 onChange={(e) =>
@@ -955,7 +1023,9 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                               />
                             </div>
                             <div>
-                              <Label className={FACT_LABEL_CLASS}>Title</Label>
+                              <Label className={FACT_LABEL_CLASS}>
+                                {t('contacts.personTitle', { defaultValue: 'Title' })}
+                              </Label>
                               <Input
                                 value={person.title}
                                 onChange={(e) =>
@@ -965,7 +1035,9 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                               />
                             </div>
                             <div>
-                              <Label className={FACT_LABEL_CLASS}>Email</Label>
+                              <Label className={FACT_LABEL_CLASS}>
+                                {t('contacts.personEmail', { defaultValue: 'Email' })}
+                              </Label>
                               <Input
                                 type="email"
                                 value={person.email}
@@ -976,7 +1048,9 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                               />
                             </div>
                             <div>
-                              <Label className={FACT_LABEL_CLASS}>Phone</Label>
+                              <Label className={FACT_LABEL_CLASS}>
+                                {t('contacts.personPhone', { defaultValue: 'Phone' })}
+                              </Label>
                               <Input
                                 type="tel"
                                 value={person.phone}

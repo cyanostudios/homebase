@@ -36,6 +36,8 @@ export function getDisplayPrefix(pluginName: string): string {
  * Formats a number or id for display with the plugin's prefix.
  * Returns "PREFIX-number" if prefix exists, otherwise the raw number.
  * Handles empty number to avoid "PREFIX-" with nothing after.
+ * Invoice numbers that already include a stored series prefix (e.g. INV-2026-001
+ * or F-2026-001 from settings) are returned as-is.
  */
 export function formatDisplayNumber(pluginName: string, numberOrId: string): string {
   const prefix = getDisplayPrefix(pluginName);
@@ -45,6 +47,12 @@ export function formatDisplayNumber(pluginName: string, numberOrId: string): str
   }
   if (!num) {
     return prefix;
+  }
+  if (pluginName === 'invoices' && /^[A-Za-z][A-Za-z0-9]*-\d{4}-\d+$/.test(num)) {
+    return num;
+  }
+  if (pluginName === 'invoices' && /^[A-Za-z][A-Za-z0-9]*-\d+$/.test(num)) {
+    return num;
   }
   return `${prefix}-${num}`;
 }

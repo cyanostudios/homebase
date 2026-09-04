@@ -5,6 +5,7 @@
 import {
   BookOpen,
   Columns3,
+  Hash,
   Image,
   LayoutGrid,
   Settings2,
@@ -24,6 +25,7 @@ export const SETTINGS_CATEGORY_ICONS = {
   api: Settings2,
   production: Timer,
   sources: BookOpen,
+  numbering: Hash,
 } as const satisfies Record<string, LucideIcon>;
 
 export type SettingsCategoryIconId = keyof typeof SETTINGS_CATEGORY_ICONS;

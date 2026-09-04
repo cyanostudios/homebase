@@ -11,10 +11,10 @@ describe('pathToNavPage', () => {
     expect(pathToNavPage('/cups/')).toBe('cups');
   });
 
-  it('maps invoices sub-routes without colliding with item ids', () => {
-    expect(pathToNavPage('/invoices/recurring')).toBe('invoices-recurring');
-    expect(pathToNavPage('/invoices/payments')).toBe('invoices-payments');
-    expect(pathToNavPage('/invoices/reports')).toBe('invoices-reports');
+  it('maps legacy invoices sub-routes to the invoices list', () => {
+    expect(pathToNavPage('/invoices/recurring')).toBe('invoices');
+    expect(pathToNavPage('/invoices/payments')).toBe('invoices');
+    expect(pathToNavPage('/invoices/reports')).toBe('invoices');
   });
 
   it('maps numeric invoice id as invoices page', () => {

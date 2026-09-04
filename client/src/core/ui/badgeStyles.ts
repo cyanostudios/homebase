@@ -38,6 +38,7 @@ export const QC_TASK_STATUS_BADGE_COLORS: Record<string, string> = {
 export const QC_INVOICE_STATUS_BADGE_COLORS: Record<string, string> = {
   draft: QC_STATUS_BADGE_COLORS.neutral,
   sent: QC_STATUS_BADGE_COLORS.info,
+  partially_paid: QC_STATUS_BADGE_COLORS.warning,
   paid: QC_STATUS_BADGE_COLORS.success,
   overdue: QC_STATUS_BADGE_COLORS.danger,
   canceled: QC_STATUS_BADGE_COLORS.danger,

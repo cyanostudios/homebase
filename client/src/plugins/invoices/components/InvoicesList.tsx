@@ -1,6 +1,7 @@
 import {
   AlertCircle,
   BadgeCheck,
+  BarChart2,
   CheckSquare,
   ArrowDown,
   ArrowUp,
@@ -9,8 +10,10 @@ import {
   FileText,
   LayoutGrid,
   Plus,
+  Send,
   Settings,
   Trash2,
+  Wallet,
   XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -50,11 +53,11 @@ import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
+import { formatDate } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useInvoices } from '../hooks/useInvoices';
-import { invoicesNavigation } from '../navigation';
 import type { Invoice } from '../context/InvoicesContext';
 import {
   getInitialInvoiceColumnCount,
@@ -65,6 +68,7 @@ import {
 } from '../utils/invoiceColumnCount';
 import {
   invoiceMatchesListFilters,
+  invoiceMatchesSingleFilter,
   toggleInvoiceListFilter,
   type InvoiceListFilter,
   type InvoiceListFilterSelection,
@@ -90,6 +94,7 @@ import { InvoiceListItem } from './InvoiceListItem';
 import { InvoiceListTable } from './InvoiceListTable';
 import { InvoiceQuickContextPanel } from './InvoiceQuickContextPanel';
 import { InvoiceSettingsView, type InvoiceSettingsCategory } from './InvoiceSettingsView';
+import { InvoicesStatisticsView } from './InvoicesStatisticsView';
 import {
   PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
   PLUGIN_PAGE_LIST_SHELL_CLASS,
@@ -132,6 +137,8 @@ export function InvoicesList() {
     invoicesContentView,
     openInvoiceSettings,
     closeInvoiceSettingsView,
+    openInvoiceStatistics,
+    closeInvoiceStatisticsView,
   } = useInvoices();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -141,7 +148,6 @@ export function InvoicesList() {
     onSettings: openInvoiceSettings,
   });
 
-  const [currentPage, setCurrentPage] = useState<string>('invoices');
   const { searchTerm, setSearchTerm } = usePersistedListSearch('invoices');
   useRegisterMobileSearch({
     value: searchTerm,
@@ -164,29 +170,6 @@ export function InvoicesList() {
   );
   const [activeFilters, setActiveFilters] = useState<InvoiceListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<InvoiceSettingsCategory>('columns');
-
-  useEffect(() => {
-    const saved = localStorage.getItem('homebase:currentPage');
-    if (saved) {
-      setCurrentPage(saved);
-    }
-    const handleStorageChange = () => {
-      const updated = localStorage.getItem('homebase:currentPage');
-      if (updated) {
-        setCurrentPage(updated);
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  useEffect(() => {
-    const handlePageChange = (e: CustomEvent<string>) => {
-      setCurrentPage(e.detail);
-    };
-    window.addEventListener('homebase:pageChange' as any, handlePageChange);
-    return () => window.removeEventListener('homebase:pageChange' as any, handlePageChange);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -287,8 +270,12 @@ export function InvoicesList() {
     () => ({
       total: invoices.length,
       draft: invoices.filter((i) => i.status === 'draft').length,
+      sent: invoices.filter((i) => i.status === 'sent').length,
+      partially_paid: invoices.filter((i) => i.status === 'partially_paid').length,
       paid: invoices.filter((i) => i.status === 'paid').length,
       overdue: invoices.filter((i) => i.status === 'overdue').length,
+      canceled: invoices.filter((i) => i.status === 'canceled').length,
+      unpaid: invoices.filter((i) => invoiceMatchesSingleFilter(i as any, 'unpaid')).length,
     }),
     [invoices],
   );
@@ -385,10 +372,7 @@ export function InvoicesList() {
       currency: inv.currency ?? '',
       total: inv.total ?? 0,
       status: inv.status ?? '',
-      dueDate:
-        inv.dueDate instanceof Date
-          ? inv.dueDate.toLocaleDateString('sv-SE')
-          : String(inv.dueDate ?? ''),
+      dueDate: formatDate(inv.dueDate) || '',
     }));
     const filename = `invoices-export-${new Date().toISOString().split('T')[0]}`;
     await exportToPDF(pdfData, filename, pdfHeaders, 'Invoices Export');
@@ -461,27 +445,26 @@ export function InvoicesList() {
     ];
   }, [selectedCount, t, handleExportCSV, handleExportPDF]);
 
-  const handleSubNavClick = (page: string) => {
-    attemptNavigation(() => {
-      localStorage.setItem('homebase:currentPage', page);
-      setCurrentPage(page);
-      window.dispatchEvent(
-        new StorageEvent('storage', { key: 'homebase:currentPage', newValue: page }),
-      );
-      window.dispatchEvent(new CustomEvent('homebase:pageChange', { detail: page }));
-    });
-  };
-
   if (invoicesContentView === 'settings') {
     return (
       <div className="plugin-invoices min-h-full bg-background">
-        <div className="px-6 py-4">
+        <div className="px-4 py-4 md:px-6">
           <InvoiceSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
             renderCategoryButtonsInline
             onClose={closeInvoiceSettingsView}
           />
+        </div>
+      </div>
+    );
+  }
+
+  if (invoicesContentView === 'statistics') {
+    return (
+      <div className="plugin-invoices min-h-full bg-background">
+        <div className="px-4 py-4 md:px-6">
+          <InvoicesStatisticsView onClose={closeInvoiceStatisticsView} />
         </div>
       </div>
     );
@@ -501,6 +484,12 @@ export function InvoicesList() {
                     label={t('common.settings')}
                     variant="soft"
                     onClick={openInvoiceSettings}
+                  />
+                  <ExpandableIconButton
+                    icon={BarChart2}
+                    label={t('common.statistics', { defaultValue: 'Statistics' })}
+                    variant="soft"
+                    onClick={() => openInvoiceStatistics()}
                   />
                   {sortedInvoices.length > 0 ? (
                     selectionMode ? (
@@ -572,48 +561,33 @@ export function InvoicesList() {
                 Total <span className="tabular-nums font-semibold">({stats.total})</span>
               </span>
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('draft')}
-              className={cn(
-                isFilterActive('draft') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <FileEdit className="h-3.5 w-3.5" />
-              <span>
-                Draft <span className="tabular-nums font-semibold">({stats.draft})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('paid')}
-              className={cn(
-                isFilterActive('paid') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <BadgeCheck className="h-3.5 w-3.5" />
-              <span>
-                Paid <span className="tabular-nums font-semibold">({stats.paid})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('overdue')}
-              className={cn(
-                isFilterActive('overdue') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <AlertCircle className="h-3.5 w-3.5" />
-              <span>
-                Overdue <span className="tabular-nums font-semibold">({stats.overdue})</span>
-              </span>
-            </Button>
+            {(
+              [
+                ['draft', FileEdit, 'Draft', stats.draft],
+                ['sent', Send, 'Sent', stats.sent],
+                ['partially_paid', Wallet, 'Partially paid', stats.partially_paid],
+                ['paid', BadgeCheck, 'Paid', stats.paid],
+                ['overdue', AlertCircle, 'Overdue', stats.overdue],
+                ['canceled', XCircle, 'Canceled', stats.canceled],
+                ['unpaid', Wallet, 'Unpaid', stats.unpaid],
+              ] as const
+            ).map(([filter, Icon, label, count]) => (
+              <Button
+                key={filter}
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleFilter(filter)}
+                className={cn(
+                  isFilterActive(filter) ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>
+                  {label} <span className="tabular-nums font-semibold">({count})</span>
+                </span>
+              </Button>
+            ))}
           </div>
           <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
             <Select
@@ -658,34 +632,6 @@ export function InvoicesList() {
             </Button>
           </div>
         </div>
-
-        {invoicesNavigation.submenu && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {invoicesNavigation.submenu
-              .sort((a, b) => a.order - b.order)
-              .map((subItem) => {
-                const SubIcon = subItem.icon;
-                const isActive = subItem.page === currentPage;
-                return (
-                  <Button
-                    key={subItem.page}
-                    variant="ghost"
-                    onClick={() => handleSubNavClick(subItem.page)}
-                    className={cn(
-                      'h-auto rounded-lg px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
-                      'flex items-center gap-1.5 sm:gap-2',
-                      isActive
-                        ? 'border border-primary bg-primary/10 text-primary hover:bg-primary/15'
-                        : 'border-transparent bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
-                    )}
-                  >
-                    <SubIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>{subItem.label}</span>
-                  </Button>
-                );
-              })}
-          </div>
-        )}
 
         <BulkDeleteModal
           isOpen={showBulkDeleteModal}

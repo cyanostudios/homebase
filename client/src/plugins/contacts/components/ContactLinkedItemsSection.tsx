@@ -18,6 +18,7 @@ import { useApp } from '@/core/api/AppContext';
 import { LINKED_SECTION_BADGE_CLASS } from '@/core/ui/badgeStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { formatDateTime } from '@/core/utils/dateFormat';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { htmlToPlainTextWithBreaks } from '@/core/utils/textUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
@@ -31,6 +32,15 @@ import type { Estimate } from '@/plugins/estimates/types/estimate';
 import { garmentsApi } from '@/plugins/garments/api/garmentsApi';
 import { useGarments } from '@/plugins/garments/hooks/useGarments';
 import type { GarmentList } from '@/plugins/garments/types/garments';
+import { invoicesApi } from '@/plugins/invoices/api/invoicesApi';
+import {
+  formatInvoiceStatusForDisplay,
+  INVOICE_STATUS_COLORS,
+} from '@/plugins/invoices/components/InvoiceStatusSelect';
+import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
+import type { Invoice } from '@/plugins/invoices/types/invoices';
+import { formatInvoiceMoney } from '@/plugins/invoices/utils/formatInvoiceAmount';
+import { resolveInvoiceTotals } from '@/plugins/invoices/utils/invoiceTotals';
 import type { Match } from '@/plugins/matches/types/match';
 import type { Note } from '@/plugins/notes/types/notes';
 import type { Slot } from '@/plugins/slots/types/slots';
@@ -78,6 +88,10 @@ function estimateStatusTone(status: string): string {
     ESTIMATE_STATUS_COLORS[status as keyof typeof ESTIMATE_STATUS_COLORS] ??
     'bg-muted/40 text-muted-foreground'
   );
+}
+
+function invoiceStatusTone(status: string): string {
+  return INVOICE_STATUS_COLORS[status] ?? 'bg-muted/40 text-muted-foreground';
 }
 
 type LinkedTileItem = {
@@ -129,6 +143,7 @@ export function ContactLinkedItemsSection({
   const enabledPlugins = useEnabledPlugins();
   const { teams } = useTeams();
   const { openGarmentForView } = useGarments();
+  const { openInvoiceForView } = useInvoices();
   const {
     getMatchesForContact,
     getEstimatesForContact,
@@ -147,6 +162,7 @@ export function ContactLinkedItemsSection({
   const [linkedNotes, setLinkedNotes] = useState<Note[] | null>(null);
   const [linkedMatches, setLinkedMatches] = useState<Match[] | null>(null);
   const [linkedEstimates, setLinkedEstimates] = useState<Estimate[] | null>(null);
+  const [linkedInvoices, setLinkedInvoices] = useState<Invoice[] | null>(null);
   const [linkedSlots, setLinkedSlots] = useState<Slot[] | null>(null);
   const [linkedGarmentLists, setLinkedGarmentLists] = useState<GarmentList[] | null>(null);
   const [preview, setPreview] = useState<LinkedPreview | null>(null);
@@ -155,6 +171,7 @@ export function ContactLinkedItemsSection({
   const hasNotesPlugin = enabledPlugins.has('notes');
   const hasMatchesPlugin = enabledPlugins.has('matches');
   const hasEstimatesPlugin = enabledPlugins.has('estimates');
+  const hasInvoicesPlugin = enabledPlugins.has('invoices');
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const hasSlotsPlugin = enabledPlugins.has('slots');
   const hasGarmentsPlugin = enabledPlugins.has('garments');
@@ -163,6 +180,7 @@ export function ContactLinkedItemsSection({
     hasNotesPlugin ||
     hasMatchesPlugin ||
     hasEstimatesPlugin ||
+    hasInvoicesPlugin ||
     hasTeamsPlugin ||
     hasSlotsPlugin ||
     hasGarmentsPlugin;
@@ -181,6 +199,7 @@ export function ContactLinkedItemsSection({
       setLinkedNotes(null);
       setLinkedMatches(null);
       setLinkedEstimates(null);
+      setLinkedInvoices(null);
       setLinkedSlots(null);
       setLinkedGarmentLists(null);
       return;
@@ -189,30 +208,46 @@ export function ContactLinkedItemsSection({
     const contactId = String(contact.id);
 
     void (async () => {
-      const [tasksAssigned, tasksMentioned, notes, matches, estimates, slots, garmentLists] =
-        await Promise.all([
-          hasTasksPlugin && getTasksForContact
-            ? getTasksForContact(contactId)
-            : Promise.resolve([] as Task[]),
-          hasTasksPlugin && getTasksWithMentionsForContact
-            ? getTasksWithMentionsForContact(contactId)
-            : Promise.resolve([] as Task[]),
-          hasNotesPlugin && getNotesForContact
-            ? getNotesForContact(contactId)
-            : Promise.resolve([] as Note[]),
-          hasMatchesPlugin && getMatchesForContact
-            ? getMatchesForContact(contactId)
-            : Promise.resolve([] as Match[]),
-          hasEstimatesPlugin && getEstimatesForContact
-            ? getEstimatesForContact(contactId)
-            : Promise.resolve([] as Estimate[]),
-          hasSlotsPlugin && getSlotsForContact
-            ? getSlotsForContact(contactId)
-            : Promise.resolve([] as Slot[]),
-          hasGarmentsPlugin
-            ? garmentsApi.getListsForContact(contactId).catch(() => [] as GarmentList[])
-            : Promise.resolve([] as GarmentList[]),
-        ]);
+      const [
+        tasksAssigned,
+        tasksMentioned,
+        notes,
+        matches,
+        estimates,
+        invoices,
+        slots,
+        garmentLists,
+      ] = await Promise.all([
+        hasTasksPlugin && getTasksForContact
+          ? getTasksForContact(contactId)
+          : Promise.resolve([] as Task[]),
+        hasTasksPlugin && getTasksWithMentionsForContact
+          ? getTasksWithMentionsForContact(contactId)
+          : Promise.resolve([] as Task[]),
+        hasNotesPlugin && getNotesForContact
+          ? getNotesForContact(contactId)
+          : Promise.resolve([] as Note[]),
+        hasMatchesPlugin && getMatchesForContact
+          ? getMatchesForContact(contactId)
+          : Promise.resolve([] as Match[]),
+        hasEstimatesPlugin && getEstimatesForContact
+          ? getEstimatesForContact(contactId)
+          : Promise.resolve([] as Estimate[]),
+        hasInvoicesPlugin
+          ? invoicesApi
+              .getItems()
+              .then((items: Invoice[]) =>
+                (items || []).filter((invoice) => String(invoice.contactId) === contactId),
+              )
+              .catch(() => [] as Invoice[])
+          : Promise.resolve([] as Invoice[]),
+        hasSlotsPlugin && getSlotsForContact
+          ? getSlotsForContact(contactId)
+          : Promise.resolve([] as Slot[]),
+        hasGarmentsPlugin
+          ? garmentsApi.getListsForContact(contactId).catch(() => [] as GarmentList[])
+          : Promise.resolve([] as GarmentList[]),
+      ]);
 
       if (cancelled) {
         return;
@@ -226,6 +261,7 @@ export function ContactLinkedItemsSection({
       setLinkedNotes(notes);
       setLinkedMatches(matches);
       setLinkedEstimates(estimates);
+      setLinkedInvoices(invoices);
       setLinkedSlots(slots);
       setLinkedGarmentLists(garmentLists);
     })();
@@ -240,6 +276,7 @@ export function ContactLinkedItemsSection({
     hasNotesPlugin,
     hasMatchesPlugin,
     hasEstimatesPlugin,
+    hasInvoicesPlugin,
     hasSlotsPlugin,
     hasGarmentsPlugin,
     getNotesForContact,
@@ -534,6 +571,62 @@ export function ContactLinkedItemsSection({
       });
     }
 
+    for (const invoice of linkedInvoices ?? []) {
+      const status = invoice.status || 'draft';
+      const invoiceTitle = formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id);
+      const currency = invoice.currency || 'SEK';
+      items.push({
+        key: `invoice-${invoice.id}`,
+        label: t('nav.invoice'),
+        meta: formatInvoiceStatusForDisplay(status),
+        metaClassName: invoiceStatusTone(status),
+        text: invoiceTitle,
+        icon: FileText,
+        iconClassName: 'text-emerald-600',
+        onPreview: () => {
+          const lineItems = Array.isArray(invoice.lineItems) ? invoice.lineItems : [];
+          const totals = resolveInvoiceTotals(invoice);
+          setPreview({
+            kind: 'generic',
+            title: invoiceTitle,
+            icon: FileText,
+            badges: (
+              <span className={cn(invoiceStatusTone(status), BADGE_CLASS)}>
+                {formatInvoiceStatusForDisplay(status)}
+              </span>
+            ),
+            details: [
+              {
+                icon: FileText,
+                label: t('invoices.fieldStatus'),
+                value: formatInvoiceStatusForDisplay(status),
+              },
+              {
+                icon: Hash,
+                label: t('invoices.quickInfo.items'),
+                value: t('invoices.quickInfo.itemsCount', { count: lineItems.length }),
+              },
+              {
+                icon: FileText,
+                label: t('invoices.subtotalAfterInvoiceDiscount'),
+                value: formatInvoiceMoney(totals.subtotalAfterInvoiceDiscount, currency),
+              },
+              {
+                icon: FileText,
+                label: t('invoices.totalAmount'),
+                value: formatInvoiceMoney(totals.total, currency),
+              },
+            ],
+            openLabel: t('contacts.openInvoice'),
+            onOpen: () => {
+              setPreview(null);
+              openInvoiceForView(invoice);
+            },
+          });
+        },
+      });
+    }
+
     for (const list of linkedGarmentLists ?? []) {
       const listTitle = list.name?.trim() || t('garments.list');
       items.push({
@@ -580,12 +673,14 @@ export function ContactLinkedItemsSection({
     linkedMatches,
     linkedSlots,
     linkedEstimates,
+    linkedInvoices,
     linkedGarmentLists,
     openTaskForView,
     openNoteForView,
     openMatchForView,
     openSlotForView,
     openEstimateForView,
+    openInvoiceForView,
     openGarmentForView,
     teams,
     t,
@@ -600,6 +695,7 @@ export function ContactLinkedItemsSection({
     (hasNotesPlugin && linkedNotes === null) ||
     (hasMatchesPlugin && linkedMatches === null) ||
     (hasEstimatesPlugin && linkedEstimates === null) ||
+    (hasInvoicesPlugin && linkedInvoices === null) ||
     (hasSlotsPlugin && linkedSlots === null) ||
     (hasGarmentsPlugin && linkedGarmentLists === null);
 

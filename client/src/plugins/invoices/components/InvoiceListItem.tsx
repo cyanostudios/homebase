@@ -9,12 +9,15 @@ import {
   DETAIL_LIST_ITEM_TITLE_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
+import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
 import type { Invoice } from '../context/InvoicesContext';
 import type { InvoiceColumnCount } from '../utils/invoiceColumnCount';
+import { formatInvoiceMoney } from '../utils/formatInvoiceAmount';
 import { formatInvoiceDueDate } from '../utils/invoiceDueDate';
+import { resolveInvoiceTotals } from '../utils/invoiceTotals';
 
 import {
   INVOICE_STATUS_BADGE_CLASS,
@@ -44,6 +47,7 @@ export function InvoiceListItem({
   const showDueUrgency = status !== 'paid' && status !== 'canceled';
   const metaOnTop = columnCount === 1;
   const itemCount = invoice.lineItems?.length ?? 0;
+  const totalAmount = resolveInvoiceTotals(invoice).total;
 
   const metaRow = (
     <div
@@ -53,8 +57,7 @@ export function InvoiceListItem({
       )}
     >
       <span className="font-medium text-foreground">
-        {typeof invoice.total === 'number' ? invoice.total.toFixed(2) : invoice.total}{' '}
-        {invoice.currency || 'SEK'}
+        {formatInvoiceMoney(totalAmount, invoice.currency || 'SEK')}
       </span>
       <span>
         {itemCount} item{itemCount !== 1 ? 's' : ''}
@@ -67,7 +70,7 @@ export function InvoiceListItem({
       ) : invoice.dueDate ? (
         <span className="inline-flex min-w-0 items-center gap-1.5">
           <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
-          <span className="truncate">{new Date(invoice.dueDate).toLocaleDateString()}</span>
+          <span className="truncate">{formatDate(invoice.dueDate) || '—'}</span>
         </span>
       ) : null}
     </div>

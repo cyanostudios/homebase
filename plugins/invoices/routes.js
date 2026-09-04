@@ -1,6 +1,7 @@
 // plugins/invoices/routes.js
 // Invoices routes with V2 security (CSRF protection and input validation)
 const express = require('express');
+const { body } = require('express-validator');
 const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
@@ -24,6 +25,8 @@ function createInvoiceRoutes(controller, context) {
     csrfProtection,
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
+    commonRules.optionalString('orderNumber', 100),
+    commonRules.optionalString('deliveryMethod', 100),
     validateRequest,
     (req, res) => controller.createInvoice(req, res),
   );
@@ -31,6 +34,9 @@ function createInvoiceRoutes(controller, context) {
   // Public (NO auth) — keep before /:id to avoid conflicts
   router.get('/public/:token', publicEndpointLimiter, (req, res) =>
     controller.getPublicInvoice(req, res),
+  );
+  router.get('/public/:token/pdf', publicEndpointLimiter, (req, res) =>
+    controller.generatePublicPDF(req, res),
   );
 
   // DELETE /api/invoices/batch - Bulk delete (MUST be before '/:id' route)
@@ -43,6 +49,37 @@ function createInvoiceRoutes(controller, context) {
     (req, res) => controller.bulkDelete(req, res),
   );
 
+  // Payments (before generic /:id mutations that could conflict)
+  router.get(
+    '/:invoiceId/payments',
+    gate,
+    commonRules.id('invoiceId'),
+    validateRequest,
+    (req, res) => controller.getPayments(req, res),
+  );
+  router.post(
+    '/:invoiceId/payments',
+    gate,
+    csrfProtection,
+    commonRules.id('invoiceId'),
+    body('amount').isFloat({ gt: 0 }).withMessage('amount must be a number greater than 0'),
+    body('paidOn')
+      .optional({ values: 'falsy' })
+      .isISO8601()
+      .withMessage('paidOn must be a valid date'),
+    commonRules.optionalString('reference', 255),
+    validateRequest,
+    (req, res) => controller.createPayment(req, res),
+  );
+  router.delete(
+    '/payments/:paymentId',
+    gate,
+    csrfProtection,
+    commonRules.id('paymentId'),
+    validateRequest,
+    (req, res) => controller.deletePayment(req, res),
+  );
+
   // Item operations (auth required)
   router.put(
     '/:id',
@@ -51,6 +88,8 @@ function createInvoiceRoutes(controller, context) {
     commonRules.id('id'),
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
+    commonRules.optionalString('orderNumber', 100),
+    commonRules.optionalString('deliveryMethod', 100),
     validateRequest,
     (req, res) => controller.updateInvoice(req, res),
   );

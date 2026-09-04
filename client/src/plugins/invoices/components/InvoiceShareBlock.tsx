@@ -1,16 +1,21 @@
-import { Check, Copy, ExternalLink, Unlink } from 'lucide-react';
+import { Check, Copy, Download, ExternalLink, Unlink } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { formatDate } from '@/core/utils/dateFormat';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
+import { invoicesApi } from '../api/invoicesApi';
 import { useInvoices } from '../hooks/useInvoices';
 
 /** Active link panel for the main content column (mirrors NoteShareBlock / TaskShareBlock). */
 export function InvoiceShareBlock() {
-  const { t, i18n } = useTranslation();
-  const { invoiceShare, handleCopyInvoiceShareUrl, handleRevokeInvoiceShare } = useInvoices();
+  const { t } = useTranslation();
+  const { currentInvoice, invoiceShare, handleCopyInvoiceShareUrl, handleRevokeInvoiceShare } =
+    useInvoices();
   const [copied, setCopied] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   if (!invoiceShare) {
     return null;
@@ -18,12 +23,44 @@ export function InvoiceShareBlock() {
 
   const shareUrl = `${window.location.origin}/public/invoice/${invoiceShare.shareToken}`;
   const isShareExpired = new Date(invoiceShare.validUntil) <= new Date();
-  const validUntilLabel = new Date(invoiceShare.validUntil).toLocaleDateString(i18n.language);
+  const validUntilLabel = formatDate(invoiceShare.validUntil) || '—';
 
   const handleCopy = () => {
     handleCopyInvoiceShareUrl();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!currentInvoice?.id || isDownloadingPdf) {
+      return;
+    }
+    setIsDownloadingPdf(true);
+    try {
+      const blob = await invoicesApi.downloadPdf(currentInvoice.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice-${formatDisplayNumber(
+        'invoices',
+        currentInvoice.invoiceNumber || currentInvoice.id,
+      )}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download PDF:', error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : t('invoices.pdfDownloadFailed', {
+              defaultValue: 'Failed to download PDF. Please try again.',
+            }),
+      );
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   };
 
   return (
@@ -42,12 +79,12 @@ export function InvoiceShareBlock() {
         {isShareExpired ? t('invoices.shareExpired') : t('invoices.shareActive')}
       </div>
 
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="min-w-0 flex-1 break-all rounded border border-gray-200 bg-white p-2 font-mono text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+      <div className="mb-3 flex flex-col gap-3">
+        <div className="min-w-0 break-all rounded border border-gray-200 bg-white p-2 font-mono text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
           {shareUrl}
         </div>
         {!isShareExpired && (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <RoundIconLabelButton
               type="button"
               icon={copied ? Check : Copy}
@@ -63,6 +100,19 @@ export function InvoiceShareBlock() {
               variant="soft"
               alwaysExpanded
               onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')}
+            />
+            <RoundIconLabelButton
+              type="button"
+              icon={Download}
+              label={
+                isDownloadingPdf
+                  ? t('invoices.generatingPdf', { defaultValue: 'Generating PDF…' })
+                  : t('invoices.downloadPdf', { defaultValue: 'Download PDF' })
+              }
+              variant="successSoft"
+              alwaysExpanded
+              disabled={isDownloadingPdf || !currentInvoice?.id}
+              onClick={() => void handleDownloadPdf()}
             />
           </div>
         )}

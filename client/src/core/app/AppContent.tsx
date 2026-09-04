@@ -335,9 +335,24 @@ export function AppContent() {
           (!isNamedPluginSubRoute || (plugin.name === 'clubdesk' && isClubdeskPriceListItemPath)),
       );
 
+    /** List URL + create panel is valid (Add / cross-plugin create); do not auto-close. */
+    const shouldKeepPanelOpen = (plugin: { name: string }, context: Record<string, unknown>) => {
+      if (panelBelongsToUrl(plugin)) {
+        return true;
+      }
+      return Boolean(
+        pluginName &&
+          plugin.name === pluginName &&
+          !itemSlug &&
+          !isNamedPluginSubRoute &&
+          context.panelMode === 'create' &&
+          context[plugin.panelKey],
+      );
+    };
+
     // Close panels that no longer match the URL (e.g. browser back from /teams/foo → /schedule).
     pluginContextsRef.current.forEach(({ plugin, context }) => {
-      if (!context?.[plugin.panelKey] || panelBelongsToUrl(plugin)) {
+      if (!context?.[plugin.panelKey] || shouldKeepPanelOpen(plugin, context)) {
         return;
       }
       const closeFn = context[`close${getSingularCap(plugin.name)}Panel`] as
@@ -381,13 +396,11 @@ export function AppContent() {
           openFn(item);
         }
       }
-    } else {
-      // URL has no slug – close panel if open
-      if (isOpen) {
-        const closeFn = context[`close${capName}Panel`] as (() => void) | undefined;
-        if (typeof closeFn === 'function') {
-          closeFn();
-        }
+    } else if (isOpen && context.panelMode !== 'create') {
+      // List URL: close view/edit panels; keep intentional create (Add / cross-plugin).
+      const closeFn = context[`close${capName}Panel`] as (() => void) | undefined;
+      if (typeof closeFn === 'function') {
+        closeFn();
       }
     }
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps -- pluginContexts is stable

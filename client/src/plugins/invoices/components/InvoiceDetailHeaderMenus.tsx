@@ -98,9 +98,8 @@ export function InvoiceDetailHeaderMenus({ invoice }: { invoice: Invoice }) {
         label: isDownloadingPDF
           ? t('invoices.generatingPdf', { defaultValue: 'Generating PDF…' })
           : t('invoices.downloadPdf', { defaultValue: 'Download PDF' }),
-        variant: 'secondary',
+        variant: 'successSoft',
         disabled: isDownloadingPDF,
-        contentClassName: 'text-blue-600 dark:text-blue-400',
         onClick: () => void handleDownloadPDF(),
       },
       hasActiveShare
@@ -108,17 +107,15 @@ export function InvoiceDetailHeaderMenus({ invoice }: { invoice: Invoice }) {
             id: 'view-share',
             icon: ExternalLink,
             label: t('invoices.viewShare'),
-            variant: 'secondary',
-            contentClassName: 'text-blue-600 dark:text-blue-400',
+            variant: 'soft',
             onClick: openInvoiceShareDialog,
           }
         : {
             id: 'share',
             icon: Share,
             label: isCreatingInvoiceShare ? t('common.creating') : t('invoices.shareInvoice'),
-            variant: 'secondary',
+            variant: 'soft',
             disabled: isCreatingInvoiceShare,
-            contentClassName: 'text-green-600 dark:text-green-400',
             onClick: openCreateInvoiceShare,
           },
     ];

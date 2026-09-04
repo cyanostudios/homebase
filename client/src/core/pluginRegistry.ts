@@ -659,7 +659,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     navigation: invoicesNavigation,
     dashboardWidget: InvoicesDashboardWidget,
     displayPrefix: 'INV',
+    contentFlush: true,
     slugField: 'invoiceNumber',
+    contentViewKey: 'invoicesContentView',
   },
   {
     name: 'files',

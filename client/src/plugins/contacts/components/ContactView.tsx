@@ -308,8 +308,17 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                             {personInitials || <User className="h-3.5 w-3.5" />}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-semibold tracking-tight text-foreground leading-tight">
-                              {person.name || '—'}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="truncate text-sm font-semibold tracking-tight text-foreground leading-tight">
+                                {person.name || '—'}
+                              </div>
+                              {idx === 0 ? (
+                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                  {t('contacts.invoiceReferenceBadge', {
+                                    defaultValue: 'Invoice reference',
+                                  })}
+                                </span>
+                              ) : null}
                             </div>
                             {person.title ? (
                               <div className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">
