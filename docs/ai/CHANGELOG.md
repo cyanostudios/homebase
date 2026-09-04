@@ -2,6 +2,12 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## QA / Code Reviewer — skärpt omfång och granskningsprotokoll (2026-09-04)
+
+Rolluppdatering för striktare Grind 4: QA fastställer granskningsomfång oberoende via git + ny append-only logg `docs/ai/qa-review-log.md` ("allt sedan senast granskat" per branch). Nytt steg 0 i arbetsflödet, obligatorisk loggning efter varje granskning, krav på egen verifiering (kommando + resultat), och Output Contract utökat med **Granskningsomfång** och **Oanmälda ändringar** (11 fält). Synkat i `docs/ai/roles/qa-code-reviewer.md`, `.cursor/rules/role-qa-code-reviewer.mdc`, `.cursor/agents/qa-code-reviewer.md`. Ingen ändring av Stage Gates eller Handover Contract-schema.
+
+---
+
 ## List keyboard Arrow/Space — docs sync (2026-09-03)
 
 Docs efter **QA Approved** + **Security Approved** för list-tangentbord: ArrowUp/Down mellan `[data-list-item]`; Space = radklick / desktop quick-context-toggle (inte `open*ForView`). Operator: `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` (hook + list keyboard + §8), `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` (row `onClick` → `handleRowActivate`), `DEVELOPMENT_GUIDE_V2.md` (list keyboard-rad). **Local-first; ej prod-release.**
