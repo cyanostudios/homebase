@@ -137,8 +137,8 @@ export const PriceListList: React.FC = () => {
     }),
   });
 
-  const [primarySort, setPrimarySort] = useState<PriceListSortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<PriceListSortOrder>('desc');
+  const [primarySort, setPrimarySort] = useState<PriceListSortField>('title');
+  const [sortOrder, setSortOrder] = useState<PriceListSortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<ClubdeskColumnCount>(
     getInitialClubdeskColumnCount,
   );

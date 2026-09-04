@@ -4,6 +4,25 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-04 – Listor: default A–Ö + magnitud högst först
+
+**Status:** Implementerat lokalt. **QA: pending.** **Security: N/A (UI-only).** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** UX / consistency  
+**Scope:** per-plugin `*ListSort.ts` + list mount state; `docs/UI_AND_UX_STANDARDS_V3.md` § Sort
+
+**Sammanfattning:** Named-entity-listor öppnar sorterade på **namn/titel A–Ö**. När användaren väljer magnitudfält (t.ex. inventory total qty, contacts time, player_count, mentions, priority, itemCount) startar sorten **desc** (högst först). Matches/Slots behåller kronologisk default.
+
+**Verifierat (kod)**
+
+- Mount: garments `name` / inventory `articleName`; tasks/notes/requests `title`; files/cups/ingest/teams `name`; invoices/estimates nummer; clubdesk/instructions/price lists `title`; AI providers `providerKey`
+- Magnitud ej längre i `is*AscDefaultField` där det tidigare startade asc (garments qty, contacts `time`, teams `player_count`, notes `mentions`, price `itemCount`, guides `languages`, tasks/requests `priority`)
+- Standards § Sort dokumenterar konventionen
+
+**Guides:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)
+
+---
+
 ## 2026-09-03 – Matches FOGIS: SSRF-guard, kickoff-tid, sökpersistens
 
 **Status:** Implementerat lokalt. **QA: approved (unit).** **Security: approved (SSRF-1 mitigerad).** **Docs Updated.** **Ej prod-release** utan explicit beslut.

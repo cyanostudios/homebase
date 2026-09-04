@@ -154,8 +154,8 @@ export function CupsList() {
     placeholder: t('cups.searchPlaceholder', { count: cups.length }),
   });
 
-  const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [primarySort, setPrimarySort] = useState<SortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<CupColumnCount>(getInitialCupColumnCount);
   const [listViewMode, setListViewModeState] = useState<CupListViewMode>(getInitialCupListViewMode);
   const [visibleColumnIds, setVisibleColumnIds] = useState<CupTableColumnId[]>(() =>

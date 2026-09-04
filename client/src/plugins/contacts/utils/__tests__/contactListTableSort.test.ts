@@ -12,5 +12,9 @@ describe('nextContactTableSort', () => {
       field: 'updatedAt',
       order: 'desc',
     });
+    expect(nextContactTableSort('name', 'asc', 'time')).toEqual({
+      field: 'time',
+      order: 'desc',
+    });
   });
 });

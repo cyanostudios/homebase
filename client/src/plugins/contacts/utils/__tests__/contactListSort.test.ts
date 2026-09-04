@@ -60,5 +60,6 @@ describe('contactListSort', () => {
   it('default order helpers', () => {
     expect(isContactAscDefaultField('name')).toBe(true);
     expect(isContactAscDefaultField('updatedAt')).toBe(false);
+    expect(isContactAscDefaultField('time')).toBe(false);
   });
 });

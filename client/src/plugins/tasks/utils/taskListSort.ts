@@ -5,9 +5,9 @@ import type { Task } from '../types/tasks';
 export type TaskSortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
 export type TaskSortOrder = 'asc' | 'desc';
 
-/** Asc default for string fields; desc for date fields. */
+/** Asc default for string fields (not priority rank); desc for dates and priority. */
 export function isTaskAscDefaultField(field: TaskSortField): boolean {
-  return isTaskStringSortField(field);
+  return field === 'title' || field === 'status';
 }
 
 /** Header-click sort: toggle order on same field, else switch field with default order. */

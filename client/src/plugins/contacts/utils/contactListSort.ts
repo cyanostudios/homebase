@@ -32,12 +32,12 @@ type ContactSortable = Pick<
 >;
 
 const DATE_SORT_FIELDS: ContactSortField[] = ['updatedAt', 'createdAt'];
+/** Strings/categories asc; dates and time-rank magnitude desc (active/logged first). */
 const ASC_DEFAULT_FIELDS: ContactSortField[] = [
   'name',
   'type',
   'email',
   'phone',
-  'time',
   'tags',
   'assignable',
 ];

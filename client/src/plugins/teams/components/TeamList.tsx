@@ -162,7 +162,7 @@ export function TeamList() {
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('all');
   const [activeFilters, setActiveFilters] = useState<TeamListFilterSelection>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-  const [primarySort, setPrimarySort] = useState<SortField>('age_group');
+  const [primarySort, setPrimarySort] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<TeamColumnCount>(getInitialTeamColumnCount);
   const [listViewMode, setListViewModeState] = useState<TeamListViewMode>(

@@ -163,8 +163,8 @@ const ClubdeskGuidesList: React.FC = () => {
   });
 
   const { getSettings, updateSettings, settingsVersion } = useApp();
-  const [primarySort, setPrimarySort] = useState<ClubdeskSortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<ClubdeskSortOrder>('desc');
+  const [primarySort, setPrimarySort] = useState<ClubdeskSortField>('title');
+  const [sortOrder, setSortOrder] = useState<ClubdeskSortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<ClubdeskColumnCount>(
     getInitialClubdeskColumnCount,
   );

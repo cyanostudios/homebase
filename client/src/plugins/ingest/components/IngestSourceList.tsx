@@ -131,8 +131,8 @@ export const IngestSourceList: React.FC = () => {
     placeholder: t('ingest.searchPlaceholder', { count: ingest.length }),
   });
 
-  const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [primarySort, setPrimarySort] = useState<SortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<IngestColumnCount>(
     getInitialIngestColumnCount,
   );

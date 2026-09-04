@@ -80,7 +80,7 @@ import {
 import { buildTaskListQuickFieldsSavePayload } from '../utils/taskListSave';
 import {
   compareTasksByField,
-  isTaskStringSortField,
+  isTaskAscDefaultField,
   nextTaskTableSort,
   type TaskSortField,
   type TaskSortOrder,
@@ -167,8 +167,8 @@ export function TaskList() {
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [primarySort, setPrimarySort] = useState<SortField>('title');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<TaskColumnCount>(getInitialTaskColumnCount);
   const [listViewMode, setListViewModeState] = useState<TaskListViewMode>(
     getInitialTaskListViewMode,
@@ -234,7 +234,7 @@ export function TaskList() {
 
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
-    setSortOrder(isTaskStringSortField(field) ? 'asc' : 'desc');
+    setSortOrder(isTaskAscDefaultField(field) ? 'asc' : 'desc');
   };
 
   const toggleSortOrder = () => {

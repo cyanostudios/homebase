@@ -115,8 +115,8 @@ export const AIProvidersList: React.FC = () => {
     onChange: setSearchTerm,
     placeholder: t('aiProviders.searchPlaceholder', { count: providers.length }),
   });
-  const [primarySort, setPrimarySort] = useState<AIProviderSortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<AIProviderSortOrder>('desc');
+  const [primarySort, setPrimarySort] = useState<AIProviderSortField>('providerKey');
+  const [sortOrder, setSortOrder] = useState<AIProviderSortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<AIProvidersColumnCount>(
     getInitialAIProvidersColumnCount,
   );

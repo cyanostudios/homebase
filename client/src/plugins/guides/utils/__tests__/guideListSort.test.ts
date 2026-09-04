@@ -37,5 +37,6 @@ describe('guideListSort', () => {
   it('default order helpers', () => {
     expect(isGuideAscDefaultField('displayName')).toBe(true);
     expect(isGuideAscDefaultField('updatedAt')).toBe(false);
+    expect(isGuideAscDefaultField('languages')).toBe(false);
   });
 });

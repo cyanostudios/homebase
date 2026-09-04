@@ -74,7 +74,7 @@ import {
 } from '../utils/noteListFilter';
 import {
   compareNotesByField,
-  isNoteStringSortField,
+  isNoteAscDefaultField,
   nextNoteTableSort,
   type NoteSortField,
   type NoteSortOrder,
@@ -151,8 +151,8 @@ export const NoteList: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
 
   const { getSettings, updateSettings, settingsVersion } = useApp();
-  const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [primarySort, setPrimarySort] = useState<SortField>('title');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<NoteColumnCount>(getInitialNoteColumnCount);
   const [listViewMode, setListViewModeState] = useState<NoteListViewMode>(
     getInitialNoteListViewMode,
@@ -217,7 +217,7 @@ export const NoteList: React.FC = () => {
 
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
-    setSortOrder(isNoteStringSortField(field) || field === 'mentions' ? 'asc' : 'desc');
+    setSortOrder(isNoteAscDefaultField(field) ? 'asc' : 'desc');
   };
 
   const toggleSortOrder = () => {

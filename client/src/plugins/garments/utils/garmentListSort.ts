@@ -17,10 +17,9 @@ export function isGarmentAscDefaultField(field: GarmentSortField): boolean {
   return LIST_STRING_FIELDS.includes(field);
 }
 
+/** Strings asc; dates and magnitude (qty / variant count) desc (highest first). */
 export function isInventoryAscDefaultField(field: InventorySortField): boolean {
-  return (
-    INVENTORY_STRING_FIELDS.includes(field) || field === 'totalQuantity' || field === 'variantCount'
-  );
+  return INVENTORY_STRING_FIELDS.includes(field);
 }
 
 export function compareGarmentListsByField(

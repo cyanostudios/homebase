@@ -1,4 +1,8 @@
-import { compareRequestsByField, isRequestStringSortField } from '../requestListSort';
+import {
+  compareRequestsByField,
+  isRequestAscDefaultField,
+  isRequestStringSortField,
+} from '../requestListSort';
 
 const base = {
   title: 'Alpha',
@@ -38,6 +42,12 @@ describe('requestListSort', () => {
     expect(isRequestStringSortField('title')).toBe(true);
     expect(isRequestStringSortField('updated_at')).toBe(false);
     expect(isRequestStringSortField('responseDueAt')).toBe(false);
+  });
+
+  it('defaults priority magnitude to descending', () => {
+    expect(isRequestAscDefaultField('title')).toBe(true);
+    expect(isRequestAscDefaultField('priority')).toBe(false);
+    expect(isRequestAscDefaultField('updated_at')).toBe(false);
   });
 
   it('sorts by responseDueAt with nulls last when ascending', () => {

@@ -1,4 +1,4 @@
-import { compareNotesByField, isNoteStringSortField } from '../noteListSort';
+import { compareNotesByField, isNoteAscDefaultField, isNoteStringSortField } from '../noteListSort';
 
 const base = {
   title: 'Alpha',
@@ -29,5 +29,11 @@ describe('noteListSort', () => {
   it('isNoteStringSortField', () => {
     expect(isNoteStringSortField('title')).toBe(true);
     expect(isNoteStringSortField('updatedAt')).toBe(false);
+  });
+
+  it('defaults mentions magnitude to descending', () => {
+    expect(isNoteAscDefaultField('title')).toBe(true);
+    expect(isNoteAscDefaultField('mentions')).toBe(false);
+    expect(isNoteAscDefaultField('updatedAt')).toBe(false);
   });
 });

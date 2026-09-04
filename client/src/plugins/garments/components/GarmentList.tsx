@@ -177,9 +177,9 @@ export const GarmentList: React.FC = () => {
     placeholder: isInventory ? t('garments.searchInventory') : t('garments.searchLists'),
   });
   const [selectionMode, setSelectionMode] = useState(false);
-  const [listSort, setListSort] = useState<GarmentSortField>('updatedAt');
-  const [inventorySort, setInventorySort] = useState<InventorySortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<GarmentSortOrder>('desc');
+  const [listSort, setListSort] = useState<GarmentSortField>('name');
+  const [inventorySort, setInventorySort] = useState<InventorySortField>('articleName');
+  const [sortOrder, setSortOrder] = useState<GarmentSortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<GarmentColumnCount>(
     getInitialGarmentColumnCount,
   );

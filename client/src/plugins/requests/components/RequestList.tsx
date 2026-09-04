@@ -77,7 +77,7 @@ import {
 } from '../utils/requestListSave';
 import {
   compareRequestsByField,
-  isRequestStringSortField,
+  isRequestAscDefaultField,
   type RequestSortField,
   type RequestSortOrder,
 } from '../utils/requestListSort';
@@ -176,8 +176,8 @@ export function RequestList() {
     resolveVisibleRequestTableColumns(null),
   );
   const [settingsCategory, setSettingsCategory] = useState<RequestsSettingsCategory>('types');
-  const [primarySort, setPrimarySort] = useState<SortField>('updated_at');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [primarySort, setPrimarySort] = useState<SortField>('title');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [recentlyQuickAddedId, setRecentlyQuickAddedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -297,7 +297,7 @@ export function RequestList() {
 
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
-    setSortOrder(isRequestStringSortField(field) ? 'asc' : 'desc');
+    setSortOrder(isRequestAscDefaultField(field) ? 'asc' : 'desc');
   };
 
   const toggleSortOrder = () => {
@@ -306,7 +306,7 @@ export function RequestList() {
 
   const handleTableSort = useCallback(
     (field: SortField) => {
-      const next = nextListTableSort(primarySort, sortOrder, field, isRequestStringSortField);
+      const next = nextListTableSort(primarySort, sortOrder, field, isRequestAscDefaultField);
       setPrimarySort(next.field);
       setSortOrder(next.order);
     },

@@ -23,6 +23,11 @@ export function isRequestStringSortField(field: RequestSortField): boolean {
   return STRING_SORT_FIELDS.includes(field);
 }
 
+/** Asc for title/status/type/source; desc for dates and priority (highest first). */
+export function isRequestAscDefaultField(field: RequestSortField): boolean {
+  return field === 'title' || field === 'status' || field === 'type' || field === 'source';
+}
+
 type RequestSortable = Pick<
   Request,
   | 'title'

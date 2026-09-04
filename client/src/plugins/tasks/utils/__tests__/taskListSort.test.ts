@@ -1,4 +1,9 @@
-import { compareTasksByField, getTaskSortValue, isTaskStringSortField } from '../taskListSort';
+import {
+  compareTasksByField,
+  getTaskSortValue,
+  isTaskAscDefaultField,
+  isTaskStringSortField,
+} from '../taskListSort';
 
 const base = {
   title: 'Alpha',
@@ -58,5 +63,14 @@ describe('compareTasksByField', () => {
     const earlier = { ...base, updatedAt: '2026-07-01T00:00:00.000Z' as unknown as Date };
     const later = { ...base, updatedAt: '2026-07-20T00:00:00.000Z' as unknown as Date };
     expect(compareTasksByField(earlier, later, 'updatedAt', 'asc')).toBeLessThan(0);
+  });
+});
+
+describe('isTaskAscDefaultField', () => {
+  it('defaults priority magnitude to descending', () => {
+    expect(isTaskAscDefaultField('title')).toBe(true);
+    expect(isTaskAscDefaultField('status')).toBe(true);
+    expect(isTaskAscDefaultField('priority')).toBe(false);
+    expect(isTaskAscDefaultField('updatedAt')).toBe(false);
   });
 });

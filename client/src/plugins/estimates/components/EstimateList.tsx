@@ -148,8 +148,8 @@ export function EstimateList() {
     placeholder: t('estimates.searchPlaceholder'),
   });
 
-  const [primarySort, setPrimarySort] = useState<SortField>('createdAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [primarySort, setPrimarySort] = useState<SortField>('estimateNumber');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<EstimateColumnCount>(
     getInitialEstimateColumnCount,
   );

@@ -9,13 +9,9 @@ export type PriceListSortField =
   | 'itemCount';
 export type PriceListSortOrder = 'asc' | 'desc';
 
+/** Strings/categories asc; dates and itemCount magnitude desc (highest first). */
 export function isPriceListAscDefaultField(field: PriceListSortField): boolean {
-  return (
-    field === 'title' ||
-    field === 'publicationStatus' ||
-    field === 'currency' ||
-    field === 'itemCount'
-  );
+  return field === 'title' || field === 'publicationStatus' || field === 'currency';
 }
 
 export function comparePriceListsByField(

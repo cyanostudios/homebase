@@ -15,9 +15,9 @@ export function isGuideDateSortField(field: GuideSortField): boolean {
   return DATE_SORT_FIELDS.includes(field);
 }
 
-/** Default asc for displayName, id, lifecycle, languages; desc for dates. */
+/** Default asc for displayName, id, lifecycle; desc for dates and languages count (highest first). */
 export function isGuideAscDefaultField(field: GuideSortField): boolean {
-  return !isGuideDateSortField(field);
+  return field === 'displayName' || field === 'id' || field === 'lifecycleStatus';
 }
 
 type GuideSortable = Pick<

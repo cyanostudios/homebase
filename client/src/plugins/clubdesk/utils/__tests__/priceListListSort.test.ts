@@ -20,10 +20,10 @@ function priceList(
 }
 
 describe('priceListListSort', () => {
-  it('defaults string/count fields to ascending for table sort', () => {
+  it('defaults string fields to ascending; itemCount magnitude to descending', () => {
     expect(isPriceListAscDefaultField('title')).toBe(true);
     expect(isPriceListAscDefaultField('currency')).toBe(true);
-    expect(isPriceListAscDefaultField('itemCount')).toBe(true);
+    expect(isPriceListAscDefaultField('itemCount')).toBe(false);
     expect(isPriceListAscDefaultField('updatedAt')).toBe(false);
   });
 
@@ -42,6 +42,10 @@ describe('priceListListSort', () => {
     });
     expect(nextListTableSort('title', 'asc', 'updatedAt', isPriceListAscDefaultField)).toEqual({
       field: 'updatedAt',
+      order: 'desc',
+    });
+    expect(nextListTableSort('title', 'asc', 'itemCount', isPriceListAscDefaultField)).toEqual({
+      field: 'itemCount',
       order: 'desc',
     });
   });

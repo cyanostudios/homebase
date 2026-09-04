@@ -154,8 +154,8 @@ export const InstructionList: React.FC = () => {
   });
 
   const { getSettings, updateSettings, settingsVersion } = useApp();
-  const [primarySort, setPrimarySort] = useState<InstructionSortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<InstructionSortOrder>('desc');
+  const [primarySort, setPrimarySort] = useState<InstructionSortField>('title');
+  const [sortOrder, setSortOrder] = useState<InstructionSortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<InstructionColumnCount>(
     getInitialInstructionColumnCount,
   );

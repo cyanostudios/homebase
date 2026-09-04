@@ -1,6 +1,7 @@
 import {
   compareTeamsByField,
   getTeamSortValue,
+  isTeamAscDefaultField,
   isTeamStringSortField,
   isTeamDateSortField,
 } from '../teamListSort';
@@ -84,5 +85,13 @@ describe('compareTeamsByField', () => {
     const withoutGroup = { ...base, age_group: null };
     expect(compareTeamsByField(withoutGroup, withGroup, 'age_group', 'asc')).toBeGreaterThan(0);
     expect(compareTeamsByField(withoutGroup, withGroup, 'age_group', 'desc')).toBeLessThan(0);
+  });
+});
+
+describe('isTeamAscDefaultField', () => {
+  it('defaults player_count magnitude to descending', () => {
+    expect(isTeamAscDefaultField('name')).toBe(true);
+    expect(isTeamAscDefaultField('player_count')).toBe(false);
+    expect(isTeamAscDefaultField('updated_at')).toBe(false);
   });
 });

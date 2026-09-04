@@ -5,9 +5,9 @@ import type { Note } from '../types/notes';
 export type NoteSortField = 'title' | 'createdAt' | 'updatedAt' | 'mentions';
 export type NoteSortOrder = 'asc' | 'desc';
 
-/** Asc default for title/mentions; desc for dates. */
+/** Asc default for title; desc for dates and mentions count (highest first). */
 export function isNoteAscDefaultField(field: NoteSortField): boolean {
-  return isNoteStringSortField(field) || field === 'mentions';
+  return isNoteStringSortField(field);
 }
 
 /** Header-click sort: toggle order on same field, else switch field with default order. */
