@@ -448,10 +448,10 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
 
       <InvoiceStatusModal
         isOpen={showStatusModal}
-        invoice={pendingInvoice}
-        newStatus={pendingStatus || ''}
+        status={pendingStatus || ''}
+        invoiceNumber={pendingInvoice?.invoiceNumber || ''}
         onConfirm={handleModalConfirm}
-        onCancel={handleModalCancel}
+        onClose={handleModalCancel}
       />
     </>
   );

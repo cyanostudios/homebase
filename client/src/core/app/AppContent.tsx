@@ -327,7 +327,7 @@ export function AppContent() {
     const isClubdeskPriceListItemPath =
       pluginName === 'clubdesk' && itemSlug === 'price-list' && parts.length >= 3;
 
-    const panelBelongsToUrl = (plugin: { name: string }) =>
+    const panelBelongsToUrl = (plugin: { name: string; panelKey: string }) =>
       Boolean(
         pluginName &&
           plugin.name === pluginName &&
@@ -336,7 +336,10 @@ export function AppContent() {
       );
 
     /** List URL + create panel is valid (Add / cross-plugin create); do not auto-close. */
-    const shouldKeepPanelOpen = (plugin: { name: string }, context: Record<string, unknown>) => {
+    const shouldKeepPanelOpen = (
+      plugin: { name: string; panelKey: string },
+      context: Record<string, unknown>,
+    ) => {
       if (panelBelongsToUrl(plugin)) {
         return true;
       }
