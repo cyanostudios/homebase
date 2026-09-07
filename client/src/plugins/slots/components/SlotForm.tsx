@@ -31,6 +31,7 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -550,6 +551,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                           setSeriesCount(Math.min(20, Math.max(2, v)));
                         }
                       }}
+                      className={FORM_INPUT_CLASS}
                     />
                   </div>
                   <div className="space-y-2">
@@ -558,7 +560,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={String(durationMinutes)}
                       onValueChange={(v) => setDurationMinutes(parseInt(v, 10))}
                     >
-                      <SelectTrigger id="series-duration">
+                      <SelectTrigger id="series-duration" className={FORM_INPUT_CLASS}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -576,7 +578,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={String(gapMinutes)}
                       onValueChange={(v) => setGapMinutes(parseInt(v, 10))}
                     >
-                      <SelectTrigger id="series-gap">
+                      <SelectTrigger id="series-gap" className={FORM_INPUT_CLASS}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -614,6 +616,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={formData.name}
                       onChange={(e) => updateField('name', e.target.value)}
                       placeholder={t('slots.namePlaceholder')}
+                      className={FORM_INPUT_CLASS}
                     />
                   </div>
                   {/* Start / end (same combined date+time UI as matches DateTimePicker) */}
@@ -627,6 +630,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                         placeholder={t('slots.dateTimePlaceholder')}
                         timeLabel={t('slots.dateTimePickerTime')}
                         clearLabel={t('slots.dateTimeClear')}
+                        variant="filled"
                       />
                       {getFieldError('slot_time') && (
                         <p className="text-sm text-destructive">
@@ -643,6 +647,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                         placeholder={t('slots.dateTimePlaceholder')}
                         timeLabel={t('slots.dateTimePickerTime')}
                         clearLabel={t('slots.dateTimeClear')}
+                        variant="filled"
                       />
                     </div>
                   </div>
@@ -659,6 +664,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={formData.location}
                       onChange={(e) => updateField('location', e.target.value)}
                       placeholder={t('slots.locationPlaceholder')}
+                      className={FORM_INPUT_CLASS}
                     />
                   </div>
                   <div className="space-y-2">
@@ -668,6 +674,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={formData.address}
                       onChange={(e) => updateField('address', e.target.value)}
                       placeholder={t('slots.addressPlaceholder')}
+                      className={FORM_INPUT_CLASS}
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -679,7 +686,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                           updateField('category', v === '__none__' ? '' : String(v))
                         }
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className={FORM_INPUT_CLASS}>
                           <SelectValue placeholder={t('slots.categoryPlaceholder')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -698,7 +705,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                         value={String(formData.capacity)}
                         onValueChange={(v) => updateField('capacity', parseInt(v, 10))}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className={FORM_INPUT_CLASS}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -723,7 +730,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={formData.description}
                       onChange={(e) => updateField('description', e.target.value)}
                       placeholder={t('slots.descriptionPlaceholder')}
-                      className="min-h-[120px] resize-y"
+                      className={cn(FORM_TEXTAREA_CLASS, 'min-h-[120px] resize-y')}
                       rows={4}
                     />
                   </div>
@@ -817,7 +824,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                               ? t('slots.noMoreToAdd')
                               : t('common.addContact')
                           }
-                          className="h-9 bg-background pl-9 text-xs"
+                          className={cn(FORM_INPUT_CLASS, 'pl-9')}
                           disabled={addableContactsForForm.length === 0}
                         />
                       </div>

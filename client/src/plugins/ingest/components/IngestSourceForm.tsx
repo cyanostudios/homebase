@@ -19,8 +19,14 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  FORM_INPUT_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+  FORM_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { cn } from '@/lib/utils';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 import { useIngest } from '../hooks/useIngest';
@@ -238,7 +244,11 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                         value={formData.name}
                         onChange={(e) => updateField('name', e.target.value)}
                         placeholder={t('ingest.namePlaceholder')}
-                        className="mt-1"
+                        className={cn(
+                          'mt-1',
+                          FORM_INPUT_CLASS,
+                          getFieldError('name') && FORM_INPUT_ERROR_CLASS,
+                        )}
                       />
                       {getFieldError('name') && (
                         <p className="mt-1 text-xs text-destructive">
@@ -253,7 +263,11 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                         value={formData.sourceUrl}
                         onChange={(e) => updateField('sourceUrl', e.target.value)}
                         placeholder="https://"
-                        className="mt-1 font-mono text-sm"
+                        className={cn(
+                          'mt-1 font-mono',
+                          FORM_INPUT_CLASS,
+                          getFieldError('sourceUrl') && FORM_INPUT_ERROR_CLASS,
+                        )}
                       />
                       {getFieldError('sourceUrl') && (
                         <p className="mt-1 text-xs text-destructive">
@@ -267,7 +281,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                         value={formData.sourceType}
                         onValueChange={(v) => updateField('sourceType', v as IngestSourceType)}
                       >
-                        <SelectTrigger className="mt-1">
+                        <SelectTrigger className={cn('mt-1', FORM_INPUT_CLASS)}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -285,7 +299,10 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                         value={formData.fetchMethod}
                         onValueChange={(v) => updateField('fetchMethod', v as IngestFetchMethod)}
                       >
-                        <SelectTrigger id="ingest-fetch-method" className="mt-1">
+                        <SelectTrigger
+                          id="ingest-fetch-method"
+                          className={cn('mt-1', FORM_INPUT_CLASS)}
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -323,7 +340,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                         value={formData.notes}
                         onChange={(e) => updateField('notes', e.target.value)}
                         rows={4}
-                        className="mt-1"
+                        className={cn('mt-1', FORM_TEXTAREA_CLASS)}
                         placeholder={t('ingest.notesPlaceholder')}
                       />
                     </div>

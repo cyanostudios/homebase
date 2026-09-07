@@ -17,6 +17,8 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
+import { cn } from '@/lib/utils';
 
 import { aiProvidersApi } from '../api/aiProvidersApi';
 import { useAIProviders } from '../hooks/useAIProviders';
@@ -305,7 +307,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
                     value={activeProviderKey || undefined}
                     onValueChange={(value) => setPendingProviderKey(value)}
                   >
-                    <SelectTrigger id="ai-provider-type" className="mt-1">
+                    <SelectTrigger id="ai-provider-type" className={cn(FORM_INPUT_CLASS, 'mt-1')}>
                       <SelectValue
                         placeholder={t('aiProviders.chooseProviderPlaceholder', {
                           defaultValue: 'Select a provider…',
@@ -418,7 +420,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
                           draft.hasApiKey ? MASKED_SECRET : apiKeyPlaceholder || undefined
                         }
                         autoComplete="new-password"
-                        className="mt-1"
+                        className={cn(FORM_INPUT_CLASS, 'mt-1')}
                       />
                       <p className="mt-1 text-xs text-muted-foreground">
                         {t('aiProviders.apiKeyHint', {
@@ -439,7 +441,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
                             setDraft((prev) => ({ ...prev, defaultModel: value }))
                           }
                         >
-                          <SelectTrigger id={modelId} className="mt-1">
+                          <SelectTrigger id={modelId} className={cn(FORM_INPUT_CLASS, 'mt-1')}>
                             <SelectValue
                               placeholder={t('aiProviders.chooseModelPlaceholder', {
                                 defaultValue: 'Select a model…',
@@ -463,7 +465,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
                             setDraft((prev) => ({ ...prev, defaultModel: event.target.value }))
                           }
                           placeholder={fallbackModel || undefined}
-                          className="mt-1"
+                          className={cn(FORM_INPUT_CLASS, 'mt-1')}
                         />
                       )}
                     </div>
@@ -480,7 +482,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
                               setDraft((prev) => ({ ...prev, voiceId: value }))
                             }
                           >
-                            <SelectTrigger id={voiceId} className="mt-1">
+                            <SelectTrigger id={voiceId} className={cn(FORM_INPUT_CLASS, 'mt-1')}>
                               <SelectValue
                                 placeholder={
                                   voicesLoading
@@ -512,7 +514,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
                             placeholder={t('aiProviders.voiceIdPlaceholder', {
                               defaultValue: 'ElevenLabs voice id',
                             })}
-                            className="mt-1"
+                            className={cn(FORM_INPUT_CLASS, 'mt-1')}
                             disabled={voicesLoading}
                           />
                         )}

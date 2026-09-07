@@ -21,6 +21,7 @@ import {
   SWISH_MESSAGE_MAX_LENGTH,
 } from '@/core/qr';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { cn } from '@/lib/utils';
 
@@ -248,7 +249,7 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
           onValueChange={(value) => setSelectedId(value as string | 'new')}
           disabled={busy}
         >
-          <SelectTrigger className="h-9 w-[min(100%,280px)] text-xs">
+          <SelectTrigger className={cn(FORM_INPUT_CLASS, 'w-[min(100%,280px)]')}>
             <SelectValue placeholder={t('clubdesk.siteContent.swish.selectProfile')} />
           </SelectTrigger>
           <SelectContent>
@@ -285,6 +286,7 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
               disabled={busy}
               autoComplete="off"
               inputMode="tel"
+              className={FORM_INPUT_CLASS}
             />
           </div>
           <div className="space-y-1.5">
@@ -298,6 +300,7 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
               placeholder={t('clubdesk.siteContent.swish.messagePlaceholder')}
               disabled={busy}
               maxLength={SWISH_MESSAGE_MAX_LENGTH}
+              className={FORM_INPUT_CLASS}
             />
             <p className="text-xs text-muted-foreground">
               {t('clubdesk.siteContent.swish.messageHint', { max: SWISH_MESSAGE_MAX_LENGTH })}
@@ -317,7 +320,7 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
                 }}
                 disabled={busy || addableLists.length === 0}
               >
-                <SelectTrigger className="h-8 w-[180px] text-xs">
+                <SelectTrigger className={cn(FORM_INPUT_CLASS, 'w-[180px]')}>
                   <SelectValue placeholder={t('clubdesk.siteContent.swish.addPriceList')} />
                 </SelectTrigger>
                 <SelectContent>

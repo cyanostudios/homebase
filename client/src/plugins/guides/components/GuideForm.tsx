@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -225,7 +226,10 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                       value={formData.displayName}
                       onChange={(e) => updateField('displayName', e.target.value)}
                       placeholder={t('guides.displayNamePlaceholder')}
-                      className={cn(getFieldError('displayName') && 'border-destructive')}
+                      className={cn(
+                        FORM_INPUT_CLASS,
+                        getFieldError('displayName') && FORM_INPUT_ERROR_CLASS,
+                      )}
                     />
                     {getFieldError('displayName') && (
                       <p className="mt-1 text-sm text-destructive">
@@ -321,7 +325,10 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                           e.target.value as GuidePayload['lifecycleStatus'],
                         )
                       }
-                      className={cn(getFieldError('lifecycleStatus') && 'border-destructive')}
+                      className={cn(
+                        FORM_INPUT_CLASS,
+                        getFieldError('lifecycleStatus') && FORM_INPUT_ERROR_CLASS,
+                      )}
                     >
                       {GUIDE_LIFECYCLE_STATUSES.map((status) => (
                         <option key={status} value={status}>

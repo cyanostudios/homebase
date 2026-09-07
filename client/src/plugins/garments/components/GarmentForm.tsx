@@ -22,6 +22,11 @@ import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { DETAIL_FORM_TITLE_INPUT_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  FORM_INPUT_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+  FORM_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
 import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
@@ -426,7 +431,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 placeholder={t('garments.articleName')}
                 className={cn(
                   DETAIL_FORM_TITLE_INPUT_CLASS,
-                  getFieldError('articleName') && 'border-destructive',
+                  getFieldError('articleName') && FORM_INPUT_ERROR_CLASS,
                 )}
               />
               {getFieldError('articleName') ? (
@@ -450,6 +455,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 id="garment-brand"
                 value={inventoryForm.brand ?? ''}
                 onChange={(e) => updateInventoryField('brand', e.target.value)}
+                className={FORM_INPUT_CLASS}
               />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -465,7 +471,10 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                     const raw = e.target.value;
                     updateInventoryField('purchasePrice', raw === '' ? null : Number(raw));
                   }}
-                  className={cn(getFieldError('purchasePrice') && 'border-destructive')}
+                  className={cn(
+                    FORM_INPUT_CLASS,
+                    getFieldError('purchasePrice') && FORM_INPUT_ERROR_CLASS,
+                  )}
                 />
                 {getFieldError('purchasePrice') ? (
                   <p className="mt-1 text-sm text-destructive">
@@ -480,6 +489,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                   value={inventoryForm.currency ?? 'SEK'}
                   onChange={(e) => updateInventoryField('currency', e.target.value)}
                   maxLength={10}
+                  className={FORM_INPUT_CLASS}
                 />
               </div>
             </div>
@@ -496,7 +506,10 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                     const raw = e.target.value;
                     updateInventoryField('recommendedPrice', raw === '' ? null : Number(raw));
                   }}
-                  className={cn(getFieldError('recommendedPrice') && 'border-destructive')}
+                  className={cn(
+                    FORM_INPUT_CLASS,
+                    getFieldError('recommendedPrice') && FORM_INPUT_ERROR_CLASS,
+                  )}
                 />
                 {getFieldError('recommendedPrice') ? (
                   <p className="mt-1 text-sm text-destructive">
@@ -516,7 +529,10 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                     const raw = e.target.value;
                     updateInventoryField('salePrice', raw === '' ? null : Number(raw));
                   }}
-                  className={cn(getFieldError('salePrice') && 'border-destructive')}
+                  className={cn(
+                    FORM_INPUT_CLASS,
+                    getFieldError('salePrice') && FORM_INPUT_ERROR_CLASS,
+                  )}
                 />
                 {getFieldError('salePrice') ? (
                   <p className="mt-1 text-sm text-destructive">
@@ -531,6 +547,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 id="garment-material"
                 value={inventoryForm.material ?? ''}
                 onChange={(e) => updateInventoryField('material', e.target.value)}
+                className={FORM_INPUT_CLASS}
               />
             </div>
             <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
@@ -554,6 +571,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 value={inventoryForm.description ?? ''}
                 onChange={(e) => updateInventoryField('description', e.target.value)}
                 rows={4}
+                className={FORM_TEXTAREA_CLASS}
               />
             </div>
             <div>
@@ -563,6 +581,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 value={inventoryForm.comment ?? ''}
                 onChange={(e) => updateInventoryField('comment', e.target.value)}
                 rows={3}
+                className={FORM_TEXTAREA_CLASS}
               />
             </div>
             <div>
@@ -577,7 +596,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                   }}
                   disabled={addableTags.length === 0}
                 >
-                  <SelectTrigger className="h-8 w-full text-xs sm:w-[220px]">
+                  <SelectTrigger className={cn(FORM_INPUT_CLASS, 'sm:w-[220px]')}>
                     <SelectValue placeholder={t('garments.addTagPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -643,7 +662,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
               id="garment-name"
               value={listForm.name}
               onChange={(e) => updateListField('name', e.target.value)}
-              className={cn(getFieldError('name') && 'border-destructive')}
+              className={cn(FORM_INPUT_CLASS, getFieldError('name') && FORM_INPUT_ERROR_CLASS)}
             />
             {getFieldError('name') ? (
               <p className="mt-1 text-sm text-destructive">{getFieldError('name')?.message}</p>
@@ -658,7 +677,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                   updateListField('teamId', value === '__none__' ? null : value)
                 }
               >
-                <SelectTrigger id="garment-team" className="h-9">
+                <SelectTrigger id="garment-team" className={FORM_INPUT_CLASS}>
                   <SelectValue placeholder={t('garments.teamNone')} />
                 </SelectTrigger>
                 <SelectContent>

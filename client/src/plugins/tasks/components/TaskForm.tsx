@@ -8,12 +8,19 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DatePicker } from '@/core/ui/DatePicker';
+import {
+  FORM_INPUT_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+  FORM_PROP_CONTROL_CLASS,
+} from '@/core/ui/formFieldStyles';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { cn } from '@/lib/utils';
 
 import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
@@ -195,11 +202,6 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
     markDirty();
   };
 
-  const handleDateChange = (dateString: string) => {
-    const date = dateString ? new Date(dateString) : null;
-    updateField('dueDate', date);
-  };
-
   const getFieldError = (fieldName: string) => {
     return validationErrors.find((error) => error.field === fieldName);
   };
@@ -209,13 +211,6 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
   if (panelMode === 'settings') {
     return <TaskSettingsForm onCancel={onCancel} />;
   }
-
-  const formatDateForInput = (date: Date | null) => {
-    if (!date) {
-      return '';
-    }
-    return date.toISOString().split('T')[0];
-  };
 
   const formLeftSidebar = (
     <div className="space-y-4">
@@ -237,7 +232,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
                 value={formData.title}
                 onChange={(e) => updateField('title', e.target.value)}
                 placeholder={t('tasks.titlePlaceholder')}
-                className={getFieldError('title') ? 'border-red-500' : ''}
+                className={cn(FORM_INPUT_CLASS, getFieldError('title') && FORM_INPUT_ERROR_CLASS)}
                 required
               />
               {getFieldError('title') && (
@@ -260,7 +255,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
                   value={formData.content}
                   onChange={handleContentChange}
                   placeholder={t('tasks.contentPlaceholder')}
-                  className={getFieldError('content') ? 'border-red-500' : ''}
+                  className={cn(getFieldError('content') && FORM_INPUT_ERROR_CLASS)}
                 />
               </React.Suspense>
               {getFieldError('content') && (
@@ -313,7 +308,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
                     </span>
                     <NativeSelect
                       id="task-status"
-                      className="h-9 max-w-[180px] text-xs"
+                      className={FORM_PROP_CONTROL_CLASS}
                       value={formData.status}
                       onChange={(e) => updateField('status', e.target.value as TaskStatus)}
                     >
@@ -330,7 +325,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
                     </span>
                     <NativeSelect
                       id="task-priority"
-                      className="h-9 max-w-[180px] text-xs"
+                      className={FORM_PROP_CONTROL_CLASS}
                       value={formData.priority}
                       onChange={(e) => updateField('priority', e.target.value as TaskPriority)}
                     >
@@ -345,12 +340,14 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
                     <span className="text-sm text-slate-500 dark:text-slate-400">
                       {t('tasks.propertyDueDate')}
                     </span>
-                    <Input
+                    <DatePicker
                       id="task-due-date"
-                      type="date"
-                      className="h-9 max-w-[180px] text-xs"
-                      value={formatDateForInput(formData.dueDate)}
-                      onChange={(e) => handleDateChange(e.target.value)}
+                      value={formData.dueDate}
+                      onChange={(date) => updateField('dueDate', date)}
+                      placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                      clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                      variant="filled"
+                      propWidth
                     />
                   </div>
                 </div>

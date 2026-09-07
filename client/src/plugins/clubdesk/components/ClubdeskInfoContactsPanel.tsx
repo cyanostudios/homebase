@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
+import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
 import { contactsApi } from '@/plugins/contacts/api/contactsApi';
 import type { Contact } from '@/plugins/contacts/types/contacts';
 import { cn } from '@/lib/utils';
@@ -303,7 +304,7 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
                       }}
                       onFocus={() => setShowSuggestions(true)}
                       placeholder={t('clubdesk.infoContacts.searchContact')}
-                      className="h-9 pl-9 text-xs"
+                      className={cn(FORM_INPUT_CLASS, 'pl-9')}
                       disabled={disabled || isLoading || isSaving}
                     />
                   </div>
@@ -352,7 +353,7 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
               rows={3}
               placeholder={t('clubdesk.infoContacts.blurbPlaceholder')}
               disabled={disabled || isLoading || isSaving}
-              className="text-sm"
+              className={cn(FORM_TEXTAREA_CLASS, 'text-sm')}
             />
           </div>
 

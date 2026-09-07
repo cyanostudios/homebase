@@ -7,6 +7,7 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import { cloudStorageApi, type CloudStorageService } from '../api/cloudStorageApi';
@@ -217,7 +218,7 @@ export const CloudStorageSettings: React.FC = () => {
                   }
                   placeholder={t('files.cloudClientIdPlaceholder')}
                   autoComplete="off"
-                  className="mt-1.5 h-9 text-xs"
+                  className={cn(FORM_INPUT_CLASS, 'mt-1.5')}
                 />
               </div>
               <div>
@@ -239,7 +240,7 @@ export const CloudStorageSettings: React.FC = () => {
                   }
                   placeholder={t('files.cloudClientSecretPlaceholder')}
                   autoComplete="off"
-                  className="mt-1.5 h-9 text-xs"
+                  className={cn(FORM_INPUT_CLASS, 'mt-1.5')}
                 />
               </div>
             </div>

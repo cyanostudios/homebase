@@ -10,8 +10,10 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 
 import { useSlotSettings } from '../hooks/useSlotSettings';
+import { cn } from '@/lib/utils';
 
 export interface SlotsSettingsFormProps {
   onCancel: () => void;
@@ -80,7 +82,7 @@ export const SlotsSettingsForm = React.forwardRef<PanelFormHandle, SlotsSettings
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 placeholder="Add a category (e.g. VIP, Stand A)"
-                className="flex-1"
+                className={cn(FORM_INPUT_CLASS, 'flex-1')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();

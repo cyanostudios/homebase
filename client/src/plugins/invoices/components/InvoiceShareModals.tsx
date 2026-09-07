@@ -9,8 +9,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePicker, formatDateInputValue, parseDateInputValue } from '@/core/ui/DatePicker';
 import { DialogCancelButton, DialogSaveButton } from '@/core/ui/DialogRoundButtons';
 import { ShareDialog } from '@/plugins/estimates/components/ShareDialog';
 
@@ -65,12 +65,15 @@ export function InvoiceShareModals({ entityLabel }: { entityLabel: string }) {
               <Label htmlFor="invoice-share-valid-until" className="mb-1">
                 {t('invoices.validUntil')}
               </Label>
-              <Input
+              <DatePicker
                 id="invoice-share-valid-until"
-                type="date"
-                value={shareValidUntil}
-                onChange={(e) => setShareValidUntil(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                value={parseDateInputValue(shareValidUntil)}
+                onChange={(date) => setShareValidUntil(formatDateInputValue(date))}
+                placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                variant="default"
+                fullWidth
+                minDate={new Date()}
               />
             </div>
             <p className="text-xs italic text-muted-foreground">

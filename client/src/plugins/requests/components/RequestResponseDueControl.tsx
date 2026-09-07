@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import type { Request } from '../types/requests';
@@ -90,10 +91,7 @@ export function RequestResponseDueControl({
               event.currentTarget.blur();
             }
           }}
-          className={cn(
-            'bg-background px-2 text-center text-xs shadow-none',
-            compact ? 'h-7 w-14' : 'h-9 w-16',
-          )}
+          className={cn(FORM_INPUT_CLASS, 'text-center', compact ? 'w-14' : 'w-16')}
           aria-label={t('requests.responseDue.daysAria')}
         />
         <span className={cn('text-muted-foreground', compact ? 'text-[10px]' : 'text-xs')}>

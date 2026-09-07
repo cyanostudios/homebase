@@ -13,6 +13,7 @@ import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import { usePulses } from '../hooks/usePulses';
@@ -138,7 +139,7 @@ export const PulseProviderView: React.FC<PulseProviderViewProps> = ({ pulse: pul
                   <Input
                     ref={testToInputRef}
                     id="pulse-test-to"
-                    className="mt-1"
+                    className={cn(FORM_INPUT_CLASS, 'mt-1')}
                     value={testTo}
                     onChange={(e) => setTestTo(e.target.value)}
                     placeholder="+4670…"

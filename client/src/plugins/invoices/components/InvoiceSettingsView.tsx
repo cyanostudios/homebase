@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
+import { FORM_INPUT_CLASS, FORM_INPUT_READONLY_CLASS } from '@/core/ui/formFieldStyles';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
@@ -260,6 +261,7 @@ export function InvoiceSettingsView({
                 placeholder={t('invoices.settingsCategories.numberPrefixPlaceholder')}
                 maxLength={12}
                 autoComplete="off"
+                className={FORM_INPUT_CLASS}
               />
             </div>
             <div className="space-y-2">
@@ -272,7 +274,7 @@ export function InvoiceSettingsView({
                 value={String(currentYear)}
                 readOnly
                 disabled={!numbering.includeYear}
-                className="cursor-default"
+                className={cn(FORM_INPUT_CLASS, FORM_INPUT_READONLY_CLASS, 'cursor-default')}
               />
               <label className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm">
                 <Checkbox
@@ -308,6 +310,7 @@ export function InvoiceSettingsView({
                 max={999999}
                 value={numberStartDraft}
                 onChange={(e) => setNumberStartDraft(e.target.value)}
+                className={FORM_INPUT_CLASS}
               />
             </div>
             <p className="text-sm text-muted-foreground">

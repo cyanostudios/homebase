@@ -11,6 +11,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import {
+  FORM_INPUT_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+  FORM_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
@@ -264,7 +269,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                 value={form.title}
                 onChange={(e) => updateForm('title', e.target.value)}
                 placeholder={t('requests.form.titlePlaceholder')}
-                className={cn(titleError && 'border-red-500')}
+                className={cn(FORM_INPUT_CLASS, titleError && FORM_INPUT_ERROR_CLASS)}
                 required
               />
               {titleError ? (
@@ -279,7 +284,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                 onChange={(e) => updateForm('description', e.target.value)}
                 placeholder={t('requests.form.descriptionPlaceholder')}
                 rows={5}
-                className="text-sm"
+                className={FORM_TEXTAREA_CLASS}
               />
             </div>
           </div>
@@ -315,7 +320,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                         rows={3}
                         required={required}
                         aria-required={required}
-                        className="text-sm"
+                        className={FORM_TEXTAREA_CLASS}
                       />
                     ) : (
                       <Input
@@ -323,7 +328,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                         onChange={(e) => updateExtraField(field.key, e.target.value)}
                         required={required}
                         aria-required={required}
-                        className="text-sm"
+                        className={FORM_INPUT_CLASS}
                       />
                     )}
                   </div>
@@ -350,7 +355,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                   value={form.submitterName}
                   onChange={(e) => updateForm('submitterName', e.target.value)}
                   placeholder={t('requests.form.submitterNamePlaceholder')}
-                  className="text-sm"
+                  className={FORM_INPUT_CLASS}
                 />
               </div>
               <div className="space-y-1">
@@ -360,7 +365,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                   value={form.submitterEmail}
                   onChange={(e) => updateForm('submitterEmail', e.target.value)}
                   placeholder={t('requests.form.submitterEmailPlaceholder')}
-                  className="text-sm"
+                  className={FORM_INPUT_CLASS}
                 />
               </div>
             </div>
@@ -399,7 +404,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                         }}
                         onFocus={() => setShowContactSuggestions(true)}
                         placeholder={t('requests.form.searchContact')}
-                        className="h-9 pl-9 text-xs"
+                        className={cn(FORM_INPUT_CLASS, 'pl-9')}
                       />
                     </div>
                   </PopoverAnchor>
@@ -448,7 +453,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                 onChange={(e) => updateForm('internalNotes', e.target.value)}
                 placeholder={t('requests.form.internalNotesPlaceholder')}
                 rows={4}
-                className="text-sm"
+                className={FORM_TEXTAREA_CLASS}
               />
             </div>
           </div>

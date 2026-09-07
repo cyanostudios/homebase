@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 
 import { useTeamVenues } from '../hooks/useTeamVenues';
 
@@ -117,13 +118,13 @@ export function TeamsVenuesSettingsSection() {
                       <Input
                         value={editName}
                         onChange={(event) => setEditName(event.target.value)}
-                        className="h-9"
+                        className={FORM_INPUT_CLASS}
                         maxLength={255}
                       />
                       <Input
                         value={editMapLink}
                         onChange={(event) => setEditMapLink(event.target.value)}
-                        className="h-9"
+                        className={FORM_INPUT_CLASS}
                         placeholder={t('matches.mapLinkPlaceholder')}
                       />
                       <div className="flex items-center gap-1">
@@ -199,7 +200,7 @@ export function TeamsVenuesSettingsSection() {
               setNewName(event.target.value);
               setAddError(null);
             }}
-            className="h-9"
+            className={FORM_INPUT_CLASS}
             maxLength={255}
             placeholder={t('teams.settings.venuesNamePlaceholder')}
             disabled={atCap || isSaving}
@@ -213,7 +214,7 @@ export function TeamsVenuesSettingsSection() {
           <Input
             value={newMapLink}
             onChange={(event) => setNewMapLink(event.target.value)}
-            className="h-9"
+            className={FORM_INPUT_CLASS}
             placeholder={t('matches.mapLinkPlaceholder')}
             disabled={atCap || isSaving}
             onKeyDown={(event) => {

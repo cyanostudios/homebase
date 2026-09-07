@@ -13,6 +13,11 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  FORM_INPUT_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+  FORM_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
 import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -217,7 +222,10 @@ export const YourItemForm = React.forwardRef<PanelFormHandle, YourItemFormProps>
                         value={formData.title}
                         onChange={(e) => updateField('title', e.target.value)}
                         placeholder="Enter a title"
-                        className={cn(getFieldError('title') && 'border-destructive')}
+                        className={cn(
+                          FORM_INPUT_CLASS,
+                          getFieldError('title') && FORM_INPUT_ERROR_CLASS,
+                        )}
                       />
                       {getFieldError('title') && (
                         <p className="mt-1 text-sm text-destructive">
@@ -232,6 +240,7 @@ export const YourItemForm = React.forwardRef<PanelFormHandle, YourItemFormProps>
                         value={formData.description ?? ''}
                         onChange={(e) => updateField('description', e.target.value)}
                         rows={6}
+                        className={FORM_TEXTAREA_CLASS}
                       />
                     </div>
                   </div>

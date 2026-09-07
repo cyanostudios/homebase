@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
@@ -17,6 +18,7 @@ import {
 } from '@/core/ui/PluginSettingsPageShell';
 import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { cn } from '@/lib/utils';
 
 import { useSlotSettings } from '../hooks/useSlotSettings';
 import { SLOTS_SETTINGS_KEY } from '../utils/slotColumnCount';
@@ -218,7 +220,7 @@ export function SlotsSettingsView({
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 placeholder="Add a category (e.g. VIP, Stand A)"
-                className="flex-1"
+                className={cn(FORM_INPUT_CLASS, 'flex-1')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();

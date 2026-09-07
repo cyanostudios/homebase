@@ -15,6 +15,7 @@ import {
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import type { ImportSchema } from '@/core/utils/importUtils';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
@@ -267,7 +268,7 @@ export function ContactSettingsView({
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
                   placeholder="Add a tag (e.g. Family, Work)"
-                  className="flex-1"
+                  className={cn(FORM_INPUT_CLASS, 'flex-1')}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();

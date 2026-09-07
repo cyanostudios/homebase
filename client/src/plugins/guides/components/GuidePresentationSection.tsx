@@ -17,6 +17,11 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import {
+  FORM_INPUT_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+  FORM_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import { guidesApi } from '../api/guidesApi';
@@ -324,7 +329,7 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
             disabled={isBusy || disabled}
             placeholder={t('guides.presentationTextPlaceholder')}
             onChange={(e) => setForm((prev) => ({ ...prev, presentationText: e.target.value }))}
-            className={cn(textError && 'border-destructive')}
+            className={cn(FORM_TEXTAREA_CLASS, textError && FORM_INPUT_ERROR_CLASS)}
           />
           {textError && <p className="text-xs text-destructive">{textError.message}</p>}
         </div>
@@ -344,7 +349,7 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
                   .value as GuidePresentationUpdatePayload['publicationStatus'],
               }))
             }
-            className={cn(pubError && 'border-destructive')}
+            className={cn(FORM_INPUT_CLASS, pubError && FORM_INPUT_ERROR_CLASS)}
           >
             {PUBLICATION_STATUSES.map((status) => (
               <option key={status} value={status}>

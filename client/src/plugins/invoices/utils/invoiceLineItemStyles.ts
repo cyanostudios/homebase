@@ -1,17 +1,29 @@
-/** Compact line-item chrome — mirrors inventory variant density (`variantListStyles`). */
-
 /**
- * Prototype: compact filled fields (no border, muted bg) for invoice edit.
- * Shared by form cards + line-item rows.
+ * Invoice line-item + form control tokens.
+ * Filled field chrome lives in `@/core/ui/formFieldStyles` — re-exported here for
+ * existing invoice imports.
  */
-export const INVOICE_FIELD_FILLED_CHROME =
-  'border-0 bg-muted shadow-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-0';
 
-export const INVOICE_FORM_INPUT_CLASS = `h-7 w-full px-2 py-0 text-base md:text-xs ${INVOICE_FIELD_FILLED_CHROME}`;
+import {
+  FORM_COMPACT_INPUT_CLASS,
+  FORM_COMPACT_SELECT_CLASS,
+  FORM_FIELD_FILLED_CHROME,
+  FORM_INPUT_CLASS,
+  FORM_PROP_CONTROL_CLASS,
+  FORM_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
 
-export const INVOICE_FORM_PROP_CONTROL_CLASS = `h-7 w-full max-w-[180px] px-2 py-0 text-base md:text-xs ${INVOICE_FIELD_FILLED_CHROME}`;
+/** @deprecated Prefer FORM_FIELD_FILLED_CHROME from `@/core/ui/formFieldStyles`. */
+export const INVOICE_FIELD_FILLED_CHROME = FORM_FIELD_FILLED_CHROME;
 
-export const INVOICE_FORM_TEXTAREA_CLASS = `min-h-[56px] px-2 py-1.5 text-base md:text-xs ${INVOICE_FIELD_FILLED_CHROME}`;
+/** @deprecated Prefer FORM_INPUT_CLASS from `@/core/ui/formFieldStyles`. */
+export const INVOICE_FORM_INPUT_CLASS = FORM_INPUT_CLASS;
+
+/** @deprecated Prefer FORM_PROP_CONTROL_CLASS from `@/core/ui/formFieldStyles`. */
+export const INVOICE_FORM_PROP_CONTROL_CLASS = FORM_PROP_CONTROL_CLASS;
+
+/** @deprecated Prefer FORM_TEXTAREA_CLASS from `@/core/ui/formFieldStyles`. */
+export const INVOICE_FORM_TEXTAREA_CLASS = FORM_TEXTAREA_CLASS;
 
 export const LINE_ITEM_LIST_ROW_CLASS =
   'flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border border-border/50 px-2 py-1';
@@ -24,9 +36,9 @@ export const LINE_ITEM_COMPACT_LABEL_CLASS =
   'block text-[10px] font-normal leading-none text-slate-400 dark:text-slate-500';
 
 /** Shared control height/padding — spacing to label comes from the field stack. */
-export const LINE_ITEM_COMPACT_INPUT_CLASS = `h-7 w-full px-2 py-0 text-base md:text-[11px] ${INVOICE_FIELD_FILLED_CHROME} [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]`;
+export const LINE_ITEM_COMPACT_INPUT_CLASS = FORM_COMPACT_INPUT_CLASS;
 
-export const LINE_ITEM_COMPACT_SELECT_CLASS = `h-7 w-full px-1.5 py-0 text-base md:text-[11px] ${INVOICE_FIELD_FILLED_CHROME}`;
+export const LINE_ITEM_COMPACT_SELECT_CLASS = FORM_COMPACT_SELECT_CLASS;
 
 /** Label + control stack — keeps every column aligned. */
 export const LINE_ITEM_FIELD_CLASS = 'flex min-w-0 flex-col gap-1';

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Textarea } from '@/components/ui/textarea';
+import { FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
 
 import type { TeamNote } from '../types/teams';
 
@@ -62,6 +63,7 @@ export function TeamNotesSection({
             onChange={(e) => setDraft(e.target.value)}
             rows={3}
             placeholder={t('teams.view.notePlaceholder')}
+            className={FORM_TEXTAREA_CLASS}
           />
           <RoundIconLabelButton
             type="button"

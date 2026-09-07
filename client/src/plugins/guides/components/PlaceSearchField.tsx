@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/select';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { FORM_INPUT_CLASS, FORM_PROP_CONTROL_CLASS } from '@/core/ui/formFieldStyles';
+import { cn } from '@/lib/utils';
 
 import { placesApi } from '../api/placesApi';
 import type { PlaceResolved } from '../types/guides';
@@ -210,7 +212,7 @@ export const PlaceSearchField: React.FC<PlaceSearchFieldProps> = ({
           setCountryCode(e.target.value);
           setResults([]);
         }}
-        className="text-xs"
+        className={FORM_PROP_CONTROL_CLASS}
       >
         <option value="">{t('guides.place.countryAll')}</option>
         {COMMON_COUNTRIES.map((c) => (
@@ -234,7 +236,7 @@ export const PlaceSearchField: React.FC<PlaceSearchFieldProps> = ({
               value={query}
               disabled={disabled}
               placeholder={t('guides.place.placeholder')}
-              className="pl-9"
+              className={cn(FORM_INPUT_CLASS, 'pl-9')}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setOpen(true);

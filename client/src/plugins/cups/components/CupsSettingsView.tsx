@@ -6,6 +6,7 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
@@ -412,6 +413,7 @@ export function CupsSettingsView({
                 value={defaultIngestSourceId}
                 onChange={(e) => setDefaultIngestSourceId(e.target.value)}
                 placeholder="Example: 5"
+                className={FORM_INPUT_CLASS}
               />
               <p className="text-sm text-muted-foreground">
                 Used as default in Cups import action and should be one of the selected sources.

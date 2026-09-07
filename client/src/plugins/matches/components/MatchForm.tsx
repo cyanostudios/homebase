@@ -22,6 +22,7 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { DateTimePicker } from '@/core/ui/DateTimePicker';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -393,7 +394,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                     value={formData.name}
                     onChange={(e) => updateField('name', e.target.value)}
                     placeholder={t('matches.namePlaceholder')}
-                    className="h-10 text-sm"
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
 
@@ -409,8 +410,8 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       onChange={(e) => updateField('home_team', e.target.value)}
                       placeholder="e.g. Team A"
                       className={cn(
-                        'h-10 text-sm',
-                        getFieldError('home_team') && 'border-destructive',
+                        FORM_INPUT_CLASS,
+                        getFieldError('home_team') && FORM_INPUT_ERROR_CLASS,
                       )}
                     />
                     {getFieldError('home_team') && (
@@ -429,8 +430,8 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       onChange={(e) => updateField('away_team', e.target.value)}
                       placeholder="e.g. Team B"
                       className={cn(
-                        'h-10 text-sm',
-                        getFieldError('away_team') && 'border-destructive',
+                        FORM_INPUT_CLASS,
+                        getFieldError('away_team') && FORM_INPUT_ERROR_CLASS,
                       )}
                     />
                     {getFieldError('away_team') && (
@@ -455,7 +456,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       value={formData.match_number}
                       onChange={(e) => updateField('match_number', e.target.value)}
                       placeholder="1"
-                      className="h-10 text-sm"
+                      className={FORM_INPUT_CLASS}
                     />
                   </div>
                   <div>
@@ -469,6 +470,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       placeholder={t('matches.dateTimePlaceholder')}
                       timeLabel={t('matches.timeLabel')}
                       clearLabel={t('matches.dateTimeClear')}
+                      variant="filled"
                     />
                     {getFieldError('start_time') && (
                       <p className="mt-1 text-sm text-destructive">
@@ -489,7 +491,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       value={formData.location}
                       onChange={(e) => updateField('location', e.target.value)}
                       placeholder="Venue, arena"
-                      className="h-10 text-sm"
+                      className={FORM_INPUT_CLASS}
                     />
                   </div>
                   <div>
@@ -501,7 +503,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       value={formData.map_link}
                       onChange={(e) => updateField('map_link', e.target.value)}
                       placeholder={t('matches.mapLinkPlaceholder')}
-                      className="h-10 text-sm"
+                      className={FORM_INPUT_CLASS}
                     />
                   </div>
                 </div>
@@ -514,7 +516,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       value={formData.sport_type}
                       onValueChange={(v) => setSportType(v as SportType)}
                     >
-                      <SelectTrigger className="w-full h-10 text-sm">
+                      <SelectTrigger className={FORM_INPUT_CLASS}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -532,7 +534,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       value={formData.format || '__none__'}
                       onValueChange={(v) => updateField('format', v === '__none__' ? '' : v)}
                     >
-                      <SelectTrigger className="w-full h-10 text-sm">
+                      <SelectTrigger className={FORM_INPUT_CLASS}>
                         <SelectValue placeholder={t('matches.formatPlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
@@ -556,7 +558,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       max={999}
                       value={formData.total_minutes}
                       onChange={(e) => updateField('total_minutes', e.target.value)}
-                      className="h-10 text-sm"
+                      className={FORM_INPUT_CLASS}
                     />
                   </div>
                 </div>
@@ -574,7 +576,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                         )
                       }
                     >
-                      <SelectTrigger className="w-full h-10 text-sm">
+                      <SelectTrigger className={FORM_INPUT_CLASS}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -597,7 +599,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       value={formData.referee_count}
                       onChange={(e) => updateField('referee_count', e.target.value)}
                       placeholder="1"
-                      className="h-10 text-sm"
+                      className={FORM_INPUT_CLASS}
                     />
                   </div>
                 </div>
@@ -612,7 +614,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       id="match-competition"
                       value={formData.competition_name}
                       onChange={(e) => updateField('competition_name', e.target.value)}
-                      className="h-10 text-sm"
+                      className={FORM_INPUT_CLASS}
                     />
                   </div>
                   <div className="sm:col-span-3">
@@ -629,7 +631,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                           max={999}
                           value={formData.home_score}
                           onChange={(e) => updateField('home_score', e.target.value)}
-                          className="h-10 text-sm"
+                          className={FORM_INPUT_CLASS}
                         />
                       </div>
                       <div>
@@ -643,7 +645,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                           max={999}
                           value={formData.away_score}
                           onChange={(e) => updateField('away_score', e.target.value)}
-                          className="h-10 text-sm"
+                          className={FORM_INPUT_CLASS}
                         />
                       </div>
                     </div>
@@ -656,7 +658,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                         value={formData.result}
                         onChange={(e) => updateField('result', e.target.value)}
                         placeholder="2-1"
-                        className="h-10 text-sm"
+                        className={FORM_INPUT_CLASS}
                       />
                     </div>
                   </div>
@@ -704,7 +706,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full h-10 text-sm">
+                    <SelectTrigger className={FORM_INPUT_CLASS}>
                       <SelectValue placeholder={t('matches.addContact')} />
                     </SelectTrigger>
                     <SelectContent>

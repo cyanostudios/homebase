@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_PROP_CONTROL_CLASS } from '@/core/ui/formFieldStyles';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
@@ -274,7 +275,7 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
               value={activeSeason}
               onChange={(e) => setActiveSeason(e.target.value)}
               placeholder={String(new Date().getFullYear())}
-              className="max-w-[200px]"
+              className={cn(FORM_PROP_CONTROL_CLASS, 'max-w-[200px]')}
             />
             <p className="mt-2 text-sm text-muted-foreground">
               {t('teams.settings.activeSeasonHint')}

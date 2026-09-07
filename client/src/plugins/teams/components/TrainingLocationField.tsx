@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Input } from '@/components/ui/input';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import {
   Select,
   SelectContent,
@@ -46,7 +47,7 @@ export function TrainingLocationField({
         <Input
           value={training.location}
           onChange={(event) => onChange({ location: event.target.value, venueId: undefined })}
-          className="h-9"
+          className={FORM_INPUT_CLASS}
           placeholder={
             loadError ? t('teams.form.venuesLoadError') : t('teams.form.locationPlaceholder')
           }
@@ -63,7 +64,7 @@ export function TrainingLocationField({
           onChange(locationFromSelect(value, training.location, venues));
         }}
       >
-        <SelectTrigger className={cn('h-9 w-full text-sm', selectClassName)}>
+        <SelectTrigger className={cn(FORM_INPUT_CLASS, selectClassName)}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -86,7 +87,7 @@ export function TrainingLocationField({
         <Input
           value={training.location}
           onChange={(event) => onChange({ location: event.target.value, venueId: undefined })}
-          className="h-9"
+          className={FORM_INPUT_CLASS}
           placeholder={t('teams.form.locationPlaceholder')}
         />
       ) : null}

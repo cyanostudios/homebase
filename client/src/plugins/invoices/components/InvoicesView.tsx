@@ -1,4 +1,4 @@
-import { Calculator, Eye, Link2, ListOrdered, StickyNote, Users } from 'lucide-react';
+import { Calculator, Eye, Link2, ListOrdered, Send, StickyNote, Users } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -397,7 +397,18 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
               invoiceId={actualItem.id}
               invoiceNumber={actualItem.invoiceNumber}
             />
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex justify-end gap-2">
+              {status === 'draft' ? (
+                <RoundIconLabelButton
+                  type="button"
+                  icon={Send}
+                  label={t('invoices.send', { defaultValue: 'Send' })}
+                  variant="soft"
+                  size="xs"
+                  alwaysExpanded
+                  onClick={() => handleStatusChange(statusInvoice, 'sent')}
+                />
+              ) : null}
               <RoundIconLabelButton
                 type="button"
                 icon={Eye}

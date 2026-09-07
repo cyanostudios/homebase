@@ -445,20 +445,24 @@ const { recentlyDuplicatedMyPluginId } = useMyPlugin();
 
 ## 5. Properties Card (View & Form)
 
-**Referens:** `TaskView.tsx` (inline i main column), `SlotView.tsx` (`SlotSettingsCard`)
+**Referens:** `TaskView.tsx` (inline i main column), `SlotView.tsx` (`SlotSettingsCard`), invoice/contacts edit for filled controls
 
 ### Typografitokens – inga undantag
 
-| Element                      | Klass                                                                                   |
-| ---------------------------- | --------------------------------------------------------------------------------------- |
-| Sektionrubrik-ikon-container | `h-7 w-7 flex items-center justify-center rounded-md bg-muted/80 text-muted-foreground` |
-| Sektionsrubrik-text          | `text-sm font-semibold text-foreground`                                                 |
-| Ramad rad-wrapper            | `rounded-lg border border-border p-4`                                                   |
-| Property-label               | `text-sm font-medium`                                                                   |
-| Property-kontroll            | `h-9 text-xs`                                                                           |
-| Meta/hjälptext i rad         | `text-[11px] text-muted-foreground`                                                     |
+| Element                           | Klass                                                                                                                   |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Sektionrubrik-ikon-container      | `h-7 w-7 flex items-center justify-center rounded-md bg-muted/80 text-muted-foreground`                                 |
+| Sektionsrubrik-text               | `text-sm font-semibold text-foreground`                                                                                 |
+| Ramad rad-wrapper                 | `rounded-lg border border-border p-4` **eller** `DETAIL_PROP_ROW_CLASS` (Contacts/Invoices)                             |
+| Property-label                    | `text-sm font-medium` **eller** muted fact label (`DETAIL_FIELD_LABEL_CLASS` / lokal `FACT_LABEL_CLASS`)                |
+| Property-kontroll (edit/settings) | `FORM_PROP_CONTROL_CLASS` / `FORM_INPUT_CLASS` från `@/core/ui/formFieldStyles` (filled: `h-7`, `border-0`, `bg-muted`) |
+| Meta/hjälptext i rad              | `text-[11px] text-muted-foreground`                                                                                     |
 
-**Det är förbjudet** att använda `text-[10px]`, `h-7` kontroller eller `text-[11px]` labels i properties-korten – dessa är legacy från kod som **ska raderas**.
+**Form/settings data fields:** use shared filled tokens (`formFieldStyles.ts`). Do **not** invent ad-hoc `h-9`/`h-10` bordered inputs on plugin forms. Dialogs and list search keep default shadcn chrome.
+
+**Date-only fields:** shared `DatePicker` (`@/core/ui/DatePicker`) — not native `type="date"`. Date+time: `DateTimePicker` with `variant="filled"` in forms. See `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` §3 _Date pickers_.
+
+See also `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` §3 _Filled form fields_.
 
 ### Placering
 
@@ -468,10 +472,10 @@ const { recentlyDuplicatedMyPluginId } = useMyPlugin();
 ### Checklist
 
 - [ ] Sektionsikonen är `SlidersHorizontal` (eller plugin-lämplig ekvivalent) i muted-box
-- [ ] Varje property-rad är `<div className="rounded-lg border border-border p-4">`
-- [ ] Label: `text-sm font-medium`
-- [ ] Kontroll (select, datepicker, etc.): `h-9`, text `text-xs`
-- [ ] Gammal `text-[10px]`/`h-7`-styling **raderad**
+- [ ] Property-rader följer referenspluginets layout (`DETAIL_PROP_ROW_CLASS` eller bordered row)
+- [ ] Edit/settings kontroller använder `FORM_*` från `formFieldStyles.ts`
+- [ ] Date-only fields använder `DatePicker` (inte `type="date"`)
+- [ ] Ad-hoc bordered `h-9`/`h-10` form inputs **raderade** (utom dialoger / list search / hero title)
 
 ---
 
@@ -759,7 +763,9 @@ Följande mönster är **felaktiga** och ska **tas bort** när de hittas:
 
 ### Checklist per formulär
 
-- [ ] Inline Save/Cancel-rad finns längst ned i formuläret
+- [ ] Inline Save/Cancel-rad finns längst ned i formuläret (mönstret ovan)
+- [ ] Datafält använder `FORM_*` från `@/core/ui/formFieldStyles` (se `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` §3)
+- [ ] Date-only fields använder `DatePicker` (inte `type="date"`); se guide §3 _Date pickers_
 - [ ] `useEffect` som registrerar window-global **är borttagen**
 - [ ] `window.submitXxxForm` / `window.cancelXxxForm` **nämns inte** i filen
 - [ ] `hasBlockingErrors` beräknas lokalt eller destruktureras från context

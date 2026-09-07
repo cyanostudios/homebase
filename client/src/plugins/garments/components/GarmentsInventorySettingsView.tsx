@@ -15,8 +15,10 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
+import { cn } from '@/lib/utils';
 
 import { useGarments } from '../hooks/useGarments';
 import { GARMENTS_SETTINGS_KEY } from '../utils/garmentColumnCount';
@@ -226,7 +228,7 @@ export function GarmentsInventorySettingsView({
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
                   placeholder={t('garments.settingsCategories.tagsPlaceholder')}
-                  className="flex-1"
+                  className={cn(FORM_INPUT_CLASS, 'flex-1')}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();

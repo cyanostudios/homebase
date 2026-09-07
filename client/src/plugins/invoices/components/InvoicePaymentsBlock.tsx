@@ -5,6 +5,8 @@ import { Check, CreditCard, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePicker, formatDateInputValue, parseDateInputValue } from '@/core/ui/DatePicker';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
@@ -205,11 +207,14 @@ export function InvoicePaymentsBlock({
               <Label htmlFor={`invoice-payment-paid-on-${invoiceId}`}>
                 {t('invoices.payments.paidOn', { defaultValue: 'Paid on' })}
               </Label>
-              <Input
+              <DatePicker
                 id={`invoice-payment-paid-on-${invoiceId}`}
-                type="date"
-                value={paidOn}
-                onChange={(e) => setPaidOn(e.target.value)}
+                value={parseDateInputValue(paidOn)}
+                onChange={(date) => setPaidOn(formatDateInputValue(date))}
+                placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                variant="filled"
+                fullWidth
               />
             </div>
             <div className="space-y-1.5">
@@ -220,6 +225,7 @@ export function InvoicePaymentsBlock({
                 id={`invoice-payment-reference-${invoiceId}`}
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
+                className={FORM_INPUT_CLASS}
               />
             </div>
             <div className="space-y-1.5">
@@ -232,6 +238,7 @@ export function InvoicePaymentsBlock({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={remaining > 0 ? String(remaining) : '0'}
+                className={FORM_INPUT_CLASS}
               />
             </div>
             <div className="flex justify-end sm:col-span-3">

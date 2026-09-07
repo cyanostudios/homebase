@@ -17,6 +17,8 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
+import { cn } from '@/lib/utils';
 
 import { usePulses } from '../hooks/usePulses';
 import type { PulseCatalogEntry, PulseProviderSettings } from '../types/pulse';
@@ -231,7 +233,10 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
                       value={activeProviderKey || undefined}
                       onValueChange={(value) => setPendingProviderKey(value)}
                     >
-                      <SelectTrigger id="pulse-provider-type" className="mt-1">
+                      <SelectTrigger
+                        id="pulse-provider-type"
+                        className={cn(FORM_INPUT_CLASS, 'mt-1')}
+                      >
                         <SelectValue
                           placeholder={t('pulses.chooseProviderPlaceholder', {
                             defaultValue: 'Select a provider…',
@@ -305,7 +310,7 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
                         </Label>
                         <Input
                           id={`pulse-field-${field.key}`}
-                          className="mt-1"
+                          className={cn(FORM_INPUT_CLASS, 'mt-1')}
                           type={field.secret ? 'password' : 'text'}
                           autoComplete={field.secret ? 'new-password' : 'off'}
                           value={fieldValues[field.key] || ''}

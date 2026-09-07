@@ -11,6 +11,8 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
+import { cn } from '@/lib/utils';
 
 import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
 
@@ -114,7 +116,7 @@ export const ContactSettingsForm = React.forwardRef<PanelFormHandle, ContactSett
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 placeholder="Add a tag (e.g. Family, Work)"
-                className="flex-1"
+                className={cn(FORM_INPUT_CLASS, 'flex-1')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();

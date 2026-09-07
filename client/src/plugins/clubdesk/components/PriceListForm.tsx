@@ -30,6 +30,11 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  FORM_INPUT_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+  FORM_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { slugify } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -570,7 +575,10 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                       value={formData.title}
                       onChange={(e) => updateField('title', e.target.value)}
                       placeholder={t('clubdesk.priceList.titlePlaceholder')}
-                      className={cn(getFieldError('title') && 'border-destructive')}
+                      className={cn(
+                        FORM_INPUT_CLASS,
+                        getFieldError('title') && FORM_INPUT_ERROR_CLASS,
+                      )}
                       required
                     />
                     {getFieldError('title') && (
@@ -589,7 +597,10 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                         updateField('slug', e.target.value);
                       }}
                       placeholder={t('clubdesk.priceList.slugPlaceholder')}
-                      className={cn(getFieldError('slug') && 'border-destructive')}
+                      className={cn(
+                        FORM_INPUT_CLASS,
+                        getFieldError('slug') && FORM_INPUT_ERROR_CLASS,
+                      )}
                     />
                     {getFieldError('slug') && (
                       <p className="mt-1 text-sm text-destructive">
@@ -607,6 +618,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                       onChange={(e) => updateField('description', e.target.value)}
                       rows={4}
                       placeholder={t('clubdesk.priceList.descriptionPlaceholder')}
+                      className={FORM_TEXTAREA_CLASS}
                     />
                   </div>
                   <div>
@@ -616,7 +628,10 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                       value={formData.currency}
                       onChange={(e) => updateField('currency', e.target.value.toUpperCase())}
                       placeholder="SEK"
-                      className={cn(getFieldError('currency') && 'border-destructive')}
+                      className={cn(
+                        FORM_INPUT_CLASS,
+                        getFieldError('currency') && FORM_INPUT_ERROR_CLASS,
+                      )}
                     />
                     {getFieldError('currency') && (
                       <p className="mt-1 text-sm text-destructive">
@@ -632,7 +647,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                         updateField('publicationStatus', value as PublicationStatus)
                       }
                     >
-                      <SelectTrigger id="price-list-status" className="h-9 text-xs">
+                      <SelectTrigger id="price-list-status" className={FORM_INPUT_CLASS}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -740,7 +755,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     placeholder={t('clubdesk.priceList.addCategoryPlaceholder')}
-                    className="h-9 text-xs"
+                    className={FORM_INPUT_CLASS}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -844,8 +859,8 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                             onChange={(e) => updateItem(index, { title: e.target.value })}
                             placeholder={t('clubdesk.priceList.itemTitlePlaceholder')}
                             className={cn(
-                              'h-9',
-                              getFieldError(`items.${index}.title`) && 'border-destructive',
+                              FORM_INPUT_CLASS,
+                              getFieldError(`items.${index}.title`) && FORM_INPUT_ERROR_CLASS,
                             )}
                           />
                           <Textarea
@@ -858,6 +873,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                             }}
                             rows={2}
                             placeholder={t('clubdesk.priceList.itemDescriptionPlaceholder')}
+                            className={FORM_TEXTAREA_CLASS}
                           />
                           <div className="grid grid-cols-2 gap-2">
                             <div>
@@ -869,7 +885,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                                 onChange={(e) =>
                                   updateItem(index, { price: Number(e.target.value) || 0 })
                                 }
-                                className="h-9"
+                                className={FORM_INPUT_CLASS}
                               />
                             </div>
                             <div>
@@ -883,7 +899,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                                   )
                                 }
                               >
-                                <SelectTrigger className="h-9 text-xs">
+                                <SelectTrigger className={FORM_INPUT_CLASS}>
                                   <SelectValue
                                     placeholder={t('clubdesk.priceList.categoryPlaceholder')}
                                   />
@@ -995,7 +1011,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
               {t('clubdesk.priceList.moveItemsToCategory')}
             </Label>
             <Select value={moveToCategory} onValueChange={setMoveToCategory}>
-              <SelectTrigger id="price-list-move-category" className="mt-1 h-9 text-xs">
+              <SelectTrigger id="price-list-move-category" className={cn('mt-1', FORM_INPUT_CLASS)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

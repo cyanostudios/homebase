@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -269,7 +270,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
                 value={formData.title}
                 onChange={(e) => updateField('title', e.target.value)}
                 placeholder={t('notes.titlePlaceholder')}
-                className={getFieldError('title') ? 'border-red-500' : ''}
+                className={cn(FORM_INPUT_CLASS, getFieldError('title') && FORM_INPUT_ERROR_CLASS)}
                 required
               />
               {getFieldError('title') && (
@@ -292,7 +293,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
                   value={formData.content}
                   onChange={handleContentChange}
                   placeholder={t('notes.contentPlaceholder')}
-                  className={getFieldError('content') ? 'border-red-500' : ''}
+                  className={cn(getFieldError('content') && FORM_INPUT_ERROR_CLASS)}
                 />
               </React.Suspense>
               {getFieldError('content') && (

@@ -89,14 +89,20 @@ List Quick Context (`variant="list"`): Contacts-style header + fact grid; **item
 
 Aligned with Contacts / Notes / Tasks chrome (see also `docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`). **Edit layout follows Contacts 2-column pattern**.
 
-| Mode          | Behavior                                                                                                                                                                                                                                                             |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Full view     | **2 columns** (50/50) via `DetailLayout`: left = Quick Context (`variant="full"`) + status + notes + line items + pricing + **Payments** + Relations + Share; right = sticky live **preview** only. No Properties card. No Information / Activity system sections.   |
-| Edit / create | **2 columns** (~35/65) via `DetailLayout`: left = customer, notes, properties (incl. discount), pricing; right = line items above sticky live preview. Preview scales with contain (desktop layout). **Preview** button opens shared-style document in a new window. |
-| Duplicate     | `usePluginDuplicate` + `DuplicateDialog`; list row highlight via `recentlyDuplicatedInvoiceId`                                                                                                                                                                       |
-| Share         | Create via AlertDialog (valid-until); result / view via shared `ShareDialog` (`variant="invoice"`). Active share panel + public share page include **Download PDF** (`GET /api/invoices/public/:token/pdf`).                                                         |
+| Mode          | Behavior                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Full view     | **2 columns** (50/50) via `DetailLayout`: left = Quick Context (`variant="full"`) + status + notes + line items + pricing + **Payments** + Relations + Share; right = sticky live **preview** only. No Properties card. No Information / Activity system sections.                                                                                                          |
+| Edit / create | **2 columns** via `DetailLayout`: left stack = customer, notes, **Invoice Properties**, line items, then a 2-col grid with **Invoice Discount** + **Pricing Summary** (left) and live **preview** (right). Discount is **not** inside Properties. Pricing Summary is always shown (including zero line items). **Preview** opens the shared-style document in a new window. |
+| Duplicate     | `usePluginDuplicate` + `DuplicateDialog`; list row highlight via `recentlyDuplicatedInvoiceId`                                                                                                                                                                                                                                                                              |
+| Share         | Create via AlertDialog (valid-until); result / view via shared `ShareDialog` (`variant="invoice"`). Active share panel + public share page include **Download PDF** (`GET /api/invoices/public/:token/pdf`).                                                                                                                                                                |
+
+**Invoice Properties (edit) field order:** Invoice type → Issue date → Payment terms → Due date (read-only, computed) → Currency → Status.
+
+**Send (draft):** On full view and edit preview actions, a **Send** control appears when status is `draft`. View: `handleStatusChange(…, 'sent')` (confirmation modal, then `saveInvoice`). Edit: sets form `status` to `sent` only — persistence still requires Save/Update. i18n: `invoices.send`.
 
 Status colors: shared `INVOICE_STATUS_COLORS` / `InvoiceStatusSelect` (draft gray, sent blue, partially paid amber, paid green, overdue/canceled rose). Delbetalning sätter status `partially_paid` automatiskt via payment ledger.
+
+**Dates:** Issue date (and payments / share valid-until) use shared `DatePicker` (`client/src/core/ui/DatePicker.tsx`), not native `type="date"`.
 
 ## Payments
 

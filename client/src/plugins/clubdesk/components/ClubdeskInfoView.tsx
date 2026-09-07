@@ -10,6 +10,7 @@ import {
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
+import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import { clubdeskApi } from '../api/clubdeskApi';
@@ -240,6 +241,7 @@ export function ClubdeskInfoView() {
                   placeholder={t('clubdesk.siteContent.homeTitlePlaceholder')}
                   maxLength={255}
                   disabled={isLoading}
+                  className={FORM_INPUT_CLASS}
                 />
               </div>
               <div className="space-y-1.5">
@@ -250,7 +252,7 @@ export function ClubdeskInfoView() {
                   onChange={(e) => setHomeContent(e.target.value)}
                   placeholder={t('clubdesk.siteContent.editorPlaceholder')}
                   disabled={isLoading}
-                  className="min-h-[160px]"
+                  className={cn(FORM_TEXTAREA_CLASS, 'min-h-[160px]')}
                 />
               </div>
             </div>
@@ -270,6 +272,7 @@ export function ClubdeskInfoView() {
                   placeholder={t('clubdesk.siteContent.infoTitlePlaceholder')}
                   maxLength={255}
                   disabled={isLoading}
+                  className={FORM_INPUT_CLASS}
                 />
               </div>
               <div className="space-y-1.5">

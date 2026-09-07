@@ -22,10 +22,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DatePicker } from '@/core/ui/DatePicker';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_FIELD_LABEL_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  FORM_COMPACT_INPUT_CLASS,
+  FORM_COMPACT_SELECT_CLASS,
+  FORM_INPUT_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+  FORM_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -276,14 +284,6 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
       updateField('lineItems', updatedItems);
     };
 
-    const formatValidToDate = (date: Date): string => {
-      return date.toISOString().split('T')[0];
-    };
-
-    const parseValidToDate = (dateString: string): Date => {
-      return new Date(dateString + 'T12:00:00');
-    };
-
     // Helper function to get error for a specific field
     const getFieldError = (fieldName: string) => {
       return validationErrors.find((error) => error.field === fieldName);
@@ -291,8 +291,6 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
 
     // Check if there are any blocking errors (non-warning)
     const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
-    const fieldInputClass = 'h-10 text-sm';
-    const fieldSelectClass = 'h-10 text-sm';
 
     const formSidebar = currentEstimate ? (
       <div className="space-y-6">
@@ -414,8 +412,8 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                         value={formData.contactId}
                         onChange={(e) => handleContactChange(e.target.value)}
                         className={cn(
-                          fieldSelectClass,
-                          getFieldError('contactId') && 'border-red-500',
+                          FORM_INPUT_CLASS,
+                          getFieldError('contactId') && FORM_INPUT_ERROR_CLASS,
                         )}
                         required
                       >
@@ -442,7 +440,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                         id="estimate-currency"
                         value={formData.currency}
                         onChange={(e) => updateField('currency', e.target.value)}
-                        className={fieldSelectClass}
+                        className={FORM_INPUT_CLASS}
                       >
                         <option value="SEK">SEK (Swedish Krona)</option>
                         <option value="EUR">EUR (Euro)</option>
@@ -456,13 +454,14 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                       <Label htmlFor="estimate-valid-to" className={DETAIL_FIELD_LABEL_CLASS}>
                         {t('estimates.fieldValidTo')}
                       </Label>
-                      <Input
+                      <DatePicker
                         id="estimate-valid-to"
-                        type="date"
-                        value={formatValidToDate(formData.validTo)}
-                        onChange={(e) => updateField('validTo', parseValidToDate(e.target.value))}
-                        className={fieldInputClass}
-                        required
+                        value={formData.validTo}
+                        onChange={(date) => updateField('validTo', date ?? formData.validTo)}
+                        placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                        clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                        variant="filled"
+                        fullWidth
                       />
                     </div>
 
@@ -474,7 +473,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                         id="estimate-status"
                         value={formData.status}
                         onChange={(e) => updateField('status', e.target.value)}
-                        className={fieldSelectClass}
+                        className={FORM_INPUT_CLASS}
                       >
                         <option value="draft">Draft</option>
                         <option value="sent">Sent</option>
@@ -527,7 +526,10 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                               onChange={(e) => updateLineItem(index, 'description', e.target.value)}
                               placeholder="Service or product description"
                               rows={1}
-                              className="flex-1 text-sm resize-none h-auto min-h-[2.5rem]"
+                              className={cn(
+                                FORM_TEXTAREA_CLASS,
+                                'flex-1 resize-none h-auto min-h-[2.5rem]',
+                              )}
                               required
                             />
                             <Button
@@ -591,7 +593,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                                           parseFloat(e.target.value) || 0,
                                         )
                                       }
-                                      className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                      className={cn(FORM_COMPACT_INPUT_CLASS, 'w-16')}
                                       required
                                     />
                                   </td>
@@ -607,7 +609,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                                           parseFloat(e.target.value) || 0,
                                         )
                                       }
-                                      className="w-20 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                      className={cn(FORM_COMPACT_INPUT_CLASS, 'w-20')}
                                       required
                                     />
                                   </td>
@@ -624,7 +626,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                                           parseFloat(e.target.value) || 0,
                                         )
                                       }
-                                      className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                      className={cn(FORM_COMPACT_INPUT_CLASS, 'w-16')}
                                     />
                                   </td>
                                   <td className="px-2 py-1">
@@ -633,7 +635,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                                       onChange={(e) =>
                                         updateLineItem(index, 'vatRate', parseFloat(e.target.value))
                                       }
-                                      className="w-16 h-8 px-1 py-1 text-sm"
+                                      className={cn(FORM_COMPACT_SELECT_CLASS, 'w-16')}
                                     >
                                       <option value="0">0%</option>
                                       <option value="6">6%</option>
@@ -686,10 +688,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                             updateField('estimateDiscount', parseFloat(e.target.value) || 0)
                           }
                           placeholder="0.00"
-                          className={cn(
-                            fieldInputClass,
-                            '[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]',
-                          )}
+                          className={FORM_COMPACT_INPUT_CLASS}
                         />
                       </div>
                     </div>
@@ -789,7 +788,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                       onChange={(e) => updateField('notes', e.target.value)}
                       placeholder="Additional notes or terms..."
                       rows={4}
-                      className="resize-vertical text-sm"
+                      className={cn(FORM_TEXTAREA_CLASS, 'resize-y')}
                     />
                   </div>
                 </DetailSection>

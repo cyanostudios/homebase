@@ -11,6 +11,7 @@ import { DetailSection } from '@/core/ui/DetailSection';
 import type { DetailHeaderMenuAction } from '@/core/ui/DetailHeaderMenus';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { FORM_INPUT_CLASS, FORM_PROP_CONTROL_CLASS } from '@/core/ui/formFieldStyles';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import {
   PluginSettingsPageShell,
@@ -138,7 +139,7 @@ function ScheduleGridHoursFields({
                 }),
               )
             }
-            className="h-9 w-24"
+            className={cn(FORM_PROP_CONTROL_CLASS, 'w-24')}
             disabled={isLocked}
           />
         </div>
@@ -157,7 +158,7 @@ function ScheduleGridHoursFields({
                 }),
               )
             }
-            className="h-9 w-24"
+            className={cn(FORM_PROP_CONTROL_CLASS, 'w-24')}
             disabled={isLocked}
           />
         </div>
@@ -232,7 +233,7 @@ function ScheduleAvailableHoursFields({
             step={0.5}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            className="h-9 w-28"
+            className={cn(FORM_PROP_CONTROL_CLASS, 'w-28')}
             disabled={isLocked}
             placeholder="—"
           />
@@ -712,7 +713,7 @@ export function ScheduleSettingsView({
                                 [plan.id]: event.target.value,
                               }))
                             }
-                            className="h-9 min-w-[12rem] flex-1"
+                            className={cn(FORM_INPUT_CLASS, 'min-w-[12rem] flex-1')}
                             placeholder={t('schedule.namePlaceholder')}
                             disabled={planLocked}
                           />

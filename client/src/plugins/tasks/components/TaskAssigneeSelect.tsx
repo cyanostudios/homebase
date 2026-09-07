@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
@@ -108,7 +109,7 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
                 ? t('slots.noMoreToAdd')
                 : t('tasks.addAssigneePlaceholder')
             }
-            className="h-9 bg-background pl-9 text-xs"
+            className={cn(FORM_INPUT_CLASS, 'pl-9')}
             disabled={addableContacts.length === 0}
           />
         </div>

@@ -115,9 +115,14 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
               onEdit={() => openContactForEdit(contact)}
               variant="full"
             />
-            {Array.isArray(contact.addresses) && contact.addresses.length > 0 ? (
-              <Card padding="none" className={CARD_CLASS}>
-                <DetailSection title="Addresses" icon={MapPin} subtleTitle className="p-6">
+            <Card padding="none" className={CARD_CLASS}>
+              <DetailSection
+                title={t('contacts.addresses', { defaultValue: 'Addresses' })}
+                icon={MapPin}
+                subtleTitle
+                className="p-6"
+              >
+                {Array.isArray(contact.addresses) && contact.addresses.length > 0 ? (
                   <div className="space-y-6">
                     {contact.addresses.map((address: any, idx: number) => (
                       <div
@@ -125,7 +130,8 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                         className={cn('space-y-4', idx > 0 && 'border-t border-border/50 pt-6')}
                       >
                         <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                          {address.type || 'Address'}
+                          {address.type ||
+                            t('contacts.addressFallback', { defaultValue: 'Address' })}
                         </Badge>
                         <div className="grid grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-4">
                           {address.addressLine1 ? (
@@ -171,9 +177,96 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                       </div>
                     ))}
                   </div>
-                </DetailSection>
-              </Card>
-            ) : null}
+                ) : (
+                  <div className="rounded-lg border border-border p-4">
+                    <p className="text-sm text-muted-foreground">
+                      {t('contacts.noAddresses', { defaultValue: 'No addresses yet.' })}
+                    </p>
+                  </div>
+                )}
+              </DetailSection>
+            </Card>
+
+            <Card padding="none" className={CARD_CLASS}>
+              <DetailSection
+                title={t('contacts.contactPersons')}
+                icon={Users}
+                subtleTitle
+                className="p-6"
+              >
+                {Array.isArray(contact.contactPersons) && contact.contactPersons.length > 0 ? (
+                  <div className="space-y-6">
+                    {contact.contactPersons.map((person: any, idx: number) => {
+                      const personInitials = (person.name || '')
+                        .split(' ')
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((n: string) => n[0].toUpperCase())
+                        .join('');
+                      return (
+                        <div
+                          key={person.id}
+                          className={cn('space-y-4', idx > 0 && 'border-t border-border/50 pt-6')}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-sm font-extrabold text-slate-700 dark:from-slate-700 dark:to-slate-600 dark:text-slate-300">
+                              {personInitials || <User className="h-3.5 w-3.5" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="truncate text-sm font-semibold tracking-tight text-foreground leading-tight">
+                                  {person.name || '—'}
+                                </div>
+                                {idx === 0 ? (
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                    {t('contacts.invoiceReferenceBadge', {
+                                      defaultValue: 'Invoice reference',
+                                    })}
+                                  </span>
+                                ) : null}
+                              </div>
+                              {person.title ? (
+                                <div className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">
+                                  {person.title}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                          {person.email || person.phone ? (
+                            <div className="grid grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-8">
+                              {person.email ? (
+                                <div>
+                                  <div className={FIELD_LABEL_CLASS}>Email</div>
+                                  <ContactCopyableLink
+                                    value={person.email}
+                                    href={mailtoHref(person.email)}
+                                  />
+                                </div>
+                              ) : null}
+                              {person.phone ? (
+                                <div>
+                                  <div className={FIELD_LABEL_CLASS}>Phone</div>
+                                  <ContactCopyableLink
+                                    value={person.phone}
+                                    href={telHref(person.phone)}
+                                  />
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-border p-4">
+                    <p className="text-sm text-muted-foreground">
+                      {t('contacts.noContactPersons')}
+                    </p>
+                  </div>
+                )}
+              </DetailSection>
+            </Card>
           </div>
         }
       >
@@ -286,76 +379,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
               </div>
             </DetailSection>
           </Card>
-
-          {Array.isArray(contact.contactPersons) && contact.contactPersons.length > 0 && (
-            <Card padding="none" className={CARD_CLASS}>
-              <DetailSection title="Contact Persons" icon={Users} subtleTitle className="p-6">
-                <div className="space-y-6">
-                  {contact.contactPersons.map((person: any, idx: number) => {
-                    const personInitials = (person.name || '')
-                      .split(' ')
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((n: string) => n[0].toUpperCase())
-                      .join('');
-                    return (
-                      <div
-                        key={person.id}
-                        className={cn('space-y-4', idx > 0 && 'border-t border-border/50 pt-6')}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-sm font-extrabold text-slate-700 dark:from-slate-700 dark:to-slate-600 dark:text-slate-300">
-                            {personInitials || <User className="h-3.5 w-3.5" />}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <div className="truncate text-sm font-semibold tracking-tight text-foreground leading-tight">
-                                {person.name || '—'}
-                              </div>
-                              {idx === 0 ? (
-                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                                  {t('contacts.invoiceReferenceBadge', {
-                                    defaultValue: 'Invoice reference',
-                                  })}
-                                </span>
-                              ) : null}
-                            </div>
-                            {person.title ? (
-                              <div className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">
-                                {person.title}
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                        {person.email || person.phone ? (
-                          <div className="grid grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-8">
-                            {person.email ? (
-                              <div>
-                                <div className={FIELD_LABEL_CLASS}>Email</div>
-                                <ContactCopyableLink
-                                  value={person.email}
-                                  href={mailtoHref(person.email)}
-                                />
-                              </div>
-                            ) : null}
-                            {person.phone ? (
-                              <div>
-                                <div className={FIELD_LABEL_CLASS}>Phone</div>
-                                <ContactCopyableLink
-                                  value={person.phone}
-                                  href={telHref(person.phone)}
-                                />
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </DetailSection>
-            </Card>
-          )}
 
           <Card padding="none" className={CARD_CLASS}>
             <DetailSection

@@ -4,6 +4,8 @@ import {
   Hash,
   ListOrdered,
   Package,
+  Percent,
+  Send,
   SlidersHorizontal,
   StickyNote,
   Truck,
@@ -21,6 +23,7 @@ import { useApp } from '@/core/api/AppContext';
 import { EMPTY_ORGANIZATION, organizationApi } from '@/core/api/organizationApi';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DatePicker } from '@/core/ui/DatePicker';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -470,9 +473,6 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
       updateField('lineItems', items);
     };
 
-    const fmtDateInput = (d: Date) => d.toISOString().split('T')[0];
-    const parseDateInput = (s: string) => new Date(s + 'T12:00:00');
-
     const getFieldError = (field: string) => validationErrors.find((e) => e.field === field);
     const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
     const propSelectClass = INVOICE_FORM_PROP_CONTROL_CLASS;
@@ -587,27 +587,41 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
               <div>
                 <div className={DETAIL_PROP_ROW_CLASS}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('invoices.propertyStatus', { defaultValue: 'Status' })}
+                    {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
                   </span>
-                  <InvoiceStatusSelect
-                    invoice={{ status: formData.status }}
-                    onStatusChange={(nextStatus) => updateField('status', nextStatus)}
-                    hideInlineLabel
-                    filled
-                  />
+                  <NativeSelect
+                    id="invoice-type"
+                    value={formData.invoiceType}
+                    onChange={(e) => updateField('invoiceType', e.target.value as any)}
+                    className={propSelectClass}
+                  >
+                    <option value="invoice">
+                      {t('invoices.type.invoice', { defaultValue: 'Invoice' })}
+                    </option>
+                    <option value="credit_note">
+                      {t('invoices.type.credit_note', { defaultValue: 'Credit note' })}
+                    </option>
+                    <option value="cash_invoice">
+                      {t('invoices.type.cash_invoice', { defaultValue: 'Cash invoice' })}
+                    </option>
+                    <option value="receipt">
+                      {t('invoices.type.receipt', { defaultValue: 'Receipt' })}
+                    </option>
+                  </NativeSelect>
                 </div>
 
                 <div className={DETAIL_PROP_ROW_CLASS}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">
                     {t('invoices.issueDate', { defaultValue: 'Issue Date' })}
                   </span>
-                  <Input
+                  <DatePicker
                     id="invoice-issue-date"
-                    type="date"
-                    value={fmtDateInput(formData.issueDate)}
-                    onChange={(e) => updateField('issueDate', parseDateInput(e.target.value))}
-                    className={propSelectClass}
-                    required
+                    value={formData.issueDate}
+                    onChange={(date) => updateField('issueDate', date ?? formData.issueDate)}
+                    placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                    clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                    variant="filled"
+                    propWidth
                   />
                 </div>
 
@@ -703,51 +717,13 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
 
                 <div className={DETAIL_PROP_ROW_CLASS}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
+                    {t('invoices.propertyStatus', { defaultValue: 'Status' })}
                   </span>
-                  <NativeSelect
-                    id="invoice-type"
-                    value={formData.invoiceType}
-                    onChange={(e) => updateField('invoiceType', e.target.value as any)}
-                    className={propSelectClass}
-                  >
-                    <option value="invoice">
-                      {t('invoices.type.invoice', { defaultValue: 'Invoice' })}
-                    </option>
-                    <option value="credit_note">
-                      {t('invoices.type.credit_note', { defaultValue: 'Credit note' })}
-                    </option>
-                    <option value="cash_invoice">
-                      {t('invoices.type.cash_invoice', { defaultValue: 'Cash invoice' })}
-                    </option>
-                    <option value="receipt">
-                      {t('invoices.type.receipt', { defaultValue: 'Receipt' })}
-                    </option>
-                  </NativeSelect>
-                </div>
-
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <div className="min-w-0 max-w-[14rem] pr-2">
-                    <span className="text-sm text-slate-500 dark:text-slate-400">
-                      {t('invoices.invoiceDiscount', { defaultValue: 'Invoice Discount' })}
-                    </span>
-                    <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                      {t('invoices.discountHelp', {
-                        defaultValue: 'Discount applied to subtotal after line item discounts',
-                      })}
-                    </p>
-                  </div>
-                  <Input
-                    id="invoice-discount"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.invoiceDiscount}
-                    onChange={(e) =>
-                      updateField('invoiceDiscount', parseFloat(e.target.value) || 0)
-                    }
-                    className={propSelectClass}
-                    aria-label={t('invoices.discountPercent', { defaultValue: 'Discount %' })}
+                  <InvoiceStatusSelect
+                    invoice={{ status: formData.status }}
+                    onStatusChange={(nextStatus) => updateField('status', nextStatus)}
+                    hideInlineLabel
+                    filled
                   />
                 </div>
               </div>
@@ -795,7 +771,42 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         </Card>
 
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-          {formData.lineItems.length > 0 ? (
+          <div className="space-y-4">
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('invoices.invoiceDiscount', { defaultValue: 'Invoice Discount' })}
+                icon={Percent}
+                iconPlugin="invoices"
+                subtleTitle
+                className="p-6"
+              >
+                <div className="flex flex-wrap items-center gap-3">
+                  <Label htmlFor="invoice-discount" className="sr-only">
+                    {t('invoices.discountPercent', { defaultValue: 'Discount %' })}
+                  </Label>
+                  <Input
+                    id="invoice-discount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={formData.invoiceDiscount}
+                    onChange={(e) =>
+                      updateField('invoiceDiscount', parseFloat(e.target.value) || 0)
+                    }
+                    className={cn(INVOICE_FORM_INPUT_CLASS, 'max-w-[8rem]')}
+                    aria-label={t('invoices.discountPercent', { defaultValue: 'Discount %' })}
+                  />
+                  <span className="text-xs text-muted-foreground">%</span>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t('invoices.discountHelp', {
+                    defaultValue: 'Discount applied to subtotal after line item discounts',
+                  })}
+                </p>
+              </DetailSection>
+            </Card>
+
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('invoices.pricingSummary')}
@@ -811,15 +822,9 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                 />
               </DetailSection>
             </Card>
-          ) : null}
+          </div>
 
-          <Card
-            padding="none"
-            className={cn(
-              DETAIL_VIEW_CARD_CLASS,
-              formData.lineItems.length === 0 && 'lg:col-span-2',
-            )}
-          >
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={t('invoices.previewTitle', { defaultValue: 'Invoice preview' })}
               icon={Eye}
@@ -837,7 +842,18 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                   invoiceId={currentInvoice?.id}
                   invoiceNumber={currentInvoice?.invoiceNumber}
                 />
-                <div className="mt-4 flex justify-end">
+                <div className="mt-4 flex justify-end gap-2">
+                  {formData.status === 'draft' ? (
+                    <RoundIconLabelButton
+                      type="button"
+                      icon={Send}
+                      label={t('invoices.send', { defaultValue: 'Send' })}
+                      variant="soft"
+                      size="xs"
+                      alwaysExpanded
+                      onClick={() => updateField('status', 'sent')}
+                    />
+                  ) : null}
                   <RoundIconLabelButton
                     type="button"
                     icon={Eye}

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_FIELD_LABEL_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import { useMail } from '../hooks/useMail';
@@ -129,7 +130,7 @@ export const MailProviderView: React.FC<MailProviderViewProps> = ({ mail: mailPr
                     ref={testToInputRef}
                     id="mail-test-to"
                     type="email"
-                    className="mt-1"
+                    className={cn(FORM_INPUT_CLASS, 'mt-1')}
                     value={testTo}
                     onChange={(e) => setTestTo(e.target.value)}
                     placeholder="you@example.com"

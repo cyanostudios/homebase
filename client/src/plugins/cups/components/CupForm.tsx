@@ -9,11 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DatePicker, formatDateInputValue, parseDateInputValue } from '@/core/ui/DatePicker';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { cn } from '@/lib/utils';
 import { filesApi } from '@/plugins/files/api/filesApi';
 
 import { useCups } from '../hooks/useCups';
@@ -23,7 +26,7 @@ import { CupPropertiesFields } from './CupPropertiesFields';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
-/** Persisted timestamps (UTC ISO etc.) → <input type="date"> value in local calendar (YYYY-MM-DD). */
+/** Persisted timestamps (UTC ISO etc.) → local calendar YYYY-MM-DD for DatePicker. */
 function cupTimestampToDateInputValue(raw: string): string {
   const d = new Date(raw.trim());
   if (Number.isNaN(d.getTime())) {
@@ -179,6 +182,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                     onChange={(e) => {
                       onFieldChange('name', e.target.value);
                     }}
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div>
@@ -188,6 +192,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                     onChange={(e) => {
                       onFieldChange('organizer', e.target.value);
                     }}
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div>
@@ -197,26 +202,29 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                     onChange={(e) => {
                       onFieldChange('location', e.target.value);
                     }}
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div>
                   <Label>Start date</Label>
-                  <Input
-                    type="date"
-                    value={form.start_date}
-                    onChange={(e) => {
-                      onFieldChange('start_date', e.target.value);
-                    }}
+                  <DatePicker
+                    value={parseDateInputValue(form.start_date)}
+                    onChange={(date) => onFieldChange('start_date', formatDateInputValue(date))}
+                    placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                    clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                    variant="filled"
+                    fullWidth
                   />
                 </div>
                 <div>
                   <Label>End date</Label>
-                  <Input
-                    type="date"
-                    value={form.end_date}
-                    onChange={(e) => {
-                      onFieldChange('end_date', e.target.value);
-                    }}
+                  <DatePicker
+                    value={parseDateInputValue(form.end_date)}
+                    onChange={(date) => onFieldChange('end_date', formatDateInputValue(date))}
+                    placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                    clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                    variant="filled"
+                    fullWidth
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -227,6 +235,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                       onFieldChange('categories', e.target.value);
                     }}
                     placeholder="comma separated"
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div>
@@ -237,6 +246,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                       onFieldChange('match_format', e.target.value);
                     }}
                     placeholder="e.g. 5 vs 5"
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div>
@@ -249,6 +259,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                       onFieldChange('team_count', e.target.value);
                     }}
                     placeholder="team count"
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div>
@@ -258,6 +269,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                     onChange={(e) => {
                       onFieldChange('registration_url', e.target.value);
                     }}
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div>
@@ -267,6 +279,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                     onChange={(e) => {
                       onFieldChange('source_url', e.target.value);
                     }}
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -277,6 +290,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                       onFieldChange('description', e.target.value);
                     }}
                     rows={6}
+                    className={FORM_TEXTAREA_CLASS}
                   />
                 </div>
               </div>
@@ -333,7 +347,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/gif"
                   disabled={imageUploadBusy}
-                  className="cursor-pointer"
+                  className={cn(FORM_INPUT_CLASS, 'cursor-pointer')}
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     e.target.value = '';

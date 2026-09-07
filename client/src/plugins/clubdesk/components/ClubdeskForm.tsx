@@ -43,6 +43,11 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  FORM_INPUT_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+  FORM_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
 const RichTextEditor = React.lazy(() =>
   import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
 );
@@ -567,7 +572,10 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                         value={formData.title}
                         onChange={(e) => updateField('title', e.target.value)}
                         placeholder={t('clubdesk.titlePlaceholder')}
-                        className={cn(getFieldError('title') && 'border-destructive')}
+                        className={cn(
+                          FORM_INPUT_CLASS,
+                          getFieldError('title') && FORM_INPUT_ERROR_CLASS,
+                        )}
                         required
                       />
                       {getFieldError('title') && (
@@ -586,7 +594,10 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                           updateField('slug', e.target.value);
                         }}
                         placeholder={t('clubdesk.slugPlaceholder')}
-                        className={cn(getFieldError('slug') && 'border-destructive')}
+                        className={cn(
+                          FORM_INPUT_CLASS,
+                          getFieldError('slug') && FORM_INPUT_ERROR_CLASS,
+                        )}
                       />
                       {getFieldError('slug') && (
                         <p className="mt-1 text-sm text-destructive">
@@ -602,6 +613,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                         onChange={(e) => updateField('description', e.target.value)}
                         rows={4}
                         placeholder={t('clubdesk.descriptionPlaceholder')}
+                        className={FORM_TEXTAREA_CLASS}
                       />
                     </div>
                     <div>
@@ -611,6 +623,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                         value={formData.featuredImageUrl ?? ''}
                         onChange={(e) => updateField('featuredImageUrl', e.target.value)}
                         placeholder="https://"
+                        className={FORM_INPUT_CLASS}
                       />
                       {formData.featuredImageUrl ? (
                         <img
@@ -628,7 +641,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                           updateField('publicationStatus', value as PublicationStatus)
                         }
                       >
-                        <SelectTrigger id="clubdesk-status" className="h-9 text-xs">
+                        <SelectTrigger id="clubdesk-status" className={FORM_INPUT_CLASS}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -757,7 +770,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                       value={newCategoryName}
                       onChange={(e) => setNewCategoryName(e.target.value)}
                       placeholder={t('clubdesk.addGuideCategoryPlaceholder')}
-                      className="h-9 text-xs"
+                      className={FORM_INPUT_CLASS}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -863,8 +876,8 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                               onChange={(e) => updateStep(index, { title: e.target.value })}
                               placeholder={t('clubdesk.stepTitlePlaceholder')}
                               className={cn(
-                                'h-9',
-                                getFieldError(`steps.${index}.title`) && 'border-destructive',
+                                FORM_INPUT_CLASS,
+                                getFieldError(`steps.${index}.title`) && FORM_INPUT_ERROR_CLASS,
                               )}
                             />
                             <React.Suspense
@@ -890,6 +903,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                               value={step.imageUrl ?? ''}
                               onChange={(e) => updateStep(index, { imageUrl: e.target.value })}
                               placeholder={t('clubdesk.stepImagePlaceholder')}
+                              className={FORM_INPUT_CLASS}
                             />
                             {step.imageUrl ? (
                               <img
@@ -987,7 +1001,10 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                 {t('clubdesk.reassignGuideCategory')}
               </Label>
               <Select value={moveToCategory} onValueChange={setMoveToCategory}>
-                <SelectTrigger id="clubdesk-move-guide-category" className="mt-1 h-9 text-xs">
+                <SelectTrigger
+                  id="clubdesk-move-guide-category"
+                  className={cn('mt-1', FORM_INPUT_CLASS)}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

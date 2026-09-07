@@ -6,17 +6,17 @@
 
 **Canonical references (copy, do not invent):**
 
-| Area                          | Primary reference                                                                                                                 |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **List header (canonical)**   | `client/src/plugins/contacts/components/ContactList.tsx` — Select/Clear, `BulkActionRoundBar`, `RoundExpandableSearch`            |
-| Quick context panel           | `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx`                                                           |
-| List wiring (split + preview) | `client/src/plugins/contacts/components/ContactList.tsx`, `client/src/plugins/garments/components/GarmentList.tsx`                |
-| **Full detail (canonical)**   | `client/src/plugins/contacts/components/ContactView.tsx` — 2-col layout, header menus, no Information/Activity cards              |
-| Detail header menus           | `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx` (thin wrapper) + `client/src/core/ui/DetailHeaderMenus.tsx` |
-| List page shell               | `PLUGIN_PAGE_LIST_SHELL_CLASS` in `client/src/core/ui/pluginPageStyles.ts` (`overflow-x-clip`, not `hidden`)                      |
-| Provider list (search-only)   | `client/src/plugins/ai-providers/components/AIProvidersList.tsx` — `RoundExpandableSearch` in header, no Select                   |
-| Shared tokens                 | `client/src/core/ui/detailViewCardStyles.ts`                                                                                      |
-| Preview hook                  | `client/src/core/hooks/useQuickContextPreview.ts`                                                                                 |
+| Area                          | Primary reference                                                                                                                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **List header (canonical)**   | `client/src/plugins/contacts/components/ContactList.tsx` — Select/Clear, `BulkActionRoundBar`, `RoundExpandableSearch`                                                          |
+| Quick context panel           | `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx`                                                                                                         |
+| List wiring (split + preview) | `client/src/plugins/contacts/components/ContactList.tsx`, `client/src/plugins/garments/components/GarmentList.tsx`                                                              |
+| **Full detail (canonical)**   | `client/src/plugins/contacts/components/ContactView.tsx` — 2-col layout, header menus, always-visible Addresses + Contact Persons (empty states), no Information/Activity cards |
+| Detail header menus           | `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx` (thin wrapper) + `client/src/core/ui/DetailHeaderMenus.tsx`                                               |
+| List page shell               | `PLUGIN_PAGE_LIST_SHELL_CLASS` in `client/src/core/ui/pluginPageStyles.ts` (`overflow-x-clip`, not `hidden`)                                                                    |
+| Provider list (search-only)   | `client/src/plugins/ai-providers/components/AIProvidersList.tsx` — `RoundExpandableSearch` in header, no Select                                                                 |
+| Shared tokens                 | `client/src/core/ui/detailViewCardStyles.ts`                                                                                                                                    |
+| Preview hook                  | `client/src/core/hooks/useQuickContextPreview.ts`                                                                                                                               |
 
 **Read alongside:**
 
@@ -289,6 +289,8 @@ Do **not** put primary content properties only in the right sidebar — see §6 
 - Info rows: `DETAIL_INFO_ROW_CLASS`
 - Quick action rows: `DETAIL_QUICK_ACTION_ROW_CLASS`
 
+**Contacts full view (canonical):** Always render **Addresses** and **Contact Persons** cards (column 1, after Quick Context). When empty, show a bordered muted empty state (`contacts.noAddresses` / `contacts.noContactPersons`) — do not omit the cards.
+
 ### Identity block (left column header)
 
 Match quick context: initials avatar (`h-11 w-11`) + `text-lg font-semibold` title inside a card header with `border-b border-border/50 px-4 py-3`.
@@ -337,6 +339,48 @@ Sidebar spacing: `space-y-4` (Contacts/inventory) or `space-y-6` — stay consis
 | Create                               | Same chrome as edit when the plugin uses 2-column edit (e.g. Contacts, Invoices); otherwise single column OK                                                                       |
 | Field grids on phone                 | Prefer `grid-cols-1 … sm:grid-cols-2` / `md:grid-cols-2` so edit matches view stacking                                                                                             |
 
+### Filled form fields (required)
+
+**Source of truth:** `client/src/core/ui/formFieldStyles.ts` (invoice edit is the visual reference).
+
+Apply filled, borderless chrome on plugin **create/edit** and **plugin-settings** data fields. Do **not** change shadcn `Input` / `Textarea` / `NativeSelect` defaults (dialogs and list search keep bordered chrome).
+
+| Token                                                    | Use on                                                                                                                                          |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FORM_INPUT_CLASS`                                       | `Input`, `NativeSelect`, `SelectTrigger` in form/settings cards                                                                                 |
+| `FORM_PROP_CONTROL_CLASS`                                | Narrow property-row controls (`max-w-[180px]`)                                                                                                  |
+| `FORM_TEXTAREA_CLASS`                                    | `Textarea`                                                                                                                                      |
+| `FORM_COMPACT_INPUT_CLASS` / `FORM_COMPACT_SELECT_CLASS` | Dense rows (invoice line items, garment variants)                                                                                               |
+| `FORM_INPUT_ERROR_CLASS`                                 | Validation — combine with `cn(FORM_INPUT_CLASS, error && FORM_INPUT_ERROR_CLASS)` (not `border-red-500`; borders are invisible with `border-0`) |
+| `FORM_INPUT_READONLY_CLASS`                              | Read-only filled controls                                                                                                                       |
+
+```tsx
+import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
+
+<Input className={cn(FORM_INPUT_CLASS, getFieldError('title') && FORM_INPUT_ERROR_CLASS)} />
+<Textarea className={FORM_TEXTAREA_CLASS} />
+```
+
+**Exceptions (do not force filled chrome):**
+
+- Hero title: `DETAIL_FORM_TITLE_INPUT_CLASS` (contacts / garments)
+- Dialogs (`*Dialog.tsx`), list search, public forms
+- Rich text editors (apply `FORM_INPUT_ERROR_CLASS` for errors only when needed)
+
+Same tokens apply to plugin **settings** forms/views with text fields.
+
+### Date pickers (required)
+
+**Source of truth:** `client/src/core/ui/DatePicker.tsx` (Tasks Due date is the visual reference).
+
+- Date-only fields: use shared `DatePicker` (DayPicker popover) — **not** native `<Input type="date">`.
+- Date+time fields: use shared `DateTimePicker` (same calendar chrome + time input; `variant="filled"` in plugin forms).
+- In plugin forms/settings with filled chrome: `variant="filled"` (and `propWidth` / `fullWidth` as needed).
+- String `YYYY-MM-DD` values: `parseDateInputValue` / `formatDateInputValue` from the same module (local calendar — avoid `toISOString().split('T')[0]`).
+- Tasks list/QC due date: thin wrapper `TaskDueDatePicker` → `DatePicker`.
+
+**Known limitation:** Some required dates (e.g. invoice issue date, estimate valid-to) keep the Clear control but ignore `null` (`date ?? previousValue`). Prefer hiding Clear or validating null when product allows empty.
+
 ### Inline Save / Cancel (required)
 
 `PanelFooter` does **not** save forms. No `window.submitXxxForm` / `window.cancelXxxForm`.
@@ -379,6 +423,8 @@ Sidebar spacing: `space-y-4` (Contacts/inventory) or `space-y-6` — stay consis
 ### Checklist — Form sync
 
 - [ ] Side-by-side compare with `*View.tsx`: same cards, order, tokens
+- [ ] Form/settings data fields use `FORM_*` from `formFieldStyles.ts` (not ad-hoc `h-9`/`h-10` bordered inputs)
+- [ ] Date-only fields use shared `DatePicker` (not `type="date"`); date+time use `DateTimePicker`
 - [ ] Inline Save/Cancel present; window globals **absent**
 - [ ] Button size `h-9 text-xs px-3`; Save uses green primary classes above
 - [ ] Edit mode has no QuickActions; no system Information / Activity cards (Contacts-class 2-col edit)
@@ -807,7 +853,7 @@ Walk in order. No “probably OK” — verify in the running app.
 | `client/src/components/ui/round-icon-label-button.tsx`                       | Base round pill button                                                                                                       |
 | `client/src/plugins/contacts/components/ContactList.tsx`                     | Canonical list header: Select/Clear, BulkActionRoundBar, RoundExpandableSearch                                               |
 | `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx`        | Contacts view: Actions / Export / Time log in panel title                                                                    |
-| `client/src/plugins/contacts/components/ContactView.tsx`                     | Canonical full view (2-col; no Information/Activity cards)                                                                   |
+| `client/src/plugins/contacts/components/ContactView.tsx`                     | Canonical full view (2-col; always Addresses + Contact Persons; no Information/Activity cards)                               |
 | `client/src/plugins/ai-providers/components/AIProvidersList.tsx`             | Provider list: search-only header (no Select)                                                                                |
 | `client/src/core/ui/PanelTitles.tsx`                                         | `createPanelTitles`; view React nodes before mobile blank; create/edit/settings prefer plugin `getPanelTitle` when non-empty |
 | `client/src/core/ui/MainLayout.tsx` / `SidebarBrand` / `MobileShellControls` | App shell without TopBar; brand in sidebar; floating phone/pad Menu + account                                                |

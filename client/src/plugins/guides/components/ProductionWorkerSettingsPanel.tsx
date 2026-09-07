@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import { guidesApi } from '../api/guidesApi';
@@ -119,7 +120,7 @@ export const ProductionWorkerSettingsPanel: React.FC<ProductionWorkerSettingsPan
               </Label>
               <NativeSelect
                 id="production-worker-interval"
-                className="h-9 text-xs"
+                className={FORM_INPUT_CLASS}
                 value={String(settings.pollIntervalMs)}
                 disabled={saving || !settings.workerEnabled}
                 onChange={(event) => void save({ pollIntervalMs: Number(event.target.value) })}

@@ -6,6 +6,7 @@ import 'react-day-picker/dist/style.css';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { FORM_FIELD_FILLED_CHROME } from '@/core/ui/formFieldStyles';
 import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import { formatDateTime } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,12 @@ export interface DateTimePickerProps {
   timeLabel?: string;
   /** Clear button at bottom of popover */
   clearLabel?: string;
+  /**
+   * `default` — bordered trigger (dialogs / legacy).
+   * `filled` — plugin form filled chrome.
+   */
+  variant?: 'default' | 'filled';
+  className?: string;
 }
 
 function toDate(datetimeLocal: string): Date | undefined {
@@ -40,6 +47,10 @@ function toDatetimeLocal(d: Date): string {
   return `${y}-${m}-${day}T${h}:${min}`;
 }
 
+/**
+ * Shared date+time picker (DayPicker popover + time input).
+ * Calendar chrome matches `DatePicker` / Tasks Due date.
+ */
 export function DateTimePicker({
   value,
   onChange,
@@ -47,6 +58,8 @@ export function DateTimePicker({
   placeholder = 'Set date & time',
   timeLabel = 'Time',
   clearLabel = 'Clear date & time',
+  variant = 'default',
+  className,
 }: DateTimePickerProps) {
   const [open, setOpen] = useState(false);
   useTimeFormat(); // re-render when Preferences timeFormat changes
@@ -90,13 +103,20 @@ export function DateTimePicker({
           <button
             type="button"
             className={cn(
-              'h-9 w-full flex items-center justify-between rounded-md border border-input bg-background px-3 text-sm font-medium transition-colors hover:bg-accent/50 cursor-pointer',
-              hasError && 'border-destructive',
+              'flex w-full cursor-pointer items-center justify-between rounded-md px-2 text-xs font-medium transition-colors',
+              variant === 'default' &&
+                'h-9 border border-border/50 bg-background hover:bg-accent/50',
+              variant === 'filled' && cn('h-7', FORM_FIELD_FILLED_CHROME, 'hover:bg-muted/80'),
+              hasError &&
+                (variant === 'filled'
+                  ? 'ring-1 ring-destructive focus:ring-destructive'
+                  : 'border-destructive'),
               !value && 'text-muted-foreground',
+              className,
             )}
           >
-            <span>{displayText}</span>
-            <CalendarIcon className="w-4 h-4 text-muted-foreground opacity-50" />
+            <span className="truncate">{displayText}</span>
+            <CalendarIcon className="h-3 w-3 shrink-0 text-muted-foreground opacity-50" />
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-auto p-0">
@@ -107,9 +127,9 @@ export function DateTimePicker({
             initialFocus
             weekStartsOn={1}
           />
-          <div className="p-3 border-t border-border space-y-2">
+          <div className="space-y-2 border-t border-border p-3">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+              <span className="whitespace-nowrap text-[11px] font-semibold text-muted-foreground">
                 {timeLabel}
               </span>
               <Input
@@ -123,7 +143,7 @@ export function DateTimePicker({
               type="button"
               variant="ghost"
               size="sm"
-              className="w-full h-7 text-xs"
+              className="h-9 w-full text-xs"
               onClick={() => {
                 onChange('');
                 setOpen(false);

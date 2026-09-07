@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { Label } from '@/components/ui/label';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -260,7 +261,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
                       clearValidationErrors();
                     }
                   }}
-                  className={nameErrors.length ? 'border-destructive' : ''}
+                  className={cn(FORM_INPUT_CLASS, nameErrors.length && FORM_INPUT_ERROR_CLASS)}
                   placeholder="document.pdf"
                 />
                 {nameErrors.length > 0 && (

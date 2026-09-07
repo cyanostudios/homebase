@@ -7,6 +7,7 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Switch } from '@/components/ui/switch';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import type { GarmentCheckboxColumn } from '../types/garments';
@@ -227,7 +228,7 @@ export function GarmentListCustomColumnsSettingsSection({
                 }}
                 placeholder={t('garments.customColumnsAddPlaceholder')}
                 aria-label={t('garments.customColumnsAddPlaceholder')}
-                className="h-9"
+                className={FORM_INPUT_CLASS}
                 disabled={atCap}
                 autoComplete="off"
                 autoCorrect="off"

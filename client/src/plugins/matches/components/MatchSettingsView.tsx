@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
@@ -249,6 +250,7 @@ export function MatchSettingsView({
                 onChange={(e) => setDefaultHomeTeam(e.target.value)}
                 placeholder={t('matches.defaultHomeTeamPlaceholder')}
                 maxLength={255}
+                className={FORM_INPUT_CLASS}
               />
               <p className="text-sm text-muted-foreground">{t('matches.defaultHomeTeamHelp')}</p>
             </div>
@@ -259,6 +261,7 @@ export function MatchSettingsView({
                 value={apiBaseUrl}
                 onChange={(e) => setApiBaseUrl(e.target.value)}
                 placeholder={DEFAULT_API_BASE_URL}
+                className={FORM_INPUT_CLASS}
               />
             </div>
             <div className="space-y-2">
@@ -269,6 +272,7 @@ export function MatchSettingsView({
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder={hasStoredApiKey ? MASKED_API_KEY : t('matches.apiKeyPlaceholder')}
+                className={FORM_INPUT_CLASS}
               />
               <p className="text-xs text-muted-foreground">{t('matches.apiKeyHint')}</p>
             </div>

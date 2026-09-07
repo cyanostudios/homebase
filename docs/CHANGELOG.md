@@ -4,6 +4,23 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-07 – Form filled chrome, shared DatePicker, invoice/contact UI polish
+
+**Typ:** enhancement / UI platform  
+**Scope:** plugin create/edit + settings forms; invoices; contacts full view  
+**QA + Security:** approved (2026-09-07); UI-only; no new API/auth. Local-first (not a prod release by itself).
+
+**Ändringar (verifierat i kod):**
+
+- **Filled form fields:** shared tokens in `client/src/core/ui/formFieldStyles.ts` applied across plugin forms/settings (dialogs / list search / public forms unchanged). Guide §3 + design checklist updated.
+- **Shared `DatePicker`:** `client/src/core/ui/DatePicker.tsx` (+ `parseDateInputValue` / `formatDateInputValue`); replaces native `type="date"` in plugin forms. `DateTimePicker` supports `variant="filled"`. `TaskDueDatePicker` wraps the shared control.
+- **Invoices edit:** Invoice Discount in its own card above Pricing Summary; summary always visible; Properties order type → … → status; **Send** on draft (view: confirm + save; edit: form status until Save). See `docs/INVOICES_PLUGIN.md`.
+- **Contacts full view:** Addresses and Contact Persons cards always shown with empty states; Contact Persons in column 1.
+
+**Begränsning:** Clear on some required dates (invoice issue date, estimate valid-to) is currently a no-op (`date ?? previous`).
+
+Files (representative): `formFieldStyles.ts`, `DatePicker.tsx`, `DateTimePicker.tsx`, `InvoicesForm.tsx`, `InvoicesView.tsx`, `ContactView.tsx`, plugin forms/settings, `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`, `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`, `INVOICES_PLUGIN.md`, i18n `invoices.send` / `contacts.addresses*`.
+
 ## 2026-09-04 – Contacts ↔ Invoices: linked + create from Actions
 
 - Contact Linked shows invoices for the contact; quick context caps at 2 tiles + “more linked”.

@@ -6,6 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
@@ -248,7 +249,7 @@ export function FileAttachmentsSection({
                               : t('files.attachmentsAllAttached')
                             : t('files.attachmentsPickPlaceholder')
                         }
-                        className="h-9 bg-background pl-9 text-xs"
+                        className={cn(FORM_INPUT_CLASS, 'pl-9')}
                         disabled={disabled || busy || addableFiles.length === 0}
                         aria-busy={libraryLoading}
                       />

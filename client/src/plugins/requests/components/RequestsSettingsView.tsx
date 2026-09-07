@@ -6,6 +6,7 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
@@ -387,7 +388,7 @@ export function RequestsSettingsView({
             }
             void setTargetList(type.key, value);
           }}
-          className="h-8 w-full max-w-sm rounded-md border border-border bg-background px-2 text-xs"
+          className={cn(FORM_INPUT_CLASS, 'max-w-sm')}
         >
           <option value="">{t('requests.settings.targetListPlaceholder')}</option>
           {orphaned ? (
@@ -690,7 +691,7 @@ export function RequestsSettingsView({
                 onChange={(e) => setNewTypeLabel(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={t('requests.settings.addTypePlaceholder')}
-                className="h-8 max-w-xs text-xs"
+                className={cn(FORM_INPUT_CLASS, 'max-w-xs')}
               />
               <RoundIconLabelButton
                 type="button"

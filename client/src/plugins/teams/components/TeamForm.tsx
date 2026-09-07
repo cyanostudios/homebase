@@ -17,9 +17,11 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DatePicker, formatDateInputValue, parseDateInputValue } from '@/core/ui/DatePicker';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_INPUT_CLASS, FORM_PROP_CONTROL_CLASS } from '@/core/ui/formFieldStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
@@ -401,6 +403,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                     value={form.name}
                     onChange={(e) => onFieldChange('name', e.target.value)}
                     placeholder={t('teams.form.namePlaceholder')}
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div>
@@ -409,6 +412,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                     value={form.age_group}
                     onChange={(e) => onFieldChange('age_group', e.target.value)}
                     placeholder="P12, F14..."
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div>
@@ -417,7 +421,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                     value={form.gender || undefined}
                     onValueChange={(value) => onFieldChange('gender', value as Team['gender'])}
                   >
-                    <SelectTrigger className="h-10 w-full text-sm">
+                    <SelectTrigger className={FORM_INPUT_CLASS}>
                       <SelectValue placeholder={t('teams.form.genderPlaceholder')} />
                     </SelectTrigger>
                     <SelectContent>
@@ -440,7 +444,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                       )
                     }
                   >
-                    <SelectTrigger className="h-10 w-full text-sm">
+                    <SelectTrigger className={FORM_INPUT_CLASS}>
                       <SelectValue placeholder={t('teams.form.playingFormatPlaceholder')} />
                     </SelectTrigger>
                     <SelectContent>
@@ -462,6 +466,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                     min={0}
                     value={form.player_count}
                     onChange={(e) => onFieldChange('player_count', e.target.value)}
+                    className={FORM_INPUT_CLASS}
                   />
                 </div>
                 <div>
@@ -470,7 +475,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                     value={form.status}
                     onValueChange={(value) => onFieldChange('status', value as Team['status'])}
                   >
-                    <SelectTrigger className="h-10 w-full text-sm">
+                    <SelectTrigger className={FORM_INPUT_CLASS}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -510,7 +515,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                     onChange={(e) => setExternalTeamFilter(e.target.value)}
                     placeholder={t('teams.externalTeamFilterPlaceholder')}
                     disabled={externalSelectDisabled}
-                    className="mb-2 h-10"
+                    className={cn(FORM_INPUT_CLASS, 'mb-2')}
                   />
                   <Select
                     value={form.external_team_id.trim() || EXTERNAL_TEAM_NONE_VALUE}
@@ -522,7 +527,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                     }
                     disabled={externalSelectDisabled}
                   >
-                    <SelectTrigger id="team-external-fogis" className="h-10 w-full text-sm">
+                    <SelectTrigger id="team-external-fogis" className={FORM_INPUT_CLASS}>
                       <SelectValue placeholder={t('teams.externalTeamPlaceholder')} />
                     </SelectTrigger>
                     <SelectContent>
@@ -588,7 +593,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                       <Input
                         value={seriesTeam.name}
                         onChange={(e) => updateSeriesTeam(index, { name: e.target.value })}
-                        className="h-9"
+                        className={FORM_INPUT_CLASS}
                         placeholder={t('teams.form.seriesTeamNamePlaceholder')}
                       />
                     </div>
@@ -597,7 +602,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                       <Input
                         value={seriesTeam.level ?? ''}
                         onChange={(e) => updateSeriesTeam(index, { level: e.target.value })}
-                        className="h-9"
+                        className={FORM_INPUT_CLASS}
                         placeholder={t('teams.form.seriesTeamLevelPlaceholder')}
                       />
                     </div>
@@ -652,7 +657,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                         value={training.day}
                         onValueChange={(value) => updateTrainingTime(index, { day: value })}
                       >
-                        <SelectTrigger className="h-9 w-full text-sm">
+                        <SelectTrigger className={FORM_INPUT_CLASS}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -670,7 +675,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                         type="time"
                         value={training.startTime}
                         onChange={(e) => updateTrainingTime(index, { startTime: e.target.value })}
-                        className="h-9"
+                        className={FORM_INPUT_CLASS}
                       />
                     </div>
                     <div>
@@ -679,7 +684,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                         type="time"
                         value={training.endTime}
                         onChange={(e) => updateTrainingTime(index, { endTime: e.target.value })}
-                        className="h-9"
+                        className={FORM_INPUT_CLASS}
                       />
                     </div>
                     <div>
@@ -726,26 +731,34 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                       <Input
                         value={seasonBreak.name}
                         onChange={(e) => updateSeasonBreak(index, { name: e.target.value })}
-                        className="h-9"
+                        className={FORM_INPUT_CLASS}
                         placeholder={t('teams.form.breakNamePlaceholder')}
                       />
                     </div>
                     <div>
                       <Label className="text-[11px]">{t('teams.form.startDateLabel')}</Label>
-                      <Input
-                        type="date"
-                        value={seasonBreak.startDate}
-                        onChange={(e) => updateSeasonBreak(index, { startDate: e.target.value })}
-                        className="h-9"
+                      <DatePicker
+                        value={parseDateInputValue(seasonBreak.startDate)}
+                        onChange={(date) =>
+                          updateSeasonBreak(index, { startDate: formatDateInputValue(date) })
+                        }
+                        placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                        clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                        variant="filled"
+                        fullWidth
                       />
                     </div>
                     <div>
                       <Label className="text-[11px]">{t('teams.form.endDateLabel')}</Label>
-                      <Input
-                        type="date"
-                        value={seasonBreak.endDate}
-                        onChange={(e) => updateSeasonBreak(index, { endDate: e.target.value })}
-                        className="h-9"
+                      <DatePicker
+                        value={parseDateInputValue(seasonBreak.endDate)}
+                        onChange={(date) =>
+                          updateSeasonBreak(index, { endDate: formatDateInputValue(date) })
+                        }
+                        placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                        clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                        variant="filled"
+                        fullWidth
                       />
                     </div>
                     <Button
@@ -832,7 +845,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                               value={roleKey}
                               onValueChange={(role) => updateResponsible(key, { role })}
                             >
-                              <SelectTrigger className="h-8 w-36 text-xs">
+                              <SelectTrigger className={cn(FORM_PROP_CONTROL_CLASS, 'w-36')}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -869,7 +882,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                     <Input
                       value={contactSearch}
                       onChange={(e) => setContactSearch(e.target.value)}
-                      className="h-9"
+                      className={FORM_INPUT_CLASS}
                       placeholder={t('teams.form.searchContactPlaceholder')}
                     />
                   </div>
@@ -886,7 +899,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                   <div className="w-40">
                     <Label className="text-[11px]">{t('teams.form.roleLabel')}</Label>
                     <Select value={newResponsibleRole} onValueChange={setNewResponsibleRole}>
-                      <SelectTrigger className="h-9 w-full text-sm">
+                      <SelectTrigger className={FORM_INPUT_CLASS}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

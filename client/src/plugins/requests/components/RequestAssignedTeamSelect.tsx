@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { buildSlug } from '@/core/utils/slugUtils';
+import { cn } from '@/lib/utils';
 import {
   AssignmentQuickInfoDialog,
   type AssignmentQuickInfoDetail,
@@ -144,7 +146,7 @@ export function RequestAssignedTeamSelect({
                   ? t('requests.noTeamsToAssign')
                   : t('requests.addAssignedTeamPlaceholder')
             }
-            className="h-9 bg-background pl-9 text-xs"
+            className={cn(FORM_INPUT_CLASS, 'pl-9')}
             disabled={addableTeams.length === 0}
           />
         </div>
