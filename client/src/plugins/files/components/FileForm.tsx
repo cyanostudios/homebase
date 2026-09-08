@@ -32,7 +32,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   ref,
 ) {
   const { t } = useTranslation();
-  const { validationErrors, clearValidationErrors, panelMode } = useFiles();
+  const { validationErrors, clearValidationErrors, panelMode, closeFilePanel } = useFiles();
   const isEdit = !!currentItem;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -149,8 +149,10 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   }, [panelMode, isEdit, onSave, name, items, isSubmitting]);
 
   const handleCancel = useCallback(() => {
-    onCancel();
-  }, [onCancel]);
+    // Core cancel-from-edit calls openForView; files has no full view and openFileForView
+    // opens edit — so cancel must close the panel directly.
+    closeFilePanel();
+  }, [closeFilePanel]);
 
   useImperativeHandle(
     ref,
@@ -226,7 +228,6 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
                   <p className="text-sm text-destructive">{nameErrors.join(' • ')}</p>
                 ) : null}
               </div>
-              {saveCancelRow}
             </DetailSection>
           </Card>
         </DetailLayout>

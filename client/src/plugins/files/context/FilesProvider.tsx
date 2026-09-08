@@ -73,6 +73,8 @@ export function FilesProvider({
     setCurrentFile(null);
     setPanelMode('create');
     setValidationErrors([]);
+    // Prime ref so a lagging pathname effect cannot reopen edit after close.
+    filesDeepLinkPathSyncedRef.current = '/files';
     navigateToBase();
   }, [navigateToBase, setValidationErrors]);
 
@@ -182,14 +184,18 @@ export function FilesProvider({
 
   const openFileForView = useCallback(
     (item: FileItem) => {
+      // Files has no full view — deep links / compact open edit instead.
+      clearFileSelectionCore();
       setCurrentFile(item);
-      setPanelMode('view');
+      setPanelMode('edit');
       setIsFilesPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      const slug = buildSlug(item, files, 'name');
+      filesDeepLinkPathSyncedRef.current = `/files/${slug}`;
       navigateToItem(item, files, 'name');
     },
-    [onCloseOtherPanels, navigateToItem, files, setValidationErrors],
+    [onCloseOtherPanels, clearFileSelectionCore, navigateToItem, files, setValidationErrors],
   );
 
   const openFileForViewRef = useRef(openFileForView);
@@ -374,6 +380,7 @@ export function FilesProvider({
   };
 
   const getPanelTitle = (mode: string, item: FileItem | null) => {
+    // Full view unused; keep edit/create title chrome from shell. Header menus only if view opens.
     if (mode === 'view' && item) {
       return <FileDetailHeaderMenus key={String(item.id)} file={item} />;
     }

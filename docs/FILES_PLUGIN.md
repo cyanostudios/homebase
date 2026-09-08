@@ -2,7 +2,7 @@
 
 Plugin id: **`files`**. Hybrid: **file library UI** (CRUD metadata + preview) and **platform upload/attachment service** used by notes, requests, cups, profile, etc.
 
-**Status (2026-09-08):** Audit/cleanup implemented on `homebase-v4.0` (working tree). **QA Approved** + **Security Approved**. Residuals **F-ATT-1** / **F-SEC-1** await TPM conscious acceptance. **Local-first; not a prod release** without explicit decision. Apply migration `160` locally (and clean duplicate attachment rows if the unique index fails) before relying on idempotent attach in a given environment.
+**Status (2026-09-08):** Audit/cleanup **committed** on `homebase-v4.0` (`1cac6d41`). UI follow-up (quick context, dense cards, edit-cancel, QC delete) is **working tree** — **QA Approved** + **Security Approved** (2026-09-08). Residuals **F-ATT-1** / **F-SEC-1** await TPM conscious acceptance. **Local-first; not a prod release** without explicit decision. Apply migration `160` locally (and clean duplicate attachment rows if the unique index fails) before relying on idempotent attach in a given environment.
 
 **ADR:** [`ai/adr/FILES_STORAGE_AND_URL_CONTRACT.md`](./ai/adr/FILES_STORAGE_AND_URL_CONTRACT.md)
 
@@ -10,13 +10,13 @@ Plugin id: **`files`**. Hybrid: **file library UI** (CRUD metadata + preview) an
 
 ## Surfaces
 
-| Surface                    | URL / path                                                                     | Purpose                                                          |
-| -------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| Library list / view / edit | `/files`, `/files/:id`                                                         | Authenticated CRUD; row opens **full view** (no QuickContext)    |
-| Settings (cloud)           | Files settings → Google Drive                                                  | Connect / disconnect Drive; optional user OAuth client id/secret |
-| Upload API                 | `POST /api/files/upload`                                                       | Multipart; resolves storage via `StorageProviderRegistry`        |
-| Attachments API            | `/api/files/attachments`                                                       | Link owned files to plugin entities (`file_attachments`)         |
-| Consumers                  | Notes / requests `FileAttachmentsSection`; cups/profile `filesApi.uploadFiles` | Cross-plugin                                                     |
+| Surface             | URL / path                                                                     | Purpose                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Library list / edit | `/files`, `/files/:slug`                                                       | Authenticated CRUD; desktop row → **quick context**; compact / deep-link → **edit** (no full view) |
+| Settings (cloud)    | Files settings → Google Drive                                                  | Connect / disconnect Drive; optional user OAuth client id/secret                                   |
+| Upload API          | `POST /api/files/upload`                                                       | Multipart; resolves storage via `StorageProviderRegistry`                                          |
+| Attachments API     | `/api/files/attachments`                                                       | Link owned files to plugin entities (`file_attachments`)                                           |
+| Consumers           | Notes / requests `FileAttachmentsSection`; cups/profile `filesApi.uploadFiles` | Cross-plugin                                                                                       |
 
 ---
 
@@ -64,10 +64,13 @@ Diagnostic routes **`/storage/objects`** and **`/storage/google-drive/health`** 
 ## UI conventions (verified)
 
 - Deep-link / panel sync: notes-style `filesDeepLinkPathSyncedRef` + `useLocation` in `FilesProvider`.
-- View header actions: `FileDetailHeaderMenus` (Edit / Download / Delete + ConfirmDialog).
-- Form: Save / Cancel; i18n `en`/`sv`.
+- Edit cancel closes the panel directly (`FileForm` → `closeFilePanel`); core cancel-from-edit would call `openFileForView`, which for files opens edit again.
+- **List browse:** sticky **quick context** (`FileQuickContextPanel`) — preview scaled to QC column (`max-h-56` / `object-contain`); footer Delete (left) + Download/Open; no full view for row click. Compact → edit panel.
+- **Cards density:** display columns via `getEffectiveFileGridColumns` — phone **2**, pad **4**, desktop **6** (clamped to **2** while QC is open). Persisted cards pref normalizes to **6**.
+- **Exception — Delete in Quick Context:** `PLUGIN_VIEW_IMPLEMENTATION_GUIDE` anti-pattern “Delete inside QuickContextPanel” is **intentionally waived** for files. Files has **no full view**; `FileDetailHeaderMenus` only mounts when `panelMode === 'view'`, which browse/deep-link no longer use. QC is therefore the single-item delete surface for list browse. Same chain as other plugins: `ConfirmDialog` (`variant="danger"`) → `getDeleteMessage` → `deleteFile` → close QC. Bulk delete remains on the list `BulkDeleteModal`.
+- Form: create keeps inline Save/Cancel; edit uses shell header Close/Update. i18n `en`/`sv`.
 - Cloud settings: Drive-only + ConfirmDialog.
-- Preview: images (non-SVG) via `<img>` + download URL; PDF via iframe; SVG not inlined in UI.
+- Card/table thumbs: images (non-SVG) via download URL (`?inline=1`); SVG excluded client-side and refused inline server-side (**F-SVG-1**).
 
 ---
 
@@ -98,11 +101,11 @@ Closed in this epic: tenant SELECT isolation fix; Drive-only cloud surface; F-SV
 
 ## Related code
 
-| Area             | Path                                                       |
-| ---------------- | ---------------------------------------------------------- |
-| Routes / upload  | `plugins/files/routes.js`                                  |
-| Controllers      | `plugins/files/controller.js`, `cloudStorageController.js` |
-| Models / service | `model.js`, `attachmentModel.js`, `filesService.js`        |
-| Client           | `client/src/plugins/files/`                                |
-| Migration        | `server/migrations/160-file-attachments-unique.sql`        |
-| Storage registry | `server/core/storage/StorageProviderRegistry.js`           |
+| Area             | Path                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| Routes / upload  | `plugins/files/routes.js`                                                             |
+| Controllers      | `plugins/files/controller.js`, `cloudStorageController.js`                            |
+| Models / service | `model.js`, `attachmentModel.js`, `filesService.js`                                   |
+| Client           | `client/src/plugins/files/` (incl. `FileQuickContextPanel.tsx`, `fileColumnCount.ts`) |
+| Migration        | `server/migrations/160-file-attachments-unique.sql`                                   |
+| Storage registry | `server/core/storage/StorageProviderRegistry.js`                                      |

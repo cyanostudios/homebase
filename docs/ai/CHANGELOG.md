@@ -2,6 +2,10 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Files library UI follow-up — docs sync (2026-09-08)
+
+Docs efter **QA Approved** + **Security Approved** för files list/QC/edit UI: quick context, dense cards (2/4/6), edit-cancel→`closeFilePanel`, QC delete ConfirmDialog (documented PLUGIN_VIEW exception). Operator: [`FILES_PLUGIN.md`](../FILES_PLUGIN.md). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-08 – Files library UI. **Working tree; local-first; ej prod-release.** Residuals **F-ATT-1** / **F-SEC-1** oförändrade (TPM).
+
 ## Files plugin audit/cleanup — docs sync (2026-09-08)
 
 Docs efter **QA Approved** + **Security Approved** för files hybrid library/upload/attachments: tenant SELECT/JOIN, raw vs `/:id/download` (+ SVG inline guard **F-SVG-1**), UNIQUE attachments migration `160`, Drive-only cloud, diagnostic routes removed. ADR [`adr/FILES_STORAGE_AND_URL_CONTRACT.md`](adr/FILES_STORAGE_AND_URL_CONTRACT.md). Operator: [`FILES_PLUGIN.md`](../FILES_PLUGIN.md). Residuals **F-ATT-1** / **F-SEC-1** await TPM. `CLEANUP_DEFERRED_RISKS.md` §3.1 updated (files JSON on `createApiClient`; FormData upload residual). **Local-first; ej prod-release.**

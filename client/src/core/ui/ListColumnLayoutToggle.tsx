@@ -18,6 +18,8 @@ export type ListColumnLayoutToggleProps = {
   onSelectTable: () => void;
   columnAriaLabel: (count: ColumnCount) => string;
   tableAriaLabel: string;
+  /** Optional cards button aria/title (defaults to `columnAriaLabel(3)`). */
+  cardsAriaLabel?: string;
 };
 
 const halfBaseClass = cn(
@@ -31,12 +33,12 @@ const halfBaseClass = cn(
  * Selecting cards always calls `onSelectColumns(3)`. See ADR VIEWPORT_TIER_PAD_SPLIT.
  */
 export function ListColumnLayoutToggle({
-  columnCount,
   listViewMode,
   onSelectColumns,
   onSelectTable,
   columnAriaLabel,
   tableAriaLabel,
+  cardsAriaLabel,
 }: ListColumnLayoutToggleProps) {
   const tier = useViewportTier();
   const isTableView = listViewMode === 'table';
@@ -45,7 +47,8 @@ export function ListColumnLayoutToggle({
     return null;
   }
 
-  const cardsSelected = !isTableView && columnCount === 3;
+  const cardsSelected = !isTableView;
+  const cardsLabel = cardsAriaLabel ?? columnAriaLabel(3);
 
   return (
     <div role="group" aria-label={tableAriaLabel} className={LIST_LAYOUT_TOGGLE_SHELL_CLASS}>
@@ -57,9 +60,9 @@ export function ListColumnLayoutToggle({
           cardsSelected ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-primary',
         )}
         onClick={() => onSelectColumns(3)}
-        aria-label={columnAriaLabel(3)}
+        aria-label={cardsLabel}
         aria-pressed={cardsSelected}
-        title={columnAriaLabel(3)}
+        title={cardsLabel}
       >
         <LayoutGrid aria-hidden />
       </button>

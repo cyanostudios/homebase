@@ -15,6 +15,16 @@ describe('FilesProvider deep-link wiring', () => {
     expect(src).toMatch(/openFileForEdit/);
   });
 
+  test('closeFilePanel primes deep-link ref before navigateToBase', () => {
+    expect(src).toMatch(/filesDeepLinkPathSyncedRef\.current = '\/files'/);
+    expect(src).toMatch(/closeFilePanel/);
+  });
+
+  test('openFileForView opens edit (no full view)', () => {
+    expect(src).toMatch(/setPanelMode\('edit'\)/);
+    expect(src).toMatch(/Files has no full view/);
+  });
+
   test('exposes getPanelTitle with FileDetailHeaderMenus', () => {
     expect(src).toMatch(/FileDetailHeaderMenus/);
     expect(src).toMatch(/getPanelTitle/);

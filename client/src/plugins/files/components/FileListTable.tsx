@@ -1,3 +1,4 @@
+import { File as FileIcon } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,11 +10,44 @@ import {
 } from '@/core/ui/SortableListTable';
 import { cn } from '@/lib/utils';
 
+import { filesApi } from '../api/filesApi';
 import type { FileItem } from '../types/files';
 import type { FileSortField, FileSortOrder } from '../utils/fileListSort';
 import { getMimeLabel, humanSize } from '../utils/humanSize';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
+
+function isRasterImageMime(mimeType: string | null | undefined): boolean {
+  const mt = String(mimeType ?? '').toLowerCase();
+  return mt.startsWith('image/') && mt !== 'image/svg+xml';
+}
+
+function FileNameCell({ file }: { file: FileItem }) {
+  const isImage = isRasterImageMime(file.mimeType);
+  const thumbUrl = file.id ? filesApi.getFileDownloadUrl(file.id, { inline: true }) : null;
+
+  return (
+    <span className="flex min-w-0 items-center gap-2.5">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
+        {isImage && thumbUrl ? (
+          <img
+            src={thumbUrl}
+            alt=""
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <FileIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
+        )}
+      </span>
+      <span className="truncate font-extrabold text-foreground transition-colors group-hover:text-primary">
+        {file.name}
+      </span>
+    </span>
+  );
+}
 
 export type FileListTableProps = {
   files: FileItem[];
@@ -27,6 +61,7 @@ export type FileListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   selectionEnabled?: boolean;
+  activeFileId?: string | number | null;
 };
 
 export function FileListTable({
@@ -41,6 +76,7 @@ export function FileListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   selectionEnabled = true,
+  activeFileId = null,
 }: FileListTableProps) {
   const { t } = useTranslation();
 
@@ -49,11 +85,7 @@ export function FileListTable({
       {
         field: 'name',
         header: t('files.columnName'),
-        cell: (file) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {file.name}
-          </span>
-        ),
+        cell: (file) => <FileNameCell file={file} />,
       },
       {
         field: 'mimeType',
@@ -107,6 +139,7 @@ export function FileListTable({
       selection={selection}
       pluginName="files"
       dataListItem={(file) => file}
+      isRowActive={(file) => activeFileId != null && String(file.id) === String(activeFileId)}
     />
   );
 }

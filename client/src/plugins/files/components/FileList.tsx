@@ -25,12 +25,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
+import { useIsEffectiveTableView } from '@/core/list/effectiveListViewMode';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
@@ -55,11 +52,15 @@ import {
 } from '@/core/ui/pluginPageStyles';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useViewportTier } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useFiles } from '../hooks/useFiles';
 import {
+  FILES_CARDS_COLUMN_COUNT,
+  getEffectiveFileGridColumns,
   getInitialFileColumnCount,
+  normalizeFileCardsColumnCount,
   resolveFileColumnCount,
   settingsHasFileColumnPreference,
   FILES_COLUMN_COUNT_STORAGE_KEY,
@@ -91,6 +92,7 @@ import {
 
 import { FileListItem } from './FileListItem';
 import { FileListTable } from './FileListTable';
+import { FileQuickContextPanel } from './FileQuickContextPanel';
 import { FileSettingsView } from './FileSettingsView';
 
 type SortField = FileSortField;
@@ -110,7 +112,7 @@ export const FileList: React.FC = () => {
   const {
     files,
     filesContentView,
-    openFileForView,
+    openFileForEdit,
     openFilePanel,
     openFileSettings,
     closeFileSettingsView,
@@ -165,7 +167,7 @@ export const FileList: React.FC = () => {
         }
         if (hasColumnPref) {
           const resolved = resolveFileColumnCount(settings);
-          const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as FileColumnCount;
+          const next = normalizeFileCardsColumnCount(resolved);
           setColumnCountState(next);
           if (typeof window !== 'undefined') {
             window.sessionStorage.setItem(FILES_COLUMN_COUNT_STORAGE_KEY, String(next));
@@ -187,8 +189,8 @@ export const FileList: React.FC = () => {
   }, [getSettings, settingsVersion]);
 
   const setColumnCount = useCallback(
-    (_count: FileColumnCount) => {
-      const next = 3 as FileColumnCount;
+    (_count: 1 | 2 | 3) => {
+      const next = FILES_CARDS_COLUMN_COUNT;
       setColumnCountState(next);
       setListViewModeState('cards');
       persistFileListViewModeSession('cards');
@@ -230,8 +232,22 @@ export const FileList: React.FC = () => {
   );
 
   const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
+  const viewportTier = useViewportTier();
+  const {
+    previewItem: previewFile,
+    setPreviewItem: setPreviewFile,
+    showQuickContext,
+    markPendingAndOpen,
+    activateRow,
+  } = useQuickContextPreview({
+    storeKey: 'files',
+    items: files,
+    getItemId: (item) => String(item.id),
+  });
+  const quickContextOpen = Boolean(showQuickContext && previewFile);
+  const gridColumnCount = getEffectiveFileGridColumns(viewportTier, { quickContextOpen });
+  // Dense grids use compact card chrome (meta under title)
+  const cardLayoutColumns: FileColumnCount = 2;
 
   const filteredAndSorted = useMemo(() => {
     const byFilter = files.filter((item: any) => fileMatchesListFilters(item, activeFilters));
@@ -312,7 +328,7 @@ export const FileList: React.FC = () => {
     }
   };
 
-  const handleOpenForView = (item: any) => attemptNavigation(() => openFileForView(item));
+  const handleOpenForEdit = (item: any) => attemptNavigation(() => openFileForEdit(item));
 
   const handleEnterSelectionMode = () => {
     setSelectionMode(true);
@@ -328,7 +344,8 @@ export const FileList: React.FC = () => {
       toggleFileSelected(String(item.id));
       return;
     }
-    handleOpenForView(item);
+    // Desktop: sticky quick context. Compact: edit panel (no full view).
+    activateRow(item, (file) => attemptNavigation(() => openFileForEdit(file)));
   };
 
   const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
@@ -406,11 +423,12 @@ export const FileList: React.FC = () => {
                 placeholder={t('files.searchPlaceholder')}
               />
               <ListColumnLayoutToggle
-                columnCount={columnCount}
+                columnCount={columnCount === 6 ? 3 : columnCount}
                 listViewMode={listViewMode}
                 onSelectColumns={setColumnCount}
                 onSelectTable={() => setListViewMode('table')}
                 columnAriaLabel={(count) => t(`files.columns${count}`)}
+                cardsAriaLabel={t('files.columns6')}
                 tableAriaLabel={t('common.tableView')}
               />
               <ExpandableIconButton
@@ -544,72 +562,94 @@ export const FileList: React.FC = () => {
         />
 
         <div className="flex flex-col gap-3">
-          {filteredAndSorted.length === 0 ? (
-            <ListEmptyState
-              message={searchTerm ? t('files.noMatch') : t('files.noYet')}
-              createLabel={!searchTerm ? t('files.addFile') : undefined}
-              onCreate={
-                !searchTerm ? () => attemptNavigation(() => openFilePanel(null)) : undefined
-              }
-            />
-          ) : isTableView ? (
-            <FileListTable
-              files={filteredAndSorted}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              isSelected={isSelected}
-              onRowClick={handleRowActivate}
-              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-              onCheckboxChange={onVisibleRowCheckboxChange}
-              allVisibleSelected={allVisibleSelected}
-              onHeaderCheckboxChange={handleHeaderCheckboxChange}
-              selectionEnabled={selectionMode}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+          <div
+            className={cn(
+              'grid items-start gap-4',
+              showQuickContext && previewFile ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+            )}
+          >
+            {showQuickContext && previewFile ? (
+              <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
+                <FileQuickContextPanel
+                  file={previewFile}
+                  onClose={() => setPreviewFile(null)}
+                  onEdit={() => {
+                    markPendingAndOpen(previewFile, () => handleOpenForEdit(previewFile));
+                  }}
+                />
+              </aside>
+            ) : null}
+            <div className="flex min-w-0 flex-col gap-3">
+              {filteredAndSorted.length === 0 ? (
+                <ListEmptyState
+                  message={searchTerm ? t('files.noMatch') : t('files.noYet')}
+                  createLabel={!searchTerm ? t('files.addFile') : undefined}
+                  onCreate={
+                    !searchTerm ? () => attemptNavigation(() => openFilePanel(null)) : undefined
+                  }
+                />
+              ) : isTableView ? (
+                <FileListTable
+                  files={filteredAndSorted}
+                  primarySort={primarySort}
+                  sortOrder={sortOrder}
+                  onSort={handleTableSort}
+                  isSelected={isSelected}
+                  onRowClick={handleRowActivate}
+                  onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                  onCheckboxChange={onVisibleRowCheckboxChange}
+                  allVisibleSelected={allVisibleSelected}
+                  onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                  selectionEnabled={selectionMode}
+                  activeFileId={previewFile?.id ?? null}
+                />
+              ) : (
+                <div
+                  className={cn(
+                    'grid gap-3',
+                    gridColumnCount === 2 && 'grid-cols-2',
+                    gridColumnCount === 4 && 'grid-cols-4',
+                    gridColumnCount === 6 && 'grid-cols-6',
+                  )}
+                >
+                  {filteredAndSorted.map((file: any, index: number) => {
+                    const fileIsSelected = isSelected(String(file.id));
+                    return (
+                      <FileListItem
+                        key={file.id}
+                        file={file}
+                        selected={fileIsSelected}
+                        active={previewFile != null && String(previewFile.id) === String(file.id)}
+                        onClick={() => handleRowActivate(file)}
+                        columnCount={cardLayoutColumns}
+                        checkbox={
+                          selectionMode ? (
+                            <input
+                              type="checkbox"
+                              checked={fileIsSelected}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(String(file.id))}
+                              onClick={(e) => e.stopPropagation()}
+                              className="h-4 w-4 cursor-pointer"
+                              aria-label={fileIsSelected ? 'Unselect file' : 'Select file'}
+                            />
+                          ) : undefined
+                        }
+                      />
+                    );
+                  })}
+                </div>
               )}
-            >
-              {filteredAndSorted.map((file: any, index: number) => {
-                const fileIsSelected = isSelected(String(file.id));
-                return (
-                  <FileListItem
-                    key={file.id}
-                    file={file}
-                    selected={fileIsSelected}
-                    onClick={() => handleRowActivate(file)}
-                    columnCount={effectiveCardColumnCount}
-                    checkbox={
-                      selectionMode ? (
-                        <input
-                          type="checkbox"
-                          checked={fileIsSelected}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(String(file.id))}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={fileIsSelected ? 'Unselect file' : 'Select file'}
-                        />
-                      ) : undefined
-                    }
-                  />
-                );
-              })}
-            </div>
-          )}
 
-          <ListFooterBar
-            meta={
-              <>
-                Showing {filteredAndSorted.length} of {files.length} Files
-              </>
-            }
-          />
+              <ListFooterBar
+                meta={
+                  <>
+                    Showing {filteredAndSorted.length} of {files.length} Files
+                  </>
+                }
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

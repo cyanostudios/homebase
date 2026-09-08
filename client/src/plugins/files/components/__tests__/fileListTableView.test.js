@@ -8,6 +8,10 @@ describe('FileList table view wiring', () => {
   test('toolbar uses ListColumnLayoutToggle and always-visible sort row', () => {
     expect(listSrc).toMatch(/setListViewMode\('table'\)|onSelectTable/);
     expect(listSrc).toMatch(/ListColumnLayoutToggle/);
+    expect(listSrc).toMatch(/cardsAriaLabel=\{t\('files\.columns6'\)\}/);
+    expect(listSrc).toMatch(/getEffectiveFileGridColumns/);
+    expect(listSrc).toMatch(/useQuickContextPreview/);
+    expect(listSrc).toMatch(/FileQuickContextPanel/);
     expect(listSrc).toMatch(/aria-label="Sort by"/);
     expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
     expect(listSrc).toMatch(/FileListTable/);
@@ -17,6 +21,7 @@ describe('FileList table view wiring', () => {
   test('table uses SortableListTable with expected columns', () => {
     expect(tableSrc).toMatch(/SortableListTable/);
     expect(tableSrc).toMatch(/field: 'name'/);
+    expect(tableSrc).toMatch(/FileNameCell|getFileDownloadUrl/);
     expect(tableSrc).toMatch(/field: 'mimeType'/);
     expect(tableSrc).toMatch(/field: 'size'/);
     expect(tableSrc).not.toMatch(/field: 'updatedAt'/);

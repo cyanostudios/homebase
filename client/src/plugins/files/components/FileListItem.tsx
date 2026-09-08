@@ -23,12 +23,14 @@ const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 export function FileListItem({
   file,
   selected,
+  active,
   onClick,
   checkbox,
   columnCount = 1,
 }: {
   file: FileItem;
   selected?: boolean;
+  active?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
   columnCount?: FileColumnCount;
@@ -73,7 +75,9 @@ export function FileListItem({
       className={cn(
         'group cursor-pointer overflow-hidden p-0 transition-all',
         DETAIL_VIEW_CARD_CLASS,
-        selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : DETAIL_LIST_ITEM_HOVER_CLASS,
+        selected || active
+          ? 'bg-plugin-subtle ring-1 border-plugin-subtle'
+          : DETAIL_LIST_ITEM_HOVER_CLASS,
       )}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('input[type="checkbox"], button')) {

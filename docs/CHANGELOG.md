@@ -4,6 +4,22 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-08 – Files library UI: quick context, dense cards, edit close, QC delete
+
+**Typ:** enhancement / UI  
+**Scope:** `client/src/plugins/files` (list/QC/form/provider/column utils), `ListColumnLayoutToggle`, i18n, [`FILES_PLUGIN.md`](./FILES_PLUGIN.md)  
+**QA + Security:** approved (2026-09-08). UI-only; reuse existing `DELETE /api/files/:id` (auth + CSRF). **Working tree** on `homebase-v4.0` (not committed at docs sync). **Local-first; not a prod release** by itself.
+
+**Ändringar (verifierat i kod):**
+
+- Desktop row → sticky **`FileQuickContextPanel`** (`useQuickContextPreview`); compact / deep-link → **edit** (`openFileForView` opens edit — no full view).
+- QC footer: Delete (left) with `ConfirmDialog` → `deleteFile`; Download / Open original (right). **Documented exception** to PLUGIN_VIEW guide anti-pattern (no full-view header menus in browse).
+- Edit cancel → `closeFilePanel` (avoids core cancel→`openForView`→edit loop); deep-link ref primed to `/files` on close.
+- Cards density: phone 2 / pad 4 / desktop 6 (`getEffectiveFileGridColumns`); desktop QC open → 2 columns.
+- Table name cell: thumbnail before name (non-SVG images via inline download URL).
+
+**Docs:** [`FILES_PLUGIN.md`](./FILES_PLUGIN.md) Surfaces + UI conventions.
+
 ## 2026-09-08 – Files plugin audit/cleanup (storage, URLs, attachments, Drive-only)
 
 **Typ:** enhancement / fix / security hardening  
