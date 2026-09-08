@@ -128,6 +128,8 @@ Each person is a **collapsible** parent row (visible identity columns + person-l
 
 **Status / Paid checkboxes (non-edit):** boxes flip **optimistically** via `GarmentProvider.patchPersonLocal` before the network returns. Saves use a per-person **serial latest-wins** queue (`createSerialLatestQueue` in `client/src/core/utils/serialLatestQueue.ts`) with generation tokens so rapid clicks do not lose updates. Failed saves roll back only when that generation is still current and show `garments.saveFailed` (`role="status"`). Edit-mode rows keep draft + awaited `updatePerson`. Platform guideline: [`CLIENT_OPTIMISTIC_UI.md`](./CLIENT_OPTIMISTIC_UI.md). Name is editable via the row edit control. New persons are added below the table.
 
+**Filled field chrome (admin edit):** PersonMatrix cells, PersonBlock edit fields, inventory quick-context quantity, and the contact-import tag select use shared `FORM_*` / `FORM_COMPACT_*` tokens from `formFieldStyles.ts` (`h-7`, borderless, muted). Jersey-duplicate emphasis uses amber **ring** (not border). See `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` §3.
+
 Below the spreadsheet (admin and public share), a **size summary** (`buildGarmentListFitSummary` / `GarmentListFitSummary`) lists each assigned inventory article with: filled count (persons with size and/or audience), audience histogram, and size histogram. Status checkboxes (Ordered/Delivered/Handed out) are **not** included in the counts.
 
 ### Per-person audience and size (assigned inventory)

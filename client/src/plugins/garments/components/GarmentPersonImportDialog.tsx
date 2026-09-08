@@ -20,6 +20,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { NativeSelect } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { FORM_COMPACT_SELECT_CLASS } from '@/core/ui/formFieldStyles';
 import { ImportWizard } from '@/core/ui/ImportWizard';
 import { contactsApi } from '@/plugins/contacts/api/contactsApi';
 import type { Contact } from '@/plugins/contacts/types/contacts';
@@ -244,7 +245,7 @@ export function GarmentPersonImportDialog({
                       onChange={(e) =>
                         setSelectedTag(e.target.value === '__none__' ? '' : e.target.value)
                       }
-                      className="h-9 w-full"
+                      className={FORM_COMPACT_SELECT_CLASS}
                     >
                       <option value="__none__">{t('garments.importContactsTagPlaceholder')}</option>
                       {availableTags.map((tag) => (

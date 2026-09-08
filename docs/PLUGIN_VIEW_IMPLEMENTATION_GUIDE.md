@@ -343,16 +343,16 @@ Sidebar spacing: `space-y-4` (Contacts/inventory) or `space-y-6` — stay consis
 
 **Source of truth:** `client/src/core/ui/formFieldStyles.ts` (invoice edit is the visual reference).
 
-Apply filled, borderless chrome on plugin **create/edit** and **plugin-settings** data fields. Do **not** change shadcn `Input` / `Textarea` / `NativeSelect` defaults (dialogs and list search keep bordered chrome).
+Apply filled, borderless chrome on plugin **create/edit** and **plugin-settings** data fields, and on **dense in-plugin editors** (spreadsheet/matrix cells, compact QC quantity steppers). Do **not** change shadcn `Input` / `Textarea` / `NativeSelect` defaults — apply tokens via `className`.
 
-| Token                                                    | Use on                                                                                                                                          |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FORM_INPUT_CLASS`                                       | `Input`, `NativeSelect`, `SelectTrigger` in form/settings cards                                                                                 |
-| `FORM_PROP_CONTROL_CLASS`                                | Narrow property-row controls (`max-w-[180px]`)                                                                                                  |
-| `FORM_TEXTAREA_CLASS`                                    | `Textarea`                                                                                                                                      |
-| `FORM_COMPACT_INPUT_CLASS` / `FORM_COMPACT_SELECT_CLASS` | Dense rows (invoice line items, garment variants)                                                                                               |
-| `FORM_INPUT_ERROR_CLASS`                                 | Validation — combine with `cn(FORM_INPUT_CLASS, error && FORM_INPUT_ERROR_CLASS)` (not `border-red-500`; borders are invisible with `border-0`) |
-| `FORM_INPUT_READONLY_CLASS`                              | Read-only filled controls                                                                                                                       |
+| Token                                                    | Use on                                                                                                                                               |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FORM_INPUT_CLASS`                                       | `Input`, `NativeSelect`, `SelectTrigger` in form/settings cards; also standard edit fields in dense list-detail blocks (e.g. garments `PersonBlock`) |
+| `FORM_PROP_CONTROL_CLASS`                                | Narrow property-row controls (`max-w-[180px]`)                                                                                                       |
+| `FORM_TEXTAREA_CLASS`                                    | `Textarea`                                                                                                                                           |
+| `FORM_COMPACT_INPUT_CLASS` / `FORM_COMPACT_SELECT_CLASS` | Dense rows: invoice line items, garment variants, garments `PersonMatrix` cells, inventory QC quantity, similar compact grids                        |
+| `FORM_INPUT_ERROR_CLASS`                                 | Validation — combine with `cn(FORM_INPUT_CLASS, error && FORM_INPUT_ERROR_CLASS)` (not `border-red-500`; borders are invisible with `border-0`)      |
+| `FORM_INPUT_READONLY_CLASS`                              | Read-only filled controls                                                                                                                            |
 
 ```tsx
 import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
@@ -364,8 +364,10 @@ import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS, FORM_TEXTAREA_CLASS } from '@
 **Exceptions (do not force filled chrome):**
 
 - Hero title: `DETAIL_FORM_TITLE_INPUT_CLASS` (contacts / garments)
-- Dialogs (`*Dialog.tsx`), list search, public forms
+- Most dialogs (`*Dialog.tsx`), list search (`RoundExpandableSearch`), public forms — keep default bordered shadcn chrome
+- **Documented dense-dialog exception:** garments `GarmentPersonImportDialog` tag `NativeSelect` uses `FORM_COMPACT_SELECT_CLASS` for parity with PersonMatrix density
 - Rich text editors (apply `FORM_INPUT_ERROR_CLASS` for errors only when needed)
+- Duplicate/warning emphasis on filled fields: use **ring** (e.g. amber), not `border-*` (invisible with `border-0`)
 
 Same tokens apply to plugin **settings** forms/views with text fields.
 

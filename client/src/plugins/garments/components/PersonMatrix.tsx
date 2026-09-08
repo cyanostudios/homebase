@@ -17,6 +17,7 @@ import { nextListTableSort } from '@/core/list/listViewMode';
 import { CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
+import { FORM_COMPACT_INPUT_CLASS, FORM_COMPACT_SELECT_CLASS } from '@/core/ui/formFieldStyles';
 import { createSerialLatestQueue } from '@/core/utils/serialLatestQueue';
 import type { SerialLatestSettle } from '@/core/utils/serialLatestQueue';
 import { cn } from '@/lib/utils';
@@ -177,10 +178,16 @@ const STATUS_CHECKBOX_COL_CLASS =
 const PERSON_CHECKBOX_CELL_CLASS = 'border-r border-border/50 px-2 py-1.5 text-center';
 const STATUS_CHECKBOX_CELL_CLASS = 'border-r border-border/50 px-2.5 py-1.5 text-center';
 
-/** Compact matrix selects — narrow trigger, primary text when a value is chosen. */
-const MATRIX_SELECT_TRIGGER_CLASS =
-  'h-7 w-full min-w-0 border-border/60 px-1.5 text-xs shadow-none [&>svg]:h-3 [&>svg]:w-3 [&>svg]:opacity-40';
+/** Compact matrix selects — filled chrome, primary text when a value is chosen. */
+const MATRIX_SELECT_TRIGGER_CLASS = cn(
+  FORM_COMPACT_SELECT_CLASS,
+  'min-w-0 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:opacity-40',
+);
 const MATRIX_SELECT_CONTENT_CLASS = 'min-w-[var(--radix-select-trigger-width)] p-0.5';
+const MATRIX_INPUT_CLASS = FORM_COMPACT_INPUT_CLASS;
+const MATRIX_INPUT_CENTER_CLASS = cn(FORM_COMPACT_INPUT_CLASS, 'px-1 text-center');
+const MATRIX_AMBER_RING_CLASS =
+  'ring-1 ring-amber-400 focus:ring-amber-400 focus-visible:ring-amber-400';
 
 function matrixSelectTriggerClass(hasValue: boolean): string {
   return cn(MATRIX_SELECT_TRIGGER_CLASS, hasValue && '[&>span]:font-medium [&>span]:text-primary');
@@ -890,8 +897,9 @@ export function PersonMatrix({
                                     }
                                     aria-label={t('garments.personName')}
                                     className={cn(
-                                      'h-8 min-w-0 flex-1 text-sm',
-                                      jerseyDup && 'border-amber-400',
+                                      MATRIX_INPUT_CLASS,
+                                      'min-w-0 flex-1',
+                                      jerseyDup && MATRIX_AMBER_RING_CLASS,
                                     )}
                                   />
                                 ) : (
@@ -940,7 +948,7 @@ export function PersonMatrix({
                                 >
                                   <SelectTrigger
                                     aria-label={t('garments.team')}
-                                    className="h-8 text-xs"
+                                    className={MATRIX_SELECT_TRIGGER_CLASS}
                                   >
                                     <SelectValue placeholder={t('garments.teamNone')} />
                                   </SelectTrigger>
@@ -964,7 +972,7 @@ export function PersonMatrix({
                                 >
                                   <SelectTrigger
                                     aria-label={`${person.name} — ${t('garments.team')}`}
-                                    className="h-8 text-xs"
+                                    className={MATRIX_SELECT_TRIGGER_CLASS}
                                   >
                                     <SelectValue placeholder={t('garments.teamNone')} />
                                   </SelectTrigger>
@@ -1000,7 +1008,7 @@ export function PersonMatrix({
                                     }))
                                   }
                                   aria-label={t('garments.jerseyName')}
-                                  className="h-8 text-xs"
+                                  className={MATRIX_INPUT_CLASS}
                                 />
                               ) : (
                                 <Input
@@ -1010,7 +1018,7 @@ export function PersonMatrix({
                                     void saveTextField(person, 'jerseyName', e.target.value)
                                   }
                                   aria-label={t('garments.jerseyName')}
-                                  className="h-8 text-xs"
+                                  className={MATRIX_INPUT_CLASS}
                                 />
                               )}
                             </td>
@@ -1036,7 +1044,7 @@ export function PersonMatrix({
                                     }))
                                   }
                                   aria-label={t('garments.initials')}
-                                  className="h-8 w-full px-1 text-center text-xs"
+                                  className={MATRIX_INPUT_CENTER_CLASS}
                                 />
                               ) : (
                                 <Input
@@ -1046,7 +1054,7 @@ export function PersonMatrix({
                                     void saveTextField(person, 'initials', e.target.value)
                                   }
                                   aria-label={t('garments.initials')}
-                                  className="h-8 w-full px-1 text-center text-xs"
+                                  className={MATRIX_INPUT_CENTER_CLASS}
                                 />
                               )}
                             </td>
@@ -1077,8 +1085,8 @@ export function PersonMatrix({
                                 }
                                 aria-label={t('garments.jerseyNumber')}
                                 className={cn(
-                                  'h-8 w-full px-1 text-center text-xs',
-                                  jerseyDup && 'border-amber-400',
+                                  MATRIX_INPUT_CENTER_CLASS,
+                                  jerseyDup && MATRIX_AMBER_RING_CLASS,
                                 )}
                               />
                             ) : (
@@ -1090,8 +1098,8 @@ export function PersonMatrix({
                                 }
                                 aria-label={t('garments.jerseyNumber')}
                                 className={cn(
-                                  'h-8 w-full px-1 text-center text-xs',
-                                  jerseyDup && 'border-amber-400',
+                                  MATRIX_INPUT_CENTER_CLASS,
+                                  jerseyDup && MATRIX_AMBER_RING_CLASS,
                                 )}
                               />
                             )}
@@ -1360,7 +1368,7 @@ export function PersonMatrix({
                                           }
                                           aria-label={`${person.name} — ${group} ${t('garments.size')}`}
                                           placeholder={t('garments.sizePlaceholder')}
-                                          className="h-8 w-full min-w-[3.5rem] text-xs"
+                                          className={cn(MATRIX_INPUT_CLASS, 'min-w-[3.5rem]')}
                                         />
                                       )
                                     ) : null}

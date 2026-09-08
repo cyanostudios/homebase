@@ -12,6 +12,7 @@ import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { FORM_COMPACT_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import {
   QuickContextHeaderActions,
   QuickContextOpenFullFooter,
@@ -144,7 +145,10 @@ export function VariantQuantityEditor({
             (e.target as HTMLInputElement).blur();
           }
         }}
-        className="h-8 w-12 min-w-[3rem] shrink-0 px-1 py-0 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className={cn(
+          FORM_COMPACT_INPUT_CLASS,
+          'w-12 min-w-[3rem] shrink-0 px-1 text-center tabular-nums',
+        )}
         aria-label={t('garments.quantity')}
       />
       <RoundIconLabelButton

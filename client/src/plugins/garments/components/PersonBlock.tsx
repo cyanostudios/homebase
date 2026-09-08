@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DETAIL_LIST_ITEM_HOVER_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_COMPACT_INPUT_CLASS, FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import type { GarmentCheckboxColumn, GarmentPerson } from '../types/garments';
@@ -66,7 +67,7 @@ export function PersonBlock({
                 value={editDraft.name ?? ''}
                 onChange={(e) => onDraftChange({ name: e.target.value })}
                 aria-label={t('garments.personName')}
-                className="h-9 text-sm"
+                className={FORM_INPUT_CLASS}
               />
             ) : (
               <h3 className="text-sm font-medium leading-snug break-words">{person.name || '—'}</h3>
@@ -77,7 +78,7 @@ export function PersonBlock({
                 onChange={(e) => onDraftChange({ comment: e.target.value })}
                 aria-label={t('garments.comment')}
                 placeholder={t('garments.comment')}
-                className="mt-2 h-8 text-xs"
+                className={cn(FORM_INPUT_CLASS, 'mt-2')}
               />
             ) : null}
             {!isEditing && !hideComment && comment ? (
@@ -91,13 +92,18 @@ export function PersonBlock({
                 value={editDraft.jerseyNumber ?? ''}
                 onChange={(e) => onDraftChange({ jerseyNumber: e.target.value })}
                 aria-label={t('garments.jerseyNumber')}
-                className={cn('h-9 w-16 text-sm', jerseyDup && 'border-amber-400')}
+                className={cn(
+                  FORM_INPUT_CLASS,
+                  'w-16',
+                  jerseyDup &&
+                    'ring-1 ring-amber-400 focus:ring-amber-400 focus-visible:ring-amber-400',
+                )}
               />
             ) : jerseyTrim ? (
               <span
                 className={cn(
-                  'inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-border px-2 text-sm font-medium',
-                  jerseyDup && 'border-amber-300 text-amber-700 dark:text-amber-300',
+                  'inline-flex h-7 min-w-7 items-center justify-center rounded-md bg-muted px-2 text-xs font-medium',
+                  jerseyDup && 'ring-1 ring-amber-300 text-amber-700 dark:text-amber-300',
                 )}
               >
                 #{jerseyTrim}
@@ -111,7 +117,7 @@ export function PersonBlock({
                     type="button"
                     size="sm"
                     variant="primary"
-                    className="h-9 px-3 text-xs"
+                    className="h-7 px-3 text-xs"
                     onClick={onSave}
                   >
                     {t('common.save')}
@@ -120,7 +126,7 @@ export function PersonBlock({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="h-9 px-2 text-xs"
+                    className="h-7 px-2 text-xs"
                     icon={X}
                     aria-label={t('common.cancel')}
                     onClick={onCancel}
@@ -132,7 +138,7 @@ export function PersonBlock({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="h-9 px-2 text-xs"
+                    className="h-7 px-2 text-xs"
                     icon={Edit}
                     aria-label={t('common.edit')}
                     onClick={onStartEdit}
@@ -141,7 +147,7 @@ export function PersonBlock({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="h-9 px-2 text-xs text-red-600"
+                    className="h-7 px-2 text-xs text-red-600"
                     icon={Trash2}
                     aria-label={t('common.delete')}
                     onClick={onDelete}
@@ -166,7 +172,7 @@ export function PersonBlock({
                 <Input
                   value={editDraft.shirtSize ?? ''}
                   onChange={(e) => onDraftChange({ shirtSize: e.target.value })}
-                  className="h-8 w-24 text-sm"
+                  className={cn(FORM_COMPACT_INPUT_CLASS, 'mt-0.5 w-24')}
                 />
               </div>
               <div className="min-w-[5.5rem]">
@@ -174,7 +180,7 @@ export function PersonBlock({
                 <Input
                   value={editDraft.shortsSize ?? ''}
                   onChange={(e) => onDraftChange({ shortsSize: e.target.value })}
-                  className="h-8 w-24 text-sm"
+                  className={cn(FORM_COMPACT_INPUT_CLASS, 'mt-0.5 w-24')}
                 />
               </div>
               <div className="min-w-[5.5rem]">
@@ -182,7 +188,7 @@ export function PersonBlock({
                 <Input
                   value={editDraft.socksSize ?? ''}
                   onChange={(e) => onDraftChange({ socksSize: e.target.value })}
-                  className="h-8 w-24 text-sm"
+                  className={cn(FORM_COMPACT_INPUT_CLASS, 'mt-0.5 w-24')}
                 />
               </div>
             </>
