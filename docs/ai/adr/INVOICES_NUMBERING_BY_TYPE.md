@@ -22,3 +22,4 @@ Invoice numbering lived as a single series in `user_settings` category `invoices
 - Client and server numbering helpers stay mirrored.
 - `GET /api/invoices/number/next?type=` allowlists `type` (`sanitizeInvoiceNumberingType`); unknown values become `invoice`.
 - **Follow-up (Security, Low):** create/update should persist `invoice_type` via the same allowlist (as of 2026-09-08 review, body may still write a non-canonical string).
+- **Follow-up (Security, Low):** update persist uses `invoiceData.invoiceType || 'invoice'` without falling back to `currentInvoice.invoiceType`, while totals resolution does use that fallback — omitting `invoiceType` on update can desync stored type vs signed totals.

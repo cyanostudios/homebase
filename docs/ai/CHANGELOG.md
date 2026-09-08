@@ -2,6 +2,10 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Invoices epic + badge unify + Contacts focus — docs sync (2026-09-08)
+
+Docs efter **QA Approved** + **Security Approved** för (1) invoices numbering-by-type / credit notes / list-stats / PDF footer, (2) platform `BADGE_CHIP` pill shell, (3) Contacts full-view focus overlay (trial). ADR [`adr/INVOICES_NUMBERING_BY_TYPE.md`](adr/INVOICES_NUMBERING_BY_TYPE.md) (Security Low follow-ups). Operator: [`INVOICES_PLUGIN.md`](../INVOICES_PLUGIN.md), [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-08 (tre poster). **Working tree; local-first; ej prod-release.** Security Lows (invoice_type allowlist + update omit demotion) dokumenterade som rekommenderade hardenings — **inte** TPM-accepterade residualer. Credit-note eligibility client-only dokumenterad.
+
 ## Files library UI follow-up — docs sync (2026-09-08)
 
 Docs efter **QA Approved** + **Security Approved** för files list/QC/edit UI: quick context, dense cards (2/4/6), edit-cancel→`closeFilePanel`, QC delete ConfirmDialog (documented PLUGIN_VIEW exception). Operator: [`FILES_PLUGIN.md`](../FILES_PLUGIN.md). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-08 – Files library UI. **Working tree; local-first; ej prod-release.** Residuals **F-ATT-1** / **F-SEC-1** oförändrade (TPM).
