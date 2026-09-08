@@ -1,4 +1,4 @@
-import { Copy, Download, Edit, ExternalLink, Share, Trash2 } from 'lucide-react';
+import { Copy, Download, Edit, ExternalLink, FileMinus, Share, Trash2 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -10,6 +10,7 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { invoicesApi } from '../api/invoicesApi';
 import type { Invoice } from '../context/InvoicesContext';
 import { useInvoices } from '../hooks/useInvoices';
+import { canCreateCreditNoteFromInvoice } from '../utils/buildCreditNoteFromInvoice';
 
 import { InvoiceShareModals } from './InvoiceShareModals';
 
@@ -21,6 +22,7 @@ export function InvoiceDetailHeaderMenus({ invoice }: { invoice: Invoice }) {
     closeInvoicesPanel,
     getDuplicateConfig,
     executeDuplicate,
+    createCreditNoteFromInvoice,
     setRecentlyDuplicatedInvoiceId,
     getDeleteMessage,
     invoiceShare,
@@ -31,10 +33,13 @@ export function InvoiceDetailHeaderMenus({ invoice }: { invoice: Invoice }) {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [showCreditNoteConfirm, setShowCreditNoteConfirm] = useState(false);
+  const [isCreatingCreditNote, setIsCreatingCreditNote] = useState(false);
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
 
   const duplicateConfig = getDuplicateConfig(invoice);
   const canDuplicate = Boolean(duplicateConfig);
+  const canCreditNote = canCreateCreditNoteFromInvoice(invoice);
   const hasActiveShare = Boolean(invoiceShare && new Date(invoiceShare.validUntil) > new Date());
 
   const handleDownloadPDF = async () => {
@@ -87,8 +92,20 @@ export function InvoiceDetailHeaderMenus({ invoice }: { invoice: Invoice }) {
       });
     }
 
+    if (canCreditNote) {
+      buttons.push({
+        id: 'credit-note',
+        icon: FileMinus,
+        label: t('invoices.createCreditNote', { defaultValue: 'Create credit note' }),
+        variant: 'secondary',
+        contentClassName: 'text-amber-700 dark:text-amber-400',
+        disabled: isCreatingCreditNote,
+        onClick: () => setShowCreditNoteConfirm(true),
+      });
+    }
+
     return buttons;
-  }, [canDuplicate, invoice, openInvoiceForEdit, t]);
+  }, [canCreditNote, canDuplicate, invoice, isCreatingCreditNote, openInvoiceForEdit, t]);
 
   const exportActions = useMemo((): DetailHeaderMenuAction[] => {
     return [
@@ -150,6 +167,24 @@ export function InvoiceDetailHeaderMenus({ invoice }: { invoice: Invoice }) {
         }}
         onCancel={() => setShowDeleteConfirm(false)}
         variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={showCreditNoteConfirm}
+        title={t('invoices.createCreditNoteTitle', { defaultValue: 'Create credit note?' })}
+        message={t('invoices.createCreditNoteConfirm', {
+          number: entityLabel,
+          defaultValue:
+            'Create a draft credit note from invoice {{number}}? Line amounts stay positive; document type will be Credit note.',
+        })}
+        confirmText={t('invoices.createCreditNote', { defaultValue: 'Create credit note' })}
+        cancelText={t('common.cancel')}
+        onConfirm={() => {
+          setShowCreditNoteConfirm(false);
+          setIsCreatingCreditNote(true);
+          void createCreditNoteFromInvoice(invoice).finally(() => setIsCreatingCreditNote(false));
+        }}
+        onCancel={() => setShowCreditNoteConfirm(false)}
       />
 
       <DuplicateDialog

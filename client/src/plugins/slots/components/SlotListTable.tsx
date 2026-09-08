@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
@@ -13,8 +14,6 @@ import {
   type SlotTableColumnId,
   resolveVisibleSlotTableColumns,
 } from '../utils/slotTableColumns';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function formatSlotDateTime(s: string | null) {
   return s ? formatDateTimeShort(s) : '—';
@@ -81,7 +80,7 @@ export function SlotListTable({
         className: 'hidden sm:table-cell',
         cell: (slot) =>
           slot.category?.trim() ? (
-            <Badge className={cn(BADGE_CLASS, 'bg-muted text-muted-foreground')}>
+            <Badge className={cn(BADGE_CHIP_CLASS, 'bg-muted text-muted-foreground')}>
               {slot.category.trim()}
             </Badge>
           ) : (

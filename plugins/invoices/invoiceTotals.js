@@ -2,7 +2,28 @@
  * Canonical invoice money math.
  * Inputs of truth: lineItems + invoiceDiscount (%).
  * Denormalized DB columns are a cache written by the server with this same function.
+ * Credit notes keep positive line amounts; resolved totals are signed negative.
  */
+
+function isCreditNoteType(invoiceType) {
+  return String(invoiceType || '').trim() === 'credit_note';
+}
+
+/** Credit notes keep positive line inputs; money totals are stored/displayed as negative. */
+function applyCreditNoteTotalsSign(totals, invoiceType) {
+  if (!isCreditNoteType(invoiceType)) {
+    return totals;
+  }
+  return {
+    subtotal: -Math.abs(totals.subtotal),
+    totalDiscount: -Math.abs(totals.totalDiscount),
+    subtotalAfterDiscount: -Math.abs(totals.subtotalAfterDiscount),
+    invoiceDiscountAmount: -Math.abs(totals.invoiceDiscountAmount),
+    subtotalAfterInvoiceDiscount: -Math.abs(totals.subtotalAfterInvoiceDiscount),
+    totalVat: -Math.abs(totals.totalVat),
+    total: -Math.abs(totals.total),
+  };
+}
 
 function calculateInvoiceTotals(lineItems, invoiceDiscount = 0) {
   let subtotal = 0;
@@ -63,26 +84,28 @@ function calculateInvoiceTotals(lineItems, invoiceDiscount = 0) {
 /**
  * Resolve totals for any invoice-shaped object.
  * Always derives from lineItems + invoiceDiscount when lines exist.
+ * Applies credit-note sign from `invoiceType`.
  */
 function resolveInvoiceTotals(source) {
   const lineItems = source?.lineItems || [];
-  if (Array.isArray(lineItems) && lineItems.length > 0) {
-    return calculateInvoiceTotals(lineItems, source?.invoiceDiscount || 0);
-  }
-  return {
-    subtotal: Number(source?.subtotal || 0),
-    totalDiscount: Number(source?.totalDiscount || 0),
-    subtotalAfterDiscount: Number(source?.subtotalAfterDiscount || source?.subtotal || 0),
-    invoiceDiscountAmount: Number(source?.invoiceDiscountAmount || 0),
-    subtotalAfterInvoiceDiscount: Number(
-      source?.subtotalAfterInvoiceDiscount ||
-        source?.subtotalAfterDiscount ||
-        source?.subtotal ||
-        0,
-    ),
-    totalVat: Number(source?.totalVat || 0),
-    total: Number(source?.total || 0),
-  };
+  const unsigned =
+    Array.isArray(lineItems) && lineItems.length > 0
+      ? calculateInvoiceTotals(lineItems, source?.invoiceDiscount || 0)
+      : {
+          subtotal: Number(source?.subtotal || 0),
+          totalDiscount: Number(source?.totalDiscount || 0),
+          subtotalAfterDiscount: Number(source?.subtotalAfterDiscount || source?.subtotal || 0),
+          invoiceDiscountAmount: Number(source?.invoiceDiscountAmount || 0),
+          subtotalAfterInvoiceDiscount: Number(
+            source?.subtotalAfterInvoiceDiscount ||
+              source?.subtotalAfterDiscount ||
+              source?.subtotal ||
+              0,
+          ),
+          totalVat: Number(source?.totalVat || 0),
+          total: Number(source?.total || 0),
+        };
+  return applyCreditNoteTotalsSign(unsigned, source?.invoiceType);
 }
 
 function withResolvedInvoiceTotals(invoice) {
@@ -96,4 +119,5 @@ module.exports = {
   calculateInvoiceTotals,
   resolveInvoiceTotals,
   withResolvedInvoiceTotals,
+  applyCreditNoteTotalsSign,
 };

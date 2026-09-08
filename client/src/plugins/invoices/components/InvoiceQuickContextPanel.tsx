@@ -1,4 +1,13 @@
-import { Calculator, Calendar, CreditCard, Hash, ListOrdered, Receipt, Wallet } from 'lucide-react';
+import {
+  Calculator,
+  Calendar,
+  CreditCard,
+  FileText,
+  Hash,
+  ListOrdered,
+  Receipt,
+  Wallet,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -63,9 +72,11 @@ export function InvoiceQuickContextPanel({
   const { t } = useTranslation();
   const [listShareUrl, setListShareUrl] = useState<string | null>(null);
   const status = invoice.status || 'draft';
+  const invoiceType = invoice.invoiceType || 'invoice';
   const due = formatInvoiceDueDate(invoice.dueDate);
   const showDueUrgency = status !== 'paid' && status !== 'canceled';
   const numberLabel = formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id);
+  const typeLabel = t(`invoices.type.${invoiceType}`, { defaultValue: invoiceType });
   const issueDateLabel = formatDate(invoice.issueDate) || '—';
   const dueDateLabel = formatDate(invoice.dueDate) || '—';
   const currency = invoice.currency || 'SEK';
@@ -117,9 +128,20 @@ export function InvoiceQuickContextPanel({
       >
         {invoiceInitials(invoice)}
       </div>
-      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>
-        {invoice.contactName || t('invoices.noCustomer')}
-      </h3>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0')}>
+          {invoice.contactName || t('invoices.noCustomer')}
+        </h3>
+        <Badge
+          className={cn(
+            'shrink-0',
+            BADGE_CHIP_CLASS,
+            QC_INVOICE_STATUS_BADGE_COLORS[status] ?? QC_INVOICE_STATUS_BADGE_COLORS.draft,
+          )}
+        >
+          {formatInvoiceStatusForDisplay(status)}
+        </Badge>
+      </div>
       <QuickContextHeaderActions
         onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
         onEdit={onEdit}
@@ -141,6 +163,13 @@ export function InvoiceQuickContextPanel({
           {t('invoices.table.number')}
         </div>
         <div className={factValueClass}>{numberLabel || '—'}</div>
+      </div>
+      <div>
+        <div className={FACT_LABEL_CLASS}>
+          <FileText className="h-3 w-3" />
+          {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
+        </div>
+        <div className={factValueClass}>{typeLabel}</div>
       </div>
       <div>
         <div className={FACT_LABEL_CLASS}>
@@ -203,26 +232,11 @@ export function InvoiceQuickContextPanel({
       <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
 
       <div className={cn('px-4 py-4', isFullView ? 'space-y-4' : 'space-y-6')}>
-        <div className="flex flex-wrap items-center gap-2">
-          {updatedLabel ? (
-            <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-              {t('common.updated')} {updatedLabel}
-            </p>
-          ) : (
-            <div className="min-w-0 flex-1" />
-          )}
-          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-            <Badge
-              className={cn(
-                'shrink-0',
-                BADGE_CHIP_CLASS,
-                QC_INVOICE_STATUS_BADGE_COLORS[status] ?? QC_INVOICE_STATUS_BADGE_COLORS.draft,
-              )}
-            >
-              {formatInvoiceStatusForDisplay(status)}
-            </Badge>
-          </div>
-        </div>
+        {updatedLabel ? (
+          <p className="text-xs text-muted-foreground">
+            {t('common.updated')} {updatedLabel}
+          </p>
+        ) : null}
 
         {factGrid}
 

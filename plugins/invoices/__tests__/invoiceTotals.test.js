@@ -38,6 +38,23 @@ describe('plugins/invoices/invoiceTotals (canonical)', () => {
     expect(withResolvedInvoiceTotals({ lineItems, invoiceDiscount: 10 }).total).toBe(1575);
   });
 
+  it('signs credit_note totals negative', () => {
+    const totals = resolveInvoiceTotals({
+      invoiceType: 'credit_note',
+      lineItems,
+      invoiceDiscount: 10,
+    });
+    expect(totals.total).toBe(-1575);
+    expect(totals.totalVat).toBe(-315);
+    expect(
+      withResolvedInvoiceTotals({
+        invoiceType: 'credit_note',
+        lineItems,
+        invoiceDiscount: 10,
+      }).total,
+    ).toBe(-1575);
+  });
+
   it('does not keep pre-invoice-discount VAT when invoice discount is set', () => {
     const totals = calculateInvoiceTotals(
       [

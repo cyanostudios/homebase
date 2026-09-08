@@ -1,6 +1,7 @@
 import { CalendarDays, User, Users } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -18,8 +19,6 @@ import { TASK_PRIORITY_COLORS } from '../types/tasks';
 import type { TaskColumnCount } from '../utils/taskColumnCount';
 
 import { TaskStatusSelect } from './TaskStatusSelect';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function truncateContent(content: string, maxLength = 150): string {
   const plain = htmlToPlainTextWithBreaks(content);
@@ -171,13 +170,13 @@ export function TaskListItem({
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Badge
               variant="outline"
-              className={cn(BADGE_CLASS, TASK_PRIORITY_COLORS[task.priority])}
+              className={cn(BADGE_CHIP_CLASS, TASK_PRIORITY_COLORS[task.priority])}
             >
               {task.priority}
             </Badge>
             {/* Due badge only when meta stays below (2/3 cols); 1-col shows due in meta instead. */}
             {!metaOnTop && dueDate ? (
-              <Badge variant="outline" className={cn(BADGE_CLASS, dueDate.badgeClassName)}>
+              <Badge variant="outline" className={cn(BADGE_CHIP_CLASS, dueDate.badgeClassName)}>
                 {dueDate.text}
               </Badge>
             ) : null}

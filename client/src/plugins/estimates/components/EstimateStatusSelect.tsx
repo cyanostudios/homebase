@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 import {
@@ -38,7 +39,8 @@ export function EstimateStatusSelect({
           <Badge
             variant="outline"
             className={cn(
-              'border-transparent font-medium text-xs px-2 h-5 flex items-center',
+              'flex items-center',
+              BADGE_CHIP_CLASS,
               ESTIMATE_STATUS_COLORS[estimate.status as keyof typeof ESTIMATE_STATUS_COLORS],
             )}
           >
@@ -55,10 +57,7 @@ export function EstimateStatusSelect({
           >
             <Badge
               variant="outline"
-              className={cn(
-                'border-transparent font-medium text-xs px-2 h-5',
-                ESTIMATE_STATUS_COLORS[status],
-              )}
+              className={cn(BADGE_CHIP_CLASS, ESTIMATE_STATUS_COLORS[status])}
             >
               {formatEstimateStatusForDisplay(status)}
             </Badge>

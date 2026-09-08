@@ -1,6 +1,7 @@
 import { Activity, Globe } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -15,8 +16,6 @@ import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { IngestSource } from '../types/ingest';
 import type { IngestColumnCount } from '../utils/ingestColumnCount';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function statusBadgeClass(status: string) {
   if (status === 'success') {
@@ -109,13 +108,13 @@ export function IngestSourceListItem({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
-            <Badge className={cn(BADGE_CLASS, statusBadgeClass(source.lastFetchStatus))}>
+            <Badge className={cn(BADGE_CHIP_CLASS, statusBadgeClass(source.lastFetchStatus))}>
               {source.lastFetchStatus}
             </Badge>
             {!source.isActive ? (
               <Badge
                 className={cn(
-                  BADGE_CLASS,
+                  BADGE_CHIP_CLASS,
                   'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
                 )}
               >
@@ -126,7 +125,7 @@ export function IngestSourceListItem({
           </div>
           <Badge
             className={cn(
-              BADGE_CLASS,
+              BADGE_CHIP_CLASS,
               'bg-slate-100 text-slate-700 uppercase dark:bg-slate-800 dark:text-slate-300',
             )}
           >

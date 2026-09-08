@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import {
   SortableListTable,
   type SortableListTableColumn,
@@ -98,12 +99,7 @@ export function TeamListTable({
         cell: (team) => {
           const statusKey: TeamStatus = isTeamOnBreak(team) ? 'break' : team.status;
           return (
-            <Badge
-              className={cn(
-                'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold',
-                TEAM_STATUS_BADGES[statusKey],
-              )}
-            >
+            <Badge className={cn(BADGE_CHIP_CLASS, TEAM_STATUS_BADGES[statusKey])}>
               {t(`teams.status.${statusKey}`)}
             </Badge>
           );

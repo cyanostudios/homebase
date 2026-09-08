@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 export const INVOICE_STATUS_OPTIONS = [
@@ -30,8 +31,8 @@ export const INVOICE_STATUS_COLORS: Record<string, string> = {
   canceled: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
 };
 
-/** UI standards V3 badge shell. */
-export const INVOICE_STATUS_BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
+/** Platform badge shell (Response due / BADGE_CHIP_CLASS). */
+export const INVOICE_STATUS_BADGE_CLASS = BADGE_CHIP_CLASS;
 
 export function formatInvoiceStatusForDisplay(status: string): string {
   if (!status) {
@@ -78,8 +79,8 @@ export function InvoiceStatusSelect({
           <Badge
             variant="outline"
             className={cn(
-              'flex items-center border-transparent px-2 font-extrabold',
-              compact ? 'h-5 text-[10px] font-extrabold' : 'h-5 text-xs font-extrabold',
+              'flex items-center',
+              compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
               INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
             )}
           >
@@ -96,10 +97,7 @@ export function InvoiceStatusSelect({
           >
             <Badge
               variant="outline"
-              className={cn(
-                'h-5 border-transparent px-2 text-xs font-extrabold',
-                INVOICE_STATUS_COLORS[option],
-              )}
+              className={cn(BADGE_CHIP_CLASS, INVOICE_STATUS_COLORS[option])}
             >
               {formatInvoiceStatusForDisplay(option)}
             </Badge>

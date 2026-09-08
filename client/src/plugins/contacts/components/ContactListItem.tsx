@@ -16,8 +16,6 @@ import type { Contact } from '../types/contacts';
 import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
 import type { ContactColumnCount } from '../utils/contactColumnCount';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
-
 export function ContactListItem({
   contact,
   selected,
@@ -114,11 +112,7 @@ export function ContactListItem({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Badge
-              className={cn(
-                BADGE_CLASS,
-                CONTACT_TYPE_BADGE_CLASS,
-                CONTACT_TYPE_COLORS[contact.contactType],
-              )}
+              className={cn(CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS[contact.contactType])}
             >
               {t(`contacts.type.${contact.contactType}`)}
             </Badge>

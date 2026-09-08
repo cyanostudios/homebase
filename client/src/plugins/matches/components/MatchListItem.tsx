@@ -1,6 +1,7 @@
 import { CalendarDays, MapPin, Trophy, User } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -18,8 +19,6 @@ import type { MatchColumnCount } from '../utils/matchColumnCount';
 
 import { MatchStatusBadges } from './MatchStatusBadges';
 import { MatchTeamBadge } from './MatchTeamBadge';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function MatchScoreBadge({ match }: { match: Match }) {
   const score = formatMatchScore(match);
@@ -50,7 +49,7 @@ function MatchContactBadge({ match }: { match: Match }) {
     <Badge
       variant="outline"
       className={cn(
-        BADGE_CLASS,
+        BADGE_CHIP_CLASS,
         'inline-flex max-w-[180px] items-center gap-1 bg-muted text-muted-foreground',
       )}
     >

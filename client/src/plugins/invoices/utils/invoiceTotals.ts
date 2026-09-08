@@ -5,6 +5,8 @@
  * **Derivation:** only via `calculateInvoiceTotals` / `resolveInvoiceTotals`.
  * **Denormalized fields** on the invoice (`total`, `totalVat`, …) are a cache;
  * hydrate them with `withResolvedInvoiceTotals` so every view reads the same numbers.
+ * **Credit notes** (`invoiceType === 'credit_note'`): line amounts stay positive;
+ * resolved totals are signed negative (grand total and related money fields).
  *
  * Server mirror: `plugins/invoices/invoiceTotals.js` (kept in parity by tests).
  */
@@ -22,6 +24,7 @@ export type InvoiceTotals = {
 };
 
 export type InvoiceTotalsSource = {
+  invoiceType?: string | null;
   lineItems?: InvoiceLineItem[] | null;
   invoiceDiscount?: number | null;
   subtotal?: number | null;
@@ -32,6 +35,29 @@ export type InvoiceTotalsSource = {
   totalVat?: number | null;
   total?: number | null;
 };
+
+function isCreditNoteType(invoiceType?: string | null): boolean {
+  return String(invoiceType || '').trim() === 'credit_note';
+}
+
+/** Credit notes keep positive line inputs; money totals are stored/displayed as negative. */
+export function applyCreditNoteTotalsSign(
+  totals: InvoiceTotals,
+  invoiceType?: string | null,
+): InvoiceTotals {
+  if (!isCreditNoteType(invoiceType)) {
+    return totals;
+  }
+  return {
+    subtotal: -Math.abs(totals.subtotal),
+    totalDiscount: -Math.abs(totals.totalDiscount),
+    subtotalAfterDiscount: -Math.abs(totals.subtotalAfterDiscount),
+    invoiceDiscountAmount: -Math.abs(totals.invoiceDiscountAmount),
+    subtotalAfterInvoiceDiscount: -Math.abs(totals.subtotalAfterInvoiceDiscount),
+    totalVat: -Math.abs(totals.totalVat),
+    total: -Math.abs(totals.total),
+  };
+}
 
 export function calculateInvoiceTotals(
   lineItems: InvoiceLineItem[],
@@ -93,23 +119,24 @@ export function calculateInvoiceTotals(
 /** Single entry for display: derive from lines + discount % when lines exist. */
 export function resolveInvoiceTotals(source: InvoiceTotalsSource): InvoiceTotals {
   const lineItems = source?.lineItems || [];
-  if (Array.isArray(lineItems) && lineItems.length > 0) {
-    return calculateInvoiceTotals(lineItems, Number(source.invoiceDiscount || 0));
-  }
-  return {
-    subtotal: Number(source?.subtotal || 0),
-    totalDiscount: Number(source?.totalDiscount || 0),
-    subtotalAfterDiscount: Number(source?.subtotalAfterDiscount || source?.subtotal || 0),
-    invoiceDiscountAmount: Number(source?.invoiceDiscountAmount || 0),
-    subtotalAfterInvoiceDiscount: Number(
-      source?.subtotalAfterInvoiceDiscount ||
-        source?.subtotalAfterDiscount ||
-        source?.subtotal ||
-        0,
-    ),
-    totalVat: Number(source?.totalVat || 0),
-    total: Number(source?.total || 0),
-  };
+  const unsigned =
+    Array.isArray(lineItems) && lineItems.length > 0
+      ? calculateInvoiceTotals(lineItems, Number(source.invoiceDiscount || 0))
+      : {
+          subtotal: Number(source?.subtotal || 0),
+          totalDiscount: Number(source?.totalDiscount || 0),
+          subtotalAfterDiscount: Number(source?.subtotalAfterDiscount || source?.subtotal || 0),
+          invoiceDiscountAmount: Number(source?.invoiceDiscountAmount || 0),
+          subtotalAfterInvoiceDiscount: Number(
+            source?.subtotalAfterInvoiceDiscount ||
+              source?.subtotalAfterDiscount ||
+              source?.subtotal ||
+              0,
+          ),
+          totalVat: Number(source?.totalVat || 0),
+          total: Number(source?.total || 0),
+        };
+  return applyCreditNoteTotalsSign(unsigned, source?.invoiceType);
 }
 
 /** Stamp resolved totals onto an invoice so list / QC / full view / stats share one snapshot. */

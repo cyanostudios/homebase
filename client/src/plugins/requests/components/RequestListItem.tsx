@@ -1,6 +1,7 @@
 import { Users } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -19,8 +20,6 @@ import type { RequestColumnCount } from '../utils/requestColumnCount';
 
 import { RequestPrioritySelect } from './RequestPrioritySelect';
 import { RequestStatusSelect } from './RequestStatusSelect';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function truncateContent(content: string, maxLength = 150): string {
   const plain = htmlToPlainTextWithBreaks(content);
@@ -130,11 +129,17 @@ export function RequestListItem({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
-            <Badge variant="outline" className={cn(BADGE_CLASS, 'bg-muted text-muted-foreground')}>
+            <Badge
+              variant="outline"
+              className={cn(BADGE_CHIP_CLASS, 'bg-muted text-muted-foreground')}
+            >
               {typeLabel}
             </Badge>
             {request.source === 'external' ? (
-              <Badge variant="outline" className={cn(BADGE_CLASS, REQUEST_SOURCE_COLORS.external)}>
+              <Badge
+                variant="outline"
+                className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS.external)}
+              >
                 {t('requests.sourceExternal')}
               </Badge>
             ) : null}

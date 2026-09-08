@@ -1,9 +1,14 @@
 import {
+  buildInvoiceNumberingSettingsPayload,
+  findInvoiceNumberingSeriesCollisions,
   formatInvoiceNumberExample,
   invoiceNumberHasStoredPrefix,
   normalizeInvoiceNumbering,
+  normalizeInvoiceNumberingByType,
+  resolveInvoiceNumberingForType,
   sanitizeInvoiceNumberPrefix,
   sanitizeInvoiceNumberStart,
+  sanitizeInvoiceNumberingType,
 } from '../invoiceNumbering';
 
 describe('sanitizeInvoiceNumberPrefix', () => {
@@ -45,6 +50,62 @@ describe('normalizeInvoiceNumbering', () => {
         includeYear: false,
       }),
     ).toEqual({ numberPrefix: 'F', numberStart: 250, includeYear: false });
+  });
+});
+
+describe('normalizeInvoiceNumberingByType', () => {
+  it('hydrates flat settings onto invoice type only', () => {
+    const byType = normalizeInvoiceNumberingByType({
+      numberPrefix: 'F',
+      numberStart: 10,
+      includeYear: false,
+    });
+    expect(byType.invoice).toEqual({ numberPrefix: 'F', numberStart: 10, includeYear: false });
+    expect(byType.credit_note).toEqual({ numberPrefix: '', numberStart: 1, includeYear: true });
+  });
+
+  it('reads numberingByType and fills missing types', () => {
+    const byType = normalizeInvoiceNumberingByType({
+      numberingByType: {
+        receipt: { numberPrefix: 'kv', numberStart: 2, includeYear: false },
+      },
+    });
+    expect(byType.receipt).toEqual({ numberPrefix: 'KV', numberStart: 2, includeYear: false });
+    expect(byType.invoice.numberStart).toBe(1);
+  });
+
+  it('resolves type with allowlist fallback', () => {
+    const settings = {
+      numberingByType: {
+        invoice: { numberPrefix: 'F', numberStart: 1, includeYear: true },
+      },
+    };
+    expect(sanitizeInvoiceNumberingType('cash_invoice')).toBe('cash_invoice');
+    expect(sanitizeInvoiceNumberingType('nope')).toBe('invoice');
+    expect(resolveInvoiceNumberingForType(settings, 'invoice').numberPrefix).toBe('F');
+  });
+
+  it('builds settings payload with flat mirror', () => {
+    const payload = buildInvoiceNumberingSettingsPayload({
+      invoice: { numberPrefix: 'F', numberStart: 3, includeYear: false },
+      credit_note: { numberPrefix: 'K', numberStart: 1, includeYear: true },
+      cash_invoice: { numberPrefix: '', numberStart: 1, includeYear: true },
+      receipt: { numberPrefix: '', numberStart: 1, includeYear: true },
+    });
+    expect(payload.numberPrefix).toBe('F');
+    expect(payload.includeYear).toBe(false);
+    expect(payload.numberingByType.credit_note.numberPrefix).toBe('K');
+  });
+
+  it('detects series collisions across types', () => {
+    const byType = normalizeInvoiceNumberingByType({
+      numberingByType: {
+        invoice: { numberPrefix: 'F', includeYear: true, numberStart: 1 },
+        credit_note: { numberPrefix: 'F', includeYear: true, numberStart: 1 },
+        cash_invoice: { numberPrefix: 'KF', includeYear: true, numberStart: 1 },
+      },
+    });
+    expect(findInvoiceNumberingSeriesCollisions(byType, 'invoice')).toEqual(['credit_note']);
   });
 });
 

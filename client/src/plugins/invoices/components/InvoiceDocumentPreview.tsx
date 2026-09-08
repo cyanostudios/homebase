@@ -247,11 +247,13 @@ export function InvoiceDocumentPreview({
             srcDoc={webHTML}
             width={PREVIEW_DOC_WIDTH}
             height={docHeight}
+            scrolling="no"
             className="block origin-top-left border-none bg-white"
             style={{
               width: PREVIEW_DOC_WIDTH,
               height: docHeight,
               transform: `scale(${scale})`,
+              overflow: 'hidden',
             }}
             title={t('invoices.previewTitle', { defaultValue: 'Invoice preview' })}
             sandbox="allow-scripts allow-same-origin"

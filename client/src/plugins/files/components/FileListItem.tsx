@@ -1,6 +1,7 @@
 import { File as FileIcon } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -17,8 +18,6 @@ import { filesApi } from '../api/filesApi';
 import type { FileItem } from '../types/files';
 import type { FileColumnCount } from '../utils/fileColumnCount';
 import { getMimeLabel, humanSize } from '../utils/humanSize';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 export function FileListItem({
   file,
@@ -99,7 +98,7 @@ export function FileListItem({
             {mimeLabel ? (
               <Badge
                 variant="outline"
-                className={cn(BADGE_CLASS, 'bg-muted text-muted-foreground')}
+                className={cn(BADGE_CHIP_CLASS, 'bg-muted text-muted-foreground')}
               >
                 {mimeLabel}
               </Badge>

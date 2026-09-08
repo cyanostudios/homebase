@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
@@ -14,8 +15,6 @@ import {
   type TaskTableColumnId,
   resolveVisibleTaskTableColumns,
 } from '../utils/taskTableColumns';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 /** SortableListTable field union — assignee/team are display-only (not sortable). */
 type TaskTableField = TaskSortField | 'assignedTo' | 'assignedTeam';
@@ -84,7 +83,7 @@ export function TaskListTable({
         cell: (task: Task) => (
           <Badge
             className={cn(
-              BADGE_CLASS,
+              BADGE_CHIP_CLASS,
               TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS],
             )}
           >
@@ -96,7 +95,7 @@ export function TaskListTable({
         field: 'priority',
         header: t('tasks.propertyPriority'),
         cell: (task: Task) => (
-          <Badge className={cn(BADGE_CLASS, TASK_PRIORITY_COLORS[task.priority])}>
+          <Badge className={cn(BADGE_CHIP_CLASS, TASK_PRIORITY_COLORS[task.priority])}>
             {task.priority}
           </Badge>
         ),

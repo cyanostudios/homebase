@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
@@ -23,8 +24,6 @@ import {
   type RequestTableColumnId,
   resolveVisibleRequestTableColumns,
 } from '../utils/requestTableColumns';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 export type RequestListTableProps = {
   requests: Request[];
@@ -112,7 +111,7 @@ export function RequestListTable({
         field: 'status',
         header: t('requests.form.status'),
         cell: (request) => (
-          <Badge className={cn(BADGE_CLASS, REQUEST_STATUS_COLORS[request.status])}>
+          <Badge className={cn(BADGE_CHIP_CLASS, REQUEST_STATUS_COLORS[request.status])}>
             {formatRequestStatusForDisplay(request.status, t)}
           </Badge>
         ),
@@ -121,7 +120,7 @@ export function RequestListTable({
         field: 'priority',
         header: t('requests.form.priority'),
         cell: (request) => (
-          <Badge className={cn(BADGE_CLASS, REQUEST_PRIORITY_COLORS[request.priority])}>
+          <Badge className={cn(BADGE_CHIP_CLASS, REQUEST_PRIORITY_COLORS[request.priority])}>
             {request.priority}
           </Badge>
         ),
@@ -146,10 +145,7 @@ export function RequestListTable({
           return (
             <Badge
               variant="outline"
-              className={cn(
-                'h-5 border-transparent px-1.5 text-[10px] font-extrabold',
-                RESPONSE_DUE_URGENCY_COLORS[urgency],
-              )}
+              className={cn(BADGE_CHIP_COMPACT_CLASS, RESPONSE_DUE_URGENCY_COLORS[urgency])}
             >
               {responseDueStatusLabel(daysLeft, t)}
             </Badge>

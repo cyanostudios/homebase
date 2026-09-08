@@ -1,19 +1,17 @@
 import {
-  AlertCircle,
-  BadgeCheck,
+  Banknote,
   BarChart2,
   CheckSquare,
   ArrowDown,
   ArrowUp,
-  FileEdit,
+  FileMinus,
   FileSpreadsheet,
   FileText,
   LayoutGrid,
   Plus,
-  Send,
+  Receipt,
   Settings,
   Trash2,
-  Wallet,
   XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -67,8 +65,8 @@ import {
   type InvoiceColumnCount,
 } from '../utils/invoiceColumnCount';
 import {
+  INVOICE_LIST_FILTERS,
   invoiceMatchesListFilters,
-  invoiceMatchesSingleFilter,
   toggleInvoiceListFilter,
   type InvoiceListFilter,
   type InvoiceListFilterSelection,
@@ -112,11 +110,19 @@ const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'updatedAt', label: 'Updated' },
   { value: 'contactName', label: 'Customer' },
   { value: 'invoiceNumber', label: 'Invoice #' },
+  { value: 'invoiceType', label: 'Type' },
   { value: 'status', label: 'Status' },
   { value: 'total', label: 'Total' },
   { value: 'dueDate', label: 'Due date' },
   { value: 'issueDate', label: 'Issue date' },
 ];
+
+const TYPE_FILTER_ICONS = {
+  invoice: FileText,
+  credit_note: FileMinus,
+  cash_invoice: Banknote,
+  receipt: Receipt,
+} as const;
 
 export function InvoicesList() {
   const { t } = useTranslation();
@@ -255,6 +261,7 @@ export function InvoicesList() {
         (invoice.contactName || '').toLowerCase().includes(q) ||
         (invoice.notes || '').toLowerCase().includes(q) ||
         (invoice.status || '').toLowerCase().includes(q) ||
+        (invoice.invoiceType || '').toLowerCase().includes(q) ||
         invoice.id.toLowerCase().includes(q),
     );
 
@@ -266,19 +273,18 @@ export function InvoicesList() {
     setActiveFilters((prev) => toggleInvoiceListFilter(prev, filter));
   };
 
-  const stats = useMemo(
-    () => ({
+  const stats = useMemo(() => {
+    const byType = Object.fromEntries(
+      INVOICE_LIST_FILTERS.map((type) => [
+        type,
+        invoices.filter((i) => invoiceMatchesListFilters(i, [type])).length,
+      ]),
+    ) as Record<InvoiceListFilter, number>;
+    return {
       total: invoices.length,
-      draft: invoices.filter((i) => i.status === 'draft').length,
-      sent: invoices.filter((i) => i.status === 'sent').length,
-      partially_paid: invoices.filter((i) => i.status === 'partially_paid').length,
-      paid: invoices.filter((i) => i.status === 'paid').length,
-      overdue: invoices.filter((i) => i.status === 'overdue').length,
-      canceled: invoices.filter((i) => i.status === 'canceled').length,
-      unpaid: invoices.filter((i) => invoiceMatchesSingleFilter(i as any, 'unpaid')).length,
-    }),
-    [invoices],
-  );
+      ...byType,
+    };
+  }, [invoices]);
 
   const visibleInvoiceIds = useMemo(
     () => sortedInvoices.map((inv) => String(inv.id)),
@@ -561,33 +567,28 @@ export function InvoicesList() {
                 Total <span className="tabular-nums font-semibold">({stats.total})</span>
               </span>
             </Button>
-            {(
-              [
-                ['draft', FileEdit, 'Draft', stats.draft],
-                ['sent', Send, 'Sent', stats.sent],
-                ['partially_paid', Wallet, 'Partially paid', stats.partially_paid],
-                ['paid', BadgeCheck, 'Paid', stats.paid],
-                ['overdue', AlertCircle, 'Overdue', stats.overdue],
-                ['canceled', XCircle, 'Canceled', stats.canceled],
-                ['unpaid', Wallet, 'Unpaid', stats.unpaid],
-              ] as const
-            ).map(([filter, Icon, label, count]) => (
-              <Button
-                key={filter}
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => toggleFilter(filter)}
-                className={cn(
-                  isFilterActive(filter) ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span>
-                  {label} <span className="tabular-nums font-semibold">({count})</span>
-                </span>
-              </Button>
-            ))}
+            {INVOICE_LIST_FILTERS.map((filter) => {
+              const Icon = TYPE_FILTER_ICONS[filter];
+              const label = t(`invoices.type.${filter}`, { defaultValue: filter });
+              const count = stats[filter];
+              return (
+                <Button
+                  key={filter}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleFilter(filter)}
+                  className={cn(
+                    isFilterActive(filter) ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>
+                    {label} <span className="tabular-nums font-semibold">({count})</span>
+                  </span>
+                </Button>
+              );
+            })}
           </div>
           <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
             <Select

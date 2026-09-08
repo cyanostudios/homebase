@@ -1,3 +1,5 @@
+import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
+
 export type GuideLifecycleStatus = 'draft' | 'active' | 'archived';
 export type MasterGuideEditorialStatus = 'draft' | 'in-progress' | 'complete';
 
@@ -185,53 +187,38 @@ export interface GuideAudio {
 export const GUIDE_LIFECYCLE_STATUSES: GuideLifecycleStatus[] = ['draft', 'active', 'archived'];
 
 export const GUIDE_LIFECYCLE_COLORS: Record<GuideLifecycleStatus, string> = {
-  draft:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  active:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-  archived:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-secondary/50 text-secondary-foreground',
+  draft: `${BADGE_CHIP_CLASS} bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`,
+  active: `${BADGE_CHIP_CLASS} bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300`,
+  archived: `${BADGE_CHIP_CLASS} bg-secondary/50 text-secondary-foreground`,
 };
 
 export const GUIDE_PUBLICATION_COLORS: Record<PublicationStatus, string> = {
-  draft:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  ready:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-amber-50/90 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-  published:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  draft: `${BADGE_CHIP_CLASS} bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`,
+  ready: `${BADGE_CHIP_CLASS} bg-amber-50/90 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300`,
+  published: `${BADGE_CHIP_CLASS} bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300`,
 };
 
 export const GUIDE_APPROVAL_COLORS: Record<PresentationApprovalStatus, string> = {
-  draft:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-  pending_review:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
-  approved:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  draft: `${BADGE_CHIP_CLASS} bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400`,
+  pending_review: `${BADGE_CHIP_CLASS} bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300`,
+  approved: `${BADGE_CHIP_CLASS} bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300`,
 };
 
 export const GUIDE_STALENESS_COLORS: Record<StalenessStatus, string> = {
-  fresh:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-emerald-50/60 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300',
-  stale:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-orange-50/90 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300',
+  fresh: `${BADGE_CHIP_CLASS} bg-emerald-50/60 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300`,
+  stale: `${BADGE_CHIP_CLASS} bg-orange-50/90 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300`,
 };
 
 export const GUIDE_EDITORIAL_COLORS: Record<MasterGuideEditorialStatus, string> = {
-  draft:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  'in-progress':
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
-  complete:
-    'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  draft: `${BADGE_CHIP_CLASS} bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`,
+  'in-progress': `${BADGE_CHIP_CLASS} bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300`,
+  complete: `${BADGE_CHIP_CLASS} bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300`,
 };
 
-export const GUIDE_LANGUAGE_SOURCE_BADGE_CLASS =
-  'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase bg-plugin-subtle text-plugin';
+export const GUIDE_LANGUAGE_SOURCE_BADGE_CLASS = `${BADGE_CHIP_COMPACT_CLASS} uppercase bg-plugin-subtle text-plugin`;
 
 export const GUIDE_LANGUAGE_BADGE_CLASS =
-  'border border-border/70 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase bg-muted/40 text-muted-foreground';
+  'border border-border/70 rounded-full h-5 px-1.5 text-[10px] font-extrabold uppercase bg-muted/40 text-muted-foreground';
 
 export type ProductionStartMode = 'source' | 'translation';
 
@@ -283,38 +270,25 @@ export type ProductionReviewStatus = 'pending_review' | 'approved' | 'rejected' 
 export type ProductionCheckpointMode = 'after_text' | 'after_each' | 'auto';
 
 export const GUIDE_PRODUCTION_JOB_STATUS_COLORS: Record<ProductionJobStatus, string> = {
-  pending:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  planning:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
-  processing:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
-  awaiting_review:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-amber-50/90 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-  completed:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-  failed:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-red-50/90 text-red-700 dark:bg-red-950/40 dark:text-red-300',
-  cancelled:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-secondary/50 text-secondary-foreground',
+  pending: `${BADGE_CHIP_COMPACT_CLASS} bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`,
+  planning: `${BADGE_CHIP_COMPACT_CLASS} bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300`,
+  processing: `${BADGE_CHIP_COMPACT_CLASS} bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300`,
+  awaiting_review: `${BADGE_CHIP_COMPACT_CLASS} bg-amber-50/90 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300`,
+  completed: `${BADGE_CHIP_COMPACT_CLASS} bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300`,
+  failed: `${BADGE_CHIP_COMPACT_CLASS} bg-red-50/90 text-red-700 dark:bg-red-950/40 dark:text-red-300`,
+  cancelled: `${BADGE_CHIP_COMPACT_CLASS} bg-secondary/50 text-secondary-foreground`,
 };
 
 export const GUIDE_REVIEW_STATUS_COLORS: Record<ProductionReviewStatus, string> = {
-  pending_review:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
-  approved:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-  rejected:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-secondary/50 text-secondary-foreground',
-  superseded:
-    'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+  pending_review: `${BADGE_CHIP_COMPACT_CLASS} bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300`,
+  approved: `${BADGE_CHIP_COMPACT_CLASS} bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300`,
+  rejected: `${BADGE_CHIP_COMPACT_CLASS} bg-secondary/50 text-secondary-foreground`,
+  superseded: `${BADGE_CHIP_COMPACT_CLASS} bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400`,
 };
 
-export const GUIDE_ITEM_PROCESSING_BADGE_CLASS =
-  'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold gap-1 bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300';
+export const GUIDE_ITEM_PROCESSING_BADGE_CLASS = `${BADGE_CHIP_COMPACT_CLASS} gap-1 bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300`;
 
-export const GUIDE_ITEM_FAILED_BADGE_CLASS =
-  'border-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold bg-red-50/90 text-red-700 dark:bg-red-950/40 dark:text-red-300';
+export const GUIDE_ITEM_FAILED_BADGE_CLASS = `${BADGE_CHIP_COMPACT_CLASS} bg-red-50/90 text-red-700 dark:bg-red-950/40 dark:text-red-300`;
 
 export interface ProductionJobOptions {
   type?: ProductionJobType;

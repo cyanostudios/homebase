@@ -23,6 +23,7 @@ describe('normalizeInvoiceTableColumns', () => {
     });
     expect(result.order[0]).toBe('status');
     expect(result.order).toContain('invoiceNumber');
+    expect(result.order).toContain('invoiceType');
     expect(result.order).toContain('dueDate');
     expect(result.order.filter((id) => id === 'invoiceNumber')).toHaveLength(1);
     expect(result.hidden).toEqual(['status']);
@@ -48,9 +49,10 @@ describe('normalizeInvoiceTableColumns', () => {
 });
 
 describe('resolveVisibleInvoiceTableColumns', () => {
-  it('defaults to five visible columns', () => {
+  it('defaults to visible columns including invoice type', () => {
     expect(resolveVisibleInvoiceTableColumns(null)).toEqual([
       'invoiceNumber',
+      'invoiceType',
       'contactName',
       'status',
       'total',
@@ -64,6 +66,7 @@ describe('resolveVisibleInvoiceTableColumns', () => {
         tableColumns: {
           order: [
             'invoiceNumber',
+            'invoiceType',
             'total',
             'contactName',
             'status',
@@ -71,7 +74,7 @@ describe('resolveVisibleInvoiceTableColumns', () => {
             'createdAt',
             'updatedAt',
           ],
-          hidden: ['contactName', 'status', 'dueDate', 'createdAt', 'updatedAt'],
+          hidden: ['invoiceType', 'contactName', 'status', 'dueDate', 'createdAt', 'updatedAt'],
         },
       }),
     ).toEqual(['invoiceNumber', 'total']);
@@ -105,6 +108,7 @@ describe('isInvoiceTableColumnId typing helper via normalize', () => {
   it('accepts all canonical ids', () => {
     const ids: InvoiceTableColumnId[] = [
       'invoiceNumber',
+      'invoiceType',
       'contactName',
       'status',
       'total',

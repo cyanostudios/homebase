@@ -9,7 +9,7 @@ Facio-inspired Swedish invoice layout (matches uploaded reference):
 - **Header:** logo + company name · document type title (Faktura / Kreditfaktura / Kontantfaktura / Kvitto) + number. PDF page label `X / Y` is a repeating print header (every page, with top margin clearance on continuation pages). Live preview shows `1 / 1` in the document header and dashed **approximate** page-break guides when content exceeds one A4 page.
 - **Below header:** customer block left (kund, kundreferens, kundnummer, ordernummer, leveranssätt) · payment summary right (förfallo, summa, referens, bankgiro, then fakturadatum, betalningsvillkor, dröjsmålsränta).
 - **Rule** then line items and totals (summa → fakturarabatt when set → ex moms / moms / summa att betala).
-- **Footer (3 columns):** (1) company name + address + F-skatt, with website as a sub-line under the column · (2) Org.nr, VAT-nr, Tel, Mail · (3) payment methods (Bankgiro, Plusgiro, IBAN, BIC, Swish when set).
+- **Footer (3 columns):** (1) company name + address + F-skatt, with website as a sub-line under the column · (2) Org.nr, VAT-nr, Tel, Mail · (3) payment methods (Bankgiro, Plusgiro, IBAN, BIC, Swish when set). On short single-page PDFs the footer sticks to the bottom of the A4 content box (`min-height: 271mm` + flex); on multi-page documents it follows the content on the last page. Live column preview (`forceDesktop`) drops the A4 min-height so the iframe hugs content (no inner scrollbar); PDF / share window keep A4 fill.
 
 - **Issuer** from Settings → Account (`GET /api/organization`): **logo** (`logoUrl`) + **name**, address, email, phone, website, org-nr, VAT, payment methods, F-tax, interest.
 - **Ange referens** (payment summary) = invoice number.
@@ -26,11 +26,12 @@ Facio-inspired Swedish invoice layout (matches uploaded reference):
 
 Routes:
 
-| Route                             | Auth                    | Notes                                                  |
-| --------------------------------- | ----------------------- | ------------------------------------------------------ |
-| `GET /api/invoices/:id/pdf`       | Session + plugin gate   | Binary PDF                                             |
-| `GET /api/invoices/public/:token` | **None** (rate-limited) | JSON for public SPA                                    |
-| `/public/invoice/:token`          | Public SPA              | Renders HTML via `generateInvoiceWebHTML` in an iframe |
+| Route                                 | Auth                    | Notes                                                          |
+| ------------------------------------- | ----------------------- | -------------------------------------------------------------- |
+| `GET /api/invoices/number/next?type=` | Session + plugin gate   | Next number for series; `type` allowlisted (`invoice` default) |
+| `GET /api/invoices/:id/pdf`           | Session + plugin gate   | Binary PDF                                                     |
+| `GET /api/invoices/public/:token`     | **None** (rate-limited) | JSON for public SPA                                            |
+| `/public/invoice/:token`              | Public SPA              | Renders HTML via `generateInvoiceWebHTML` in an iframe         |
 
 Authenticated share management: `POST /api/invoices/shares` (CSRF), `GET /api/invoices/:invoiceId/shares`, `DELETE /api/invoices/shares/:shareId` (CSRF). Tokens are `crypto.randomBytes(24)` (base62). Expired shares (`valid_until`) do not resolve.
 
@@ -61,9 +62,9 @@ Contact-style day select (`0` / `15` / `30` / `60`). Due date = issue date + day
 
 ## List UI
 
-Card-column shell per `docs/UI_AND_UX_STANDARDS_V3.md` §0.1 (cards + table). Due dates use Tasks-style urgency colors (`formatInvoiceDueDate`).
+Card-column shell per `docs/UI_AND_UX_STANDARDS_V3.md` §0.1 (cards + table). Due dates use Tasks-style urgency colors (`formatInvoiceDueDate`). Table includes an **Invoice type** column (`invoiceType`) by default (after number); card rows show a type badge. Sortable via list sort “Type”.
 
-**No sidebar submenu.** Single nav entry Invoices. Filter chips: Total, Draft, Sent, Partially paid, Paid, Overdue, Canceled, Unpaid.
+**No sidebar submenu.** Single nav entry Invoices. Filter chips: Total, Invoice, Credit note, Cash invoice, Receipt (document type; exclusive).
 
 Desktop/pad: row click opens sticky **Quick Context** (`InvoiceQuickContextPanel` via `useQuickContextPreview`); compact viewports open full view.
 
@@ -73,28 +74,36 @@ List header also opens **Statistics** content view (Matches-style overlay), plus
 
 Under Invoices → Settings → **Numbering** (`user_settings` category `invoices`):
 
-| Key            | Type    | Default | Behavior                                                                            |
+Canonical key `numberingByType` holds one series per document type (`invoice` | `credit_note` | `cash_invoice` | `receipt`):
+
+| Key (per type) | Type    | Default | Behavior                                                                            |
 | -------------- | ------- | ------- | ----------------------------------------------------------------------------------- |
 | `numberPrefix` | string  | `''`    | Letters/digits only (max 12). Empty → no letter prefix (UI may still show `INV-…`). |
 | `includeYear`  | boolean | `true`  | When true: `PREFIX-YYYY-NNN` or `YYYY-NNN`. When false: `PREFIX-NNN` or `NNN`.      |
 | `numberStart`  | int     | `1`     | Minimum sequence for the active series. Next number is `max(last+1, numberStart)`.  |
 
-Settings UI order: **Prefix → Year → Start number**, with a checkbox to show/hide year in the allocated number.
+**Read:** Prefer `numberingByType`; if missing, lift flat `numberPrefix` / `includeYear` / `numberStart` onto type `invoice` and default the other types.  
+**Write:** Persist full `numberingByType` and mirror the `invoice` series onto the flat keys.  
+**UI:** When Numbering is active, document-type pills sit on a **header submenu row** under Columns/Numbering (`PluginSettingsPageShell.headerSubmenu`, DetailHeaderMenus pattern). Form fields use the full content width (responsive grid). Phone keeps type pills in the body (settings header is `md+` only). Warns when another type shares the same prefix + year flag.  
+**Allocation:** `GET /api/invoices/number/next?type=` (default `invoice` via `sanitizeInvoiceNumberingType`; unknown types → `invoice`). Create/duplicate use the document’s `invoiceType`. Series identity is the number-format regex (use distinct prefixes to separate sequences). See ADR `docs/ai/adr/INVOICES_NUMBERING_BY_TYPE.md`.
 
-Allocation: `GET /api/invoices/number/next` (and create without number) reads these settings from the auth user’s `user_settings` and allocates uniquely in the tenant DB.
+**Security (2026-09-08 review, this epic):** Approved. Numbering `type` is allowlisted; prefix sanitized to `[A-Z0-9]` (max 12); regex uses `escapeRegExp`; create/update mutations keep CSRF + plugin gate. PDF/web document HTML escapes user/org fields. **Follow-up (Low):** persist `invoice_type` through the same allowlist on create/update (today raw body/`|| 'invoice'`). Preview iframe `sandbox="allow-scripts allow-same-origin"` is pre-existing (same pattern as Estimates public docs).
 
-List Quick Context (`variant="list"`): Contacts-style header + fact grid; **item count only** (no line-item rows); notes callout when present; footer “Open full invoice”. No Delete, Duplicate, or Export in the panel.
+Settings UI field order per type: **Prefix → Year → Start number**, with a checkbox to show/hide year in the allocated number.
+
+List Quick Context (`variant="list"`): Contacts-style header with **status badge beside the title** + fact grid (**number · type · issue date · due date · …**); **item count only** (no line-item rows); notes callout when present; footer “Open full invoice”. No Delete, Duplicate, or Export in the panel. Same fact order and header status placement in full-view QC (`variant="full"`).
 
 ## Full view & edit (plugin view contract)
 
 Aligned with Contacts / Notes / Tasks chrome (see also `docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`). **Edit layout follows Contacts 2-column pattern**.
 
-| Mode          | Behavior                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Full view     | **2 columns** (50/50) via `DetailLayout`: left = Quick Context (`variant="full"`) + status + notes + line items + pricing + **Payments** + Relations + Share; right = sticky live **preview** only. No Properties card. No Information / Activity system sections.                                                                                                          |
-| Edit / create | **2 columns** via `DetailLayout`: left stack = customer, notes, **Invoice Properties**, line items, then a 2-col grid with **Invoice Discount** + **Pricing Summary** (left) and live **preview** (right). Discount is **not** inside Properties. Pricing Summary is always shown (including zero line items). **Preview** opens the shared-style document in a new window. |
-| Duplicate     | `usePluginDuplicate` + `DuplicateDialog`; list row highlight via `recentlyDuplicatedInvoiceId`                                                                                                                                                                                                                                                                              |
-| Share         | Create via AlertDialog (valid-until); result / view via shared `ShareDialog` (`variant="invoice"`). Active share panel + public share page include **Download PDF** (`GET /api/invoices/public/:token/pdf`).                                                                                                                                                                |
+| Mode          | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Full view     | **2 columns** (50/50) via `DetailLayout`: left = Quick Context (`variant="full"`) + status + notes + line items + pricing + **Payments** + Relations + Share; right = sticky live **preview** only. No Properties card. No Information / Activity system sections.                                                                                                                                                                                        |
+| Edit / create | **2 columns** via `DetailLayout`: left stack = customer, notes, **Invoice Properties**, line items, then a 2-col grid with **Invoice Discount** + **Pricing Summary** (left) and live **preview** (right). Discount is **not** inside Properties. Pricing Summary is always shown (including zero line items). **Preview** opens the shared-style document in a new window.                                                                               |
+| Duplicate     | `usePluginDuplicate` + `DuplicateDialog`; list row highlight via `recentlyDuplicatedInvoiceId`                                                                                                                                                                                                                                                                                                                                                            |
+| Credit note   | Full-view **Actions → Create credit note** (only when `invoiceType === 'invoice'`). Creates a **draft** `credit_note` with the same customer and **positive** line amounts; `resolveInvoiceTotals` signs money totals **negative** (list, preview, PDF, denormalized DB cache, statistics). Number from the `credit_note` series; notes “Credit against invoice …”. Opens the new draft in edit. No DB link field; no payment adjustment on the original. |
+| Share         | Create via AlertDialog (valid-until); result / view via shared `ShareDialog` (`variant="invoice"`). Active share panel + public share page include **Download PDF** (`GET /api/invoices/public/:token/pdf`).                                                                                                                                                                                                                                              |
 
 **Invoice Properties (edit) field order:** Invoice type → Issue date → Payment terms → Due date (read-only, computed) → Currency → Status.
 
@@ -106,13 +115,16 @@ Status colors: shared `INVOICE_STATUS_COLORS` / `InvoiceStatusSelect` (draft gra
 
 ## Payments
 
-Ledger table `invoice_payments` (amount, paid_on, reference) is the **source of truth** for paid state. Recording a payment updates denormalized `invoices.amount_paid` and sets `status=paid` / `paid_at` when sum ≥ total (`partially_paid` when sum is greater than 0 but below total). Partial payments supported. UI: `InvoicePaymentsBlock` on full view. List chips Unpaid / Partially paid.
+Ledger table `invoice_payments` (amount, paid_on, reference) is the **source of truth** for paid state. Recording a payment updates denormalized `invoices.amount_paid` and sets `status=paid` / `paid_at` when sum ≥ total (`partially_paid` when sum is greater than 0 but below total). Partial payments supported. UI: `InvoicePaymentsBlock` on full view. Status still appears on cards/QC/table; **list filter chips are document type**, not payment status (see List UI).
+
+**Ledger vs credit notes:** `derivePaymentStatus` only marks `paid` when `total > 0` and ledger covers it — negative credit-note totals do not forge paid from an empty ledger.
 
 ## Totals (single source of truth)
 
 **Inputs of truth:** `lineItems` + `invoiceDiscount` (%).  
 **Derivation:** only via `resolveInvoiceTotals` / `calculateInvoiceTotals`  
 (`client/.../utils/invoiceTotals.ts`, mirrored by `plugins/invoices/invoiceTotals.js`).  
+When `invoiceType === 'credit_note'`, resolved money fields are signed **negative** (line amounts stay positive).  
 **Denormalized columns** (`subtotal`, `totalVat`, `total`, …) are a cache written on save with the same function; API `transformRow` and client provider stamp resolved totals so list / QC / full view / preview / PDF / stats never diverge.
 
 Do **not** read raw DB totals for display when line items exist — always go through `resolveInvoiceTotals` (or fields already stamped by `withResolvedInvoiceTotals`).
@@ -129,7 +141,9 @@ API: `GET/POST /api/invoices/:invoiceId/payments`, `DELETE /api/invoices/payment
 
 ## Statistics
 
-Client-side KPIs (`computeInvoiceStats`) opened from list header → `InvoicesStatisticsView` with shared `StatCharts` (stacked bar, donut, ranked bars) for status mix, collection, and amounts.
+Client-side KPIs (`computeInvoiceStats`) opened from list header → `InvoicesStatisticsView` with shared `StatCharts`. **Money is aggregated per currency** (`byCurrency` / `totalInvoicedByCurrency`) — SEK and EUR are never mixed or FX-converted. Count charts stay global; amount charts and KPIs label each currency. `byType` covers `invoice` | `credit_note` | `cash_invoice` | `receipt` (credit notes use signed totals). Collection donut is single-currency only; multi-currency uses ranked bars.
+
+**Known UI limitation:** QC payment “remaining” uses `Math.max(0, total − paid)`, so credit notes with negative totals do not show a meaningful remaining balance.
 
 ## Migrations (local)
 

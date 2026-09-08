@@ -47,6 +47,19 @@ describe('invoice totals — single derivation path', () => {
     expect(resolveInvoiceTotals(source)).toEqual(calculateInvoiceTotals(mixedLines, 10));
   });
 
+  it('resolveInvoiceTotals signs credit notes negative without changing line math inputs', () => {
+    const source = {
+      invoiceType: 'credit_note',
+      lineItems: mixedLines,
+      invoiceDiscount: 10,
+    };
+    const totals = resolveInvoiceTotals(source);
+    expect(totals.total).toBe(-1575);
+    expect(totals.totalVat).toBe(-315);
+    expect(totals.subtotal).toBe(-1500);
+    expect(calculateInvoiceTotals(mixedLines, 10).total).toBe(1575);
+  });
+
   it('withResolvedInvoiceTotals stamps derived fields onto the invoice', () => {
     const stamped = withResolvedInvoiceTotals({
       id: 'x',
@@ -60,6 +73,19 @@ describe('invoice totals — single derivation path', () => {
 
   it('stays in parity with server invoiceTotals.js', () => {
     expect(serverCalculate(mixedLines, 10)).toEqual(calculateInvoiceTotals(mixedLines, 10));
+    expect(
+      require('../../../../../../plugins/invoices/invoiceTotals.js').resolveInvoiceTotals({
+        invoiceType: 'credit_note',
+        lineItems: mixedLines,
+        invoiceDiscount: 10,
+      }),
+    ).toEqual(
+      resolveInvoiceTotals({
+        invoiceType: 'credit_note',
+        lineItems: mixedLines,
+        invoiceDiscount: 10,
+      }),
+    );
   });
 
   it('derives discountAmount from discount % when amount is missing', () => {

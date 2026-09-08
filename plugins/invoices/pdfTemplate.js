@@ -142,6 +142,10 @@ function facioDocumentStyles() {
         margin: 0 auto;
         /* Top clearance for repeating page label is in Puppeteer margin. */
         padding: 2mm 10mm 6mm;
+        /* Fill first A4 content box (297mm − 14mm top − 12mm bottom in puppeteerPdf). */
+        min-height: 271mm;
+        display: flex;
+        flex-direction: column;
       }
       .doc-header {
         display: grid;
@@ -370,8 +374,9 @@ function facioDocumentStyles() {
         color: #0f172a;
       }
       .footer {
-        margin-top: 36px;
-        padding-top: 16px;
+        /* Stick to bottom of first page when content is short; after content when multi-page. */
+        margin-top: auto;
+        padding-top: 36px;
         border-top: 1px solid #93c5fd;
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
@@ -380,6 +385,7 @@ function facioDocumentStyles() {
         font-weight: 400;
         color: #0f172a;
         line-height: 1.4;
+        flex-shrink: 0;
       }
       .footer strong {
         color: #0f172a;
@@ -520,7 +526,7 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
   const subtotalAfterDiscount = Number(
     safeTotals.subtotalAfterDiscount ?? safeTotals.subtotal ?? 0,
   );
-  const showInvoiceDiscount = invoiceDiscountAmount > 0.004;
+  const showInvoiceDiscount = Math.abs(invoiceDiscountAmount) > 0.004;
   const invoiceDiscountRows = showInvoiceDiscount
     ? `
           <tr>
@@ -529,7 +535,7 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
           </tr>
           <tr>
             <td>Fakturarabatt ${formatSvNumber(invoiceDiscountPct, { minFrac: 0, maxFrac: 2 })}%</td>
-            <td class="amount">−${formatSvNumber(invoiceDiscountAmount)}</td>
+            <td class="amount">−${formatSvNumber(Math.abs(invoiceDiscountAmount))}</td>
           </tr>`
     : '';
 

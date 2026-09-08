@@ -16,8 +16,6 @@ import {
   resolveVisibleContactTableColumns,
 } from '../utils/contactTableColumns';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
-
 export type ContactListTableProps = {
   contacts: Contact[];
   primarySort: ContactSortField;
@@ -97,13 +95,7 @@ export function ContactListTable({
         field: 'type',
         header: t('contacts.table.type'),
         cell: (contact: Contact) => (
-          <Badge
-            className={cn(
-              BADGE_CLASS,
-              CONTACT_TYPE_BADGE_CLASS,
-              CONTACT_TYPE_COLORS[contact.contactType],
-            )}
-          >
+          <Badge className={cn(CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS[contact.contactType])}>
             {t(`contacts.type.${contact.contactType}`)}
           </Badge>
         ),

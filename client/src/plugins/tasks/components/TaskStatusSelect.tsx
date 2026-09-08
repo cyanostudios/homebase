@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 import { TASK_STATUS_COLORS, TASK_STATUS_OPTIONS, formatStatusForDisplay } from '../types/tasks';
@@ -39,8 +40,8 @@ export function TaskStatusSelect({
           <Badge
             variant="outline"
             className={cn(
-              'flex items-center border-transparent px-2 font-extrabold',
-              compact ? 'h-5 text-[10px] font-extrabold' : 'h-5 text-xs font-extrabold',
+              'flex items-center',
+              compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
               TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS],
             )}
           >
@@ -58,7 +59,7 @@ export function TaskStatusSelect({
             <Badge
               variant="outline"
               className={cn(
-                'h-5 border-transparent px-2 text-xs font-extrabold',
+                BADGE_CHIP_CLASS,
                 TASK_STATUS_COLORS[status as keyof typeof TASK_STATUS_COLORS],
               )}
             >

@@ -3,6 +3,7 @@ import { resolveInvoiceTotals } from './invoiceTotals';
 
 export type InvoiceSortField =
   | 'invoiceNumber'
+  | 'invoiceType'
   | 'contactName'
   | 'status'
   | 'total'
@@ -13,7 +14,12 @@ export type InvoiceSortField =
 
 export type InvoiceSortOrder = 'asc' | 'desc';
 
-const STRING_SORT_FIELDS: InvoiceSortField[] = ['invoiceNumber', 'contactName', 'status'];
+const STRING_SORT_FIELDS: InvoiceSortField[] = [
+  'invoiceNumber',
+  'invoiceType',
+  'contactName',
+  'status',
+];
 const NUMBER_SORT_FIELDS: InvoiceSortField[] = ['total'];
 const DATE_SORT_FIELDS: InvoiceSortField[] = ['createdAt', 'updatedAt', 'dueDate', 'issueDate'];
 
@@ -31,7 +37,14 @@ export function isInvoiceDateSortField(field: InvoiceSortField): boolean {
 
 type InvoiceSortPick = Pick<
   Invoice,
-  'invoiceNumber' | 'contactName' | 'status' | 'createdAt' | 'updatedAt' | 'dueDate' | 'issueDate'
+  | 'invoiceNumber'
+  | 'invoiceType'
+  | 'contactName'
+  | 'status'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'dueDate'
+  | 'issueDate'
 > & { total?: number };
 
 export function getInvoiceSortValue(
@@ -40,6 +53,9 @@ export function getInvoiceSortValue(
 ): string | number | Date | null {
   if (field === 'invoiceNumber') {
     return (invoice.invoiceNumber || '').toLowerCase();
+  }
+  if (field === 'invoiceType') {
+    return invoice.invoiceType || 'invoice';
   }
   if (field === 'contactName') {
     return (invoice.contactName || '').toLowerCase();

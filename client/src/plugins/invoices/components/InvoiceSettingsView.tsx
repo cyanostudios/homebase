@@ -1,8 +1,10 @@
 // Invoices settings as full-page content matching Core Settings layout.
 
+import { Banknote, FileMinus, FileText, Receipt } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,10 +24,15 @@ import { cn } from '@/lib/utils';
 import { INVOICES_SETTINGS_KEY } from '../utils/invoiceColumnCount';
 import {
   DEFAULT_INVOICE_NUMBER_START,
+  INVOICE_NUMBERING_TYPES,
+  buildInvoiceNumberingSettingsPayload,
+  findInvoiceNumberingSeriesCollisions,
   formatInvoiceNumberExample,
-  invoiceNumberingEqual,
+  invoiceNumberingByTypeEqual,
   normalizeInvoiceNumbering,
-  type InvoiceNumberingPref,
+  normalizeInvoiceNumberingByType,
+  type InvoiceNumberingByType,
+  type InvoiceNumberingType,
 } from '../utils/invoiceNumbering';
 import {
   invoiceTableColumnsEqual,
@@ -39,6 +46,7 @@ import {
 
 const COLUMN_LABEL_KEYS: Record<InvoiceTableColumnId, string> = {
   invoiceNumber: 'invoices.table.number',
+  invoiceType: 'invoices.invoiceType',
   contactName: 'invoices.fieldContact',
   status: 'invoices.fieldStatus',
   total: 'invoices.table.total',
@@ -46,6 +54,13 @@ const COLUMN_LABEL_KEYS: Record<InvoiceTableColumnId, string> = {
   createdAt: 'common.created',
   updatedAt: 'common.updated',
 };
+
+const NUMBERING_TYPE_ICONS = {
+  invoice: FileText,
+  credit_note: FileMinus,
+  cash_invoice: Banknote,
+  receipt: Receipt,
+} as const;
 
 export type InvoiceSettingsCategory = 'columns' | 'numbering';
 
@@ -75,13 +90,21 @@ export function InvoiceSettingsView({
   const [initialTableColumns, setInitialTableColumns] = useState<InvoiceTableColumnsPref>(() =>
     normalizeInvoiceTableColumns(null),
   );
-  const [numbering, setNumbering] = useState<InvoiceNumberingPref>(() =>
-    normalizeInvoiceNumbering(null),
+  const [numberingByType, setNumberingByType] = useState<InvoiceNumberingByType>(() =>
+    normalizeInvoiceNumberingByType(null),
   );
-  const [initialNumbering, setInitialNumbering] = useState<InvoiceNumberingPref>(() =>
-    normalizeInvoiceNumbering(null),
+  const [initialNumberingByType, setInitialNumberingByType] = useState<InvoiceNumberingByType>(() =>
+    normalizeInvoiceNumberingByType(null),
   );
-  const [numberStartDraft, setNumberStartDraft] = useState(String(DEFAULT_INVOICE_NUMBER_START));
+  const [activeNumberingType, setActiveNumberingType] = useState<InvoiceNumberingType>('invoice');
+  const [numberStartDraftByType, setNumberStartDraftByType] = useState<
+    Record<InvoiceNumberingType, string>
+  >(
+    () =>
+      Object.fromEntries(
+        INVOICE_NUMBERING_TYPES.map((type) => [type, String(DEFAULT_INVOICE_NUMBER_START)]),
+      ) as Record<InvoiceNumberingType, string>,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -111,12 +134,19 @@ export function InvoiceSettingsView({
           return;
         }
         const loadedColumns = normalizeInvoiceTableColumns(settings?.tableColumns);
-        const loadedNumbering = normalizeInvoiceNumbering(settings);
+        const loadedNumbering = normalizeInvoiceNumberingByType(settings);
         setTableColumns(loadedColumns);
         setInitialTableColumns(loadedColumns);
-        setNumbering(loadedNumbering);
-        setInitialNumbering(loadedNumbering);
-        setNumberStartDraft(String(loadedNumbering.numberStart));
+        setNumberingByType(loadedNumbering);
+        setInitialNumberingByType(loadedNumbering);
+        setNumberStartDraftByType(
+          Object.fromEntries(
+            INVOICE_NUMBERING_TYPES.map((type) => [
+              type,
+              String(loadedNumbering[type].numberStart),
+            ]),
+          ) as Record<InvoiceNumberingType, string>,
+        );
       })
       .catch(() => {})
       .finally(() => {
@@ -129,21 +159,23 @@ export function InvoiceSettingsView({
     };
   }, [getSettings, settingsVersion]);
 
-  const numberingForCompare = useMemo(
-    () =>
-      normalizeInvoiceNumbering({
-        numberPrefix: numbering.numberPrefix,
-        numberStart: numberStartDraft,
-        includeYear: numbering.includeYear,
-      }),
-    [numberStartDraft, numbering.includeYear, numbering.numberPrefix],
-  );
+  const numberingForCompare = useMemo(() => {
+    const next = { ...numberingByType };
+    for (const type of INVOICE_NUMBERING_TYPES) {
+      next[type] = normalizeInvoiceNumbering({
+        numberPrefix: numberingByType[type].numberPrefix,
+        numberStart: numberStartDraftByType[type],
+        includeYear: numberingByType[type].includeYear,
+      });
+    }
+    return next;
+  }, [numberStartDraftByType, numberingByType]);
 
   const isDirty =
     (activeCategory === 'columns' &&
       !invoiceTableColumnsEqual(tableColumns, initialTableColumns)) ||
     (activeCategory === 'numbering' &&
-      !invoiceNumberingEqual(numberingForCompare, initialNumbering));
+      !invoiceNumberingByTypeEqual(numberingForCompare, initialNumberingByType));
 
   const handleSave = useCallback(async () => {
     if (activeCategory === 'columns') {
@@ -167,36 +199,62 @@ export function InvoiceSettingsView({
 
     setIsSaving(true);
     try {
-      const next = normalizeInvoiceNumbering({
-        numberPrefix: numbering.numberPrefix,
-        numberStart: numberStartDraft,
-        includeYear: numbering.includeYear,
-      });
-      await updateSettings(INVOICES_SETTINGS_KEY, {
-        numberPrefix: next.numberPrefix,
-        numberStart: next.numberStart,
-        includeYear: next.includeYear,
-      });
-      setNumbering(next);
-      setInitialNumbering(next);
-      setNumberStartDraft(String(next.numberStart));
+      const payload = buildInvoiceNumberingSettingsPayload(numberingForCompare);
+      await updateSettings(INVOICES_SETTINGS_KEY, payload);
+      setNumberingByType(payload.numberingByType);
+      setInitialNumberingByType(payload.numberingByType);
+      setNumberStartDraftByType(
+        Object.fromEntries(
+          INVOICE_NUMBERING_TYPES.map((type) => [
+            type,
+            String(payload.numberingByType[type].numberStart),
+          ]),
+        ) as Record<InvoiceNumberingType, string>,
+      );
     } catch (error) {
       console.error('Failed to save invoices numbering settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [
-    activeCategory,
-    numberStartDraft,
-    numbering.includeYear,
-    numbering.numberPrefix,
-    tableColumns,
-    updateSettings,
-  ]);
+  }, [activeCategory, numberingForCompare, tableColumns, updateSettings]);
 
   const currentYear = new Date().getFullYear();
-  const numberExample = formatInvoiceNumberExample(numberingForCompare, currentYear);
-  const displayExample = numberingForCompare.numberPrefix ? numberExample : `INV-${numberExample}`;
+  const activeSeries = numberingForCompare[activeNumberingType];
+  const numberExample = formatInvoiceNumberExample(activeSeries, currentYear);
+  const displayExample = activeSeries.numberPrefix ? numberExample : `INV-${numberExample}`;
+  const collisions = findInvoiceNumberingSeriesCollisions(numberingForCompare, activeNumberingType);
+
+  const updateActiveSeries = (patch: Partial<{ numberPrefix: string; includeYear: boolean }>) => {
+    setNumberingByType((prev) => ({
+      ...prev,
+      [activeNumberingType]: normalizeInvoiceNumbering({
+        ...prev[activeNumberingType],
+        ...patch,
+      }),
+    }));
+  };
+
+  const numberingTypeSubmenu =
+    activeCategory === 'numbering' ? (
+      <>
+        {INVOICE_NUMBERING_TYPES.map((type) => {
+          const isActive = activeNumberingType === type;
+          return (
+            <RoundIconLabelButton
+              key={type}
+              type="button"
+              icon={NUMBERING_TYPE_ICONS[type]}
+              label={t(`invoices.type.${type}`)}
+              alwaysExpanded
+              className="shrink-0"
+              variant={isActive ? 'primary' : 'secondary'}
+              onClick={() => setActiveNumberingType(type)}
+              aria-pressed={isActive}
+            />
+          );
+        })}
+      </>
+    ) : null;
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
@@ -209,6 +267,7 @@ export function InvoiceSettingsView({
       categories={categories}
       activeCategory={activeCategory}
       onCategoryChange={(id) => setActiveCategory(id as InvoiceSettingsCategory)}
+      headerSubmenu={numberingTypeSubmenu}
       onClose={onClose}
       onSave={isDirty ? () => void handleSave() : undefined}
       isSaving={isSaving}
@@ -239,83 +298,107 @@ export function InvoiceSettingsView({
 
       {activeCategory === 'numbering' && (
         <DetailSection title={t('invoices.settingsCategories.numbering')} className="pt-0">
-          <div className="space-y-4 max-w-md">
+          <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               {t('invoices.settingsCategories.numberingHint')}
             </p>
-            <div className="space-y-2">
-              <Label htmlFor="invoice-number-prefix">
-                {t('invoices.settingsCategories.numberPrefix')}
-              </Label>
-              <Input
-                id="invoice-number-prefix"
-                value={numbering.numberPrefix}
-                onChange={(e) =>
-                  setNumbering((prev) =>
-                    normalizeInvoiceNumbering({
-                      ...prev,
-                      numberPrefix: e.target.value,
-                    }),
-                  )
-                }
-                placeholder={t('invoices.settingsCategories.numberPrefixPlaceholder')}
-                maxLength={12}
-                autoComplete="off"
-                className={FORM_INPUT_CLASS}
-              />
+
+            {/* Phone: header is hidden; keep type switcher in the body. Desktop uses headerSubmenu. */}
+            <div className="flex flex-wrap items-center gap-1 md:hidden">
+              {INVOICE_NUMBERING_TYPES.map((type) => {
+                const isActive = activeNumberingType === type;
+                return (
+                  <RoundIconLabelButton
+                    key={type}
+                    type="button"
+                    icon={NUMBERING_TYPE_ICONS[type]}
+                    label={t(`invoices.type.${type}`)}
+                    alwaysExpanded
+                    className="shrink-0"
+                    variant={isActive ? 'primary' : 'secondary'}
+                    onClick={() => setActiveNumberingType(type)}
+                    aria-pressed={isActive}
+                  />
+                );
+              })}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="invoice-number-year">
-                {t('invoices.settingsCategories.numberYear')}
-              </Label>
-              <Input
-                id="invoice-number-year"
-                type="text"
-                value={String(currentYear)}
-                readOnly
-                disabled={!numbering.includeYear}
-                className={cn(FORM_INPUT_CLASS, FORM_INPUT_READONLY_CLASS, 'cursor-default')}
-              />
-              <label className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm">
-                <Checkbox
-                  checked={numbering.includeYear}
-                  onChange={(e) =>
-                    setNumbering((prev) =>
-                      normalizeInvoiceNumbering({
-                        ...prev,
-                        includeYear: e.target.checked,
-                      }),
-                    )
-                  }
-                  className={cn(CHECKBOX_SM_CLASS, 'cursor-pointer')}
-                  aria-label={t('invoices.settingsCategories.includeYear', {
-                    defaultValue: 'Show year in invoice number',
-                  })}
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="invoice-number-prefix">
+                  {t('invoices.settingsCategories.numberPrefix')}
+                </Label>
+                <Input
+                  id="invoice-number-prefix"
+                  value={numberingByType[activeNumberingType].numberPrefix}
+                  onChange={(e) => updateActiveSeries({ numberPrefix: e.target.value })}
+                  placeholder={t('invoices.settingsCategories.numberPrefixPlaceholder')}
+                  maxLength={12}
+                  autoComplete="off"
+                  className={FORM_INPUT_CLASS}
                 />
-                <span className="truncate">
-                  {t('invoices.settingsCategories.includeYear', {
-                    defaultValue: 'Show year in invoice number',
-                  })}
-                </span>
-              </label>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invoice-number-year">
+                  {t('invoices.settingsCategories.numberYear')}
+                </Label>
+                <Input
+                  id="invoice-number-year"
+                  type="text"
+                  value={String(currentYear)}
+                  readOnly
+                  disabled={!numberingByType[activeNumberingType].includeYear}
+                  className={cn(FORM_INPUT_CLASS, FORM_INPUT_READONLY_CLASS, 'cursor-default')}
+                />
+                <label className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm">
+                  <Checkbox
+                    checked={numberingByType[activeNumberingType].includeYear}
+                    onChange={(e) => updateActiveSeries({ includeYear: e.target.checked })}
+                    className={cn(CHECKBOX_SM_CLASS, 'cursor-pointer')}
+                    aria-label={t('invoices.settingsCategories.includeYear', {
+                      defaultValue: 'Show year in invoice number',
+                    })}
+                  />
+                  <span className="truncate">
+                    {t('invoices.settingsCategories.includeYear', {
+                      defaultValue: 'Show year in invoice number',
+                    })}
+                  </span>
+                </label>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invoice-number-start">
+                  {t('invoices.settingsCategories.numberStart')}
+                </Label>
+                <Input
+                  id="invoice-number-start"
+                  type="number"
+                  min={1}
+                  max={999999}
+                  value={numberStartDraftByType[activeNumberingType]}
+                  onChange={(e) =>
+                    setNumberStartDraftByType((prev) => ({
+                      ...prev,
+                      [activeNumberingType]: e.target.value,
+                    }))
+                  }
+                  className={FORM_INPUT_CLASS}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="invoice-number-start">
-                {t('invoices.settingsCategories.numberStart')}
-              </Label>
-              <Input
-                id="invoice-number-start"
-                type="number"
-                min={1}
-                max={999999}
-                value={numberStartDraft}
-                onChange={(e) => setNumberStartDraft(e.target.value)}
-                className={FORM_INPUT_CLASS}
-              />
-            </div>
+
             <p className="text-sm text-muted-foreground">
               {t('invoices.settingsCategories.numberExample', { example: displayExample })}
             </p>
+            {collisions.length > 0 ? (
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                {t('invoices.settingsCategories.numberingCollision', {
+                  types: collisions.map((type) => t(`invoices.type.${type}`)).join(', '),
+                  defaultValue:
+                    'Same series as: {{types}}. Use different prefixes to keep sequences separate.',
+                })}
+              </p>
+            ) : null}
           </div>
         </DetailSection>
       )}

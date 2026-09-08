@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
@@ -71,8 +72,7 @@ export function RequestResponseDueControl({
       <Badge
         variant="outline"
         className={cn(
-          'border-transparent font-medium',
-          compact ? 'h-5 px-1.5 text-[10px] font-extrabold' : 'h-5 px-2 text-xs font-extrabold',
+          compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
           RESPONSE_DUE_URGENCY_COLORS[urgency],
         )}
       >

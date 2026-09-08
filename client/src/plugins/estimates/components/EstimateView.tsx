@@ -1,6 +1,8 @@
 import { SlidersHorizontal, StickyNote } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
+import { cn } from '@/lib/utils';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -72,7 +74,12 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                   <span className="text-sm text-slate-500 dark:text-slate-400">
                     {t('estimates.fieldContact')}
                   </span>
-                  <Badge className="max-w-[min(100%,220px)] truncate border-0 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <Badge
+                    className={cn(
+                      BADGE_CHIP_CLASS,
+                      'max-w-[min(100%,220px)] truncate bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                    )}
+                  >
                     {estimate.contactName || '—'}
                   </Badge>
                 </div>
@@ -80,7 +87,12 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                   <span className="text-sm text-slate-500 dark:text-slate-400">
                     {t('estimates.fieldCurrency')}
                   </span>
-                  <Badge className="border-0 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                  <Badge
+                    className={cn(
+                      BADGE_CHIP_CLASS,
+                      'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300',
+                    )}
+                  >
                     {estimate.currency || '—'}
                   </Badge>
                 </div>
@@ -88,7 +100,12 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                   <span className="text-sm text-slate-500 dark:text-slate-400">
                     {t('estimates.fieldValidTo')}
                   </span>
-                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <Badge
+                    className={cn(
+                      BADGE_CHIP_CLASS,
+                      'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                    )}
+                  >
                     {estimate.validTo ? new Date(estimate.validTo).toLocaleDateString() : '—'}
                   </Badge>
                 </div>

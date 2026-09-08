@@ -2,6 +2,7 @@ import { createTableColumnsHelpers } from '@/core/list/tableColumnsPref';
 
 export const INVOICE_TABLE_COLUMN_IDS = [
   'invoiceNumber',
+  'invoiceType',
   'contactName',
   'status',
   'total',

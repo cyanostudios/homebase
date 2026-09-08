@@ -128,7 +128,8 @@ function formatQty(li: any): string {
 function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
   const mobileRules = options.forceDesktop
     ? `
-      /* Live edit preview: keep desktop document layout even in a narrow iframe */
+      /* Live edit preview: desktop layout, hug content (no A4 min-height / iframe scroll) */
+      html, body { overflow: hidden; }
       body { min-width: 720px; background: #fff; margin: 0; padding: 0; }
       .page {
         box-shadow: none;
@@ -138,6 +139,10 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
         border: 1px solid #cbd5e1;
         padding-left: 12mm;
         padding-right: 12mm;
+        min-height: 0;
+      }
+      .footer {
+        margin-top: 36px;
       }
     `
     : `
@@ -168,6 +173,10 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
         padding: 8mm 12mm;
         background: #fff;
         box-shadow: 0 0 40px rgba(15, 23, 42, 0.06);
+        /* Match PDF: fill first A4 content box so footer sticks to bottom when short. */
+        min-height: 271mm;
+        display: flex;
+        flex-direction: column;
       }
       .doc-header {
         display: grid;
@@ -407,8 +416,9 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
         color: #0f172a;
       }
       .footer {
-        margin-top: 36px;
-        padding-top: 16px;
+        /* Stick to bottom of first page when content is short; after content when multi-page. */
+        margin-top: auto;
+        padding-top: 36px;
         border-top: 1px solid #93c5fd;
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
@@ -417,6 +427,7 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
         font-weight: 400;
         color: #0f172a;
         line-height: 1.4;
+        flex-shrink: 0;
       }
       .footer strong {
         color: #0f172a;
@@ -557,7 +568,7 @@ export function generateInvoiceWebHTML(
   const amountDueBold = formatSvNumber(totals.total, 0, 2);
   const isExpired =
     invoice.shareValidUntil && new Date(invoice.shareValidUntil).getTime() < Date.now();
-  const showInvoiceDiscount = totals.invoiceDiscountAmount > 0.004;
+  const showInvoiceDiscount = Math.abs(totals.invoiceDiscountAmount) > 0.004;
   const invoiceDiscountRows = showInvoiceDiscount
     ? `
             <tr>
@@ -566,7 +577,7 @@ export function generateInvoiceWebHTML(
             </tr>
             <tr>
               <td>Fakturarabatt ${formatSvNumber(totals.invoiceDiscount, 0, 2)}%</td>
-              <td class="amount">−${formatSvNumber(totals.invoiceDiscountAmount)}</td>
+              <td class="amount">−${formatSvNumber(Math.abs(totals.invoiceDiscountAmount))}</td>
             </tr>`
     : '';
 

@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import {
   FORM_INPUT_CLASS,
   FORM_INPUT_ERROR_CLASS,
@@ -554,10 +555,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                     </span>
                     <Badge
                       variant="outline"
-                      className={cn(
-                        'border-transparent text-xs font-medium',
-                        REQUEST_SOURCE_COLORS[item.source],
-                      )}
+                      className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS[item.source])}
                     >
                       {item.source === 'external'
                         ? t('requests.sourceExternal')

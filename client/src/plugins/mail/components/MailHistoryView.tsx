@@ -1,6 +1,7 @@
 import { ArrowLeft, RefreshCw, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -166,7 +167,7 @@ export const MailHistoryView: React.FC = () => {
           <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
             <Badge
               variant="secondary"
-              className="border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-secondary/50 text-secondary-foreground"
+              className={cn(BADGE_CHIP_CLASS, 'bg-secondary/50 text-secondary-foreground')}
             >
               {totalCount} {t('mail.total', { defaultValue: 'Total' })}
             </Badge>
@@ -351,7 +352,8 @@ export const MailHistoryView: React.FC = () => {
                         {entry.pluginSource ? (
                           <Badge
                             className={cn(
-                              'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold capitalize',
+                              BADGE_CHIP_CLASS,
+                              'capitalize',
                               entry.pluginSource === 'notes' &&
                                 'plugin-notes bg-plugin-subtle text-plugin',
                               entry.pluginSource === 'contacts' &&

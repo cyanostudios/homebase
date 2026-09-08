@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -798,7 +799,12 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                   <div className={PROP_ROW_CLASS}>
                     <span className="text-sm text-slate-500 dark:text-slate-400">Tax rate</span>
                     {formData.contactType === 'private' ? (
-                      <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <Badge
+                        className={cn(
+                          BADGE_CHIP_CLASS,
+                          'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                        )}
+                      >
                         0% (Tax Free)
                       </Badge>
                     ) : (

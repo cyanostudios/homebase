@@ -72,8 +72,9 @@ export class InvoicesApi {
     return this.request(`/${id}`, { method: 'DELETE' });
   }
 
-  getNextNumber() {
-    return this.request('/number/next');
+  getNextNumber(type?: string) {
+    const params = type ? `?type=${encodeURIComponent(type)}` : '';
+    return this.request(`/number/next${params}`);
   }
 
   createShare(invoiceId: string, validUntil: string) {

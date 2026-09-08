@@ -1,5 +1,6 @@
 import { CalendarDays } from 'lucide-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -42,7 +43,9 @@ export function InvoiceListItem({
   checkbox?: React.ReactNode;
   columnCount?: InvoiceColumnCount;
 }) {
+  const { t } = useTranslation();
   const status = invoice.status || 'draft';
+  const invoiceType = invoice.invoiceType || 'invoice';
   const due = formatInvoiceDueDate(invoice.dueDate);
   const showDueUrgency = status !== 'paid' && status !== 'canceled';
   const metaOnTop = columnCount === 1;
@@ -113,6 +116,9 @@ export function InvoiceListItem({
             <span className="font-mono text-[10px] text-muted-foreground">
               {formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}
             </span>
+            <Badge variant="outline" className="shrink-0 text-[10px] font-medium">
+              {t(`invoices.type.${invoiceType}`, { defaultValue: invoiceType })}
+            </Badge>
             <Badge
               className={cn(
                 INVOICE_STATUS_BADGE_CLASS,

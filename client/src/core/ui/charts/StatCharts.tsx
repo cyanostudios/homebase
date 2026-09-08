@@ -242,7 +242,16 @@ export function StatRankedBars({
   barColor = '#14b8a6',
   className,
 }: {
-  items: Array<{ key: string; label: string; value: number; secondary?: string }>;
+  items: Array<{
+    key: string;
+    label: string;
+    value: number;
+    /** Optional right-side text; defaults to `value`. */
+    valueLabel?: string;
+    secondary?: string;
+    /** Optional per-row bar color; falls back to `barColor`. */
+    color?: string;
+  }>;
   emptyLabel: string;
   title?: string;
   barColor?: string;
@@ -259,11 +268,12 @@ export function StatRankedBars({
           {items.map((row) => {
             const width =
               max > 0 && row.value > 0 ? Math.min(100, Math.round((row.value / max) * 100)) : 0;
+            const fill = row.color || barColor;
             return (
               <li key={row.key} className="relative overflow-hidden rounded-md">
                 <div
                   className="absolute inset-y-0 left-0 rounded-md opacity-25"
-                  style={{ width: `${width}%`, backgroundColor: barColor }}
+                  style={{ width: `${width}%`, backgroundColor: fill }}
                   aria-hidden
                 />
                 <div className="relative flex items-start justify-between gap-3 px-2 py-1.5 text-sm">
@@ -275,7 +285,9 @@ export function StatRankedBars({
                       </div>
                     ) : null}
                   </div>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">{row.value}</span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                    {row.valueLabel ?? row.value}
+                  </span>
                 </div>
               </li>
             );

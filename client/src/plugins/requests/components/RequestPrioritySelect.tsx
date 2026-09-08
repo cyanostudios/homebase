@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 import {
@@ -46,8 +47,8 @@ export function RequestPrioritySelect({
           <Badge
             variant="outline"
             className={cn(
-              'flex items-center border-transparent px-2 font-extrabold',
-              compact ? 'h-5 text-[10px] font-extrabold' : 'h-5 text-xs font-extrabold',
+              'flex items-center',
+              compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
               REQUEST_PRIORITY_COLORS[request.priority],
             )}
           >
@@ -64,10 +65,7 @@ export function RequestPrioritySelect({
           >
             <Badge
               variant="outline"
-              className={cn(
-                'h-5 border-transparent px-2 text-xs font-extrabold',
-                REQUEST_PRIORITY_COLORS[priority],
-              )}
+              className={cn(BADGE_CHIP_CLASS, REQUEST_PRIORITY_COLORS[priority])}
             >
               {priority}
             </Badge>

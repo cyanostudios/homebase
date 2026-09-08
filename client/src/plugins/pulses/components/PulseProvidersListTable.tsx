@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -17,8 +18,6 @@ import { cn } from '@/lib/utils';
 
 import type { PulseProviderSettings } from '../types/pulse';
 import type { PulseProviderSortField, PulseProviderSortOrder } from '../utils/pulseListSort';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function enabledBadgeClass(enabled: boolean) {
   return enabled
@@ -111,7 +110,7 @@ export function PulseProvidersListTable({
                   <div className="text-xs text-muted-foreground">{provider.providerKey}</div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={cn(BADGE_CLASS, enabledBadgeClass(provider.enabled))}>
+                  <Badge className={cn(BADGE_CHIP_CLASS, enabledBadgeClass(provider.enabled))}>
                     {provider.enabled
                       ? t('pulses.statusEnabled', { defaultValue: 'Enabled' })
                       : t('pulses.statusDisabled', { defaultValue: 'Disabled' })}

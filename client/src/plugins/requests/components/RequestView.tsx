@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
@@ -242,7 +243,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
-              className="border-0 rounded-md bg-muted px-2 py-0.5 text-xs font-extrabold text-muted-foreground"
+              className={cn(BADGE_CHIP_CLASS, 'bg-muted text-muted-foreground')}
             >
               {getTypeLabel(request.requestType, t)}
             </Badge>
@@ -460,10 +461,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                   </span>
                   <Badge
                     variant="outline"
-                    className={cn(
-                      'border-transparent text-xs font-medium',
-                      REQUEST_SOURCE_COLORS[request.source],
-                    )}
+                    className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS[request.source])}
                   >
                     {request.source === 'external'
                       ? t('requests.sourceExternal')

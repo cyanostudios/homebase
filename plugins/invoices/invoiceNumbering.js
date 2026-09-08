@@ -6,6 +6,9 @@ const DEFAULT_INVOICE_INCLUDE_YEAR = true;
 const MAX_INVOICE_NUMBER_PREFIX_LENGTH = 12;
 const MAX_INVOICE_NUMBER_START = 999999;
 
+/** Document types with independent numbering series. */
+const INVOICE_NUMBERING_TYPES = ['invoice', 'credit_note', 'cash_invoice', 'receipt'];
+
 function sanitizeInvoiceNumberPrefix(raw) {
   if (typeof raw !== 'string') {
     return DEFAULT_INVOICE_NUMBER_PREFIX;
@@ -48,6 +51,58 @@ function resolveInvoiceNumbering(settings) {
     numberPrefix: sanitizeInvoiceNumberPrefix(settings?.numberPrefix),
     numberStart: sanitizeInvoiceNumberStart(settings?.numberStart),
     includeYear: sanitizeInvoiceIncludeYear(settings?.includeYear),
+  };
+}
+
+function defaultInvoiceNumberingPref() {
+  return resolveInvoiceNumbering(null);
+}
+
+function sanitizeInvoiceNumberingType(raw) {
+  const value = typeof raw === 'string' ? raw.trim() : '';
+  if (INVOICE_NUMBERING_TYPES.includes(value)) {
+    return value;
+  }
+  return 'invoice';
+}
+
+/**
+ * Hydrate per-type series from settings.
+ * Prefer `numberingByType`; otherwise lift flat keys onto `invoice`.
+ */
+function normalizeInvoiceNumberingByType(settings) {
+  const byType = settings?.numberingByType;
+  const hasByType = byType && typeof byType === 'object' && !Array.isArray(byType);
+
+  const result = {};
+  for (const type of INVOICE_NUMBERING_TYPES) {
+    if (hasByType && byType[type] != null && typeof byType[type] === 'object') {
+      result[type] = resolveInvoiceNumbering(byType[type]);
+    } else if (!hasByType && type === 'invoice') {
+      result[type] = resolveInvoiceNumbering(settings);
+    } else {
+      result[type] = defaultInvoiceNumberingPref();
+    }
+  }
+  return result;
+}
+
+function resolveInvoiceNumberingForType(settings, type) {
+  const normalizedType = sanitizeInvoiceNumberingType(type);
+  return normalizeInvoiceNumberingByType(settings)[normalizedType];
+}
+
+/**
+ * Payload to persist: full numberingByType + flat mirror of `invoice` series.
+ */
+function buildInvoiceNumberingSettingsPayload(numberingByType) {
+  const normalized = normalizeInvoiceNumberingByType({ numberingByType });
+  const invoiceSeries = normalized.invoice;
+  return {
+    numberingByType: normalized,
+    numberPrefix: invoiceSeries.numberPrefix,
+    numberStart: invoiceSeries.numberStart,
+    includeYear: invoiceSeries.includeYear,
   };
 }
 
@@ -99,7 +154,12 @@ module.exports = {
   DEFAULT_INVOICE_NUMBER_PREFIX,
   DEFAULT_INVOICE_NUMBER_START,
   DEFAULT_INVOICE_INCLUDE_YEAR,
+  INVOICE_NUMBERING_TYPES,
   resolveInvoiceNumbering,
+  normalizeInvoiceNumberingByType,
+  resolveInvoiceNumberingForType,
+  sanitizeInvoiceNumberingType,
+  buildInvoiceNumberingSettingsPayload,
   buildInvoiceNumberMatchRegex,
   buildInvoiceNumber,
   parseSequenceFromInvoiceNumber,

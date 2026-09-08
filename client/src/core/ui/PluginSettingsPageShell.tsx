@@ -55,6 +55,11 @@ export interface PluginSettingsPageShellProps {
   activeCategory?: string;
   onCategoryChange?: (categoryId: string) => void;
   /**
+   * Optional second-row submenu under category triggers (DetailHeaderMenus pattern):
+   * desktop full-width row below title/categories; use for e.g. Numbering document-type pills.
+   */
+  headerSubmenu?: React.ReactNode;
+  /**
    * Close handler — desktop Close in header; phone Close in the bottom bar
    * (replaces Search/Add/Settings while settings is open).
    */
@@ -83,6 +88,7 @@ export function PluginSettingsPageShell({
   categories,
   activeCategory,
   onCategoryChange,
+  headerSubmenu,
   onClose,
   onSave,
   isSaving = false,
@@ -123,25 +129,30 @@ export function PluginSettingsPageShell({
   return (
     <div className={cn('space-y-4', className)}>
       <div className={PLUGIN_PAGE_HEADER_CLASS}>
-        <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
-          <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{title}</h2>
-          {showCategoryButtons
-            ? categories!.map((category) => {
-                const isActive = activeCategory === category.id;
-                return (
-                  <RoundIconLabelButton
-                    key={category.id}
-                    type="button"
-                    icon={category.icon}
-                    label={category.label}
-                    variant={isActive ? 'primary' : 'soft'}
-                    alwaysExpanded
-                    aria-pressed={isActive}
-                    onClick={() => onCategoryChange?.(category.id)}
-                  />
-                );
-              })
-            : null}
+        <div className="flex min-w-0 flex-1 flex-col md:gap-5">
+          <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{title}</h2>
+            {showCategoryButtons
+              ? categories!.map((category) => {
+                  const isActive = activeCategory === category.id;
+                  return (
+                    <RoundIconLabelButton
+                      key={category.id}
+                      type="button"
+                      icon={category.icon}
+                      label={category.label}
+                      variant={isActive ? 'primary' : 'soft'}
+                      alwaysExpanded
+                      aria-pressed={isActive}
+                      onClick={() => onCategoryChange?.(category.id)}
+                    />
+                  );
+                })
+              : null}
+          </div>
+          {headerSubmenu ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-1">{headerSubmenu}</div>
+          ) : null}
         </div>
         {showHeaderActions ? (
           <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>

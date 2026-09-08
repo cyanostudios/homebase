@@ -81,6 +81,19 @@ export function InvoiceListTable({
           </span>
         ),
       },
+      invoiceType: {
+        field: 'invoiceType',
+        header: t('invoices.invoiceType', { defaultValue: 'Invoice type' }),
+        className: 'hidden sm:table-cell',
+        cell: (invoice) => {
+          const type = invoice.invoiceType || 'invoice';
+          return (
+            <span className="text-xs font-medium text-foreground">
+              {t(`invoices.type.${type}`, { defaultValue: type })}
+            </span>
+          );
+        },
+      },
       contactName: {
         field: 'contactName',
         header: t('invoices.fieldContact', { defaultValue: 'Customer' }),

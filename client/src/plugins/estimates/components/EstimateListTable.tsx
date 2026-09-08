@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
@@ -18,8 +19,6 @@ import {
   type EstimateTableColumnId,
   resolveVisibleEstimateTableColumns,
 } from '../utils/estimateTableColumns';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 export type EstimateListTableProps = {
   estimates: Estimate[];
@@ -97,7 +96,7 @@ export function EstimateListTable({
         cell: (estimate) => (
           <Badge
             className={cn(
-              BADGE_CLASS,
+              BADGE_CHIP_CLASS,
               ESTIMATE_STATUS_COLORS[estimate.status as keyof typeof ESTIMATE_STATUS_COLORS],
             )}
           >

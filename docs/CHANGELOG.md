@@ -4,6 +4,37 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-08 – Invoices: type numbering, credit notes, list/stats, PDF footer
+
+**Typ:** feature / enhancement  
+**Scope:** `client/src/plugins/invoices`, `plugins/invoices` (numbering, totals, model, PDF/web templates), ADR [`ai/adr/INVOICES_NUMBERING_BY_TYPE.md`](./ai/adr/INVOICES_NUMBERING_BY_TYPE.md), [`INVOICES_PLUGIN.md`](./INVOICES_PLUGIN.md)  
+**QA:** Approved (2026-09-08, after `XCircle`/tsc rework). **Security:** Approved (2026-09-08); Low follow-up: allowlist `invoice_type` on persist.  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:**
+
+- Numbering per document type (`numberingByType`); settings header submenu; next number `?type=`
+- Create credit note from invoice (positive lines; resolved totals signed negative)
+- List: type column, type filter chips, QC fact grid type field
+- Statistics: amount by type / status; money aggregated per currency (no FX mix)
+- Live preview: hug content / no iframe scroll; PDF footer sticky on short A4 pages
+
+## 2026-09-08 – Contacts full-view focus overlay (trial)
+
+**Typ:** enhancement / UI  
+**Scope:** `ContactView`, `DetailFocusOverlayContext`, `DetailPanel` header elevation, `ContactQuickContextPanel` `headerTrailing`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full contact view opens with Notes-style dim overlay (`bg-slate-950/55`) so cards and header actions stand out. Esc / click outside / Focus toggle exits.
+
+## 2026-09-08 – Platform badges unified to Response due pill shell
+
+**Typ:** enhancement / UI (design system)  
+**Scope:** `client/src/core/ui/badgeStyles.ts` (`BADGE_CHIP_CLASS`, `BADGE_CHIP_COMPACT_CLASS`), plugin status/meta badges (Requests, Tasks, Contacts, Invoices, Estimates, Guides, …), [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md)  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Alla status/meta-badges använder samma skal som Requests **Response due**: soft-fill **pill** (`rounded-full`), borderless, `font-extrabold`. Delade tokens; lokala `rounded-md`-shells borttagna. Tag-dismiss chips, series-team badges och nav-count undantagna.
+
 ## 2026-09-08 – Global Schedule companion as right-rail flyout
 
 **Typ:** enhancement / UI (shell)  

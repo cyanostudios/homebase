@@ -1,6 +1,7 @@
 import { File as FileIcon } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import {
@@ -14,8 +15,6 @@ import { filesApi } from '../api/filesApi';
 import type { FileItem } from '../types/files';
 import type { FileSortField, FileSortOrder } from '../utils/fileListSort';
 import { getMimeLabel, humanSize } from '../utils/humanSize';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function isRasterImageMime(mimeType: string | null | undefined): boolean {
   const mt = String(mimeType ?? '').toLowerCase();
@@ -93,7 +92,7 @@ export function FileListTable({
         cell: (file) => (
           <Badge
             className={cn(
-              BADGE_CLASS,
+              BADGE_CHIP_CLASS,
               'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
             )}
           >

@@ -101,6 +101,8 @@ export interface InvoicesContextType {
     item: Invoice,
     newName: string,
   ) => Promise<{ closePanel: () => void; highlightId?: string }>;
+  /** Create a draft credit note (positive amounts) from a standard invoice. */
+  createCreditNoteFromInvoice: (invoice: Invoice) => Promise<Invoice | null>;
   recentlyDuplicatedInvoiceId: string | null;
   setRecentlyDuplicatedInvoiceId: (id: string | null) => void;
   navigateToPrevItem: () => void;
@@ -173,6 +175,7 @@ const EMPTY_INVOICES_CONTEXT: InvoicesContextType = {
   shareTargetInvoice: null,
   getDuplicateConfig: () => null,
   executeDuplicate: async () => ({ closePanel: () => {} }),
+  createCreditNoteFromInvoice: async () => null,
   recentlyDuplicatedInvoiceId: null,
   setRecentlyDuplicatedInvoiceId: () => {},
   navigateToPrevItem: () => {},

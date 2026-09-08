@@ -1,6 +1,7 @@
 import { Bell, Eye, EyeOff, MapPin } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -18,8 +19,6 @@ import type { SlotColumnCount } from '../utils/slotColumnCount';
 import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function formatSlotDateTime(s: string | null) {
   return s ? formatDateTimeShort(s) : '—';
@@ -119,7 +118,7 @@ export function SlotListItem({
               <Badge
                 variant="outline"
                 className={cn(
-                  BADGE_CLASS,
+                  BADGE_CHIP_CLASS,
                   'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
                 )}
               >

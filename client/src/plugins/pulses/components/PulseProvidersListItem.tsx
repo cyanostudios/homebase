@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -12,8 +13,6 @@ import { cn } from '@/lib/utils';
 
 import type { PulseProviderSettings } from '../types/pulse';
 import type { PulseColumnCount } from '../utils/pulseColumnCount';
-
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function enabledBadgeClass(enabled: boolean) {
   return enabled
@@ -92,7 +91,7 @@ export function PulseProvidersListItem({
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Badge className={cn(BADGE_CLASS, enabledBadgeClass(provider.enabled))}>
+            <Badge className={cn(BADGE_CHIP_CLASS, enabledBadgeClass(provider.enabled))}>
               {provider.enabled
                 ? t('pulses.statusEnabled', { defaultValue: 'Enabled' })
                 : t('pulses.statusDisabled', { defaultValue: 'Disabled' })}

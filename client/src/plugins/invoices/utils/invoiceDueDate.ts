@@ -4,6 +4,7 @@
  * Calendar dates always use YYYY-MM-DD (`formatDate` / sv-SE).
  */
 
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { formatDate } from '@/core/utils/dateFormat';
 
 export type InvoiceDueDateDisplay = {
@@ -14,8 +15,7 @@ export type InvoiceDueDateDisplay = {
   isRelative: boolean;
 };
 
-const BADGE_SHELL = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
-
+const BADGE_SHELL = BADGE_CHIP_CLASS;
 /** Extract day count from contact-style ("30") or free-text ("30 dagar netto") payment terms. */
 export function parsePaymentTermsDays(
   paymentTerms: string | number | null | undefined,

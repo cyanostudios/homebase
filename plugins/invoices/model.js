@@ -12,13 +12,18 @@ const {
   resolveTenantConnectionStringForShare,
 } = require('../../server/core/utils/shareRoutingHelper');
 const {
-  resolveInvoiceNumbering,
+  resolveInvoiceNumberingForType,
+  sanitizeInvoiceNumberingType,
   buildInvoiceNumberMatchRegex,
   buildInvoiceNumber,
   parseSequenceFromInvoiceNumber,
 } = require('./invoiceNumbering');
 const { sanitizeClientInvoiceStatus, derivePaymentStatus } = require('./paymentLedger');
-const { calculateInvoiceTotals, withResolvedInvoiceTotals } = require('./invoiceTotals');
+const {
+  calculateInvoiceTotals,
+  withResolvedInvoiceTotals,
+  resolveInvoiceTotals,
+} = require('./invoiceTotals');
 
 class InvoiceModel {
   constructor() {
@@ -203,31 +208,39 @@ class InvoiceModel {
     return this.transformRow(updatedRows[0]);
   }
 
-  async _loadInvoiceNumbering(req) {
+  async _loadInvoiceNumbering(req, invoiceType) {
     const userId = Context.getUserId(req);
+    const type = sanitizeInvoiceNumberingType(invoiceType);
     if (!userId) {
-      return resolveInvoiceNumbering(null);
+      return resolveInvoiceNumberingForType(null, type);
     }
     try {
       const ServiceManager = require('../../server/core/ServiceManager');
       const SettingsModel = require('../settings/model');
       const settingsModel = new SettingsModel(ServiceManager.getMainPool());
       const settings = await settingsModel.getCategory(userId, 'invoices');
-      return resolveInvoiceNumbering(settings);
+      return resolveInvoiceNumberingForType(settings, type);
     } catch (error) {
       Logger.warn('Failed to load invoice numbering settings; using defaults', {
         error: error?.message,
         userId,
+        invoiceType: type,
       });
-      return resolveInvoiceNumbering(null);
+      return resolveInvoiceNumberingForType(null, type);
     }
   }
 
-  async getNextInvoiceNumber(req) {
+  async getNextInvoiceNumber(req, invoiceType) {
     try {
       const context = this._getContext(req);
       const pool = context.pool;
-      const { numberPrefix, numberStart, includeYear } = await this._loadInvoiceNumbering(req);
+      const type = sanitizeInvoiceNumberingType(
+        invoiceType ?? req?.query?.type ?? req?.body?.invoiceType,
+      );
+      const { numberPrefix, numberStart, includeYear } = await this._loadInvoiceNumbering(
+        req,
+        type,
+      );
 
       const client = await pool.connect();
       try {
@@ -285,6 +298,7 @@ class InvoiceModel {
             await client.query('COMMIT');
             Logger.info('Next invoice number generated', {
               invoiceNumber,
+              invoiceType: type,
               numberPrefix,
               numberStart,
               includeYear,
@@ -339,7 +353,9 @@ class InvoiceModel {
     try {
       const db = Database.get(req);
 
-      const invoiceNumber = invoiceData.invoiceNumber || (await this.getNextInvoiceNumber(req));
+      const invoiceNumber =
+        invoiceData.invoiceNumber ||
+        (await this.getNextInvoiceNumber(req, invoiceData.invoiceType || 'invoice'));
       const {
         subtotal,
         totalDiscount,
@@ -348,7 +364,11 @@ class InvoiceModel {
         subtotalAfterInvoiceDiscount,
         totalVat,
         total,
-      } = this.calculateTotals(invoiceData.lineItems || [], invoiceData.invoiceDiscount || 0);
+      } = resolveInvoiceTotals({
+        invoiceType: invoiceData.invoiceType || 'invoice',
+        lineItems: invoiceData.lineItems || [],
+        invoiceDiscount: invoiceData.invoiceDiscount || 0,
+      });
 
       const contactId = invoiceData.contactId
         ? typeof invoiceData.contactId === 'string'
@@ -485,7 +505,11 @@ class InvoiceModel {
         subtotalAfterInvoiceDiscount,
         totalVat,
         total,
-      } = this.calculateTotals(invoiceData.lineItems || [], invoiceData.invoiceDiscount || 0);
+      } = resolveInvoiceTotals({
+        invoiceType: invoiceData.invoiceType || currentInvoice.invoiceType || 'invoice',
+        lineItems: invoiceData.lineItems || [],
+        invoiceDiscount: invoiceData.invoiceDiscount || 0,
+      });
 
       let contactId = invoiceData.contactId
         ? typeof invoiceData.contactId === 'string'

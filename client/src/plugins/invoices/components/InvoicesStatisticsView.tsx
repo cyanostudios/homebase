@@ -1,8 +1,8 @@
-import { Banknote, LayoutGrid, PieChart, X } from 'lucide-react';
+import { Banknote, LayoutGrid, X } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   StatDonutChart,
   StatKpiTile,
@@ -11,10 +11,21 @@ import {
 } from '@/core/ui/charts/StatCharts';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useMobileBarOverride } from '@/core/ui/MobileActionsContext';
+import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
+  PLUGIN_PAGE_HEADER_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
 import { useInvoiceStats } from '../hooks/useInvoiceStats';
 import { formatInvoiceAmount } from '../utils/formatInvoiceAmount';
+import {
+  currencyAmountEntries,
+  type AmountByCurrency,
+  type InvoiceStatsBucket,
+} from '../utils/invoiceStats';
 
 /** Chart hex colors aligned with dashboard invoice bar + status badges. */
 const STATUS_CHART_COLORS = {
@@ -24,6 +35,13 @@ const STATUS_CHART_COLORS = {
   paid: '#10b981',
   overdue: '#f43f5e',
   canceled: '#fb7185',
+} as const;
+
+const TYPE_CHART_COLORS = {
+  invoice: '#60a5fa',
+  credit_note: '#f59e0b',
+  cash_invoice: '#14b8a6',
+  receipt: '#94a3b8',
 } as const;
 
 const COLLECTION_COLORS = {
@@ -36,167 +54,335 @@ interface InvoicesStatisticsViewProps {
   onClose?: () => void;
 }
 
+function formatMoneyLabel(amount: number, currency: string): string {
+  return `${formatInvoiceAmount(amount, 0)} ${currency}`;
+}
+
 function MoneyKpiTile({
   label,
-  value,
-  currency = 'SEK',
+  amounts,
+  hint,
   className,
 }: {
   label: string;
-  value: number;
-  currency?: string;
+  amounts: Array<{ currency: string; value: number }>;
+  hint?: string;
   className?: string;
 }) {
+  const rows = amounts.length > 0 ? amounts : [{ currency: 'SEK', value: 0 }];
+
   return (
     <div className={cn('rounded-xl bg-white p-4 shadow-sm dark:bg-slate-950', className)}>
       <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400">{label}</p>
-      <p className="mt-1 text-xl font-extrabold tabular-nums tracking-tight text-foreground sm:text-2xl">
-        {formatInvoiceAmount(value, 0)}
-        <span className="ml-1 text-sm font-semibold text-muted-foreground">{currency}</span>
-      </p>
+      <div className="mt-1 space-y-1">
+        {rows.map((row) => (
+          <p
+            key={row.currency}
+            className="text-2xl font-extrabold tabular-nums tracking-tight text-foreground sm:text-3xl"
+          >
+            {formatInvoiceAmount(row.value, 0)}
+            <span className="ml-1.5 text-sm font-semibold text-muted-foreground">
+              {row.currency}
+            </span>
+          </p>
+        ))}
+      </div>
+      {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
+}
+
+function amountsFromMap(byCurrency: AmountByCurrency): Array<{ currency: string; value: number }> {
+  const entries = currencyAmountEntries(byCurrency);
+  if (entries.length === 0) {
+    return [{ currency: 'SEK', value: 0 }];
+  }
+  return entries.map((row) => ({ currency: row.currency, value: row.amount }));
+}
+
+function expandBucketByCurrency(
+  bucket: InvoiceStatsBucket,
+  meta: { key: string; label: string; color: string },
+): Array<{
+  key: string;
+  label: string;
+  value: number;
+  valueLabel: string;
+  secondary?: string;
+  color: string;
+  sortAbs: number;
+}> {
+  const entries = currencyAmountEntries(bucket.byCurrency);
+  if (bucket.count === 0 || entries.length === 0) {
+    return [];
+  }
+  return entries.map((row) => ({
+    key: `${meta.key}:${row.currency}`,
+    label: entries.length > 1 ? `${meta.label} · ${row.currency}` : meta.label,
+    value: Math.abs(row.amount),
+    valueLabel: formatMoneyLabel(row.amount, row.currency),
+    color: meta.color,
+    sortAbs: Math.abs(row.amount),
+  }));
 }
 
 export function InvoicesStatisticsView({ onClose }: InvoicesStatisticsViewProps = {}) {
   const { t } = useTranslation();
   const stats = useInvoiceStats();
+  const multiCurrency = stats.currencies.length > 1;
 
   useMobileBarOverride(onClose ? { onClose } : null);
 
   const statusSegments = useMemo(
-    () => [
-      {
-        key: 'draft',
-        label: t('invoices.statistics.draft', { defaultValue: 'Draft' }),
-        value: stats.draft.count,
-        color: STATUS_CHART_COLORS.draft,
-      },
-      {
-        key: 'sent',
-        label: t('invoices.statistics.sent', { defaultValue: 'Sent' }),
-        value: stats.sent.count,
-        color: STATUS_CHART_COLORS.sent,
-      },
-      {
-        key: 'partially_paid',
-        label: t('invoices.statistics.partiallyPaid', { defaultValue: 'Partially paid' }),
-        value: stats.partiallyPaid.count,
-        color: STATUS_CHART_COLORS.partially_paid,
-      },
-      {
-        key: 'paid',
-        label: t('invoices.statistics.paid', { defaultValue: 'Paid' }),
-        value: stats.paid.count,
-        color: STATUS_CHART_COLORS.paid,
-      },
-      {
-        key: 'overdue',
-        label: t('invoices.statistics.overdue', { defaultValue: 'Overdue' }),
-        value: stats.overdue.count,
-        color: STATUS_CHART_COLORS.overdue,
-      },
-      {
-        key: 'canceled',
-        label: t('invoices.statistics.canceled', { defaultValue: 'Canceled' }),
-        value: stats.canceled.count,
-        color: STATUS_CHART_COLORS.canceled,
-      },
-    ],
+    () =>
+      [
+        {
+          key: 'draft',
+          label: t('invoices.statistics.draft', { defaultValue: 'Draft' }),
+          value: stats.draft.count,
+          color: STATUS_CHART_COLORS.draft,
+        },
+        {
+          key: 'sent',
+          label: t('invoices.statistics.sent', { defaultValue: 'Sent' }),
+          value: stats.sent.count,
+          color: STATUS_CHART_COLORS.sent,
+        },
+        {
+          key: 'partially_paid',
+          label: t('invoices.statistics.partiallyPaid', { defaultValue: 'Partially paid' }),
+          value: stats.partiallyPaid.count,
+          color: STATUS_CHART_COLORS.partially_paid,
+        },
+        {
+          key: 'paid',
+          label: t('invoices.statistics.paid', { defaultValue: 'Paid' }),
+          value: stats.paid.count,
+          color: STATUS_CHART_COLORS.paid,
+        },
+        {
+          key: 'overdue',
+          label: t('invoices.statistics.overdue', { defaultValue: 'Overdue' }),
+          value: stats.overdue.count,
+          color: STATUS_CHART_COLORS.overdue,
+        },
+        {
+          key: 'canceled',
+          label: t('invoices.statistics.canceled', { defaultValue: 'Canceled' }),
+          value: stats.canceled.count,
+          color: STATUS_CHART_COLORS.canceled,
+        },
+      ].filter((segment) => segment.value > 0),
     [stats, t],
   );
 
-  const collectionSegments = useMemo(
-    () => [
+  const collectionSegments = useMemo(() => {
+    if (multiCurrency) {
+      return [];
+    }
+    const currency = stats.currencies[0] || 'SEK';
+    return [
       {
         key: 'collected',
         label: t('invoices.statistics.totalCollected', { defaultValue: 'Total collected' }),
-        value: Math.round(stats.totalCollected),
+        value: Math.round(stats.totalCollectedByCurrency[currency] || 0),
         color: COLLECTION_COLORS.collected,
       },
       {
         key: 'outstanding',
         label: t('invoices.statistics.outstanding', { defaultValue: 'Outstanding' }),
-        value: Math.round(stats.outstanding.totalAmount),
+        value: Math.round(stats.outstanding.byCurrency[currency] || 0),
         color: COLLECTION_COLORS.outstanding,
       },
-    ],
+      {
+        key: 'overdue',
+        label: t('invoices.statistics.overdue', { defaultValue: 'Overdue' }),
+        value: Math.round(stats.overdue.byCurrency[currency] || 0),
+        color: COLLECTION_COLORS.overdue,
+      },
+    ].filter((segment) => segment.value > 0);
+  }, [multiCurrency, stats, t]);
+
+  const collectionByCurrencyRows = useMemo(() => {
+    if (!multiCurrency) {
+      return [];
+    }
+    const rows: Array<{
+      key: string;
+      label: string;
+      value: number;
+      valueLabel: string;
+      color: string;
+    }> = [];
+    for (const currency of stats.currencies) {
+      const collected = Math.round(stats.totalCollectedByCurrency[currency] || 0);
+      const outstanding = Math.round(stats.outstanding.byCurrency[currency] || 0);
+      const overdue = Math.round(stats.overdue.byCurrency[currency] || 0);
+      if (collected !== 0) {
+        rows.push({
+          key: `collected:${currency}`,
+          label: `${t('invoices.statistics.totalCollected', { defaultValue: 'Total collected' })} · ${currency}`,
+          value: Math.abs(collected),
+          valueLabel: formatMoneyLabel(collected, currency),
+          color: COLLECTION_COLORS.collected,
+        });
+      }
+      if (outstanding !== 0) {
+        rows.push({
+          key: `outstanding:${currency}`,
+          label: `${t('invoices.statistics.outstanding', { defaultValue: 'Outstanding' })} · ${currency}`,
+          value: Math.abs(outstanding),
+          valueLabel: formatMoneyLabel(outstanding, currency),
+          color: COLLECTION_COLORS.outstanding,
+        });
+      }
+      if (overdue !== 0) {
+        rows.push({
+          key: `overdue:${currency}`,
+          label: `${t('invoices.statistics.overdue', { defaultValue: 'Overdue' })} · ${currency}`,
+          value: Math.abs(overdue),
+          valueLabel: formatMoneyLabel(overdue, currency),
+          color: COLLECTION_COLORS.overdue,
+        });
+      }
+    }
+    return rows;
+  }, [multiCurrency, stats, t]);
+
+  const amountByType = useMemo(
+    () =>
+      (['invoice', 'credit_note', 'cash_invoice', 'receipt'] as const)
+        .flatMap((type) =>
+          expandBucketByCurrency(stats.byType[type], {
+            key: type,
+            label: t(`invoices.type.${type}`),
+            color: TYPE_CHART_COLORS[type],
+          }),
+        )
+        .sort((a, b) => b.sortAbs - a.sortAbs)
+        .map(({ sortAbs: _sortAbs, ...row }) => row),
     [stats, t],
   );
 
   const amountByStatus = useMemo(
     () =>
-      [
-        {
-          key: 'paid',
-          label: t('invoices.statistics.paid', { defaultValue: 'Paid' }),
-          value: Math.round(stats.paid.totalAmount),
-        },
-        {
-          key: 'outstanding',
-          label: t('invoices.statistics.outstanding', { defaultValue: 'Outstanding' }),
-          value: Math.round(stats.outstanding.totalAmount),
-        },
-        {
-          key: 'overdue',
-          label: t('invoices.statistics.overdue', { defaultValue: 'Overdue' }),
-          value: Math.round(stats.overdue.totalAmount),
-        },
-        {
-          key: 'draft',
-          label: t('invoices.statistics.draft', { defaultValue: 'Draft' }),
-          value: Math.round(stats.draft.totalAmount),
-        },
-        {
-          key: 'sent',
-          label: t('invoices.statistics.sent', { defaultValue: 'Sent' }),
-          value: Math.round(stats.sent.totalAmount),
-        },
-        {
-          key: 'partially_paid',
-          label: t('invoices.statistics.partiallyPaid', { defaultValue: 'Partially paid' }),
-          value: Math.round(stats.partiallyPaid.totalAmount),
-        },
-        {
-          key: 'canceled',
-          label: t('invoices.statistics.canceled', { defaultValue: 'Canceled' }),
-          value: Math.round(stats.canceled.totalAmount),
-        },
-      ].filter((row) => row.value > 0),
+      (
+        [
+          {
+            key: 'paid',
+            label: t('invoices.statistics.paid', { defaultValue: 'Paid' }),
+            bucket: stats.paid,
+            color: STATUS_CHART_COLORS.paid,
+          },
+          {
+            key: 'sent',
+            label: t('invoices.statistics.sent', { defaultValue: 'Sent' }),
+            bucket: stats.sent,
+            color: STATUS_CHART_COLORS.sent,
+          },
+          {
+            key: 'partially_paid',
+            label: t('invoices.statistics.partiallyPaid', { defaultValue: 'Partially paid' }),
+            bucket: stats.partiallyPaid,
+            color: STATUS_CHART_COLORS.partially_paid,
+          },
+          {
+            key: 'overdue',
+            label: t('invoices.statistics.overdue', { defaultValue: 'Overdue' }),
+            bucket: stats.overdue,
+            color: STATUS_CHART_COLORS.overdue,
+          },
+          {
+            key: 'draft',
+            label: t('invoices.statistics.draft', { defaultValue: 'Draft' }),
+            bucket: stats.draft,
+            color: STATUS_CHART_COLORS.draft,
+          },
+          {
+            key: 'canceled',
+            label: t('invoices.statistics.canceled', { defaultValue: 'Canceled' }),
+            bucket: stats.canceled,
+            color: STATUS_CHART_COLORS.canceled,
+          },
+        ] as const
+      )
+        .flatMap((row) =>
+          expandBucketByCurrency(row.bucket, {
+            key: row.key,
+            label: row.label,
+            color: row.color,
+          }),
+        )
+        .sort((a, b) => b.sortAbs - a.sortAbs)
+        .map(({ sortAbs: _sortAbs, ...row }) => ({
+          ...row,
+          secondary: undefined as string | undefined,
+        })),
     [stats, t],
   );
 
-  const collectionRate =
-    stats.totalInvoiced > 0 ? Math.round((stats.totalCollected / stats.totalInvoiced) * 100) : 0;
+  const collectionRate = useMemo(() => {
+    if (multiCurrency) {
+      return null;
+    }
+    const currency = stats.currencies[0] || 'SEK';
+    const invoiced = stats.totalInvoicedByCurrency[currency] || 0;
+    const collected = stats.totalCollectedByCurrency[currency] || 0;
+    if (invoiced <= 0) {
+      return 0;
+    }
+    return Math.round((collected / invoiced) * 100);
+  }, [multiCurrency, stats]);
+
+  const amountChartTitle = multiCurrency
+    ? t('invoices.statistics.amountByStatusMulti', {
+        defaultValue: 'Amount by status',
+      })
+    : t('invoices.statistics.amountByStatus', {
+        defaultValue: 'Amount by status ({{currency}})',
+        currency: stats.currencies[0] || 'SEK',
+      });
+
+  const amountByTypeTitle = multiCurrency
+    ? t('invoices.statistics.amountByTypeMulti', {
+        defaultValue: 'Amount by type',
+      })
+    : t('invoices.statistics.amountByType', {
+        defaultValue: 'Amount by type ({{currency}})',
+        currency: stats.currencies[0] || 'SEK',
+      });
 
   return (
     <div className="space-y-6">
-      <div className="hidden flex-shrink-0 items-center justify-between md:flex">
-        <div className="mr-4 flex min-w-0 flex-1 items-center gap-4">
-          <h2 className="shrink-0 truncate text-lg font-semibold tracking-tight">
+      <div className={PLUGIN_PAGE_HEADER_CLASS}>
+        <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+          <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
             {t('invoices.statistics.title', { defaultValue: 'Invoice statistics' })}
           </h2>
         </div>
         {onClose ? (
-          <div className="flex flex-shrink-0 items-center gap-1">
-            <Button
+          <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+            <RoundIconLabelButton
               type="button"
-              variant="secondary"
-              size="sm"
               icon={X}
-              className="h-9 px-3 text-xs"
+              label={t('common.close')}
+              variant="secondary"
+              alwaysExpanded
               onClick={onClose}
-            >
-              {t('common.close')}
-            </Button>
+            />
           </div>
         ) : null}
       </div>
 
       <p className="hidden text-sm text-muted-foreground md:block">
-        {t('invoices.statistics.description', {
-          defaultValue: 'Overview of outstanding, overdue, and collected invoices.',
-        })}
+        {multiCurrency
+          ? t('invoices.statistics.descriptionMultiCurrency', {
+              defaultValue:
+                'Amounts are shown per currency. Currencies are not converted or mixed.',
+            })
+          : t('invoices.statistics.description', {
+              defaultValue: 'Overview of outstanding, overdue, and collected invoices.',
+            })}
       </p>
 
       <DetailSection
@@ -204,36 +390,63 @@ export function InvoicesStatisticsView({ onClose }: InvoicesStatisticsViewProps 
         icon={LayoutGrid}
         subtleTitle
       >
-        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
           <StatKpiTile
             label={t('invoices.statistics.invoiceCount', { defaultValue: 'Invoices' })}
             value={stats.invoiceCount}
           />
           <MoneyKpiTile
             label={t('invoices.statistics.totalInvoiced', { defaultValue: 'Total invoiced' })}
-            value={stats.totalInvoiced}
+            amounts={amountsFromMap(stats.totalInvoicedByCurrency)}
           />
           <MoneyKpiTile
             label={t('invoices.statistics.totalCollected', { defaultValue: 'Total collected' })}
-            value={stats.totalCollected}
+            amounts={amountsFromMap(stats.totalCollectedByCurrency)}
           />
-          <StatKpiTile
-            label={t('invoices.statistics.collectionRate', { defaultValue: 'Collected %' })}
-            value={collectionRate}
-          />
-          <StatStackedBar
-            className="sm:col-span-2"
-            title={t('invoices.statistics.statusDistribution', {
-              defaultValue: 'Status distribution',
+          {collectionRate == null ? (
+            <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-950">
+              <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400">
+                {t('invoices.statistics.collectionRate', { defaultValue: 'Collected %' })}
+              </p>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">
+                {t('invoices.statistics.collectionRateMultiHint', {
+                  defaultValue: 'Per currency only',
+                })}
+              </p>
+            </div>
+          ) : (
+            <StatKpiTile
+              label={t('invoices.statistics.collectionRate', { defaultValue: 'Collected %' })}
+              value={collectionRate}
+            />
+          )}
+        </div>
+      </DetailSection>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <StatStackedBar
+          title={t('invoices.statistics.statusDistribution', {
+            defaultValue: 'Status distribution',
+          })}
+          segments={statusSegments}
+          footer={t('invoices.statistics.invoicesTotal', {
+            defaultValue: '{{count}} invoices',
+            count: stats.invoiceCount,
+          })}
+        />
+        {multiCurrency ? (
+          <StatRankedBars
+            title={t('invoices.statistics.collectionMix', {
+              defaultValue: 'Collected vs open',
             })}
-            segments={statusSegments}
-            footer={t('invoices.statistics.invoicesTotal', {
-              defaultValue: '{{count}} invoices',
-              count: stats.invoiceCount,
+            emptyLabel={t('invoices.statistics.noAmounts', {
+              defaultValue: 'No invoice amounts yet.',
             })}
+            items={collectionByCurrencyRows}
+            barColor={COLLECTION_COLORS.outstanding}
           />
+        ) : (
           <StatDonutChart
-            className="sm:col-span-2"
             title={t('invoices.statistics.collectionMix', {
               defaultValue: 'Collected vs open',
             })}
@@ -242,8 +455,8 @@ export function InvoicesStatisticsView({ onClose }: InvoicesStatisticsViewProps 
             })}
             segments={collectionSegments}
           />
-        </div>
-      </DetailSection>
+        )}
+      </div>
 
       <DetailSection
         title={t('invoices.statistics.amounts', { defaultValue: 'Amounts' })}
@@ -252,73 +465,46 @@ export function InvoicesStatisticsView({ onClose }: InvoicesStatisticsViewProps 
       >
         <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <StatRankedBars
-            title={t('invoices.statistics.amountByStatus', {
-              defaultValue: 'Amount by status (SEK)',
-            })}
+            title={amountChartTitle}
             emptyLabel={t('invoices.statistics.noAmounts', {
               defaultValue: 'No invoice amounts yet.',
             })}
             items={amountByStatus}
-            barColor="#0ea5e9"
+            barColor={STATUS_CHART_COLORS.sent}
           />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <MoneyKpiTile
-              label={t('invoices.statistics.outstanding', { defaultValue: 'Outstanding' })}
-              value={stats.outstanding.totalAmount}
-            />
-            <MoneyKpiTile
-              label={t('invoices.statistics.overdue', { defaultValue: 'Overdue' })}
-              value={stats.overdue.totalAmount}
-            />
-            <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-950 sm:col-span-2 lg:col-span-1">
-              <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400">
-                {t('invoices.statistics.partialPaymentsLabel', {
-                  defaultValue: 'Partial payments',
-                })}
-              </p>
-              <p className="mt-1 text-xl font-extrabold tabular-nums tracking-tight text-foreground sm:text-2xl">
-                {stats.partialPayments}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t('invoices.statistics.partialPaymentsHint', {
-                  defaultValue: 'Invoices with amount paid but not fully settled',
-                })}
-              </p>
-            </div>
-          </div>
+          <StatRankedBars
+            title={amountByTypeTitle}
+            emptyLabel={t('invoices.statistics.noAmounts', {
+              defaultValue: 'No invoice amounts yet.',
+            })}
+            items={amountByType}
+            barColor={TYPE_CHART_COLORS.invoice}
+          />
         </div>
-      </DetailSection>
-
-      <DetailSection
-        title={t('invoices.statistics.byStatus', { defaultValue: 'By status' })}
-        icon={PieChart}
-        subtleTitle
-      >
-        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(
-            [
-              ['draft', stats.draft],
-              ['sent', stats.sent],
-              ['partiallyPaid', stats.partiallyPaid],
-              ['paid', stats.paid],
-              ['overdue', stats.overdue],
-              ['canceled', stats.canceled],
-            ] as const
-          ).map(([key, bucket]) => (
-            <MoneyKpiTile
-              key={key}
-              label={`${t(
-                `invoices.statistics.${key === 'partiallyPaid' ? 'partiallyPaid' : key}`,
-                {
-                  defaultValue:
-                    key === 'partiallyPaid'
-                      ? 'Partially paid'
-                      : key.charAt(0).toUpperCase() + key.slice(1),
-                },
-              )} · ${bucket.count}`}
-              value={bucket.totalAmount}
-            />
-          ))}
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
+          <MoneyKpiTile
+            label={t('invoices.statistics.outstanding', { defaultValue: 'Outstanding' })}
+            amounts={amountsFromMap(stats.outstanding.byCurrency)}
+          />
+          <MoneyKpiTile
+            label={t('invoices.statistics.overdue', { defaultValue: 'Overdue' })}
+            amounts={amountsFromMap(stats.overdue.byCurrency)}
+          />
+          <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-950 sm:col-span-2 lg:col-span-1">
+            <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400">
+              {t('invoices.statistics.partialPaymentsLabel', {
+                defaultValue: 'Partial payments',
+              })}
+            </p>
+            <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-foreground sm:text-3xl">
+              {stats.partialPayments}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('invoices.statistics.partialPaymentsHint', {
+                defaultValue: 'Invoices with amount paid but not fully settled',
+              })}
+            </p>
+          </div>
         </div>
       </DetailSection>
     </div>

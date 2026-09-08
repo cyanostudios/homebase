@@ -18,6 +18,10 @@ import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
 import { InvoiceDetailHeaderMenus } from '../components/InvoiceDetailHeaderMenus';
+import {
+  buildCreditNoteCreatePayload,
+  canCreateCreditNoteFromInvoice,
+} from '../utils/buildCreditNoteFromInvoice';
 import { computeDueDateFromPaymentTerms } from '../utils/invoiceDueDate';
 import { withResolvedInvoiceTotals } from '../utils/invoiceTotals';
 import {
@@ -591,7 +595,7 @@ export function InvoicesProvider({
   const duplicateInvoice = useCallback(
     async (original: Invoice, _newName: string): Promise<Invoice | null> => {
       try {
-        const { invoiceNumber } = await api.getNextNumber();
+        const { invoiceNumber } = await api.getNextNumber(original.invoiceType || 'invoice');
         const issueDate = new Date();
         const paymentTerms = original.paymentTerms || '30';
         const dueDate =
@@ -643,6 +647,40 @@ export function InvoicesProvider({
     closePanel: closeInvoicesPanel,
   });
 
+  const createCreditNoteFromInvoice = useCallback(
+    async (original: Invoice): Promise<Invoice | null> => {
+      if (!canCreateCreditNoteFromInvoice(original)) {
+        return null;
+      }
+      try {
+        const { invoiceNumber } = await api.getNextNumber('credit_note');
+        const originalLabel = formatDisplayNumber(
+          'invoices',
+          original.invoiceNumber || original.id,
+        );
+        const creditAgainstLabel = t('invoices.creditAgainstInvoice', {
+          number: originalLabel,
+          defaultValue: 'Credit against invoice {{number}}',
+        });
+        const payload = buildCreditNoteCreatePayload(original, invoiceNumber, creditAgainstLabel);
+        const saved = await api.createItem(payload);
+        const normalized = normalizeInvoiceDates(saved);
+        setInvoices((prev) => [normalized, ...prev]);
+        openInvoiceForEdit(normalized);
+        return normalized;
+      } catch (err) {
+        console.error('Failed to create credit note from invoice:', err);
+        alert(
+          t('invoices.creditNoteCreateFailed', {
+            defaultValue: 'Failed to create credit note. Please try again.',
+          }),
+        );
+        return null;
+      }
+    },
+    [api, openInvoiceForEdit, t],
+  );
+
   const value: InvoicesContextType = {
     isInvoicesPanelOpen,
     currentInvoice,
@@ -687,6 +725,7 @@ export function InvoicesProvider({
     shareTargetInvoice,
     getDuplicateConfig,
     executeDuplicate,
+    createCreditNoteFromInvoice,
     recentlyDuplicatedInvoiceId,
     setRecentlyDuplicatedInvoiceId,
     navigateToPrevItem,
