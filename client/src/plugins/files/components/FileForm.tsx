@@ -1,26 +1,26 @@
-import { Upload, File as FileIcon, Trash2, AlertTriangle } from 'lucide-react';
+import { Upload, File as FileIcon, Trash2, AlertTriangle, Check, X } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { Label } from '@/components/ui/label';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import { useFiles } from '../hooks/useFiles';
 import type { ValidationError } from '../types/files';
+import { humanSize } from '../utils/humanSize';
 
 import { FileSettingsForm } from './FileSettingsForm';
 
 interface FileFormProps {
-  currentItem?: { id?: string; name?: string } | null; // finns i edit-läge
+  currentItem?: { id?: string; name?: string } | null;
   onSave: (data: any) => Promise<boolean> | boolean;
   onCancel: () => void;
 }
@@ -33,10 +33,8 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
 ) {
   const { t } = useTranslation();
   const { validationErrors, clearValidationErrors, panelMode } = useFiles();
-  const isEdit = !!currentItem; // edit-läge om vi har ett item
+  const isEdit = !!currentItem;
   const inputRef = useRef<HTMLInputElement | null>(null);
-
-  // Loading state to prevent double submission
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getErrors = useCallback(
@@ -48,28 +46,23 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   const generalErrors = getErrors('general');
   const nameErrors = getErrors('name');
   const hasAnyError = validationErrors.length > 0;
+  const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
 
-  // ---- CREATE (upload) state ----
   const [items, setItems] = useState<Picked[]>([]);
   const [dragOver, setDragOver] = useState(false);
-
-  // ---- EDIT (rename) state ----
   const [name, setName] = useState<string>(currentItem?.name ?? '');
 
-  // initiera namn vid byte av item
   useEffect(() => {
     if (isEdit) {
       setName(currentItem?.name ?? '');
-      setItems([]); // säkerställ att ev. gamla val rensas
+      setItems([]);
     } else {
       setName('');
     }
-    // rensa ev. gamla fel när man byter läge
     clearValidationErrors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, currentItem?.name]);
 
-  // ------------ helpers for CREATE ------------
   const pick = () => inputRef.current?.click();
   const toId = (f: File) => `${f.name}-${f.size}-${f.lastModified}`;
   const addFiles = (fs: File[] | FileList) => {
@@ -88,7 +81,6 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
       }
       return merged;
     });
-    // användaren ändrade valet → rensa visade fel
     if (hasAnyError) {
       clearValidationErrors();
     }
@@ -127,43 +119,8 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     try {
       dt?.clearData();
     } catch {
-      // Ignore errors when clearing drag data
+      /* ignore */
     }
-  };
-  const onDragOver: React.DragEventHandler<HTMLDivElement> = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!dragOver) {
-      setDragOver(true);
-    }
-  };
-  const onDragEnter: React.DragEventHandler<HTMLDivElement> = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!dragOver) {
-      setDragOver(true);
-    }
-  };
-  const onDragLeave: React.DragEventHandler<HTMLDivElement> = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(false);
-  };
-  const onChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    if (e.target.files) {
-      addFiles(e.target.files);
-    }
-    e.target.value = '';
-  };
-  const sizeStr = (bytes: number) => {
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
-    let n = bytes,
-      i = 0;
-    while (n >= 1024 && i < units.length - 1) {
-      n /= 1024;
-      i++;
-    }
-    return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
   };
 
   const handleSubmit = useCallback(async () => {
@@ -173,21 +130,16 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     if (isSubmitting) {
       return;
     }
-
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        // EDIT: enbart byta namn
-        const ok = await onSave({ name: name?.trim() || '' });
-        return ok;
-      } else {
-        // CREATE: skicka alla valda filer (_files) för multi-create
-        const ok = await onSave({ _files: items.map((p) => p.file) });
-        if (ok) {
-          setItems([]);
-        }
-        return ok;
+        return await onSave({ name: name?.trim() || '' });
       }
+      const ok = await onSave({ _files: items.map((p) => p.file) });
+      if (ok) {
+        setItems([]);
+      }
+      return ok;
     } catch (error) {
       console.error('Save failed:', error);
       return false;
@@ -209,7 +161,37 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     [handleSubmit, handleCancel],
   );
 
-  // Settings: render settings form (after all hooks so rules-of-hooks are satisfied)
+  const saveCancelRow = (
+    <div className="flex justify-end gap-2 border-t border-border pt-4">
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        icon={X}
+        onClick={handleCancel}
+        disabled={isSubmitting}
+        className="h-9 px-3 text-xs"
+      >
+        {t('common.cancel')}
+      </Button>
+      <Button
+        type="button"
+        variant="primary"
+        size="sm"
+        icon={Check}
+        onClick={() => void handleSubmit()}
+        disabled={hasBlockingErrors || isSubmitting}
+        className="h-9 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700"
+      >
+        {isSubmitting
+          ? t('common.saving')
+          : panelMode === 'edit'
+            ? t('common.update')
+            : t('common.save')}
+      </Button>
+    </div>
+  );
+
   if (panelMode === 'settings') {
     return (
       <div className="p-4">
@@ -218,39 +200,15 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     );
   }
 
-  // ---------------- render ----------------
   if (isEdit) {
-    const editSidebar = (
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('files.viewInformation')}
-          iconPlugin="files"
-          subtleTitle
-          className="p-4"
-          collapsible
-        >
-          <div>
-            <div className={DETAIL_INFO_ROW_CLASS}>
-              <span className="text-slate-500 dark:text-slate-400">{t('files.viewId')}</span>
-              <span className="font-mono font-extrabold text-foreground">
-                {currentItem?.id != null ? formatDisplayNumber('files', currentItem.id) : '—'}
-              </span>
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
-    );
-
     return (
       <div className="plugin-files">
-        <DetailLayout sidebar={editSidebar}>
+        <DetailLayout>
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title="Rename File" iconPlugin="files" className="p-6">
-              <p className="mb-4 text-sm text-muted-foreground">
-                Ändra endast filnamnet. Själva filinnehållet hanteras via upload i Create-läget.
-              </p>
+            <DetailSection title={t('files.formRenameTitle')} iconPlugin="files" className="p-6">
+              <p className="mb-4 text-sm text-muted-foreground">{t('files.formRenameHelp')}</p>
               <div className="space-y-2">
-                <Label htmlFor="file-name">Name *</Label>
+                <Label htmlFor="file-name">{t('files.formNameLabel')}</Label>
                 <Input
                   id="file-name"
                   type="text"
@@ -264,10 +222,11 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
                   className={cn(FORM_INPUT_CLASS, nameErrors.length && FORM_INPUT_ERROR_CLASS)}
                   placeholder="document.pdf"
                 />
-                {nameErrors.length > 0 && (
+                {nameErrors.length > 0 ? (
                   <p className="text-sm text-destructive">{nameErrors.join(' • ')}</p>
-                )}
+                ) : null}
               </div>
+              {saveCancelRow}
             </DetailSection>
           </Card>
         </DetailLayout>
@@ -275,15 +234,12 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     );
   }
 
-  // ----- CREATE (upload) -----
   return (
     <div className="plugin-files">
       <DetailLayout>
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection title="Upload Files" iconPlugin="files" className="p-6">
-            <p className="mb-4 text-sm text-muted-foreground">
-              Dra & släpp filer eller klicka för att välja flera.
-            </p>
+          <DetailSection title={t('files.formUploadTitle')} iconPlugin="files" className="p-6">
+            <p className="mb-4 text-sm text-muted-foreground">{t('files.formUploadHelp')}</p>
 
             {(filesErrors.length > 0 || generalErrors.length > 0) && (
               <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
@@ -300,28 +256,64 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
               role="button"
               tabIndex={0}
               onDrop={onDrop}
-              onDragOver={onDragOver}
-              onDragEnter={onDragEnter}
-              onDragLeave={onDragLeave}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!dragOver) {
+                  setDragOver(true);
+                }
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!dragOver) {
+                  setDragOver(true);
+                }
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragOver(false);
+              }}
               className={cn(
                 'cursor-pointer rounded-xl border-2 border-dashed p-8 transition-colors',
                 dragOver ? 'border-primary bg-primary/5' : 'border-border bg-muted/20',
                 filesErrors.length && 'border-destructive/50 bg-destructive/5',
               )}
               onClick={pick}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  pick();
+                }
+              }}
             >
               <div className="flex flex-col items-center gap-3 text-center">
                 <Upload className="h-8 w-8 text-muted-foreground" />
                 <div className="text-sm text-muted-foreground">
-                  Släpp filer här eller <span className="text-primary underline">välj filer</span>
+                  {t('files.formDropHint')}{' '}
+                  <span className="text-primary underline">{t('files.formChooseFiles')}</span>
                 </div>
-                <input ref={inputRef} type="file" multiple className="hidden" onChange={onChange} />
+                <input
+                  ref={inputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      addFiles(e.target.files);
+                    }
+                    e.target.value = '';
+                  }}
+                />
               </div>
             </div>
 
-            {items.length > 0 && (
+            {items.length > 0 ? (
               <div className="mt-6 space-y-3">
-                <h4 className="text-sm font-medium">Filer i kö ({items.length})</h4>
+                <h4 className="text-sm font-medium">
+                  {t('files.formQueueTitle', { count: items.length })}
+                </h4>
                 <div className="divide-y divide-border rounded-lg border border-border bg-background">
                   {items.map(({ id, file }) => (
                     <div key={id} className="flex items-center justify-between gap-3 p-3">
@@ -330,7 +322,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium">{file.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            {file.type || 'application/octet-stream'} • {sizeStr(file.size)}
+                            {file.type || 'application/octet-stream'} • {humanSize(file.size)}
                           </div>
                         </div>
                       </div>
@@ -339,16 +331,18 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
                         size="sm"
                         icon={Trash2}
                         onClick={() => remove(id)}
-                        title="Remove"
+                        title={t('files.formRemove')}
                         className="h-8 text-muted-foreground hover:text-destructive"
                       >
-                        Remove
+                        {t('files.formRemove')}
                       </Button>
                     </div>
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
+
+            {saveCancelRow}
           </DetailSection>
         </Card>
       </DetailLayout>

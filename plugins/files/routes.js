@@ -14,20 +14,26 @@ function ensureDirSync(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-function createFilesRoutes(controller, context) {
+/**
+ * @param {import('./controller')} controller
+ * @param {*} context
+ * @param {{ cloudStorageController: import('./cloudStorageController') }} deps
+ */
+function createFilesRoutes(controller, context, deps) {
+  const cloudStorageController = deps?.cloudStorageController;
+  if (!cloudStorageController) {
+    throw new Error('createFilesRoutes requires cloudStorageController');
+  }
+
   const requirePlugin =
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
-  const gate = requirePlugin(config.name); // auth/enablement guard
+  const gate = requirePlugin(config.name);
 
-  // Where files are stored on disk
   const uploadRoot = path.join(process.cwd(), 'server', 'uploads', 'files');
   ensureDirSync(uploadRoot);
 
-  // ---- Security: size limit & MIME allow-list ----
-  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB per file
+  const MAX_FILE_SIZE = 25 * 1024 * 1024;
   const MAX_FILES = 20;
-
-  // Common safe document/image types
   const ALLOWED_MIME = require('./allowedMime').ALLOWED_UPLOAD_MIME;
 
   const storage = multer.diskStorage({
@@ -35,9 +41,7 @@ function createFilesRoutes(controller, context) {
       cb(null, uploadRoot);
     },
     filename: function (_req, file, cb) {
-      // ✅ Store ASCII-safe filenames only (robust URLs/FS), preserve original for download suggestion
       const base = path.basename(file.originalname || 'file');
-      // keep only ascii letters/numbers/._- ; replace everything else (including åäö) to underscore
       const asciiSafe = base.replace(/[^A-Za-z0-9._ -]+/g, '_').replace(/[ ]+/g, ' ');
       const ts = Date.now();
       const rnd = Math.random().toString(36).slice(2);
@@ -45,7 +49,6 @@ function createFilesRoutes(controller, context) {
     },
   });
 
-  // Collect blocked files so we can return precise messages
   const fileFilter = (req, file, cb) => {
     if (!req.rejectedUploads) req.rejectedUploads = [];
     if (ALLOWED_MIME.has(file.mimetype)) {
@@ -55,7 +58,7 @@ function createFilesRoutes(controller, context) {
         name: file.originalname || 'unknown',
         type: file.mimetype || 'unknown',
       });
-      cb(null, false); // skip saving just this file
+      cb(null, false);
     }
   };
 
@@ -86,7 +89,6 @@ function createFilesRoutes(controller, context) {
       next();
     });
 
-  // ---- CRUD (metadata) ----
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
   router.post(
@@ -99,7 +101,6 @@ function createFilesRoutes(controller, context) {
     (req, res) => controller.create(req, res),
   );
 
-  // DELETE /api/files/batch - Bulk delete (MUST be before '/:id' route)
   router.delete(
     '/batch',
     gate,
@@ -109,13 +110,6 @@ function createFilesRoutes(controller, context) {
     (req, res) => controller.bulkDelete(req, res),
   );
 
-  // ---- Storage abstraction diagnostics (active provider = same rules as upload) ----
-  router.get('/storage/google-drive/health', gate, (req, res) =>
-    controller.validateGoogleDriveStorage(req, res),
-  );
-  router.get('/storage/objects', gate, (req, res) => controller.listStorageObjects(req, res));
-
-  // ---- Attachments (plugin entity links) ----
   router.get(
     '/attachments',
     gate,
@@ -151,41 +145,25 @@ function createFilesRoutes(controller, context) {
     (req, res) => controller.deleteAttachment(req, res),
   );
 
-  // ---- MULTIPART upload: returns array of created FileItems ----
   router.post('/upload', gate, uploadLimiter, csrfProtection, runUpload, (req, res) =>
     controller.upload(req, res, { uploadRoot }),
   );
 
-  // ---- RAW file serving by stored filename (behind auth gate) ----
   router.get('/raw/:filename', gate, (req, res) => controller.raw(req, res, { uploadRoot }));
 
-  // ---- Cloud Storage Integration ----
-  const CloudStorageModel = require('./cloudStorageModel');
-  const CloudStorageController = require('./cloudStorageController');
-  const cloudStorageModel = new CloudStorageModel();
-  const cloudStorageController = new CloudStorageController(cloudStorageModel);
-
-  // GET /api/files/cloud/:service/settings
+  // Google Drive OAuth only
   router.get('/cloud/:service/settings', gate, (req, res) =>
     cloudStorageController.getSettings(req, res),
   );
-
-  // GET /api/files/cloud/:service/auth/start - Start OAuth flow
   router.get('/cloud/:service/auth/start', gate, (req, res) =>
     cloudStorageController.startAuth(req, res),
   );
-
-  // GET /api/files/cloud/:service/auth/callback - OAuth callback
   router.get('/cloud/:service/auth/callback', gate, (req, res) =>
     cloudStorageController.handleCallback(req, res),
   );
-
-  // POST /api/files/cloud/:service/disconnect
   router.post('/cloud/:service/disconnect', gate, csrfProtection, (req, res) =>
     cloudStorageController.disconnect(req, res),
   );
-
-  // POST /api/files/cloud/:service/credentials - Save OAuth app credentials (per-user)
   router.post(
     '/cloud/:service/credentials',
     gate,
@@ -195,13 +173,10 @@ function createFilesRoutes(controller, context) {
     validateRequest,
     (req, res) => cloudStorageController.saveOAuthCredentials(req, res),
   );
-
-  // GET /api/files/cloud/:service/embed - Get embed URL for file manager
   router.get('/cloud/:service/embed', gate, (req, res) =>
     cloudStorageController.getEmbedUrl(req, res),
   );
 
-  // Stream file by id (local disk or cloud via storage abstraction)
   router.get('/:id/download', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.downloadById(req, res),
   );

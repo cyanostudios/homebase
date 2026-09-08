@@ -1,10 +1,10 @@
 /**
  * Files plugin
- * Provides CRUD for user-owned files metadata (name, size, mimeType, url).
+ * User file metadata, multipart upload (local / R2 / Google Drive), and entity attachments.
  */
 module.exports = {
-  name: 'files', // plural-kebab
-  routeBase: '/api/files', // must match name
+  name: 'files',
+  routeBase: '/api/files',
   requiredRole: 'user',
-  description: 'User file metadata management (upload endpoints to be extended).',
+  description: 'File library, uploads via StorageProviderRegistry, and cross-plugin attachments.',
 };

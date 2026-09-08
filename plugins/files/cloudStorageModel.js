@@ -1,5 +1,5 @@
 // plugins/files/cloudStorageModel.js
-// Cloud storage model for managing OAuth tokens and settings for OneDrive, Dropbox, and Google Drive
+// Google Drive OAuth tokens/credentials (onedrive/dropbox tables retained unused)
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
@@ -12,8 +12,6 @@ function tenantScopedUserId(req) {
 
 class CloudStorageModel {
   static TABLES = {
-    onedrive: 'onedrive_settings',
-    dropbox: 'dropbox_settings',
     googledrive: 'googledrive_settings',
   };
 
@@ -197,14 +195,12 @@ class CloudStorageModel {
     }
   }
 
-  transformSettingsRow(row, service) {
+  transformSettingsRow(row, _service) {
     return {
       id: String(row.id),
       userId: String(row.user_id),
-      // OAuth app credentials (optional)
       clientId: row.client_id || null,
       clientSecret: row.client_secret || null,
-      // OAuth tokens (per-user)
       accessToken: row.access_token || null,
       refreshToken: row.refresh_token || null,
       tokenExpiresAt: row.token_expires_at || null,

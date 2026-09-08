@@ -7,6 +7,8 @@ const FilesModel = require('./model');
 const AttachmentModel = require('./attachmentModel');
 const FilesService = require('./filesService');
 const FilesController = require('./controller');
+const CloudStorageModel = require('./cloudStorageModel');
+const CloudStorageController = require('./cloudStorageController');
 const createFilesRoutes = require('./routes');
 const config = require('./plugin.config');
 
@@ -17,9 +19,10 @@ function initializeFilesPlugin(context) {
   const attachmentModel = new AttachmentModel();
   const filesService = new FilesService(model, attachmentModel);
   const controller = new FilesController(model, filesService);
-  const router = createFilesRoutes(controller, context);
+  const cloudStorageModel = new CloudStorageModel();
+  const cloudStorageController = new CloudStorageController(cloudStorageModel);
+  const router = createFilesRoutes(controller, context, { cloudStorageController });
 
-  // Cloud storage is integrated via routes.js
   return { config, router, model, controller };
 }
 

@@ -41,18 +41,19 @@ Risknivåer: **Hög** = säkerhet/data/prod synligt, **Medel** = teknisk skuld/r
 
 ### 3.1 `createApiClient` — inte alla API:er
 
-Migrerade (13+): contacts, notes, slots, matches, tasks, estimates, ingest, mail, pulses, **teams**, **requests**, **schedule**.
+Migrerade (13+): contacts, notes, slots, matches, tasks, estimates, ingest, mail, pulses, **teams**, **requests**, **schedule**, **files** (JSON via `createApiClient`), **cloud storage** (`cloudStorageApi` → `createApiClient('/files')`).
 
-**Kvar med egen `request()`** (olika felhantering / basePath / FormData):
+**Uppdatering 2026-09-08:** Files/cloud JSON-klienter migrerade i files-audit-epiken. **Kvar:** multipart upload i `filesApi` använder fortfarande egen `apiFetch` + `FormData` (avsiktligt — ej JSON Content-Type).
 
-| API           | Fil                                               | Risk                                                          |
-| ------------- | ------------------------------------------------- | ------------------------------------------------------------- |
-| Cups          | `client/src/plugins/cups/api/cupsApi.ts`          | **Medel** — text/JSON-felparse, inte samma som standard-JSON. |
-| Files         | `client/src/plugins/files/api/filesApi.ts`        | **Medel** — FormData, DELETE utan body.                       |
-| Cloud storage | `client/src/plugins/files/api/cloudStorageApi.ts` | **Medel**                                                     |
-| Invoices      | `client/src/plugins/invoices/api/invoicesApi.ts`  | **Medel** — 409/valideringsfel, konstruktor med `basePath`.   |
-| Team          | `client/src/core/api/teamApi.ts`                  | **Låg**                                                       |
-| Activity log  | `client/src/core/api/activityLogApi.ts`           | **Låg**                                                       |
+**Kvar med egen `request()` / special-path** (olika felhantering / basePath / FormData):
+
+| API          | Fil                                                          | Risk                                                             |
+| ------------ | ------------------------------------------------------------ | ---------------------------------------------------------------- |
+| Cups         | `client/src/plugins/cups/api/cupsApi.ts`                     | **Medel** — text/JSON-felparse, inte samma som standard-JSON.    |
+| Files upload | `client/src/plugins/files/api/filesApi.ts` (`uploadRequest`) | **Låg–Medel** — FormData only; övriga methods `createApiClient`. |
+| Invoices     | `client/src/plugins/invoices/api/invoicesApi.ts`             | **Medel** — 409/valideringsfel, konstruktor med `basePath`.      |
+| Team         | `client/src/core/api/teamApi.ts`                             | **Låg**                                                          |
+| Activity log | `client/src/core/api/activityLogApi.ts`                      | **Låg**                                                          |
 
 **Risk:** divergerande felobjekt (`status`, `code`, `details`) och dubbel underhåll vid CSRF/API-ändringar.
 

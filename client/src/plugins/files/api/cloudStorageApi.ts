@@ -1,14 +1,14 @@
 // client/src/plugins/files/api/cloudStorageApi.ts
-// Cloud storage API client for OneDrive, Dropbox, and Google Drive
+import { createApiClient } from '@/core/api/createApiClient';
 
-import { apiFetch } from '@/core/api/apiFetch';
-
-export type CloudStorageService = 'onedrive' | 'dropbox' | 'googledrive';
+/** Only Google Drive is wired to StorageProviderRegistry. */
+export type CloudStorageService = 'googledrive';
 
 export interface CloudStorageSettings {
   id: string;
   userId: string;
   connected: boolean;
+  hasCustomCredentials?: boolean;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -16,64 +16,23 @@ export interface CloudStorageSettings {
 export type ApiFieldError = { field: string; message: string };
 
 class CloudStorageApi {
-  private async request(path: string, options: RequestInit = {}) {
-    let response: Response;
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...((options.headers as Record<string, string>) || {}),
-      };
+  private request = createApiClient('/files');
 
-      response = await apiFetch(`/api/files${path}`, {
-        headers,
-        ...options,
-      });
-    } catch {
-      const err: any = new Error('Network unreachable');
-      err.status = 0;
-      throw err;
-    }
-
-    if (!response.ok) {
-      let payload: any = null;
-      try {
-        payload = await response.json();
-      } catch (_err) {
-        void _err;
-      }
-
-      const err: any = new Error(
-        payload?.error || payload?.message || response.statusText || 'Request failed',
-      );
-      err.status = response.status;
-      if (payload?.errors) {
-        err.errors = payload.errors as ApiFieldError[];
-      }
-      throw err;
-    }
-
-    const text = await response.text();
-    return text ? JSON.parse(text) : {};
-  }
-
-  // GET /api/files/cloud/:service/settings
   async getSettings(service: CloudStorageService): Promise<CloudStorageSettings | null> {
     return this.request(`/cloud/${service}/settings`);
   }
 
-  // GET /api/files/cloud/:service/auth/start
   async startAuth(service: CloudStorageService): Promise<{ authUrl: string; state: string }> {
     return this.request(`/cloud/${service}/auth/start`);
   }
 
-  // POST /api/files/cloud/:service/disconnect
   async disconnect(service: CloudStorageService): Promise<{ ok: boolean; message: string }> {
     return this.request(`/cloud/${service}/disconnect`, {
       method: 'POST',
+      body: JSON.stringify({}),
     });
   }
 
-  // POST /api/files/cloud/:service/credentials - Save OAuth app credentials
   async saveOAuthCredentials(
     service: CloudStorageService,
     clientId: string,
@@ -85,7 +44,6 @@ class CloudStorageApi {
     });
   }
 
-  // GET /api/files/cloud/:service/embed
   async getEmbedUrl(service: CloudStorageService): Promise<{ embedUrl: string; service: string }> {
     return this.request(`/cloud/${service}/embed`);
   }

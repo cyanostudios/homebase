@@ -31,18 +31,9 @@ function wantsInlinePreview(mimeType, filename) {
     if (ext === '.svg') {
       return false;
     }
-    return [
-      '.pdf',
-      '.png',
-      '.jpg',
-      '.jpeg',
-      '.gif',
-      '.webp',
-      '.svg',
-      '.txt',
-      '.mp4',
-      '.webm',
-    ].includes(ext);
+    return ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.txt', '.mp4', '.webm'].includes(
+      ext,
+    );
   }
   return false;
 }
@@ -170,15 +161,7 @@ class FilesController {
           .json({ error: 'Too many ids (max 500 per request)', code: 'VALIDATION_ERROR' });
       }
 
-      const itemsToDelete = [];
-      for (const id of ids) {
-        try {
-          const item = await this.model.getById(req, id);
-          if (item) itemsToDelete.push(item);
-        } catch (_e) {
-          /* skip */
-        }
-      }
+      const itemsToDelete = await this.model.getByIds(req, ids);
 
       for (const item of itemsToDelete) {
         await this.filesService.deleteStoredBlob(req, item);
@@ -295,15 +278,18 @@ class FilesController {
       const provider = StorageProviderRegistry.resolveForFileRow(row);
       const stream = await provider.download(req, { externalFileId: extId });
 
-      const inline =
+      const wantsInline =
         req.query.inline === '1' ||
         req.query.inline === 'true' ||
         req.query.disposition === 'inline';
-      const disposition = inline ? 'inline' : 'attachment';
+      // Never inline SVG (same-origin XSS) — mirrors raw / wantsInlinePreview
+      const disposition =
+        wantsInline && wantsInlinePreview(row.mimeType, row.name) ? 'inline' : 'attachment';
       const nameEnc = encodeURIComponent(row.name || 'file');
 
       res.setHeader('Content-Type', row.mimeType || 'application/octet-stream');
       res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${nameEnc}`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
 
       stream.on('error', (err) => {
         Logger.error('Download stream error', err, { fileId: req.params.id });
@@ -320,54 +306,6 @@ class FilesController {
         return res.status(error.statusCode).json(error.toJSON());
       }
       res.status(500).json({ error: error?.message || 'Download failed' });
-    }
-  }
-
-  /**
-   * Objects from the active StorageProvider (Google Drive API or empty for local).
-   * For verifying list + token refresh without file_attachments.
-   */
-  async listStorageObjects(req, res) {
-    try {
-      ensureStorageProvidersRegistered();
-      const provider = await StorageProviderRegistry.resolveForUpload(req);
-      const raw = Number(req.query.pageSize);
-      const pageSize = Math.min(Number.isFinite(raw) && raw > 0 ? raw : 50, 100);
-      const items = await provider.list(req, { pageSize });
-      res.json({ provider: provider.name, items });
-    } catch (error) {
-      Logger.error('List storage objects failed', error);
-      if (error instanceof AppError) {
-        return res.status(error.statusCode).json(error.toJSON());
-      }
-      res.status(500).json({ error: error?.message || 'Failed to list storage objects' });
-    }
-  }
-
-  /**
-   * Forces a minimal Drive API call through the adapter (validates + refreshes token if needed).
-   * Returns 400 if local storage is active or Drive is not connected.
-   */
-  async validateGoogleDriveStorage(req, res) {
-    try {
-      ensureStorageProvidersRegistered();
-      const provider = await StorageProviderRegistry.resolveForUpload(req);
-      if (provider.name !== 'googledrive') {
-        return res.status(400).json({
-          error: 'Google Drive is not the active storage provider',
-          activeProvider: provider.name,
-        });
-      }
-      await provider.list(req, { pageSize: 1 });
-      res.json({ ok: true, provider: 'googledrive' });
-    } catch (error) {
-      Logger.error('Google Drive storage validation failed', error);
-      if (error instanceof AppError) {
-        return res.status(error.statusCode).json(error.toJSON());
-      }
-      res
-        .status(502)
-        .json({ ok: false, error: error?.message || 'Google Drive validation failed' });
     }
   }
 
@@ -395,12 +333,12 @@ class FilesController {
   async createAttachment(req, res) {
     try {
       const { pluginName, entityId, fileId } = req.body;
-      const row = await this.filesService.attachFile(req, {
+      const { row, created } = await this.filesService.attachFile(req, {
         pluginName,
         entityId,
         fileId: String(fileId),
       });
-      res.status(201).json(row);
+      res.status(created ? 201 : 200).json(row);
     } catch (error) {
       Logger.error('Create attachment failed', error);
       if (error instanceof AppError) {

@@ -108,6 +108,7 @@ class FilesService {
   /**
    * @param {import('express').Request} req
    * @param {{ pluginName: string, entityId: string, fileId: string }} data
+   * @returns {Promise<{ row: object, created: boolean }>}
    */
   async attachFile(req, data) {
     const pluginName = String(data.pluginName ?? '').trim();
@@ -124,14 +125,10 @@ class FilesService {
     if (!file) {
       throw new AppError('File not found', 404, AppError.CODES.NOT_FOUND);
     }
-    const created = await this.attachmentModel.create(req, {
-      pluginName,
-      entityId,
-      fileId,
-    });
-    return {
-      attachmentId: created.id,
-      fileId: created.fileId,
+
+    const toPayload = (attachmentId) => ({
+      attachmentId: String(attachmentId),
+      fileId: String(fileId),
       pluginName,
       entityId,
       file: {
@@ -143,7 +140,31 @@ class FilesService {
         storageProvider: file.storageProvider,
         externalFileId: file.externalFileId,
       },
-    };
+    });
+
+    try {
+      const created = await this.attachmentModel.create(req, {
+        pluginName,
+        entityId,
+        fileId,
+      });
+      return { row: toPayload(created.id), created: true };
+    } catch (error) {
+      // Unique violation — return existing link (idempotent)
+      // Raw pg: error.code; Database.insert wraps as AppError.details.errorCode
+      const pgCode = error?.code === '23505' ? '23505' : error?.details?.errorCode;
+      if (pgCode === '23505') {
+        const existing = await this.attachmentModel.findExisting(req, {
+          pluginName,
+          entityId,
+          fileId,
+        });
+        if (existing) {
+          return { row: toPayload(existing.id), created: false };
+        }
+      }
+      throw error;
+    }
   }
 
   /**

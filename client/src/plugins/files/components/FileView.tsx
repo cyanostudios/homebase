@@ -7,40 +7,46 @@ import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 
+import { filesApi } from '../api/filesApi';
 import type { FileItem } from '../types/files';
+import { humanSize } from '../utils/humanSize';
 
 type Props = {
   file?: FileItem;
   item?: FileItem;
 };
 
-function humanSize(bytes?: number | null) {
-  if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) {
-    return '—';
-  }
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
-  let n = bytes,
-    i = 0;
-  while (n >= 1024 && i < units.length - 1) {
-    n /= 1024;
-    i++;
-  }
-  return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
-}
-
 export const FileView: React.FC<Props> = ({ file, item }) => {
   const { t } = useTranslation();
   const f = (file ?? item) as FileItem | undefined;
 
+  const previewUrl = useMemo(() => {
+    if (!f?.id) {
+      return null;
+    }
+    return filesApi.getFileDownloadUrl(f.id, { inline: true });
+  }, [f?.id]);
+
+  const externalUrl = useMemo(() => {
+    const u = f?.url;
+    if (!u) {
+      return null;
+    }
+    if (u.startsWith('/api/files/')) {
+      return null;
+    }
+    return u;
+  }, [f?.url]);
+
   const isImage = useMemo(() => {
     const mt = (f?.mimeType || '').toLowerCase();
-    return mt.startsWith('image/');
+    return mt.startsWith('image/') && mt !== 'image/svg+xml';
   }, [f?.mimeType]);
 
   const isPdf = useMemo(() => {
     const mt = (f?.mimeType || '').toLowerCase();
-    return mt === 'application/pdf' || (f?.url || '').toLowerCase().endsWith('.pdf');
-  }, [f?.mimeType, f?.url]);
+    return mt === 'application/pdf';
+  }, [f?.mimeType]);
 
   if (!f) {
     return (
@@ -57,7 +63,7 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
         <div className="space-y-4">
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
-              title={t('files.viewInformation')}
+              title={t('files.detailsTitle')}
               iconPlugin="files"
               subtleTitle
               className="p-4"
@@ -74,11 +80,11 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
                   <span className="text-muted-foreground">{t('files.viewSize')}</span>
                   <span className="font-medium">{humanSize(f.size)}</span>
                 </div>
-                {f.url && (
+                {externalUrl ? (
                   <div className="flex flex-col gap-1 pt-1">
-                    <span className="text-muted-foreground">{t('files.viewSourceUrl')}</span>
+                    <span className="text-muted-foreground">{t('files.openExternally')}</span>
                     <a
-                      href={f.url}
+                      href={externalUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-1 break-all font-medium text-primary hover:underline"
@@ -87,7 +93,7 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
                       {t('files.viewOpenOriginal')}
                     </a>
                   </div>
-                )}
+                ) : null}
               </div>
             </DetailSection>
           </Card>
@@ -95,7 +101,7 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
       }
     >
       <div className="space-y-4">
-        {f.url ? (
+        {previewUrl ? (
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={
@@ -111,12 +117,12 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
             >
               {isImage ? (
                 <div className="flex min-h-[200px] items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
-                  <img src={f.url} alt={f.name || 'image'} className="h-auto max-w-full" />
+                  <img src={previewUrl} alt={f.name || 'image'} className="h-auto max-w-full" />
                 </div>
               ) : isPdf ? (
                 <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
                   <iframe
-                    src={f.url}
+                    src={previewUrl}
                     title={f.name || 'pdf'}
                     className="w-full"
                     style={{ minHeight: 600 }}

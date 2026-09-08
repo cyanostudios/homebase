@@ -4,6 +4,24 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-08 – Files plugin audit/cleanup (storage, URLs, attachments, Drive-only)
+
+**Typ:** enhancement / fix / security hardening  
+**Scope:** `plugins/files`, `client/src/plugins/files`, migration `160`, i18n  
+**QA + Security:** approved (2026-09-07/08). Residuals **F-ATT-1** (attachment entity ACL deferred), **F-SEC-1** (plaintext Drive OAuth secrets) await TPM conscious acceptance. **Local-first; not a prod release** by itself.
+
+**Ändringar (verifierat i kod):**
+
+- Tenant isolation: file/attachment SELECTs omit `user_id` so adapter filter applies; attachment list JOIN uses qualified `fa`/`f.user_id`.
+- URL contract: keep `GET /raw/:filename`; in-app preview/download via `GET /:id/download` (`?inline=1` gated by `wantsInlinePreview` — SVG never inline; `nosniff`).
+- Attachments: UNIQUE index migration `160`; idempotent attach 200/201.
+- Cloud: Google Drive only; diagnostic storage routes removed.
+- FE: deep-link/panel sync; `FileDetailHeaderMenus`; Drive-only settings; `createApiClient` for JSON (FormData upload still via `apiFetch`).
+
+**Docs:** [`FILES_PLUGIN.md`](./FILES_PLUGIN.md), ADR [`ai/adr/FILES_STORAGE_AND_URL_CONTRACT.md`](./ai/adr/FILES_STORAGE_AND_URL_CONTRACT.md).
+
+**Ops:** Apply `160-file-attachments-unique.sql` after cleaning duplicate attachment rows if needed.
+
 ## 2026-09-07 – Form filled chrome, shared DatePicker, invoice/contact UI polish
 
 **Typ:** enhancement / UI platform  

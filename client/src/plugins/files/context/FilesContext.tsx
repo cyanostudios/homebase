@@ -10,7 +10,6 @@ export interface FilesContextType {
   validationErrors: ValidationError[];
   files: FileItem[];
 
-  openFilesPanel: (item: FileItem | null) => void;
   openFilePanel: (item: FileItem | null) => void;
   openFileForEdit: (item: FileItem) => void;
   openFileForView: (item: FileItem) => void;
@@ -18,11 +17,11 @@ export interface FilesContextType {
   closeFileSettingsView: () => void;
   closeFilePanel: () => void;
   filesContentView: 'list' | 'settings';
-  closeFilesPanel: () => void;
   saveFile: (data: any) => Promise<boolean>;
   deleteFile: (id: string) => Promise<void>;
   clearValidationErrors: () => void;
 
+  getPanelTitle: (mode: string, item: FileItem | null) => React.ReactNode;
   getPanelSubtitle: (
     mode: 'create' | 'edit' | 'view' | 'settings',
     item: FileItem | null,
@@ -30,8 +29,6 @@ export interface FilesContextType {
   getDeleteMessage: (item: FileItem | null) => string;
 
   cloudStorageSettings: {
-    onedrive: CloudStorageSettings | null;
-    dropbox: CloudStorageSettings | null;
     googledrive: CloudStorageSettings | null;
   };
   loadCloudStorageSettings: () => Promise<void>;
@@ -71,7 +68,7 @@ const EMPTY_FILES_CONTEXT: FilesContextType = {
   panelMode: 'create',
   validationErrors: [],
   files: [],
-  cloudStorageSettings: { onedrive: null, dropbox: null, googledrive: null },
+  cloudStorageSettings: { googledrive: null },
   loadCloudStorageSettings: async () => {},
   connectCloudStorage: async () => {},
   disconnectCloudStorage: async () => {},
@@ -83,7 +80,6 @@ const EMPTY_FILES_CONTEXT: FilesContextType = {
   clearFileSelection: () => {},
   selectedCount: 0,
   isSelected: () => false,
-  openFilesPanel: () => {},
   openFilePanel: () => {},
   openFileForEdit: () => {},
   openFileForView: () => {},
@@ -91,11 +87,11 @@ const EMPTY_FILES_CONTEXT: FilesContextType = {
   closeFileSettingsView: () => {},
   closeFilePanel: () => {},
   filesContentView: 'list',
-  closeFilesPanel: () => {},
   saveFile: async () => false,
   deleteFile: async () => {},
   deleteFiles: async () => {},
   clearValidationErrors: () => {},
+  getPanelTitle: () => null,
   getPanelSubtitle: () => '',
   getDeleteMessage: () => '',
   navigateToPrevItem: () => {},

@@ -5,6 +5,9 @@ const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
+/** Columns for list/get — omit user_id so PostgreSQLAdapter tenant filter applies. */
+const FILE_SELECT_COLUMNS = `id, name, size, mime_type, url, storage_provider, external_file_id, created_at, updated_at`;
+
 class FilesModel {
   constructor() {
     // No pool needed - @homebase/core Database provides database service
@@ -18,9 +21,9 @@ class FilesModel {
     try {
       const db = Database.get(req);
 
-      // Tenant isolation automatic
+      // Tenant isolation automatic (SELECT must not mention user_id — see adapter heuristic)
       const rows = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, storage_provider, external_file_id, created_at, updated_at
+        `SELECT ${FILE_SELECT_COLUMNS}
          FROM ${FilesModel.TABLE}
          ORDER BY ${FilesModel.ORDER_BY}`,
         [],
@@ -38,7 +41,7 @@ class FilesModel {
       const db = Database.get(req);
 
       const result = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, storage_provider, external_file_id, created_at, updated_at
+        `SELECT ${FILE_SELECT_COLUMNS}
          FROM ${FilesModel.TABLE}
          WHERE id = $1
          LIMIT 1`,
@@ -56,6 +59,31 @@ class FilesModel {
     }
   }
 
+  /**
+   * @param {import('express').Request} req
+   * @param {string[]} ids
+   */
+  async getByIds(req, ids) {
+    try {
+      const unique = Array.from(new Set((ids || []).map((x) => String(x).trim()).filter(Boolean)));
+      if (!unique.length) {
+        return [];
+      }
+      const db = Database.get(req);
+      const placeholders = unique.map((_, i) => `$${i + 1}`).join(', ');
+      const result = await db.query(
+        `SELECT ${FILE_SELECT_COLUMNS}
+         FROM ${FilesModel.TABLE}
+         WHERE id IN (${placeholders})`,
+        unique,
+      );
+      return result.map(this.transformRow);
+    } catch (error) {
+      Logger.error('Failed to get files by ids', error);
+      throw new AppError('Failed to get files', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   // Find by stored filename in url (/api/files/raw/<filename>)
   async getByStoredFilename(req, filename) {
     try {
@@ -63,7 +91,7 @@ class FilesModel {
 
       const like = `%/api/files/raw/${filename}`;
       const result = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, storage_provider, external_file_id, created_at, updated_at
+        `SELECT ${FILE_SELECT_COLUMNS}
          FROM ${FilesModel.TABLE}
          WHERE url LIKE $1
          ORDER BY id DESC

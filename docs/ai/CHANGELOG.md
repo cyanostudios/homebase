@@ -2,6 +2,12 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Files plugin audit/cleanup — docs sync (2026-09-08)
+
+Docs efter **QA Approved** + **Security Approved** för files hybrid library/upload/attachments: tenant SELECT/JOIN, raw vs `/:id/download` (+ SVG inline guard **F-SVG-1**), UNIQUE attachments migration `160`, Drive-only cloud, diagnostic routes removed. ADR [`adr/FILES_STORAGE_AND_URL_CONTRACT.md`](adr/FILES_STORAGE_AND_URL_CONTRACT.md). Operator: [`FILES_PLUGIN.md`](../FILES_PLUGIN.md). Residuals **F-ATT-1** / **F-SEC-1** await TPM. `CLEANUP_DEFERRED_RISKS.md` §3.1 updated (files JSON on `createApiClient`; FormData upload residual). **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-08 – Files plugin audit/cleanup.
+
 ## QA / Code Reviewer — skärpt omfång och granskningsprotokoll (2026-09-04)
 
 Rolluppdatering för striktare Grind 4: QA fastställer granskningsomfång oberoende via git + ny append-only logg `docs/ai/qa-review-log.md` ("allt sedan senast granskat" per branch). Nytt steg 0 i arbetsflödet, obligatorisk loggning efter varje granskning, krav på egen verifiering (kommando + resultat), och Output Contract utökat med **Granskningsomfång** och **Oanmälda ändringar** (11 fält). Synkat i `docs/ai/roles/qa-code-reviewer.md`, `.cursor/rules/role-qa-code-reviewer.mdc`, `.cursor/agents/qa-code-reviewer.md`. Ingen ändring av Stage Gates eller Handover Contract-schema.

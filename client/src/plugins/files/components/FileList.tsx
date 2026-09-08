@@ -96,13 +96,13 @@ import { FileSettingsView } from './FileSettingsView';
 type SortField = FileSortField;
 type SortOrder = FileSortOrder;
 
-const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
-  { value: 'updatedAt', label: 'Updated' },
-  { value: 'name', label: 'Name' },
-  { value: 'mimeType', label: 'Type' },
-  { value: 'size', label: 'Size' },
-  { value: 'createdAt', label: 'Created' },
-  { value: 'id', label: 'ID' },
+const SORT_FIELD_KEYS: { value: SortField; labelKey: string }[] = [
+  { value: 'updatedAt', labelKey: 'files.sort.updatedAt' },
+  { value: 'name', labelKey: 'files.sort.name' },
+  { value: 'mimeType', labelKey: 'files.sort.mimeType' },
+  { value: 'size', labelKey: 'files.sort.size' },
+  { value: 'createdAt', labelKey: 'files.sort.createdAt' },
+  { value: 'id', labelKey: 'files.sort.id' },
 ];
 
 export const FileList: React.FC = () => {
@@ -437,7 +437,8 @@ export const FileList: React.FC = () => {
             >
               <LayoutGrid className="h-3.5 w-3.5" />
               <span>
-                Total <span className="tabular-nums font-semibold">({stats.total})</span>
+                {t('files.filterTotal')}{' '}
+                <span className="tabular-nums font-semibold">({stats.total})</span>
               </span>
             </Button>
             <Button
@@ -451,7 +452,8 @@ export const FileList: React.FC = () => {
             >
               <Image className="h-3.5 w-3.5" />
               <span>
-                Images <span className="tabular-nums font-semibold">({stats.images})</span>
+                {t('files.filterImages')}{' '}
+                <span className="tabular-nums font-semibold">({stats.images})</span>
               </span>
             </Button>
             <Button
@@ -465,7 +467,8 @@ export const FileList: React.FC = () => {
             >
               <HardDrive className="h-3.5 w-3.5" />
               <span>
-                With Size <span className="tabular-nums font-semibold">({stats.withSize})</span>
+                {t('files.filterWithSize')}{' '}
+                <span className="tabular-nums font-semibold">({stats.withSize})</span>
               </span>
             </Button>
             <Button
@@ -481,7 +484,8 @@ export const FileList: React.FC = () => {
             >
               <Clock className="h-3.5 w-3.5" />
               <span>
-                Updated 7d <span className="tabular-nums font-semibold">({stats.updated7d})</span>
+                {t('files.filterUpdated7d')}{' '}
+                <span className="tabular-nums font-semibold">({stats.updated7d})</span>
               </span>
             </Button>
           </div>
@@ -500,13 +504,13 @@ export const FileList: React.FC = () => {
                 position="item-aligned"
                 className="rounded-xl border-border/50 shadow-xl"
               >
-                {SORT_FIELD_OPTIONS.map((option) => (
+                {SORT_FIELD_KEYS.map((option) => (
                   <SelectItem
                     key={option.value}
                     value={option.value}
                     className="rounded-md text-xs"
                   >
-                    {option.label}
+                    {t(option.labelKey)}
                   </SelectItem>
                 ))}
               </SelectContent>

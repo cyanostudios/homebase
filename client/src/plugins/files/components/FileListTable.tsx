@@ -11,42 +11,9 @@ import { cn } from '@/lib/utils';
 
 import type { FileItem } from '../types/files';
 import type { FileSortField, FileSortOrder } from '../utils/fileListSort';
+import { getMimeLabel, humanSize } from '../utils/humanSize';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
-
-function humanSize(bytes?: number | null): string {
-  if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) {
-    return '—';
-  }
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
-  let n = bytes;
-  let i = 0;
-  while (n >= 1024 && i < units.length - 1) {
-    n /= 1024;
-    i++;
-  }
-  return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
-}
-
-function getMimeLabel(mimeType?: string | null): string {
-  if (!mimeType) {
-    return '—';
-  }
-  if (mimeType.startsWith('image/')) {
-    return mimeType.replace('image/', '').toUpperCase();
-  }
-  if (mimeType.includes('pdf')) {
-    return 'PDF';
-  }
-  if (mimeType.includes('word') || mimeType.includes('document')) {
-    return 'DOCX';
-  }
-  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
-    return 'XLSX';
-  }
-  const sub = mimeType.split('/').pop();
-  return sub ? sub.toUpperCase() : mimeType;
-}
 
 export type FileListTableProps = {
   files: FileItem[];
@@ -98,7 +65,7 @@ export function FileListTable({
               'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
             )}
           >
-            {getMimeLabel(file.mimeType)}
+            {getMimeLabel(file.mimeType) || '—'}
           </Badge>
         ),
       },
