@@ -108,8 +108,10 @@ export interface PluginRegistryEntry {
   /** Optional provider for extra props passed to plugin Form component. */
   getFormExtraProps?: (context: any) => Record<string, unknown>;
   /**
-   * When set, this plugin's List can open as a Companion Panel beside these primary pages
-   * (desktop only). Sidebar clicks on those primaries toggle companion instead of navigating.
+   * When set (non-empty), this plugin's List can open as a global companion flyout on the
+   * desktop right rail (wider than widget flyouts). Host page entries are reserved/ignored —
+   * availability is platform-wide when the plugin is enabled. Rail hides the button while that
+   * plugin is the primary page. Rail icon uses `navigation.icon`.
    */
   canOpenAsCompanionFor?: NavPage[];
 }

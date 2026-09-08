@@ -139,9 +139,13 @@ export function ScheduleList({ isCompanion = false }: { isCompanion?: boolean } 
   const scheduleCount = plans.length + 1;
 
   useEffect(() => {
+    if (isCompanion) {
+      return;
+    }
     registerUnsavedChangesChecker('schedule-list', () => isDefaultSchedule && isDirty && !isLocked);
     return () => unregisterUnsavedChangesChecker('schedule-list');
   }, [
+    isCompanion,
     isDefaultSchedule,
     isDirty,
     isLocked,

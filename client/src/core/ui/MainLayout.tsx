@@ -5,7 +5,6 @@ import { useViewportTier } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { AppRightSidebar } from './AppRightSidebar';
-import { CompanionPanel } from './CompanionPanel';
 import { ContentHeader } from './ContentHeader';
 import { ContentLayoutProvider } from './ContentLayoutContext';
 import { ContentSurface, MAIN_CONTENT_SHELL_CLASS } from './ContentSurface';
@@ -47,11 +46,6 @@ interface MainLayoutProps {
   detailPanelContentKey?: string;
   /** When true, list ContentSurface uses p-0 (like detail panel) so the plugin controls its own padding. */
   contentFlush?: boolean;
-  /** Desktop Companion Panel (secondary plugin list beside primary). */
-  companionPanelOpen?: boolean;
-  companionPanelTitle?: string;
-  companionPanelContent?: React.ReactNode;
-  onCompanionPanelClose?: () => void;
 }
 
 function MainLayoutShell(props: MainLayoutProps) {
@@ -75,10 +69,6 @@ function MainLayoutShell(props: MainLayoutProps) {
     onDetailPanelClose,
     detailPanelContentKey,
     contentFlush = false,
-    companionPanelOpen = false,
-    companionPanelTitle = '',
-    companionPanelContent,
-    onCompanionPanelClose,
   } = props;
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -180,24 +170,6 @@ function MainLayoutShell(props: MainLayoutProps) {
     listSurface
   );
 
-  // Keep CompanionPanel mounted on desktop so close can finish its slide-out.
-  const desktopMain =
-    !isPhone && !isPad ? (
-      <div className="flex min-h-0 w-full flex-1 gap-4">
-        <div className="min-h-0 min-w-0 flex-1">{primarySurface}</div>
-        <CompanionPanel
-          isOpen={companionPanelOpen}
-          title={companionPanelTitle}
-          onClose={onCompanionPanelClose ?? (() => undefined)}
-          closeOnEscape={!detailPanelOpen}
-        >
-          {companionPanelContent}
-        </CompanionPanel>
-      </div>
-    ) : (
-      primarySurface
-    );
-
   return (
     <div className="flex h-dvh flex-col bg-workspace">
       <Sidebar
@@ -270,7 +242,7 @@ function MainLayoutShell(props: MainLayoutProps) {
               ) : null}
             </div>
           ) : (
-            desktopMain
+            primarySurface
           )}
         </main>
 

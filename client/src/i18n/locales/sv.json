@@ -3250,7 +3250,7 @@
     "darkMode": "Mörkt läge",
     "lightMode": "Ljust läge",
     "logOut": "Logga ut",
-    "openScheduleCompanion": "Öppna schema"
+    "openCompanion": "Öppna {{name}}"
   },
   "garments": {
     "listDescription": "Storlekslistor och inventarie för lagkläder.",

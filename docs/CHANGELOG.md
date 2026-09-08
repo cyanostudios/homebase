@@ -4,6 +4,16 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-08 – Global Schedule companion as right-rail flyout
+
+**Typ:** enhancement / UI (shell)  
+**Scope:** `AppRightSidebar`, `RightSidebarFlyout`, `CompanionPanelContext`, `getCompanionCandidates`, `MainLayout` (split removed), `ScheduleList` (`isCompanion`), i18n `rightSidebar.openCompanion`  
+**QA + Security:** approved (2026-09-08). Client-only chrome; schedule API authz unchanged. **Working tree** on `homebase-v4.0` (not committed at docs sync). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Schedule companion öppnas som en **bredare rail-flyout (~640px)** ovanpå primär yta (samma mönster som Pomodoro/Timer). Primär plugin behåller full bredd. Knappen syns globalt när Schedule är enabled (döljs på `/schedule`). Companion stannar öppen vid plugin-byte; stängs vid Schedule som primary, leave-desktop, disabled plugin, eller manuell stängning. Session: `homebase.companionPlugin` (allowlist). Sidodelad `CompanionPanel` i `MainLayout` borttagen.
+
+**Docs:** [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md), ADR [`ai/adr/VIEWPORT_TIER_PAD_SPLIT.md`](./ai/adr/VIEWPORT_TIER_PAD_SPLIT.md), [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](./NEW_PLUGIN_INTEGRATION_CHECKLIST.md).
+
 ## 2026-09-08 – Files library UI: quick context, dense cards, edit close, QC delete
 
 **Typ:** enhancement / UI  
@@ -37,6 +47,20 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 **Docs:** [`FILES_PLUGIN.md`](./FILES_PLUGIN.md), ADR [`ai/adr/FILES_STORAGE_AND_URL_CONTRACT.md`](./ai/adr/FILES_STORAGE_AND_URL_CONTRACT.md).
 
 **Ops:** Apply `160-file-attachments-unique.sql` after cleaning duplicate attachment rows if needed.
+
+## 2026-09-08 – Garments list/QC: filled compact field chrome
+
+**Typ:** enhancement / UI parity  
+**Scope:** garments PersonMatrix, PersonBlock, inventory quick-context quantity, contact-import tag select  
+**QA + Security:** approved (2026-09-08); UI-only; no new API/auth. Local-first (not a prod release by itself).
+
+**Ändringar (verifierat i kod):**
+
+- Dense garments list/detail editors use `FORM_INPUT_CLASS` / `FORM_COMPACT_INPUT_CLASS` / `FORM_COMPACT_SELECT_CLASS` (`formFieldStyles.ts`) instead of ad-hoc `h-8`/`h-9` bordered inputs.
+- Jersey-duplicate warning uses amber **ring** (borders are invisible with filled `border-0`).
+- Guide §3 + design checklist updated for dense in-plugin editors and the garments import-dialog select exception.
+
+Files: `PersonMatrix.tsx`, `PersonBlock.tsx`, `InventoryQuickContextPanel.tsx`, `GarmentPersonImportDialog.tsx`, `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`, `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`, `GARMENTS_PLUGIN.md`.
 
 ## 2026-09-07 – Form filled chrome, shared DatePicker, invoice/contact UI polish
 

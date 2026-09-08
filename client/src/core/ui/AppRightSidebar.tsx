@@ -1,13 +1,20 @@
-import { CalendarDays, Moon, Settings2, Sun } from 'lucide-react';
+import { Moon, Settings2, Sun } from 'lucide-react';
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useCompanionPanel } from '@/core/app/CompanionPanelContext';
+import { getCompanionCandidates } from '@/core/companion/getCompanionCandidates';
+import type { NavPage } from '@/core/navigation/navTypes';
+import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { pathToNavPage } from '@/core/routing/routeMap';
 import { navigateToSettings } from '@/core/routing/settingsReturnTo';
-import { RIGHT_SIDEBAR_WIDTH_PX, useRightSidebar } from '@/core/ui/RightSidebarContext';
+import {
+  RIGHT_SIDEBAR_COMPANION_FLYOUT_WIDTH_PX,
+  RIGHT_SIDEBAR_WIDTH_PX,
+  useRightSidebar,
+} from '@/core/ui/RightSidebarContext';
 import { PomodoroProvider } from '@/core/ui/rightSidebar/PomodoroContext';
 import { PomodoroPanel } from '@/core/ui/rightSidebar/PomodoroPanel';
 import { PomodoroRailButton } from '@/core/ui/rightSidebar/PomodoroRailButton';
@@ -26,21 +33,55 @@ export function AppRightSidebar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { activePanel, togglePanel, closePanel } = useRightSidebar();
-  const { companionPlugin, toggleCompanionPanel } = useCompanionPanel();
+  const { companionPlugin, toggleCompanionPanel, closeCompanionPanel } = useCompanionPanel();
   const enabledPlugins = useEnabledPlugins();
   const currentPage = useMemo(() => pathToNavPage(location.pathname), [location.pathname]);
-  const showScheduleCompanion = currentPage === 'teams' && enabledPlugins.has('schedule');
-  const scheduleCompanionOpen = companionPlugin === 'schedule';
+  const companionCandidates = useMemo(
+    () => getCompanionCandidates(enabledPlugins).filter((entry) => entry.name !== currentPage),
+    [enabledPlugins, currentPage],
+  );
+
+  const companionRegistryEntry = companionPlugin
+    ? PLUGIN_REGISTRY.find((plugin) => plugin.name === companionPlugin)
+    : undefined;
+  const companionEnabled = Boolean(
+    companionPlugin &&
+      getCompanionCandidates(enabledPlugins).some((entry) => entry.name === companionPlugin),
+  );
+  const CompanionListComp = companionEnabled
+    ? (companionRegistryEntry?.components.List as
+        | React.ComponentType<{ isCompanion?: boolean }>
+        | undefined)
+    : undefined;
+  const companionOpen = Boolean(companionPlugin && CompanionListComp);
+
+  const companionTitle = companionRegistryEntry
+    ? t(`nav.${companionRegistryEntry.name}`, {
+        defaultValue: companionRegistryEntry.navigation?.label ?? companionRegistryEntry.name,
+      })
+    : '';
 
   const handleOpenSettingsPage = useCallback(() => {
     closePanel();
+    closeCompanionPanel();
     navigateToSettings(navigate, `${location.pathname}${location.search}`);
-  }, [closePanel, navigate, location.pathname, location.search]);
+  }, [closePanel, closeCompanionPanel, navigate, location.pathname, location.search]);
 
-  const handleToggleScheduleCompanion = useCallback(() => {
-    closePanel();
-    toggleCompanionPanel('schedule');
-  }, [closePanel, toggleCompanionPanel]);
+  const handleToggleCompanion = useCallback(
+    (plugin: NavPage) => {
+      closePanel();
+      toggleCompanionPanel(plugin);
+    },
+    [closePanel, toggleCompanionPanel],
+  );
+
+  const handleToggleWidget = useCallback(
+    (id: 'pomodoro' | 'timer' | 'user') => {
+      closeCompanionPanel();
+      togglePanel(id);
+    },
+    [closeCompanionPanel, togglePanel],
+  );
 
   const isDark = theme === 'dark';
 
@@ -81,12 +122,28 @@ export function AppRightSidebar() {
             {renderFlyoutBody()}
           </RightSidebarFlyout>
 
+          <RightSidebarFlyout
+            title={companionTitle}
+            open={companionOpen}
+            onClose={closeCompanionPanel}
+            widthPx={RIGHT_SIDEBAR_COMPANION_FLYOUT_WIDTH_PX}
+          >
+            {CompanionListComp ? (
+              <React.Suspense fallback={null}>
+                <CompanionListComp isCompanion />
+              </React.Suspense>
+            ) : null}
+          </RightSidebarFlyout>
+
           <aside
             className="relative z-40 flex h-full w-full flex-col items-start gap-2 bg-workspace py-3 pl-0.5 pr-4"
             style={{ width: RIGHT_SIDEBAR_WIDTH_PX }}
             aria-label={t('rightSidebar.rail')}
           >
-            <UserAvatarButton active={activePanel === 'user'} onClick={() => togglePanel('user')} />
+            <UserAvatarButton
+              active={activePanel === 'user'}
+              onClick={() => handleToggleWidget('user')}
+            />
             <RoundIconLabelButton
               icon={isDark ? Moon : Sun}
               label={
@@ -110,24 +167,37 @@ export function AppRightSidebar() {
             <div className="flex flex-col items-start gap-2 pt-4">
               <PomodoroRailButton
                 selected={activePanel === 'pomodoro'}
-                onClick={() => togglePanel('pomodoro')}
+                onClick={() => handleToggleWidget('pomodoro')}
               />
               <TimerRailButton
                 selected={activePanel === 'timer'}
-                onClick={() => togglePanel('timer')}
+                onClick={() => handleToggleWidget('timer')}
               />
             </div>
-            {showScheduleCompanion ? (
+            {companionCandidates.length > 0 ? (
               <div className="flex flex-col items-start gap-2 pt-4">
-                <RoundIconLabelButton
-                  icon={CalendarDays}
-                  label={t('rightSidebar.openScheduleCompanion')}
-                  variant={scheduleCompanionOpen ? 'soft' : 'secondary'}
-                  size="xs"
-                  expandOnHover={false}
-                  aria-pressed={scheduleCompanionOpen}
-                  onClick={handleToggleScheduleCompanion}
-                />
+                {companionCandidates.map((entry) => {
+                  const Icon = entry.navigation?.icon;
+                  if (!Icon) {
+                    return null;
+                  }
+                  const pluginTitle = t(`nav.${entry.name}`, {
+                    defaultValue: entry.navigation?.label ?? entry.name,
+                  });
+                  const open = companionPlugin === entry.name;
+                  return (
+                    <RoundIconLabelButton
+                      key={entry.name}
+                      icon={Icon}
+                      label={t('rightSidebar.openCompanion', { name: pluginTitle })}
+                      variant={open ? 'soft' : 'secondary'}
+                      size="xs"
+                      expandOnHover={false}
+                      aria-pressed={open}
+                      onClick={() => handleToggleCompanion(entry.name as NavPage)}
+                    />
+                  );
+                })}
               </div>
             ) : null}
           </aside>

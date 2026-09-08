@@ -18,6 +18,7 @@ import {
   getDuplicateDialogNameLabel,
 } from '@/core/app/crossPluginDialogHandlers';
 import { renderDetailPanelHeaderRight } from '@/core/app/detailPanelHeaderRight';
+import { isCompanionEnabled } from '@/core/companion/getCompanionCandidates';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
 import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import type { NavPage } from '@/core/navigation/navTypes';
@@ -38,6 +39,7 @@ import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
 import { createPanelTitles } from '@/core/ui/PanelTitles';
 import { resolveSlug } from '@/core/utils/slugUtils';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useIsDesktopLayout, useIsMobile } from '@/hooks/useMediaQuery';
 
@@ -146,6 +148,7 @@ export function AppContent() {
   const isMobileView = useIsMobile();
   const isDesktopLayout = useIsDesktopLayout();
   const { companionPlugin, closeCompanionPanel } = useCompanionPanel();
+  const enabledPlugins = useEnabledPlugins();
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showToTaskDialog, setShowToTaskDialog] = useState(false);
   const [noteForTask, setNoteForTask] = useState<{
@@ -219,13 +222,25 @@ export function AppContent() {
     });
   }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps -- pluginContexts is stable from PLUGIN_REGISTRY
 
-  // Companion Panel is Teams-primary only for MVP; leave teams → close.
-  // Also clear when leaving desktop so pad/phone never keep dead companion state.
+  // Companion stays open across primary plugin changes. Close when leaving desktop,
+  // viewing Schedule as primary, or when the companion plugin is no longer enabled.
   useEffect(() => {
-    if (currentPage !== 'teams' || !isDesktopLayout) {
+    if (!isDesktopLayout) {
       closeCompanionPanel();
     }
-  }, [currentPage, isDesktopLayout, closeCompanionPanel]);
+  }, [isDesktopLayout, closeCompanionPanel]);
+
+  useEffect(() => {
+    if (currentPage === 'schedule') {
+      closeCompanionPanel();
+    }
+  }, [currentPage, closeCompanionPanel]);
+
+  useEffect(() => {
+    if (companionPlugin && !isCompanionEnabled(companionPlugin, enabledPlugins)) {
+      closeCompanionPanel();
+    }
+  }, [companionPlugin, enabledPlugins, closeCompanionPanel]);
 
   // Register "Create task from note" dialog opener so NoteContext footer can open it
   useEffect(() => {
@@ -570,25 +585,6 @@ export function AppContent() {
       ? (notePluginContext.deleteNote as (id: string) => Promise<void>)
       : undefined;
 
-  const companionRegistryEntry = companionPlugin
-    ? PLUGIN_REGISTRY.find((plugin) => plugin.name === companionPlugin)
-    : undefined;
-  const CompanionListComp = companionRegistryEntry?.components.List as
-    | React.ComponentType<{ isCompanion?: boolean }>
-    | undefined;
-  const companionPanelOpen = Boolean(companionPlugin && CompanionListComp);
-  const companionPanelTitle = companionRegistryEntry?.navigation?.label
-    ? t(`nav.${companionRegistryEntry.name}`, {
-        defaultValue: companionRegistryEntry.navigation.label,
-      })
-    : '';
-  const companionPanelContent =
-    companionPanelOpen && CompanionListComp ? (
-      <React.Suspense fallback={null}>
-        <CompanionListComp isCompanion />
-      </React.Suspense>
-    ) : null;
-
   return (
     <>
       <MainLayout
@@ -610,10 +606,6 @@ export function AppContent() {
         onDetailPanelClose={onDetailPanelClose}
         detailPanelContentKey={detailPanelContentKey}
         contentFlush={currentPage === 'dashboard' || (currentPagePlugin?.contentFlush ?? false)}
-        companionPanelOpen={companionPanelOpen}
-        companionPanelTitle={companionPanelTitle}
-        companionPanelContent={companionPanelContent}
-        onCompanionPanelClose={closeCompanionPanel}
       >
         {currentPage === 'dashboard' ? (
           <Dashboard onPageChange={handlePageChange} />

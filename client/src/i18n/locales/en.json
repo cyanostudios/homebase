@@ -3256,7 +3256,7 @@
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
     "logOut": "Log out",
-    "openScheduleCompanion": "Open schedule"
+    "openCompanion": "Open {{name}}"
   },
   "garments": {
     "listDescription": "Size lists and inventory for team clothing.",

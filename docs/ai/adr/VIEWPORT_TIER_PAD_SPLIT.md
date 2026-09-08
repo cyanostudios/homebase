@@ -2,7 +2,8 @@
 
 **Status:** Accepted  
 **Date:** 2026-08-24  
-**Scope:** Client shell + generic list display overrides (phone / pad / desktop).
+**Scope:** Client shell + generic list display overrides (phone / pad / desktop).  
+**Companion delta (2026-09-08):** Desktop companion is a **global right-rail flyout** (~640px, MVP Schedule), not a side-by-side panel in `MainLayout`. See Decision §4 desktop bullet and [`UI_AND_UX_STANDARDS_V3.md`](../../UI_AND_UX_STANDARDS_V3.md) § App right sidebar.
 
 ## Context
 
@@ -16,7 +17,7 @@ UI/UX design (etapp 1) requires three surfaces: phone (&lt;768), pad (768–1023
 4. **Detail presentation:**
    - phone → full-height panel in `main` (`DetailPanel` `isMobile`; bottom actions bar)
    - pad → list and detail mounted together (split ~38% / remainder, list `min-w-[280px]`)
-   - desktop → detail replaces list; optional **Companion Panel** (secondary plugin List ~40% beside primary list or detail) when opened from a primary page that declares a companion target (MVP: Teams → Schedule). Companion lives inside `<main>`, left of `AppRightSidebar`; not shown on phone/pad.
+   - desktop → detail replaces list; optional **companion flyout** on the right rail (wider ~640px overlay; MVP Schedule via `canOpenAsCompanionFor` + `getCompanionCandidates`, global when plugin enabled). Primary plugin keeps full width inside `<main>`; companion stays open across plugin changes; not a MainLayout split; not shown on phone/pad.
 5. **List display overrides** (`effectiveListViewMode.ts`) take `ViewportTier`:
    - phone: cards, 1 grid column, card content as column-2
    - pad: cards, clamp grid columns to max 2; card content follows clamped count
@@ -28,9 +29,10 @@ UI/UX design (etapp 1) requires three surfaces: phone (&lt;768), pad (768–1023
 
 - Call sites that used `md:` for “desktop chrome” (sidebar offset, hamburger) must use `lg:` where the design means permanent rail.
 - List headers / filter grids that used `hidden md:*` already appear on pad; filter grids prefer `grid-cols-2` until `lg`.
-- Desktop **plugin** Companion Panel (secondary List beside primary) is in scope; pad list|detail split remains separate.
+- Desktop **plugin** companion flyout (rail overlay, primary full width) is in scope; pad list|detail split remains separate.
 
 ## Non-goals
 
 - Per-plugin visual redesign, dashboard, native apps.
 - Resizable companion divider, URL-synced companion state, nested detail panels inside companion (MVP).
+- Side-by-side Companion Panel inside `main` (superseded 2026-09-08 by rail flyout).

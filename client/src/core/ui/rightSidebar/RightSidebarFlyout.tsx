@@ -14,11 +14,14 @@ export function RightSidebarFlyout({
   open,
   onClose,
   children,
+  widthPx = RIGHT_SIDEBAR_FLYOUT_WIDTH_PX,
 }: {
   title: string;
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  /** Override flyout width (companion uses a wider panel). */
+  widthPx?: number;
 }) {
   const { t } = useTranslation();
   const cachedTitleRef = useRef(title);
@@ -48,8 +51,9 @@ export function RightSidebarFlyout({
         'transition-[transform,opacity] duration-200 ease-in-out',
         // Closed: slide under the rail — keep opacity 0 so icons stay visible (clicks already pass through).
         open ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-full opacity-0',
+        open && widthPx > RIGHT_SIDEBAR_FLYOUT_WIDTH_PX ? 'z-40' : null,
       )}
-      style={{ width: RIGHT_SIDEBAR_FLYOUT_WIDTH_PX }}
+      style={{ width: widthPx }}
     >
       <div className="flex h-14 shrink-0 items-center justify-between gap-2 px-3">
         <h2 className="truncate text-lg font-extrabold text-foreground">{displayTitle}</h2>

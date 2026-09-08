@@ -10,8 +10,11 @@ import React, {
 /** Fixed narrow rail width (desktop). Panel does not expand. */
 export const RIGHT_SIDEBAR_WIDTH_PX = 48;
 
-/** Slide-out panel width, anchored to the rail’s inner edge. */
+/** Slide-out panel width, anchored to the rail’s inner edge (widgets / user prefs). */
 export const RIGHT_SIDEBAR_FLYOUT_WIDTH_PX = 320;
+
+/** Wider flyout for plugin companion Lists (e.g. Schedule). */
+export const RIGHT_SIDEBAR_COMPANION_FLYOUT_WIDTH_PX = 640;
 
 export type RightSidebarPanelId = 'pomodoro' | 'timer' | 'user';
 

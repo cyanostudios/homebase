@@ -101,6 +101,10 @@ export function useMobileActions(actions: MobileActions) {
     if (!setActions) {
       return;
     }
+    // Do not register empty actions — companion / read-only embeds must not clear the primary page's handlers.
+    if (!hasAdd && !hasSettings) {
+      return;
+    }
     setActions({
       onAdd: hasAdd ? () => actionsRef.current.onAdd?.() : undefined,
       onSettings: hasSettings ? () => actionsRef.current.onSettings?.() : undefined,
