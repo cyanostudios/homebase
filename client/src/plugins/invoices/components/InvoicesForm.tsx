@@ -66,6 +66,7 @@ import { InvoiceCustomerSelect } from './InvoiceCustomerSelect';
 import { InvoiceDocumentPreview } from './InvoiceDocumentPreview';
 import { InvoiceLineItemsEditor } from './InvoiceLineItemsEditor';
 import { InvoicePricingSummary } from './InvoicePricingSummary';
+import { InvoiceStatusModal } from './InvoiceStatusModal';
 import { InvoiceStatusSelect } from './InvoiceStatusSelect';
 
 const FACT_LABEL_CLASS =
@@ -117,6 +118,8 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
 
     const [duplicatedItemIds, setDuplicatedItemIds] = useState<Set<string>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
     const [formData, setFormData] = useState(() => {
       const issueDate = new Date();
@@ -356,6 +359,28 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         clearValidationErrors();
       }
       markDirty();
+    };
+
+    const requestStatusChange = (nextStatus: string) => {
+      if (nextStatus === 'draft') {
+        updateField('status', nextStatus);
+        return;
+      }
+      setPendingStatus(nextStatus);
+      setShowStatusModal(true);
+    };
+
+    const confirmStatusChange = () => {
+      if (pendingStatus) {
+        updateField('status', pendingStatus);
+      }
+      setShowStatusModal(false);
+      setPendingStatus(null);
+    };
+
+    const cancelStatusChange = () => {
+      setShowStatusModal(false);
+      setPendingStatus(null);
     };
 
     const handleContactChange = (
@@ -721,7 +746,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                   </span>
                   <InvoiceStatusSelect
                     invoice={{ status: formData.status }}
-                    onStatusChange={(nextStatus) => updateField('status', nextStatus)}
+                    onStatusChange={requestStatusChange}
                     hideInlineLabel
                     filled
                   />
@@ -851,7 +876,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                       variant="soft"
                       size="xs"
                       alwaysExpanded
-                      onClick={() => updateField('status', 'sent')}
+                      onClick={() => requestStatusChange('sent')}
                     />
                   ) : null}
                   <RoundIconLabelButton
@@ -900,6 +925,14 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           }}
           onCancel={cancelDiscard}
           variant="warning"
+        />
+
+        <InvoiceStatusModal
+          isOpen={showStatusModal}
+          status={pendingStatus || ''}
+          invoiceNumber={currentInvoice?.invoiceNumber || ''}
+          onConfirm={confirmStatusChange}
+          onClose={cancelStatusChange}
         />
       </>
     );

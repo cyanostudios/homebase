@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import {
   useEffectiveCardColumnCount,
@@ -128,6 +129,7 @@ export function EstimateList() {
     estimatesContentView,
     openEstimateSettings,
     closeEstimateSettingsView,
+    setBrowseOrderIds,
   } = useEstimates();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -272,6 +274,8 @@ export function EstimateList() {
     () => sortedEstimates.map((estimate) => String(estimate.id)),
     [sortedEstimates],
   );
+
+  useRegisterBrowseOrder(setBrowseOrderIds, visibleEstimateIds);
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({

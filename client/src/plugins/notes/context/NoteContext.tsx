@@ -78,6 +78,8 @@ export interface NoteContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+  /** Visible list order (filter/sort) for prev/next navigation. */
+  setBrowseOrderIds: (ids: string[]) => void;
 }
 
 const NoteContext = createContext<NoteContextType | undefined>(undefined);
@@ -139,6 +141,7 @@ const EMPTY_NOTE_CONTEXT: NoteContextType = {
   hasNextItem: false,
   currentItemIndex: 0,
   totalItems: 0,
+  setBrowseOrderIds: () => {},
 };
 
 export function NoteNullProvider({ children }: { children: React.ReactNode }) {

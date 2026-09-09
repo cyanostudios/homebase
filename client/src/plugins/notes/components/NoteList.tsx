@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
+import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import {
   useEffectiveCardColumnCount,
@@ -132,6 +133,7 @@ export const NoteList: React.FC = () => {
     setRecentlyDuplicatedNoteId,
     openNotePanel,
     createNote,
+    setBrowseOrderIds,
   } = useNotes();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
@@ -268,6 +270,8 @@ export const NoteList: React.FC = () => {
   };
 
   const visibleNoteIds = useMemo(() => sortedNotes.map((note) => String(note.id)), [sortedNotes]);
+
+  useRegisterBrowseOrder(setBrowseOrderIds, visibleNoteIds);
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({

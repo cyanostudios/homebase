@@ -54,6 +54,8 @@ export type RequestsContextType = {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+  /** Visible list order (filter/sort) for prev/next navigation. */
+  setBrowseOrderIds: (ids: string[]) => void;
 };
 
 export const RequestsContext = createContext<RequestsContextType | undefined>(undefined);
@@ -106,6 +108,7 @@ const EMPTY_REQUESTS_CONTEXT: RequestsContextType = {
   hasNextItem: false,
   currentItemIndex: 0,
   totalItems: 0,
+  setBrowseOrderIds: () => {},
 };
 
 export function RequestsNullProvider({ children }: { children: React.ReactNode }) {

@@ -276,6 +276,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return () => registerTasksNavigation(null);
   }, [registerTasksNavigation, openTaskForViewBridge]);
 
+  const [browseOrderIds, setBrowseOrderIdsState] = useState<string[]>([]);
+  const setBrowseOrderIds = useCallback((ids: string[]) => {
+    setBrowseOrderIdsState(ids);
+  }, []);
+
   const {
     navigateToPrevItem,
     navigateToNextItem,
@@ -283,7 +288,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     hasNextItem,
     currentItemIndex,
     totalItems,
-  } = usePluginNavigation(tasks, currentTask, openTaskForView);
+  } = usePluginNavigation(tasks, currentTask, openTaskForView, browseOrderIds);
 
   const saveTask = useCallback(
     async (taskData: any, taskId?: string): Promise<boolean> => {
@@ -929,6 +934,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     hasNextItem,
     currentItemIndex,
     totalItems,
+    setBrowseOrderIds,
     detailFooterActions: [],
     exportShareActions: shareDetailActions,
     taskShareExistingShare,

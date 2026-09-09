@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
+import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import {
   useEffectiveCardColumnCount,
@@ -144,6 +145,7 @@ export function TaskList() {
     saveTask,
     currentTask,
     quickEditDraft,
+    setBrowseOrderIds,
   } = useTasks();
   const { contacts, getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -334,6 +336,8 @@ export function TaskList() {
   };
 
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
+
+  useRegisterBrowseOrder(setBrowseOrderIds, visibleTaskIds);
 
   const stats = useMemo(() => {
     const now = Date.now();

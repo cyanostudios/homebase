@@ -391,13 +391,10 @@ export function RequestProvider({
     return null;
   }, []);
 
-  const requestsOrderedByDate = useMemo(
-    () =>
-      [...requests].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      ),
-    [requests],
-  );
+  const [browseOrderIds, setBrowseOrderIdsState] = useState<string[]>([]);
+  const setBrowseOrderIds = useCallback((ids: string[]) => {
+    setBrowseOrderIdsState(ids);
+  }, []);
 
   const {
     navigateToPrevItem,
@@ -406,7 +403,7 @@ export function RequestProvider({
     hasNextItem,
     currentItemIndex,
     totalItems,
-  } = usePluginNavigation(requestsOrderedByDate, currentRequest, openRequestForView);
+  } = usePluginNavigation(requests, currentRequest, openRequestForView, browseOrderIds);
 
   const value: RequestsContextType = {
     isRequestPanelOpen,
@@ -448,6 +445,7 @@ export function RequestProvider({
     hasNextItem,
     currentItemIndex,
     totalItems,
+    setBrowseOrderIds,
   };
 
   return <RequestsContext.Provider value={value}>{children}</RequestsContext.Provider>;

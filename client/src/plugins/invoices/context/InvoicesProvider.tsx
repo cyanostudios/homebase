@@ -101,6 +101,10 @@ export function InvoicesProvider({
   const [showInvoiceShareDialog, setShowInvoiceShareDialog] = useState(false);
   const [shareValidUntil, setShareValidUntil] = useState(defaultShareValidUntilDate);
   const [shareTargetInvoice, setShareTargetInvoice] = useState<Invoice | null>(null);
+  const [browseOrderIds, setBrowseOrderIdsState] = useState<string[]>([]);
+  const setBrowseOrderIds = useCallback((ids: string[]) => {
+    setBrowseOrderIdsState(ids);
+  }, []);
 
   const {
     selectedIds: selectedInvoiceIds,
@@ -318,7 +322,7 @@ export function InvoicesProvider({
     hasNextItem,
     currentItemIndex,
     totalItems,
-  } = usePluginNavigation(invoices, currentInvoice, openInvoiceForView);
+  } = usePluginNavigation(invoices, currentInvoice, openInvoiceForView, browseOrderIds);
 
   const saveInvoice = async (raw: any): Promise<boolean> => {
     const errors = validate(raw);
@@ -734,6 +738,7 @@ export function InvoicesProvider({
     hasNextItem,
     currentItemIndex,
     totalItems,
+    setBrowseOrderIds,
     invoicesContentView,
     openInvoiceSettings: () => {
       clearInvoiceSelectionCore();

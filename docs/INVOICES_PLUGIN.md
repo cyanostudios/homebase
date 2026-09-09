@@ -107,7 +107,7 @@ Aligned with Contacts / Notes / Tasks chrome (see also `docs/PLUGIN_VIEW_IMPLEME
 
 **Invoice Properties (edit) field order:** Invoice type → Issue date → Payment terms → Due date (read-only, computed) → Currency → Status.
 
-**Send (draft):** On full view and edit preview actions, a **Send** control appears when status is `draft`. View: `handleStatusChange(…, 'sent')` (confirmation modal, then `saveInvoice`). Edit: sets form `status` to `sent` only — persistence still requires Save/Update. i18n: `invoices.send`.
+**Send (draft):** On full view and edit/create preview actions, a **Send** control appears when status is `draft`. View: `handleStatusChange(…, 'sent')` (confirmation modal, then `saveInvoice`). Edit/create: `requestStatusChange('sent')` opens the same `InvoiceStatusModal`; on confirm, form `status` becomes `sent` only — persistence still requires Save/Update. Status select on the form uses the same confirm path for any non-draft status. i18n: `invoices.send`.
 
 Status colors: shared `INVOICE_STATUS_COLORS` / `InvoiceStatusSelect` (draft gray, sent blue, partially paid amber, paid green, overdue/canceled rose). Delbetalning sätter status `partially_paid` automatiskt via payment ledger.
 

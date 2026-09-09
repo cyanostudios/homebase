@@ -447,6 +447,11 @@ export function ContactProvider({
     };
   }, [closeContactPanel, registerPanelCloseFunction, unregisterPanelCloseFunction]);
 
+  const [browseOrderIds, setBrowseOrderIdsState] = useState<string[]>([]);
+  const setBrowseOrderIds = useCallback((ids: string[]) => {
+    setBrowseOrderIdsState(ids);
+  }, []);
+
   const {
     navigateToPrevItem,
     navigateToNextItem,
@@ -454,7 +459,7 @@ export function ContactProvider({
     hasNextItem,
     currentItemIndex,
     totalItems,
-  } = usePluginNavigation(contacts, currentContact, openContactForView);
+  } = usePluginNavigation(contacts, currentContact, openContactForView, browseOrderIds);
 
   const openContactForViewRef = useRef(openContactForView);
   useEffect(() => {
@@ -936,6 +941,7 @@ export function ContactProvider({
     hasNextItem,
     currentItemIndex,
     totalItems,
+    setBrowseOrderIds,
     detailFooterActions,
     showSendMessageDialog,
     sendMessageRecipients,

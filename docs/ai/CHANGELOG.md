@@ -2,9 +2,13 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Focus remove + invoice Send confirm + browse-order prev/next — docs sync (2026-09-09)
+
+Docs efter **QA Approved** + **Security Approved** för (1) Contacts full-view focus overlay **removed**, (2) invoice form Send/status confirm via `InvoiceStatusModal`, (3) prev/next **browse order** (`useRegisterBrowseOrder` / `setBrowseOrderIds` on invoices, contacts, notes, tasks, estimates, requests). Operator: [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) (Contacts focus trial struck; ItemNavigation browse-order note), [`INVOICES_PLUGIN.md`](../INVOICES_PLUGIN.md) Send/edit confirm. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-09 (tre poster; trial superseded). **Working tree; local-first; ej prod-release.** Begränsning: teams/cups/files/garments saknar ännu browse-order-wiring (rå provider-ordning). Requests: kort fönster med rå store-ordning innan list registrerar IDs (UX, ej authz).
+
 ## Invoices epic + badge unify + Contacts focus — docs sync (2026-09-08)
 
-Docs efter **QA Approved** + **Security Approved** för (1) invoices numbering-by-type / credit notes / list-stats / PDF footer, (2) platform `BADGE_CHIP` pill shell, (3) Contacts full-view focus overlay (trial). ADR [`adr/INVOICES_NUMBERING_BY_TYPE.md`](adr/INVOICES_NUMBERING_BY_TYPE.md) (Security Low follow-ups). Operator: [`INVOICES_PLUGIN.md`](../INVOICES_PLUGIN.md), [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-08 (tre poster). **Working tree; local-first; ej prod-release.** Security Lows (invoice_type allowlist + update omit demotion) dokumenterade som rekommenderade hardenings — **inte** TPM-accepterade residualer. Credit-note eligibility client-only dokumenterad.
+Docs efter **QA Approved** + **Security Approved** för (1) invoices numbering-by-type / credit notes / list-stats / PDF footer, (2) platform `BADGE_CHIP` pill shell, (3) Contacts full-view focus overlay (trial) — **superseded 2026-09-09** (removed; see entry above). ADR [`adr/INVOICES_NUMBERING_BY_TYPE.md`](adr/INVOICES_NUMBERING_BY_TYPE.md) (Security Low follow-ups). Operator: [`INVOICES_PLUGIN.md`](../INVOICES_PLUGIN.md), [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-08. **Working tree; local-first; ej prod-release.** Security Lows (invoice_type allowlist + update omit demotion) dokumenterade som rekommenderade hardenings — **inte** TPM-accepterade residualer. Credit-note eligibility client-only dokumenterad.
 
 ## Files library UI follow-up — docs sync (2026-09-08)
 

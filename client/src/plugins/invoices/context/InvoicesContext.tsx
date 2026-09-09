@@ -111,6 +111,8 @@ export interface InvoicesContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+  /** Visible list order (filter/sort) for prev/next navigation. */
+  setBrowseOrderIds: (ids: string[]) => void;
   invoicesContentView: 'list' | 'settings' | 'statistics';
   openInvoiceSettings: () => void;
   closeInvoiceSettingsView: () => void;
@@ -184,6 +186,7 @@ const EMPTY_INVOICES_CONTEXT: InvoicesContextType = {
   hasNextItem: false,
   currentItemIndex: 0,
   totalItems: 0,
+  setBrowseOrderIds: () => {},
   invoicesContentView: 'list',
   openInvoiceSettings: () => {},
   closeInvoiceSettingsView: () => {},

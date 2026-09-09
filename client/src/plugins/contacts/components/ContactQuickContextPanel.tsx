@@ -58,7 +58,6 @@ export function ContactQuickContextPanel({
   onEdit,
   variant = 'list',
   selectionMode = false,
-  headerTrailing,
 }: {
   contact: Contact;
   availableTags: string[];
@@ -69,8 +68,6 @@ export function ContactQuickContextPanel({
   variant?: 'list' | 'full';
   /** When true, header Open uses soft primary (bulk select active). */
   selectionMode?: boolean;
-  /** Optional control beside edit/close (e.g. focus mode in full view). */
-  headerTrailing?: React.ReactNode;
 }) {
   const isFullView = variant === 'full';
   const { t } = useTranslation();
@@ -142,7 +139,6 @@ export function ContactQuickContextPanel({
         {contactInitials(contact.companyName)}
       </div>
       <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{contact.companyName}</h3>
-      {headerTrailing}
       <QuickContextHeaderActions
         onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
         onEdit={onEdit}

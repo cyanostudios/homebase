@@ -4,7 +4,6 @@ import { createPortal } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
 import { MAIN_CONTENT_SHELL_CLASS } from '@/core/ui/ContentSurface';
-import { useDetailFocusOverlay } from '@/core/ui/DetailFocusOverlayContext';
 import {
   DETAIL_PANEL_BODY_CLASS,
   DETAIL_PANEL_HEADER_ROW_CLASS,
@@ -51,7 +50,6 @@ export function DetailPanel({
   isMobile = false,
   contentKey,
 }: DetailPanelProps) {
-  const { active: detailFocusActive } = useDetailFocusOverlay();
   const hasTitle = typeof title === 'string' ? title.trim().length > 0 : Boolean(title);
   const showTitleBlock = hasTitle;
   const showDesktopHeaderRow =
@@ -131,14 +129,7 @@ export function DetailPanel({
   ) : null;
 
   const desktopHeaderRow = showDesktopHeaderRow ? (
-    <div
-      className={cn(
-        DETAIL_PANEL_HEADER_ROW_CLASS,
-        DETAIL_PANEL_INSET_CLASS,
-        detailFocusActive && 'relative z-50',
-      )}
-    >
-      {' '}
+    <div className={cn(DETAIL_PANEL_HEADER_ROW_CLASS, DETAIL_PANEL_INSET_CLASS)}>
       {showTitleBlock ? (
         <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>{titleNode}</div>
       ) : (
@@ -212,17 +203,11 @@ export function DetailPanel({
       {/* Phone: Edit/Close fixed to viewport (portaled) — always visible while scrolling */}
       {hasBottomActions && typeof document !== 'undefined'
         ? createPortal(
-            <div
-              className={cn(
-                'pointer-events-none fixed inset-x-0 bottom-0 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden',
-                detailFocusActive ? 'z-50' : 'z-40',
-              )}
-            >
+            <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">
               <div
                 className={cn(
                   'pointer-events-auto flex w-full items-center gap-2 px-2 py-2',
                   MOBILE_FLOATING_CHROME_CLASS,
-                  detailFocusActive && 'shadow-lg',
                 )}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-2 [&_button]:shadow-sm">

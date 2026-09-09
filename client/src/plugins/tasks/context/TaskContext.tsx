@@ -77,6 +77,8 @@ export interface TaskContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+  /** Visible list order (filter/sort) for prev/next navigation. */
+  setBrowseOrderIds: (ids: string[]) => void;
   detailFooterActions?: Array<{
     id: string;
     label: string;
@@ -162,6 +164,7 @@ const EMPTY_TASK_CONTEXT: TaskContextType = {
   hasNextItem: false,
   currentItemIndex: 0,
   totalItems: 0,
+  setBrowseOrderIds: () => {},
   detailFooterActions: [],
   exportShareActions: [],
   taskShareExistingShare: null,

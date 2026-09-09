@@ -242,6 +242,11 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return () => registerNotesNavigation(null);
   }, [registerNotesNavigation, openNoteForViewBridge]);
 
+  const [browseOrderIds, setBrowseOrderIdsState] = useState<string[]>([]);
+  const setBrowseOrderIds = useCallback((ids: string[]) => {
+    setBrowseOrderIdsState(ids);
+  }, []);
+
   const {
     navigateToPrevItem,
     navigateToNextItem,
@@ -249,7 +254,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     hasNextItem,
     currentItemIndex,
     totalItems,
-  } = usePluginNavigation(notes, currentNote, openNoteForView);
+  } = usePluginNavigation(notes, currentNote, openNoteForView, browseOrderIds);
 
   const saveNote = useCallback(
     async (noteData: any): Promise<boolean> => {
@@ -681,6 +686,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     hasNextItem,
     currentItemIndex,
     totalItems,
+    setBrowseOrderIds,
   };
 
   return <NoteContext.Provider value={value}>{children}</NoteContext.Provider>;

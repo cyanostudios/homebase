@@ -82,6 +82,8 @@ export interface EstimateContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+  /** Visible list order (filter/sort) for prev/next navigation. */
+  setBrowseOrderIds: (ids: string[]) => void;
   estimatesContentView: 'list' | 'settings';
   openEstimateSettings: () => void;
   closeEstimateSettingsView: () => void;
@@ -157,6 +159,7 @@ const EMPTY_ESTIMATE_CONTEXT: EstimateContextType = {
   hasNextItem: false,
   currentItemIndex: 0,
   totalItems: 0,
+  setBrowseOrderIds: () => {},
   estimatesContentView: 'list',
   openEstimateSettings: () => {},
   closeEstimateSettingsView: () => {},

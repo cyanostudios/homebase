@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
+import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import {
@@ -143,6 +144,7 @@ export function RequestList() {
     createRequest,
     saveRequest,
     markRequestViewed,
+    setBrowseOrderIds,
   } = useRequests();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
@@ -289,6 +291,8 @@ export function RequestList() {
   }, [filtered, primarySort, sortOrder]);
 
   const visibleIds = useMemo(() => sorted.map((r) => r.id), [sorted]);
+
+  useRegisterBrowseOrder(setBrowseOrderIds, visibleIds);
 
   const selectedRequests = useMemo(
     () => requests.filter((r) => selectedRequestIds.includes(r.id)),

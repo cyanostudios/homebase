@@ -4,6 +4,30 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-09 – Prev/next follows visible list order (browse order)
+
+**Typ:** fix / enhancement  
+**Scope:** `usePluginNavigation` (optional `browseOrderIds`), `orderItemsByBrowseIds`, `useRegisterBrowseOrder`; list+provider wiring in invoices, contacts, notes, tasks, estimates, requests  
+**QA:** Approved (2026-09-09, after CHANGELOG rework). **Security:** Approved (2026-09-09). Client-only navigation order; no new API/authz. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Detail prev/next index and neighbors follow the **visible filtered/sorted list** (same order as shift-select IDs), not the raw store / created-at order. Lists call `setBrowseOrderIds` via `useRegisterBrowseOrder`. Empty browse order keeps previous fallback (full items array).
+
+## 2026-09-09 – Invoice form: confirm before non-draft status (Send)
+
+**Typ:** fix / UX  
+**Scope:** `InvoicesForm` + existing `InvoiceStatusModal`  
+**QA:** Approved (2026-09-09, after CHANGELOG rework). **Security:** Approved (2026-09-09). Client-only confirm; persistence still via existing save. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Create/edit form **Send** and status select (anything other than draft) open the same confirmation modal as view-mode draft→sent, so status is not applied until the user confirms.
+
+## 2026-09-09 – Contacts full-view focus overlay removed
+
+**Typ:** revert / UI  
+**Scope:** `ContactView`, removed `DetailFocusOverlayContext`, `DetailPanel` / `MainLayout` focus wiring, contacts focus i18n keys, `ContactQuickContextPanel` `headerTrailing`  
+**QA:** Approved (2026-09-09, after CHANGELOG rework). **Security:** Approved (2026-09-09). Client-only chrome removal. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Trial focus overlay (dim chrome + Focus toggle + Esc-to-exit-focus) removed; full contact view is back to normal detail chrome. Notes focus mode is unchanged. Supersedes the 2026-09-08 trial entry below.
+
 ## 2026-09-08 – Invoices: type numbering, credit notes, list/stats, PDF footer
 
 **Typ:** feature / enhancement  
@@ -19,13 +43,14 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - Statistics: amount by type / status; money aggregated per currency (no FX mix)
 - Live preview: hug content / no iframe scroll; PDF footer sticky on short A4 pages
 
-## 2026-09-08 – Contacts full-view focus overlay (trial)
+## 2026-09-08 – Contacts full-view focus overlay (trial) — superseded
 
 **Typ:** enhancement / UI  
+**Status:** **Removed 2026-09-09** (see entry above). Kept for history.  
 **Scope:** `ContactView`, `DetailFocusOverlayContext`, `DetailPanel` header elevation, `ContactQuickContextPanel` `headerTrailing`  
 **QA + Security:** Approved (2026-09-08). Client-only chrome; no new API/authz. **Local-first; not a prod release** by itself.
 
-**Sammanfattning:** Full contact view opens with Notes-style dim overlay (`bg-slate-950/55`) on by default so cards and header actions stand out. Esc / click outside / Focus toggle exits. Trial — default-on may change later.
+**Sammanfattning:** Full contact view opened with Notes-style dim overlay (`bg-slate-950/55`) on by default. Esc / click outside / Focus toggle exited. Trial withdrawn.
 
 ## 2026-09-08 – Platform badges unified to Response due pill shell
 

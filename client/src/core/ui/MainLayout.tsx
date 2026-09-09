@@ -8,7 +8,6 @@ import { AppRightSidebar } from './AppRightSidebar';
 import { ContentHeader } from './ContentHeader';
 import { ContentLayoutProvider } from './ContentLayoutContext';
 import { ContentSurface, MAIN_CONTENT_SHELL_CLASS } from './ContentSurface';
-import { DetailFocusOverlayProvider } from './DetailFocusOverlayContext';
 import { DetailPanel } from './DetailPanel';
 import { MobileActionsProvider, useMobileSearchBar } from './MobileActionsContext';
 import { MobileBottomBar } from './MobileBottomBar';
@@ -260,9 +259,7 @@ export function MainLayout(props: MainLayoutProps) {
     <RightSidebarProvider>
       <LeftSidebarProvider>
         <MobileActionsProvider>
-          <DetailFocusOverlayProvider>
-            <MainLayoutShell {...props} />
-          </DetailFocusOverlayProvider>
+          <MainLayoutShell {...props} />
         </MobileActionsProvider>
       </LeftSidebarProvider>
     </RightSidebarProvider>

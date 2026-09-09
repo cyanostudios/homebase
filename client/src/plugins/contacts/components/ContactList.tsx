@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import {
   useEffectiveCardColumnCount,
@@ -149,6 +150,7 @@ export const ContactList: React.FC = () => {
     isSelected,
     recentlyDuplicatedContactId,
     contactIdsWithTimeEntries,
+    setBrowseOrderIds,
   } = useContacts();
   const { getSettings, updateSettings, settingsVersion, user } = useApp();
   const activeTimeTrackingContactId = useOptionalActiveTimeTrackingContactId();
@@ -347,6 +349,8 @@ export const ContactList: React.FC = () => {
     () => sortedContacts.map((contact) => String(contact.id)),
     [sortedContacts],
   );
+
+  useRegisterBrowseOrder(setBrowseOrderIds, visibleContactIds);
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({

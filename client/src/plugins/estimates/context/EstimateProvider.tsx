@@ -225,6 +225,11 @@ export function EstimateProvider({
     return () => registerEstimatesNavigation(null);
   }, [registerEstimatesNavigation, openEstimateForViewBridge]);
 
+  const [browseOrderIds, setBrowseOrderIdsState] = useState<string[]>([]);
+  const setBrowseOrderIds = useCallback((ids: string[]) => {
+    setBrowseOrderIdsState(ids);
+  }, []);
+
   const {
     navigateToPrevItem,
     navigateToNextItem,
@@ -232,7 +237,7 @@ export function EstimateProvider({
     hasNextItem,
     currentItemIndex,
     totalItems,
-  } = usePluginNavigation(estimates, currentEstimate, openEstimateForView);
+  } = usePluginNavigation(estimates, currentEstimate, openEstimateForView, browseOrderIds);
 
   const closeEstimatePanel = useCallback(() => {
     setIsEstimatePanelOpen(false);
@@ -800,6 +805,7 @@ export function EstimateProvider({
     hasNextItem,
     currentItemIndex,
     totalItems,
+    setBrowseOrderIds,
     estimatesContentView,
     openEstimateSettings: () => setEstimatesContentView('settings'),
     closeEstimateSettingsView: () => setEstimatesContentView('list'),

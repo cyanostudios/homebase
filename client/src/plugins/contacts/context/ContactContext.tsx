@@ -69,6 +69,8 @@ export interface ContactContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+  /** Visible list order (filter/sort) for prev/next navigation. */
+  setBrowseOrderIds: (ids: string[]) => void;
   detailFooterActions?: Array<{
     id: string;
     label: string;
@@ -152,6 +154,7 @@ const EMPTY_CONTACT_CONTEXT: ContactContextType = {
   hasNextItem: false,
   currentItemIndex: 0,
   totalItems: 0,
+  setBrowseOrderIds: () => {},
   detailFooterActions: [],
   showSendMessageDialog: false,
   sendMessageRecipients: [],

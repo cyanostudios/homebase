@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
+import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import {
   useEffectiveCardColumnCount,
@@ -145,6 +146,7 @@ export function InvoicesList() {
     closeInvoiceSettingsView,
     openInvoiceStatistics,
     closeInvoiceStatisticsView,
+    setBrowseOrderIds,
   } = useInvoices();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -290,6 +292,8 @@ export function InvoicesList() {
     () => sortedInvoices.map((inv) => String(inv.id)),
     [sortedInvoices],
   );
+
+  useRegisterBrowseOrder(setBrowseOrderIds, visibleInvoiceIds);
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
