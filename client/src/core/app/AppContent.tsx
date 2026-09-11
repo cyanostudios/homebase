@@ -545,7 +545,17 @@ export function AppContent() {
     isSubmitting: currentPluginContext?.isSaving ?? false,
   });
 
-  const detailPanelOpen = isAnyPanelOpen;
+  // Mail-layout plugins (contentOwnsScroll) keep the list mounted on desktop and
+  // render create/edit/view in the list detail column instead of DetailPanel.
+  // Include view so edit→save (panelMode stays open as view) does not swap the list away.
+  const inlineDesktopPanel =
+    Boolean(currentPagePlugin?.contentOwnsScroll) &&
+    isDesktopLayout &&
+    Boolean(currentPlugin) &&
+    currentPlugin?.name === currentPagePlugin?.name &&
+    (currentMode === 'create' || currentMode === 'edit' || currentMode === 'view');
+
+  const detailPanelOpen = isAnyPanelOpen && !inlineDesktopPanel;
   const detailPanelTitle = panelTitles.getPanelTitle();
   const detailPanelSubtitle = panelTitles.getPanelSubtitle();
   const detailPanelContent = renderers.renderPanelContent();
@@ -606,6 +616,7 @@ export function AppContent() {
         onDetailPanelClose={onDetailPanelClose}
         detailPanelContentKey={detailPanelContentKey}
         contentFlush={currentPage === 'dashboard' || (currentPagePlugin?.contentFlush ?? false)}
+        contentOwnsScroll={currentPagePlugin?.contentOwnsScroll ?? false}
       >
         {currentPage === 'dashboard' ? (
           <Dashboard onPageChange={handlePageChange} />

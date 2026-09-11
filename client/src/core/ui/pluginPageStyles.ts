@@ -68,8 +68,9 @@ export const MOBILE_FLOATING_CHROME_CLASS =
 export const MOBILE_SHELL_TOP_INSET_CLASS = 'pt-14';
 
 /**
- * Small vertical gutter around the main content shell so `rounded-xl` reads against workspace.
- * Desktop uses full `py-4`; phone/pad keep `MOBILE_SHELL_TOP_INSET_CLASS` for top and use bottom only.
+ * Workspace gutter around the main content shell so `rounded-xl` reads against workspace.
+ * Tighter on the sides; keep vertical inset so the top edge stays readable.
  */
+export const CONTENT_SHELL_GUTTER_CLASS = 'px-1 py-4';
 export const CONTENT_SHELL_Y_GUTTER_CLASS = 'py-4';
 export const CONTENT_SHELL_BOTTOM_GUTTER_CLASS = 'pb-4';

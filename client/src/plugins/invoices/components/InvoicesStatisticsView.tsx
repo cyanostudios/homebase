@@ -72,25 +72,31 @@ function MoneyKpiTile({
   const rows = amounts.length > 0 ? amounts : [{ currency: 'SEK', value: 0 }];
 
   return (
-    <div className={cn('rounded-xl bg-white p-4 shadow-sm dark:bg-slate-950', className)}>
-      <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400">{label}</p>
+    <div className={cn('rounded-xl bg-sky-50 p-4 shadow-none dark:bg-sky-950/40', className)}>
+      <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-sky-600/70 dark:text-sky-400/70">
+        {label}
+      </p>
       <div className="mt-1 space-y-1">
         {rows.map((row) => (
           <p
             key={row.currency}
-            className="text-2xl font-extrabold tabular-nums tracking-tight text-foreground sm:text-3xl"
+            className="text-2xl font-extrabold tabular-nums tracking-tight text-sky-800 dark:text-sky-200 sm:text-3xl"
           >
             {formatInvoiceAmount(row.value, 0)}
-            <span className="ml-1.5 text-sm font-semibold text-muted-foreground">
+            <span className="ml-1.5 text-sm font-semibold text-sky-600/80 dark:text-sky-400/80">
               {row.currency}
             </span>
           </p>
         ))}
       </div>
-      {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs text-sky-700/70 dark:text-sky-300/70">{hint}</p> : null}
     </div>
   );
 }
+
+const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
+const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
+const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
 function amountsFromMap(byCurrency: AmountByCurrency): Array<{ currency: string; value: number }> {
   const entries = currencyAmountEntries(byCurrency);
@@ -394,6 +400,9 @@ export function InvoicesStatisticsView({ onClose }: InvoicesStatisticsViewProps 
           <StatKpiTile
             label={t('invoices.statistics.invoiceCount', { defaultValue: 'Invoices' })}
             value={stats.invoiceCount}
+            className={STAT_KPI_SOFT_CLASS}
+            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
           />
           <MoneyKpiTile
             label={t('invoices.statistics.totalInvoiced', { defaultValue: 'Total invoiced' })}
@@ -404,11 +413,11 @@ export function InvoicesStatisticsView({ onClose }: InvoicesStatisticsViewProps 
             amounts={amountsFromMap(stats.totalCollectedByCurrency)}
           />
           {collectionRate == null ? (
-            <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-950">
-              <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400">
+            <div className="rounded-xl bg-sky-50 p-4 shadow-none dark:bg-sky-950/40">
+              <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-sky-600/70 dark:text-sky-400/70">
                 {t('invoices.statistics.collectionRate', { defaultValue: 'Collected %' })}
               </p>
-              <p className="mt-1 text-sm font-medium text-muted-foreground">
+              <p className="mt-1 text-sm font-medium text-sky-700/70 dark:text-sky-300/70">
                 {t('invoices.statistics.collectionRateMultiHint', {
                   defaultValue: 'Per currency only',
                 })}
@@ -418,6 +427,9 @@ export function InvoicesStatisticsView({ onClose }: InvoicesStatisticsViewProps 
             <StatKpiTile
               label={t('invoices.statistics.collectionRate', { defaultValue: 'Collected %' })}
               value={collectionRate}
+              className={STAT_KPI_SOFT_CLASS}
+              labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+              valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
             />
           )}
         </div>
@@ -490,16 +502,16 @@ export function InvoicesStatisticsView({ onClose }: InvoicesStatisticsViewProps 
             label={t('invoices.statistics.overdue', { defaultValue: 'Overdue' })}
             amounts={amountsFromMap(stats.overdue.byCurrency)}
           />
-          <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-slate-950 sm:col-span-2 lg:col-span-1">
-            <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400">
+          <div className="rounded-xl bg-sky-50 p-4 shadow-none dark:bg-sky-950/40 sm:col-span-2 lg:col-span-1">
+            <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-sky-600/70 dark:text-sky-400/70">
               {t('invoices.statistics.partialPaymentsLabel', {
                 defaultValue: 'Partial payments',
               })}
             </p>
-            <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-foreground sm:text-3xl">
+            <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-sky-800 dark:text-sky-200 sm:text-3xl">
               {stats.partialPayments}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-sky-700/70 dark:text-sky-300/70">
               {t('invoices.statistics.partialPaymentsHint', {
                 defaultValue: 'Invoices with amount paid but not fully settled',
               })}

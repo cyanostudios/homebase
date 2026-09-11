@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import React from 'react';
 
-import { Button } from '@/components/ui/button';
+import { Button, BUTTON_COLOR_TRANSITION_CLASS } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { isSubmenuOpen as computeSubmenuOpen } from '@/core/navigation/collapsibleState';
 import type { NavCategory, NavPage } from '@/core/navigation/navTypes';
@@ -58,7 +58,8 @@ export const SidebarNavContent = React.memo(function SidebarNavContent({
               aria-label={category.title}
               aria-current={isActive ? 'true' : undefined}
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-full transition-colors',
+                'flex h-10 w-10 items-center justify-center rounded-full',
+                BUTTON_COLOR_TRANSITION_CLASS,
                 'hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 isActive ? 'bg-primary/10' : undefined,
               )}

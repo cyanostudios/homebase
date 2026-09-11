@@ -2,10 +2,11 @@
  * Detail panel header actions (view: nav + update/edit + close; edit/create: close + save).
  * Extracted from App.tsx — behavior must stay identical. See docs/CORE_ARCHITECTURE_V2.md.
  */
-import { Check, Edit, Eye, X } from 'lucide-react';
+import { Check, Edit, X } from 'lucide-react';
 import React from 'react';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ItemNavigation } from '@/core/ui/ItemNavigation';
 
 export type PanelHeaderHandlers = {
@@ -125,77 +126,18 @@ export function renderDetailPanelHeaderRight({
     );
   }
 
-  if (currentMode === 'edit') {
+  if (currentMode === 'edit' || currentMode === 'create') {
     return (
-      <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:gap-1">
-        {showInvoicePreview ? (
-          <RoundIconLabelButton
-            type="button"
-            onClick={handlers.handlePreviewClick}
-            icon={Eye}
-            label={t('common.preview')}
-            variant="secondary"
-            alwaysExpanded
-            className={actionButtonClass}
-          />
-        ) : null}
-        <RoundIconLabelButton
-          type="button"
-          onClick={handlers.handleCancelClick}
-          icon={X}
-          label={t('common.close')}
-          variant="secondary"
-          alwaysExpanded
-          className={actionButtonClass}
-        />
-        <RoundIconLabelButton
-          type="button"
-          onClick={handlers.handleSaveClick}
-          icon={Check}
-          label={currentPluginContext?.isSaving ? t('common.saving') : t('common.update')}
-          variant="success"
-          alwaysExpanded
-          disabled={hasBlockingErrors || Boolean(currentPluginContext?.isSaving)}
-          className={actionButtonClass}
-        />
-      </div>
-    );
-  }
-
-  if (currentMode === 'create') {
-    return (
-      <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:gap-1">
-        {showInvoicePreview ? (
-          <RoundIconLabelButton
-            type="button"
-            onClick={handlers.handlePreviewClick}
-            icon={Eye}
-            label={t('common.preview')}
-            variant="secondary"
-            alwaysExpanded
-            className={actionButtonClass}
-          />
-        ) : null}
-        <RoundIconLabelButton
-          type="button"
-          onClick={handlers.handleCancelClick}
-          icon={X}
-          label={t('common.close')}
-          variant="secondary"
-          alwaysExpanded
-          className={actionButtonClass}
-        />
-        <RoundIconLabelButton
-          type="button"
-          onClick={handlers.handleSaveClick}
-          icon={Check}
-          label={currentPluginContext?.isSaving ? t('common.saving') : t('common.save')}
-          variant="success"
-          alwaysExpanded
-          disabled={hasBlockingErrors || Boolean(currentPluginContext?.isSaving)}
-          className={actionButtonClass}
-        />
-      </div>
+      <InlinePanelFormActions
+        mode={currentMode}
+        isSaving={Boolean(currentPluginContext?.isSaving)}
+        hasBlockingErrors={hasBlockingErrors}
+        showPreview={showInvoicePreview}
+        onPreview={handlers.handlePreviewClick}
+        onClose={handlers.handleCancelClick}
+        onSave={handlers.handleSaveClick}
+        t={t}
+      />
     );
   }
 

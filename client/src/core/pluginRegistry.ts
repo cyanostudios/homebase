@@ -97,6 +97,11 @@ export interface PluginRegistryEntry {
   displayPrefix?: string;
   /** If true, plugin pages render edge-to-edge without inner content padding. */
   contentFlush?: boolean;
+  /**
+   * If true with contentFlush, the shell does not scroll the page — the plugin List
+   * must fill height and own overflow (e.g. Contacts list|detail columns).
+   */
+  contentOwnsScroll?: boolean;
   /** Field (or resolver) used to derive human-friendly URL slugs. */
   slugField?: string | ((item: any) => string);
   /** Optional context key that stores plugin content view state (e.g. list/settings). */
@@ -567,6 +572,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: ContactsDashboardWidget,
     displayPrefix: 'CNT',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'companyName',
     contentViewKey: 'contactsContentView',
   },
@@ -662,6 +668,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: InvoicesDashboardWidget,
     displayPrefix: 'INV',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'invoiceNumber',
     contentViewKey: 'invoicesContentView',
   },

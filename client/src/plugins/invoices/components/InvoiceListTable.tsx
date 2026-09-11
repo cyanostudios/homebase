@@ -1,11 +1,15 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { User, Users } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
+import { useApp } from '@/core/api/AppContext';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { formatDate, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
+import { CONTACT_TYPE_ICON_SHELL_CLASS } from '@/plugins/contacts/types/contacts';
 
 import type { Invoice } from '../context/InvoicesContext';
 import { formatInvoiceMoney } from '../utils/formatInvoiceAmount';
@@ -23,7 +27,6 @@ import {
   INVOICE_STATUS_COLORS,
   formatInvoiceStatusForDisplay,
 } from './InvoiceStatusSelect';
-
 export type InvoiceListTableProps = {
   invoices: Invoice[];
   primarySort: InvoiceSortField;
@@ -62,6 +65,18 @@ export function InvoiceListTable({
   visibleColumnIds,
 }: InvoiceListTableProps) {
   const { t } = useTranslation();
+  const { contacts } = useApp();
+
+  const contactTypeById = useMemo(() => {
+    const map = new Map<string, 'company' | 'private'>();
+    for (const contact of contacts ?? []) {
+      if (contact?.id == null || !contact.contactType) {
+        continue;
+      }
+      map.set(String(contact.id), contact.contactType === 'private' ? 'private' : 'company');
+    }
+    return map;
+  }, [contacts]);
 
   const orderedVisibleIds = useMemo(() => {
     if (visibleColumnIds && visibleColumnIds.length > 0) {
@@ -75,11 +90,74 @@ export function InvoiceListTable({
       invoiceNumber: {
         field: 'invoiceNumber',
         header: t('invoices.table.number', { defaultValue: 'Number' }),
-        cell: (invoice) => (
-          <span className="font-mono text-xs font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}
-          </span>
-        ),
+        cell: (invoice) => {
+          const contactName = invoice.contactName?.trim() || '';
+          const contactType =
+            invoice.contactId != null ? contactTypeById.get(String(invoice.contactId)) : undefined;
+          const typeLabel = contactType
+            ? t(`contacts.type.${contactType}`, {
+                defaultValue: contactType === 'private' ? 'Private' : 'Company',
+              })
+            : null;
+          const status = invoice.status || 'draft';
+          const totalLabel = formatInvoiceMoney(
+            resolveInvoiceTotals(invoice).total,
+            invoice.currency || 'SEK',
+          );
+          const TypeIcon =
+            contactType === 'private' ? User : contactType === 'company' ? Users : null;
+          const hasSubtitle = Boolean(contactName || TypeIcon || totalLabel);
+
+          const numberRow = (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="min-w-0 truncate font-mono text-xs font-extrabold text-foreground transition-colors group-hover:text-primary">
+                {formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}
+              </span>
+              <Badge
+                className={cn(
+                  INVOICE_STATUS_BADGE_CLASS,
+                  INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
+                  'h-4 shrink-0 px-1 py-0 text-[10px] font-normal leading-none',
+                )}
+              >
+                {formatInvoiceStatusForDisplay(status)}
+              </Badge>
+            </div>
+          );
+
+          if (!hasSubtitle) {
+            return numberRow;
+          }
+
+          return (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              {numberRow}
+              <div className="flex min-w-0 items-center gap-1.5">
+                {TypeIcon ? (
+                  <span title={typeLabel ?? undefined} className="inline-flex shrink-0">
+                    <SectionCategoryIcon
+                      icon={TypeIcon}
+                      className={cn(
+                        'h-5 w-5 [&_svg]:h-3 [&_svg]:w-3',
+                        contactType ? CONTACT_TYPE_ICON_SHELL_CLASS[contactType] : undefined,
+                      )}
+                    />
+                  </span>
+                ) : null}
+                {contactName ? (
+                  <span className="min-w-0 truncate text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                    {contactName}
+                  </span>
+                ) : null}
+                {totalLabel ? (
+                  <span className="shrink-0 tabular-nums text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                    {totalLabel}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          );
+        },
       },
       invoiceType: {
         field: 'invoiceType',
@@ -169,7 +247,7 @@ export function InvoiceListTable({
       },
     };
     return defs;
-  }, [t]);
+  }, [t, contactTypeById]);
 
   const columns = useMemo(
     () =>
@@ -201,6 +279,9 @@ export function InvoiceListTable({
         activeInvoiceId !== undefined &&
         String(invoice.id) === String(activeInvoiceId)
       }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       selection={
         selectionEnabled
           ? {

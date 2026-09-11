@@ -4,6 +4,21 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-11 – Contacts + Invoices mail-style list|detail (reference)
+
+**Typ:** enhancement / UI  
+**Scope:** Contacts + Invoices lists/views/forms/QC; shared shell (`AppContent` `inlineDesktopPanel`/`contentOwnsScroll`, `InlinePanelFormActions`, `SortableListTable` header overrides, `StatKpiTile` soft classes); i18n `contacts.statistics.*`; [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) §5.1 iOS Mail palette (doc reference only)  
+**QA:** Approved (2026-09-11, after empty-state wiring-test rework). **Security:** N/A this pass (UI-only; no new API/auth). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Contacts and Invoices become the **reference mail-layout** for other list|detail plugins:
+
+- Desktop ~20% list | `1fr` detail; collapsible thin toolbar; per-column scroll (`contentOwnsScroll`)
+- Inline create/edit/view in detail on desktop (`inlineDesktopPanel`); shared `InlinePanelFormActions`
+- List meta: primary line + subtitle with type icon (`Users`/`User`) and soft sky/green shells
+- Soft sky table headers (opt-in `headerBarClassName` / `headerCellClassName`); KPI soft tiles; empty detail shows statistics card
+- Invoices: table-only list; centered document preview; card stacking `grid-cols-1`
+- Shared button color transitions / round-icon expand timing polish
+
 ## 2026-09-09 – Prev/next follows visible list order (browse order)
 
 **Typ:** fix / enhancement  

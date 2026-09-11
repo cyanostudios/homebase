@@ -525,6 +525,19 @@
       "withTags": "Med taggar",
       "timeLogged": "Tid loggad"
     },
+    "statistics": {
+      "title": "Kontaktstatistik",
+      "description": "Översikt av företag, privata kontakter, taggar och loggad tid.",
+      "overview": "Översikt",
+      "typeMix": "Företag vs privat",
+      "typeMixAria": "Andel företag och privata kontakter"
+    },
+    "filter": "Filter",
+    "sort": "Sortering",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "noMatch": "Inga kontakter matchar sökningen.",
     "noYet": "Inga kontakter ännu",
     "addContact": "Lägg till kontakt",
@@ -667,6 +680,8 @@
     "quickContext": {
       "eyebrow": "Vald kontakt",
       "title": "Snabbkontext",
+      "emptyTitle": "Ingen kontakt vald",
+      "emptyHint": "Välj en kontakt i listan för att se detaljer här.",
       "openFullProfile": "Öppna full profil",
       "addTag": "Lägg till tagg...",
       "noMoreTags": "Inga fler taggar att lägga till",
@@ -983,7 +998,15 @@
     "revokeShare": "Återkalla",
     "shareDialogTitle": "Dela faktura",
     "shareDialogHelp": "Alla med den här länken kan visa faktura {{label}}.",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "quickContext": {
+      "title": "Snabbkontext",
+      "emptyTitle": "Ingen faktura vald",
+      "emptyHint": "Välj en faktura i listan för att se detaljer här.",
       "openFull": "Öppna hela fakturan"
     },
     "table": {

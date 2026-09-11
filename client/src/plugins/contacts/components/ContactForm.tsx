@@ -95,10 +95,18 @@ interface ContactFormProps {
   onSave: (data: any) => Promise<boolean> | boolean | void;
   onCancel: () => void;
   isSubmitting?: boolean;
+  /** Single-column layout for mail-style list detail column. */
+  stacked?: boolean;
 }
 
 export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(function ContactForm(
-  { currentContact, onSave, onCancel, isSubmitting: externalIsSubmitting = false },
+  {
+    currentContact,
+    onSave,
+    onCancel,
+    isSubmitting: externalIsSubmitting = false,
+    stacked: _stacked = false,
+  },
   ref,
 ) {
   const { t } = useTranslation();
@@ -767,7 +775,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
   return (
     <>
       <div className="plugin-contacts">
-        <DetailLayout leftSidebar={formLeftSidebar}>
+        <DetailLayout gridClassName="grid-cols-1" leftSidebar={formLeftSidebar}>
           <form
             className="space-y-4"
             onSubmit={(e) => {

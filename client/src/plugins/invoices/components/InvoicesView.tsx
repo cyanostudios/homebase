@@ -62,9 +62,11 @@ import { InvoiceStatusSelect } from './InvoiceStatusSelect';
 interface InvoiceViewProps {
   invoice?: Invoice;
   item?: Invoice;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
 }
 
-export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
+export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacked = false }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const enabledPlugins = useEnabledPlugins();
@@ -339,7 +341,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
             subtleTitle
             className="p-6"
           >
-            <QuickContextLinkTileGrid>
+            <QuickContextLinkTileGrid className={stacked ? 'md:grid-cols-1' : undefined}>
               <QuickContextLinkTile
                 label={t('nav.contact')}
                 meta={
@@ -391,7 +393,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
               defaultValue: 'This is how the invoice will look when shared or exported as PDF.',
             })}
           </p>
-          <div className="w-full max-w-[794px]">
+          <div className="mx-auto w-full max-w-[794px]">
             <InvoiceDocumentPreview
               formData={previewFormData}
               invoiceId={actualItem.id}
@@ -428,7 +430,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
   return (
     <>
       <div className="plugin-invoices">
-        <DetailLayout gridClassName="grid-cols-1 lg:grid-cols-2" leftSidebar={leftColumn}>
+        <DetailLayout gridClassName="grid-cols-1" leftSidebar={leftColumn}>
           {rightColumn}
         </DetailLayout>
       </div>

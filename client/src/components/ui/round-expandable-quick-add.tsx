@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { LIST_SEARCH_FIELD_PROPS } from '@/core/ui/listSearchFieldProps';
 import { cn } from '@/lib/utils';
+import { BUTTON_COLOR_TRANSITION_CLASS } from '@/components/ui/button';
 
 export interface RoundExpandableQuickAddProps {
   onCreate: (title: string) => Promise<void>;
@@ -119,7 +120,8 @@ export function RoundExpandableQuickAdd({
       ref={rootRef}
       className={cn(
         'inline-flex h-11 shrink-0 items-center overflow-hidden rounded-full',
-        'transition-[width,padding,background-color,color] duration-200 ease-out',
+        'transition-[width,padding] duration-200 ease-out',
+        BUTTON_COLOR_TRANSITION_CLASS,
         isSoft ? 'bg-primary/10 text-primary' : 'bg-primary text-primary-foreground',
         showExpanded ? cn('px-3.5', expandedWidthClass) : 'w-11',
         className,
@@ -150,7 +152,8 @@ export function RoundExpandableQuickAdd({
           <button
             type="button"
             className={cn(
-              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors',
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
+              BUTTON_COLOR_TRANSITION_CLASS,
               isSoft ? 'hover:bg-primary/15' : 'hover:bg-primary-foreground/15',
             )}
             onClick={() => {
@@ -200,7 +203,8 @@ export function RoundExpandableQuickAdd({
             <button
               type="button"
               className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors',
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
+                BUTTON_COLOR_TRANSITION_CLASS,
                 isSoft ? 'hover:bg-primary/15' : 'hover:bg-primary-foreground/15',
               )}
               onClick={() => setTitle('')}

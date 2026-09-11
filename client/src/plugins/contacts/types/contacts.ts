@@ -6,6 +6,12 @@ export const CONTACT_TYPE_COLORS = {
   private: 'bg-green-50/50 text-green-700 dark:text-green-300 dark:bg-green-950/30',
 } as const;
 
+/** SectionCategoryIcon shell tints for company (light blue) / private (green). */
+export const CONTACT_TYPE_ICON_SHELL_CLASS = {
+  company: 'bg-sky-100 text-sky-500 dark:bg-sky-900/40 dark:text-sky-400',
+  private: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400',
+} as const;
+
 export const CONTACT_TYPE_BADGE_CLASS = BADGE_CHIP_CLASS;
 /** Company type codes → dropdown labels (ContactForm / ContactView). */
 export const COMPANY_TYPE_OPTIONS = [

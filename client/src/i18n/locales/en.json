@@ -531,6 +531,19 @@
       "withTags": "With tags",
       "timeLogged": "Time logged"
     },
+    "statistics": {
+      "title": "Contact statistics",
+      "description": "Overview of companies, private contacts, tags, and time logged.",
+      "overview": "Overview",
+      "typeMix": "Company vs private",
+      "typeMixAria": "Share of company and private contacts"
+    },
+    "filter": "Filter",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "noMatch": "No contacts found matching your search.",
     "noYet": "No contacts yet",
     "addContact": "Add Contact",
@@ -673,6 +686,8 @@
     "quickContext": {
       "eyebrow": "Selected contact",
       "title": "Quick context",
+      "emptyTitle": "No contact selected",
+      "emptyHint": "Select a contact from the list to see details here.",
       "openFullProfile": "Open full profile",
       "addTag": "Add a tag...",
       "noMoreTags": "No more tags to add",
@@ -989,7 +1004,15 @@
     "revokeShare": "Revoke",
     "shareDialogTitle": "Invoice share",
     "shareDialogHelp": "Anyone with this link can view invoice {{label}}.",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "quickContext": {
+      "title": "Quick context",
+      "emptyTitle": "No invoice selected",
+      "emptyHint": "Select an invoice from the list to see details here.",
       "openFull": "Open full invoice"
     },
     "table": {

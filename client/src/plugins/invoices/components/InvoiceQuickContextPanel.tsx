@@ -6,6 +6,8 @@ import {
   Hash,
   ListOrdered,
   Receipt,
+  User,
+  Users,
   Wallet,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -13,13 +15,13 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { useApp } from '@/core/api/AppContext';
 import {
   DETAIL_FIELD_VALUE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { BADGE_CHIP_CLASS, QC_INVOICE_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
-import { SubtleSectionHeading } from '@/core/ui/DetailSection';
+import { SubtleSectionHeading, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { QuickContextActiveShareLink } from '@/core/ui/QuickContextActiveShareLink';
 import {
   QuickContextHeaderActions,
@@ -29,6 +31,7 @@ import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDate, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
+import { CONTACT_TYPE_ICON_SHELL_CLASS } from '@/plugins/contacts/types/contacts';
 
 import { invoicesApi } from '../api/invoicesApi';
 import type { Invoice, InvoiceShare } from '../context/InvoicesContext';
@@ -38,18 +41,13 @@ import { displayPlainText } from '../utils/htmlText';
 import { formatInvoiceDueDate, formatPaymentTermsLabel } from '../utils/invoiceDueDate';
 
 import { InvoicePricingSummary } from './InvoicePricingSummary';
-import { formatInvoiceStatusForDisplay } from './InvoiceStatusSelect';
+import {
+  INVOICE_STATUS_BADGE_CLASS,
+  INVOICE_STATUS_COLORS,
+  formatInvoiceStatusForDisplay,
+} from './InvoiceStatusSelect';
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
-
-function invoiceInitials(invoice: Invoice): string {
-  const raw = String(invoice.invoiceNumber || invoice.id || '').trim();
-  const digits = raw.replace(/\D/g, '');
-  if (digits.length > 0) {
-    return digits.slice(-2);
-  }
-  return raw.slice(0, 2).toUpperCase() || '—';
-}
 
 export function InvoiceQuickContextPanel({
   invoice,
@@ -70,6 +68,7 @@ export function InvoiceQuickContextPanel({
 }) {
   const isFullView = variant === 'full';
   const { t } = useTranslation();
+  const { contacts } = useApp();
   const [listShareUrl, setListShareUrl] = useState<string | null>(null);
   const status = invoice.status || 'draft';
   const invoiceType = invoice.invoiceType || 'invoice';
@@ -88,9 +87,29 @@ export function InvoiceQuickContextPanel({
   const totals = resolveInvoiceTotals(invoice);
   const totalAmount = totals.total;
   const amountLabel = formatInvoiceAmount(totalAmount);
+  const totalLabel = formatInvoiceMoney(totalAmount, currency);
+  const contactName = invoice.contactName?.trim() || '';
   const remaining = Math.max(0, Math.round((totalAmount - amountPaid) * 100) / 100);
   const hasPayments = amountPaid > 0;
   const updatedLabel = invoice.updatedAt ? formatDateTimeShort(invoice.updatedAt) : null;
+
+  const contactType = (() => {
+    if (invoice.contactId == null) {
+      return undefined;
+    }
+    const contact = contacts?.find((c) => String(c.id) === String(invoice.contactId));
+    if (!contact?.contactType) {
+      return undefined;
+    }
+    return contact.contactType === 'private' ? 'private' : 'company';
+  })();
+  const ContactTypeIcon =
+    contactType === 'private' ? User : contactType === 'company' ? Users : null;
+  const contactTypeLabel = contactType
+    ? t(`contacts.type.${contactType}`, {
+        defaultValue: contactType === 'private' ? 'Private' : 'Company',
+      })
+    : null;
 
   useEffect(() => {
     if (isFullView) {
@@ -121,26 +140,38 @@ export function InvoiceQuickContextPanel({
   }, [isFullView, invoice.id]);
 
   const identityHeader = (
-    <div className="flex items-center gap-3">
-      <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold plugin-invoices bg-plugin-subtle text-plugin"
-        aria-hidden
-      >
-        {invoiceInitials(invoice)}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0')}>
-          {invoice.contactName || t('invoices.noCustomer')}
-        </h3>
-        <Badge
-          className={cn(
-            'shrink-0',
-            BADGE_CHIP_CLASS,
-            QC_INVOICE_STATUS_BADGE_COLORS[status] ?? QC_INVOICE_STATUS_BADGE_COLORS.draft,
-          )}
-        >
-          {formatInvoiceStatusForDisplay(status)}
-        </Badge>
+    <div className="flex items-start gap-3">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 font-mono')}>{numberLabel}</h3>
+          <Badge
+            className={cn(
+              INVOICE_STATUS_BADGE_CLASS,
+              INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
+              'h-5 shrink-0 px-1.5 py-0 text-[11px] font-normal leading-none',
+            )}
+          >
+            {formatInvoiceStatusForDisplay(status)}
+          </Badge>
+        </div>
+        <div className="flex min-w-0 items-center gap-1.5">
+          {ContactTypeIcon ? (
+            <span title={contactTypeLabel ?? undefined} className="inline-flex shrink-0">
+              <SectionCategoryIcon
+                icon={ContactTypeIcon}
+                className={contactType ? CONTACT_TYPE_ICON_SHELL_CLASS[contactType] : undefined}
+              />
+            </span>
+          ) : null}
+          <span className="min-w-0 truncate text-sm font-normal leading-tight text-slate-400 dark:text-slate-500">
+            {contactName || t('invoices.noCustomer')}
+          </span>
+          {totalLabel ? (
+            <span className="shrink-0 tabular-nums text-sm font-normal leading-tight text-slate-400 dark:text-slate-500">
+              {totalLabel}
+            </span>
+          ) : null}
+        </div>
       </div>
       <QuickContextHeaderActions
         onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}

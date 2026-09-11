@@ -35,9 +35,14 @@ import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
 
 interface ContactViewProps {
   contact: Contact;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
 }
 
-export const ContactView = React.memo(function ContactView({ contact }: ContactViewProps) {
+export const ContactView = React.memo(function ContactView({
+  contact,
+  stacked: _stacked = false,
+}: ContactViewProps) {
   const { t } = useTranslation();
   const { getSettings, settingsVersion } = useApp();
 
@@ -49,15 +54,27 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     showSendEmailDialog,
     sendEmailRecipients,
     closeSendEmailDialog,
+    currentContact,
+    isContactPanelOpen,
     displayTags,
     addTagToDraft,
     removeTagFromDraft,
+    applyTagToContact,
+    removeTagFromContact,
     tagError,
     showDiscardTagsDialog,
     setShowDiscardTagsDialog,
     onDiscardTagsAndClose,
     setContactAssignable,
   } = useContacts();
+
+  // Inline list detail reuses ContactView without opening the global panel — use contact.tags
+  // and immediate tag APIs; panel view keeps the draft/apply flow.
+  const isPanelContact =
+    isContactPanelOpen &&
+    currentContact != null &&
+    String(currentContact.id) === String(contact.id);
+  const tagsShown = isPanelContact ? displayTags : Array.isArray(contact.tags) ? contact.tags : [];
 
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [tagToAdd, setTagToAdd] = useState('');
@@ -93,9 +110,9 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     () =>
       availableTags.filter(
         (item) =>
-          !displayTags.some((tag) => String(tag).toLowerCase() === String(item).toLowerCase()),
+          !tagsShown.some((tag) => String(tag).toLowerCase() === String(item).toLowerCase()),
       ),
-    [availableTags, displayTags],
+    [availableTags, tagsShown],
   );
 
   if (!contact) {
@@ -107,7 +124,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
   return (
     <>
       <DetailLayout
-        gridClassName="grid-cols-1 lg:grid-cols-2"
+        gridClassName="grid-cols-1"
         leftSidebar={
           <div className="space-y-4">
             <ContactQuickContextPanel
@@ -335,7 +352,11 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                       value={tagToAdd || '__add_tag__'}
                       onValueChange={(value) => {
                         if (value && value !== '__add_tag__') {
-                          addTagToDraft(value);
+                          if (isPanelContact) {
+                            addTagToDraft(value);
+                          } else {
+                            void applyTagToContact(contact, value);
+                          }
                           setTagToAdd('');
                         }
                       }}
@@ -355,10 +376,12 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                         ))}
                       </SelectContent>
                     </Select>
-                    {tagError ? <p className="text-xs text-destructive">{tagError}</p> : null}
-                    {displayTags.length > 0 ? (
+                    {isPanelContact && tagError ? (
+                      <p className="text-xs text-destructive">{tagError}</p>
+                    ) : null}
+                    {tagsShown.length > 0 ? (
                       <div className="flex flex-wrap justify-end gap-1.5">
-                        {displayTags.map((item: string) => (
+                        {tagsShown.map((item: string) => (
                           <Badge
                             key={item}
                             variant="outline"
@@ -369,7 +392,13 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                             <button
                               type="button"
                               className="rounded p-0.5 hover:bg-muted"
-                              onClick={() => removeTagFromDraft(item)}
+                              onClick={() => {
+                                if (isPanelContact) {
+                                  removeTagFromDraft(item);
+                                } else {
+                                  void removeTagFromContact(contact, item);
+                                }
+                              }}
                               aria-label={`Remove tag ${item}`}
                             >
                               <X className="h-3 w-3" />

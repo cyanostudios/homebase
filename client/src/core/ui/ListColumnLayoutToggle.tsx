@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, LayoutGrid, Table2 } from 'lucide-react';
 import React from 'react';
 
+import { BUTTON_COLOR_TRANSITION_CLASS } from '@/components/ui/button';
 import type { ListViewMode } from '@/core/list/listViewMode';
 import {
   LIST_LAYOUT_TOGGLE_DIVIDER_CLASS,
@@ -24,7 +25,8 @@ export type ListColumnLayoutToggleProps = {
 
 const halfBaseClass = cn(
   'inline-flex h-11 w-11 items-center justify-center',
-  'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+  BUTTON_COLOR_TRANSITION_CLASS,
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
   '[&_svg]:size-5',
 );
 

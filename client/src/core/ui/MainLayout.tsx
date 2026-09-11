@@ -18,7 +18,7 @@ import { LeftSidebarProvider, useLeftSidebar } from '@/core/ui/sidebar/LeftSideb
 import type { NavPage } from '@/core/navigation/navTypes';
 import {
   MOBILE_SHELL_TOP_INSET_CLASS,
-  CONTENT_SHELL_Y_GUTTER_CLASS,
+  CONTENT_SHELL_GUTTER_CLASS,
   CONTENT_SHELL_BOTTOM_GUTTER_CLASS,
 } from './pluginPageStyles';
 
@@ -46,6 +46,8 @@ interface MainLayoutProps {
   detailPanelContentKey?: string;
   /** When true, list ContentSurface uses p-0 (like detail panel) so the plugin controls its own padding. */
   contentFlush?: boolean;
+  /** When true with contentFlush, shell locks page scroll so the plugin owns overflow. */
+  contentOwnsScroll?: boolean;
 }
 
 function MainLayoutShell(props: MainLayoutProps) {
@@ -69,6 +71,7 @@ function MainLayoutShell(props: MainLayoutProps) {
     onDetailPanelClose,
     detailPanelContentKey,
     contentFlush = false,
+    contentOwnsScroll = false,
   } = props;
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -114,7 +117,15 @@ function MainLayoutShell(props: MainLayoutProps) {
       onTitleSuffixChange={setHeaderTitleSuffix}
     >
       {contentFlush && !shouldShowContentHeader ? (
-        <div className={cn('min-h-0 flex-1 overflow-y-auto', mobileListScrollPad)}>{children}</div>
+        <div
+          className={cn(
+            'min-h-0 flex-1',
+            contentOwnsScroll ? 'flex flex-col overflow-hidden' : 'overflow-y-auto',
+            mobileListScrollPad,
+          )}
+        >
+          {children}
+        </div>
       ) : (
         <div className="flex h-full flex-col gap-4">
           {shouldShowContentHeader && (
@@ -192,10 +203,9 @@ function MainLayoutShell(props: MainLayoutProps) {
         <main
           className={cn(
             'flex min-h-0 min-w-0 flex-1 overflow-hidden bg-workspace',
-            !isPhone && 'pr-4',
             isPhone || isPad
               ? cn(MOBILE_SHELL_TOP_INSET_CLASS, CONTENT_SHELL_BOTTOM_GUTTER_CLASS)
-              : CONTENT_SHELL_Y_GUTTER_CLASS,
+              : CONTENT_SHELL_GUTTER_CLASS,
           )}
         >
           {isPhone ? (

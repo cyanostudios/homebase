@@ -349,6 +349,63 @@ To ensure a consistent visual identity, each plugin has a dedicated color theme 
 | Mail      | `--plugin-mail`      | Rose   | `.plugin-mail`      |
 | Guides    | `--plugin-guides`    | Teal   | `.plugin-guides`    |
 
+### 5.1 iOS Mail color reference (planned dark mode alignment)
+
+**Purpose:** Reference palette for future dark mode work (KPI soft-tiles, mail-style list|detail chrome). Based on **Apple HIG / iOS system colors** as used by the **iOS Mail app** — **not** Homebase `--plugin-mail` (rose).
+
+**Source:** Apple Human Interface Guidelines — Color / Dark Mode; iOS semantic `UIColor` system colors. Values below are the conventional light/dark pairs developers use for Mail-like UI.
+
+#### Accent and surfaces
+
+| Role (iOS name)                                                                      | Light                    | Dark                     |
+| ------------------------------------------------------------------------------------ | ------------------------ | ------------------------ |
+| Accent (`systemBlue`)                                                                | `#007AFF`                | `#0A84FF`                |
+| Base background (`systemBackground`)                                                 | `#FFFFFF`                | `#000000`                |
+| Grouped background (`systemGroupedBackground`)                                       | `#F2F2F7`                | `#000000`                |
+| Secondary surface (`secondarySystemBackground` / `secondarySystemGroupedBackground`) | `#F2F2F7` / `#FFFFFF`    | `#1C1C1E`                |
+| Tertiary surface (`tertiarySystemBackground` / `tertiarySystemGroupedBackground`)    | `#FFFFFF` / `#F2F2F7`    | `#2C2C2E`                |
+| Primary label                                                                        | `#000000`                | `#FFFFFF`                |
+| Secondary label                                                                      | `#3C3C43` @ ~60% opacity | `#EBEBF5` @ ~60% opacity |
+| Tertiary label                                                                       | `#3C3C43` @ ~30% opacity | `#EBEBF5` @ ~30% opacity |
+| Separator                                                                            | `#3C3C43` @ ~29% opacity | `#545458` @ ~60% opacity |
+
+#### System grays (fills / chrome)
+
+| Name          | Light     | Dark      |
+| ------------- | --------- | --------- |
+| `systemGray`  | `#8E8E93` | `#8E8E93` |
+| `systemGray2` | `#AEAEB2` | `#636366` |
+| `systemGray3` | `#C7C7CC` | `#48484A` |
+| `systemGray4` | `#D1D1D6` | `#3A3A3C` |
+| `systemGray5` | `#E5E5EA` | `#2C2C2E` |
+| `systemGray6` | `#F2F2F7` | `#1C1C1E` |
+
+#### Semantic / elevation notes
+
+- iOS colors are **dynamic**: the same semantic token resolves differently in light vs dark, and can shift again when a UI is **elevated** (e.g. slide-over / modal over Mail on iPad — “elevated” backgrounds are slightly lighter gray than base black).
+- Mail list + detail typically uses the **grouped** background set (grouped chrome + white/gray cells in light; black + `#1C1C1E` cells in dark).
+- Prefer semantic roles (background / secondary surface / label / blue accent) over hard-coding only one hex when implementing.
+
+#### Mapping proposal → current `client/src/index.css` tokens
+
+**Documentation only — no CSS change in this phase.**
+
+| iOS role             | Suggested Homebase token | Current light (approx)    | Current dark (approx)         | Gap vs iOS Mail                                     |
+| -------------------- | ------------------------ | ------------------------- | ----------------------------- | --------------------------------------------------- |
+| Grouped / shell bg   | `--background`           | `210 40% 96%` (slate-ish) | `215 28% 7%` (not pure black) | Dark is navy-slate, not `#000000`                   |
+| Card / cell          | `--card`                 | white                     | `215 21% 11%`                 | Dark closer to elevated gray than `#1C1C1E`         |
+| Accent / links       | `--primary` / `--ring`   | `#009EF7` (Bootstrap)     | `212 92% 68%` (light blue)    | Light ≠ `#007AFF`; dark ≈ `#0A84FF` family          |
+| Body text            | `--foreground`           | dark slate                | light gray                    | Aligned in spirit                                   |
+| Secondary text       | `--muted-foreground`     | very dark (light mode)    | mid gray                      | Light mode is unusually dark vs iOS secondary label |
+| Plugin Mail identity | `--plugin-mail`          | rose                      | rose                          | **Do not use** for iOS Mail chrome                  |
+
+#### Next step (phase 2 — separate decision)
+
+After this palette is approved:
+
+1. Apply dark values (especially `systemBlue` dark `#0A84FF` + grouped surfaces `#000000` / `#1C1C1E`) to **KPI soft-tiles** in Contacts/Invoices statistics empty detail.
+2. Optionally align mail-style list|detail chrome (Contacts/Invoices) to the same surface hierarchy — still without touching `--plugin-mail`.
+
 ### Implementation Pattern
 
 ```tsx
@@ -366,4 +423,4 @@ To ensure a consistent visual identity, each plugin has a dedicated color theme 
 
 ## Verification note
 
-This document has been verified against the current implementation (DetailLayout, DetailCard, Sidebar, Dashboard, BulkActionBar, list/grid patterns). When making layout or design changes, update this document so it stays the single source of truth for UI/UX standards.
+This document has been verified against the current implementation (DetailLayout, DetailCard, Sidebar, Dashboard, BulkActionBar, list/grid patterns). When making layout or design changes, update this document so it stays the single source of truth for UI/UX standards. The **§5.1 iOS Mail reference** is a planned-alignment note only until phase 2 lands CSS/UI changes.

@@ -9,15 +9,30 @@ const quickContextActionsSrc = fs.readFileSync(
 );
 
 describe('ContactList table view wiring', () => {
-  test('list supports card grid and table via layout toggle with always-visible sort row', () => {
+  test('list supports table view with mail-style thin toolbar', () => {
     expect(listSrc).toMatch(/ContactListTable/);
-    expect(listSrc).toMatch(/ListColumnLayoutToggle/);
-    expect(listSrc).toMatch(/ContactListItem/);
-    expect(listSrc).toMatch(/isTableView/);
-    expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
-    expect(listSrc).toMatch(/aria-label="Sort by"/);
+    expect(listSrc).not.toMatch(/ListColumnLayoutToggle/);
+    expect(listSrc).not.toMatch(/ContactListItem/);
+    expect(listSrc).toMatch(/createPortal/);
+    expect(listSrc).toMatch(/toolbarEdgeToggle/);
+    expect(listSrc).toMatch(/left-sidebar-nav/);
+    expect(listSrc).toMatch(/md:pt-3/);
+    expect(listSrc).toMatch(/toolbarCollapsed/);
+    expect(listSrc).toMatch(/toggleToolbarCollapsed/);
+    expect(listSrc).not.toMatch(/sticky top-0 z-20/);
+    expect(listSrc).toMatch(/CONTACTS_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/contacts\.collapseToolbar/);
+    expect(listSrc).toMatch(/contacts\.expandToolbar/);
+    expect(listSrc).not.toMatch(/rounded-xl border border-border\/40 bg-white/);
+    expect(listSrc).not.toMatch(/renderFilterDropdown/);
+    expect(listSrc).toMatch(/renderFilterChips/);
+    expect(listSrc).toMatch(/LIST_FILTER_CHIP_ACTIVE_CLASS/);
+    expect(listSrc).toMatch(/renderSortDropdown/);
+    expect(listSrc).toMatch(/DropdownMenuRadioItem/);
     expect(listSrc).toMatch(/handlePrimarySortChange/);
-    expect(listSrc).not.toMatch(/!isTableView \? \(/);
+    expect(listSrc).toMatch(/md:hidden/);
+    expect(listSrc).toMatch(/useMobileActions/);
+    expect(listSrc).toMatch(/useRegisterMobileSearch/);
   });
 
   test('table uses SortableListTable with expected columns', () => {
@@ -43,25 +58,58 @@ describe('ContactList table view wiring', () => {
 
   test('list split view previews contacts on wide screens without opening the global panel', () => {
     expect(listSrc).toMatch(/previewContact/);
-    expect(listSrc).toMatch(/ContactQuickContextPanel/);
+    expect(listSrc).toMatch(/ContactView/);
+    expect(listSrc).toMatch(/stacked/);
+    expect(listSrc).not.toMatch(/ContactQuickContextPanel/);
     expect(listSrc).toMatch(/handleRowActivate/);
     expect(listSrc).toMatch(/isCompactViewport/);
     expect(listSrc).toMatch(/activeContactId/);
     expect(listSrc).toMatch(/setPreviewContact\(\(current\) =>/);
     expect(listSrc).toMatch(/String\(current\.id\) === String\(contact\.id\) \? null : contact/);
+    expect(listSrc).toMatch(/showDesktopSplit = !isCompactViewport/);
+    expect(listSrc).toMatch(/grid-cols-\[minmax\(220px,20%\)_minmax\(0,1fr\)\]/);
+    expect(listSrc).toMatch(/grid-rows-\[minmax\(0,1fr\)\]/);
+    expect(listSrc).toMatch(/h-full min-h-0 overflow-y-auto overscroll-contain/);
+    expect(listSrc).toMatch(
+      /aside[\s\S]*h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain/,
+    );
+    expect(listSrc).toMatch(/ContactsStatisticsView/);
     expect(listSrc).not.toMatch(/bulkSelectionEnabled/);
     expect(tableSrc).toMatch(/activeContactId/);
     expect(tableSrc).toMatch(/selectionEnabled/);
   });
 
-  test('bulk select mode uses BulkActionRoundBar and keeps quick context visible', () => {
-    expect(listSrc).toMatch(/BulkActionRoundBar/);
+  test('desktop create/edit renders ContactForm in the detail column', () => {
+    expect(listSrc).toMatch(/inlineForm/);
+    expect(listSrc).toMatch(/ContactForm/);
+    expect(listSrc).toMatch(/InlinePanelFormActions/);
+    expect(listSrc).toMatch(/inlineFormRef/);
+    expect(listSrc).toMatch(/isContactPanelOpen/);
+    expect(listSrc).toMatch(/panelMode === 'create' \|\| panelMode === 'edit'/);
+    expect(listSrc).toMatch(/saveContact/);
+    expect(listSrc).toMatch(/closeContactPanel/);
+    expect(listSrc).toMatch(/stacked/);
+    const appContentSrc = fs.readFileSync(
+      path.join(__dirname, '../../../../core/app/AppContent.tsx'),
+      'utf8',
+    );
+    expect(appContentSrc).toMatch(/inlineDesktopPanel/);
+    expect(appContentSrc).toMatch(/contentOwnsScroll/);
+    expect(appContentSrc).toMatch(/isAnyPanelOpen && !inlineDesktopPanel/);
+  });
+
+  test('bulk select mode shows BulkActionRoundBar under toolbar and keeps detail column visible', () => {
+    expect(listSrc).toMatch(/renderSelectControls/);
+    expect(listSrc).toMatch(/renderBulkActionBar/);
     expect(listSrc).toMatch(/selectionMode/);
     expect(listSrc).toMatch(/handleEnterSelectionMode/);
     expect(listSrc).toMatch(/handleExitSelectionMode/);
     expect(listSrc).toMatch(/selectionEnabled=\{selectionMode\}/);
-    expect(listSrc).toMatch(/showQuickContext = Boolean\(previewContact\) && !isCompactViewport/);
-    expect(listSrc).not.toMatch(/!selectionMode/);
+    expect(listSrc).toMatch(/BulkActionRoundBar/);
+    expect(listSrc).toMatch(/common\.clear/);
+    expect(listSrc).not.toMatch(/common\.headerActions/);
+    expect(listSrc).toMatch(/showDesktopSplit = !isCompactViewport/);
+    expect(listSrc).toMatch(/bulkRoundActions/);
   });
 
   test('quick context header actions are shared round buttons', () => {

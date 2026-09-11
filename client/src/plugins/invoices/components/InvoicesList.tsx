@@ -4,42 +4,45 @@ import {
   CheckSquare,
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
   FileMinus,
   FileSpreadsheet,
   FileText,
   LayoutGrid,
+  Menu,
   Plus,
   Receipt,
   Settings,
   Trash2,
   XCircle,
 } from 'lucide-react';
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
-import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
-import { nextListTableSort } from '@/core/list/listViewMode';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
+import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
+  DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
@@ -47,24 +50,22 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
+import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
+import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { formatDate } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useInvoices } from '../hooks/useInvoices';
 import type { Invoice } from '../context/InvoicesContext';
-import {
-  getInitialInvoiceColumnCount,
-  resolveInvoiceColumnCount,
-  INVOICES_COLUMN_COUNT_STORAGE_KEY,
-  INVOICES_SETTINGS_KEY,
-  type InvoiceColumnCount,
-} from '../utils/invoiceColumnCount';
+import { INVOICES_SETTINGS_KEY } from '../utils/invoiceColumnCount';
 import {
   INVOICE_LIST_FILTERS,
   invoiceMatchesListFilters,
@@ -79,43 +80,53 @@ import {
   type InvoiceSortOrder,
 } from '../utils/invoiceListSort';
 import {
-  getInitialInvoiceListViewMode,
-  persistInvoiceListViewModeSession,
-  resolveInvoiceListViewMode,
-  type InvoiceListViewMode,
-} from '../utils/invoiceListViewMode';
-import {
   resolveVisibleInvoiceTableColumns,
   type InvoiceTableColumnId,
 } from '../utils/invoiceTableColumns';
 
-import { InvoiceListItem } from './InvoiceListItem';
 import { InvoiceListTable } from './InvoiceListTable';
-import { InvoiceQuickContextPanel } from './InvoiceQuickContextPanel';
 import { InvoiceSettingsView, type InvoiceSettingsCategory } from './InvoiceSettingsView';
+import { InvoicesForm } from './InvoicesForm';
 import { InvoicesStatisticsView } from './InvoicesStatisticsView';
-import {
-  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
-  PLUGIN_PAGE_LIST_SHELL_CLASS,
-  PLUGIN_PAGE_SECTION_GAP_CLASS,
-  PLUGIN_PAGE_TITLE_CLASS,
-  PLUGIN_PAGE_TITLE_ROW_CLASS,
-} from '@/core/ui/pluginPageStyles';
-import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { InvoicesView } from './InvoicesView';
 
 type SortField = InvoiceSortField;
 type SortOrder = InvoiceSortOrder;
 
-const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
-  { value: 'createdAt', label: 'Created' },
-  { value: 'updatedAt', label: 'Updated' },
-  { value: 'contactName', label: 'Customer' },
-  { value: 'invoiceNumber', label: 'Invoice #' },
-  { value: 'invoiceType', label: 'Type' },
-  { value: 'status', label: 'Status' },
-  { value: 'total', label: 'Total' },
-  { value: 'dueDate', label: 'Due date' },
-  { value: 'issueDate', label: 'Issue date' },
+const INVOICES_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.invoices.toolbar.collapsed';
+
+function readInvoicesToolbarCollapsed(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem(INVOICES_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeInvoicesToolbarCollapsed(collapsed: boolean): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    window.localStorage.setItem(INVOICES_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
+  { value: 'createdAt', labelKey: 'common.created' },
+  { value: 'updatedAt', labelKey: 'common.updated' },
+  { value: 'contactName', labelKey: 'invoices.fieldContact' },
+  { value: 'invoiceNumber', labelKey: 'invoices.table.number' },
+  { value: 'invoiceType', labelKey: 'invoices.invoiceType' },
+  { value: 'status', labelKey: 'invoices.fieldStatus' },
+  { value: 'total', labelKey: 'invoices.table.total' },
+  { value: 'dueDate', labelKey: 'invoices.fieldDueDate' },
+  { value: 'issueDate', labelKey: 'invoices.issueDate' },
 ];
 
 const TYPE_FILTER_ICONS = {
@@ -125,12 +136,13 @@ const TYPE_FILTER_ICONS = {
   receipt: Receipt,
 } as const;
 
+let pendingPreviewInvoiceId: string | null = null;
+
 export function InvoicesList() {
   const { t } = useTranslation();
   const {
     invoices,
     openInvoiceForView,
-    openInvoiceForEdit,
     openInvoicesPanel,
     deleteInvoices,
     selectedInvoiceIds,
@@ -147,8 +159,14 @@ export function InvoicesList() {
     openInvoiceStatistics,
     closeInvoiceStatisticsView,
     setBrowseOrderIds,
+    isInvoicesPanelOpen,
+    panelMode,
+    currentInvoice,
+    saveInvoice,
+    closeInvoicesPanel,
+    validationErrors,
   } = useInvoices();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
+  const { getSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   useMobileActions({
@@ -156,28 +174,98 @@ export function InvoicesList() {
     onSettings: openInvoiceSettings,
   });
 
+  const isCompactViewport = useMediaQuery('(max-width: 1023px)');
+  const showDesktopSplit = !isCompactViewport;
+
   const { searchTerm, setSearchTerm } = usePersistedListSearch('invoices');
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,
     placeholder: t('invoices.searchPlaceholder', { defaultValue: 'Search invoices…' }),
   });
+
   const [selectionMode, setSelectionMode] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [primarySort, setPrimarySort] = useState<SortField>('invoiceNumber');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<InvoiceColumnCount>(
-    getInitialInvoiceColumnCount,
-  );
-  const [listViewMode, setListViewModeState] = useState<InvoiceListViewMode>(
-    getInitialInvoiceListViewMode,
-  );
   const [visibleColumnIds, setVisibleColumnIds] = useState<InvoiceTableColumnId[]>(() =>
     resolveVisibleInvoiceTableColumns(null),
   );
   const [activeFilters, setActiveFilters] = useState<InvoiceListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<InvoiceSettingsCategory>('columns');
+  const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(readInvoicesToolbarCollapsed);
+  const restoredPendingInvoiceRef = useRef(false);
+  const pageShellRef = useRef<HTMLDivElement>(null);
+  const inlineFormRef = useRef<PanelFormHandle | null>(null);
+  const [toolbarToggleBox, setToolbarToggleBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const inlineForm =
+    showDesktopSplit && isInvoicesPanelOpen && (panelMode === 'create' || panelMode === 'edit');
+  const inlinePanelView =
+    showDesktopSplit && isInvoicesPanelOpen && panelMode === 'view' && currentInvoice != null;
+  const detailInvoice = inlinePanelView ? currentInvoice : previewInvoice;
+  const activeListInvoiceId =
+    (inlineForm || inlinePanelView) && currentInvoice != null
+      ? currentInvoice.id
+      : (previewInvoice?.id ?? null);
+
+  const toggleToolbarCollapsed = useCallback(() => {
+    setToolbarCollapsed((prev) => {
+      const next = !prev;
+      writeInvoicesToolbarCollapsed(next);
+      return next;
+    });
+  }, []);
+
+  const updateToolbarToggleBox = useCallback(() => {
+    const el = pageShellRef.current;
+    if (!el) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const sidebarToggle = document.querySelector<HTMLElement>('[aria-controls="left-sidebar-nav"]');
+    const sidebarTop = sidebarToggle?.getBoundingClientRect().top;
+    setToolbarToggleBox({
+      top: typeof sidebarTop === 'number' ? sidebarTop : rect.top + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    updateToolbarToggleBox();
+    window.addEventListener('resize', updateToolbarToggleBox);
+    const scrollParent = pageShellRef.current?.closest('.overflow-y-auto, .overflow-auto');
+    scrollParent?.addEventListener('scroll', updateToolbarToggleBox, { passive: true });
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateToolbarToggleBox) : null;
+    if (pageShellRef.current && ro) {
+      ro.observe(pageShellRef.current);
+    }
+    return () => {
+      window.removeEventListener('resize', updateToolbarToggleBox);
+      scrollParent?.removeEventListener('scroll', updateToolbarToggleBox);
+      ro?.disconnect();
+    };
+  }, [updateToolbarToggleBox]);
+
+  useEffect(() => {
+    if (restoredPendingInvoiceRef.current || !pendingPreviewInvoiceId) {
+      return;
+    }
+    const restored = invoices.find((invoice) => String(invoice.id) === pendingPreviewInvoiceId);
+    if (restored) {
+      setPreviewInvoice(restored);
+      restoredPendingInvoiceRef.current = true;
+      pendingPreviewInvoiceId = null;
+    }
+  }, [invoices]);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,18 +274,6 @@ export function InvoicesList() {
         if (cancelled) {
           return;
         }
-        const resolved = resolveInvoiceColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as InvoiceColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(INVOICES_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(INVOICES_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolveInvoiceListViewMode(settings);
-        setListViewModeState(nextView);
-        persistInvoiceListViewModeSession(nextView);
         setVisibleColumnIds(resolveVisibleInvoiceTableColumns(settings));
       })
       .catch(() => {});
@@ -206,38 +282,32 @@ export function InvoicesList() {
     };
   }, [getSettings, settingsVersion]);
 
-  const setColumnCount = useCallback(
-    (_count: InvoiceColumnCount) => {
-      const next = 3 as InvoiceColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistInvoiceListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(INVOICES_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(INVOICES_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
+  useEffect(() => {
+    if (!previewInvoice) {
+      return;
+    }
+    const next = invoices.find((invoice) => String(invoice.id) === String(previewInvoice.id));
+    if (!next) {
+      setPreviewInvoice(null);
+      return;
+    }
+    if (next !== previewInvoice) {
+      setPreviewInvoice(next);
+    }
+  }, [invoices, previewInvoice]);
 
-  const setListViewMode = useCallback(
-    (mode: InvoiceListViewMode) => {
-      setListViewModeState(mode);
-      persistInvoiceListViewModeSession(mode);
-      updateSettings(INVOICES_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
+  useEffect(() => {
+    if (!showDesktopSplit || !isInvoicesPanelOpen) {
+      return;
+    }
+    if ((panelMode === 'edit' || panelMode === 'view') && currentInvoice) {
+      setPreviewInvoice(currentInvoice);
+    }
+  }, [showDesktopSplit, isInvoicesPanelOpen, panelMode, currentInvoice]);
 
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
     setSortOrder(isInvoiceStringSortField(field) ? 'asc' : 'desc');
-  };
-
-  const toggleSortOrder = () => {
-    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
 
   const handleTableSort = useCallback(
@@ -248,8 +318,6 @@ export function InvoicesList() {
     },
     [primarySort, sortOrder],
   );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
 
   const sortedInvoices = useMemo(() => {
     const byFilter = invoices.filter((invoice) =>
@@ -323,14 +391,14 @@ export function InvoicesList() {
     try {
       await deleteInvoices(selectedInvoiceIds);
       setShowBulkDeleteModal(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Bulk delete failed:', err);
     } finally {
       setDeleting(false);
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     if (selectedInvoiceIds.length === 0) {
       alert('Please select invoices to export');
       return;
@@ -360,9 +428,9 @@ export function InvoicesList() {
     }));
     const filename = `invoices-export-${new Date().toISOString().split('T')[0]}`;
     exportToCSV(csvData, filename, csvHeaders);
-  };
+  }, [invoices, selectedInvoiceIds]);
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = useCallback(async () => {
     if (selectedInvoiceIds.length === 0) {
       alert('Please select invoices to export');
       return;
@@ -386,26 +454,11 @@ export function InvoicesList() {
     }));
     const filename = `invoices-export-${new Date().toISOString().split('T')[0]}`;
     await exportToPDF(pdfData, filename, pdfHeaders, 'Invoices Export');
-  };
-
-  const {
-    previewItem: previewInvoice,
-    setPreviewItem: setPreviewInvoice,
-    showQuickContext,
-    markPendingAndOpen,
-    activateRow,
-  } = useQuickContextPreview({
-    storeKey: 'invoices',
-    items: invoices,
-    getItemId: (invoice) => String(invoice.id),
-  });
-
-  const quickContextOpen = Boolean(showQuickContext && previewInvoice);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
+  }, [invoices, selectedInvoiceIds]);
 
   const handleOpenForView = (invoice: Invoice) => {
-    markPendingAndOpen(invoice, () => attemptNavigation(() => openInvoiceForView(invoice)));
+    pendingPreviewInvoiceId = String(invoice.id);
+    attemptNavigation(() => openInvoiceForView(invoice));
   };
 
   const handleEnterSelectionMode = () => {
@@ -418,12 +471,56 @@ export function InvoicesList() {
   };
 
   const handleRowActivate = (invoice: Invoice) => {
+    if (isCompactViewport) {
+      handleOpenForView(invoice);
+      return;
+    }
     if (selectionMode) {
       toggleInvoiceSelected(String(invoice.id));
       return;
     }
-    activateRow(invoice, (item) => attemptNavigation(() => openInvoiceForView(item)));
+    if (
+      isInvoicesPanelOpen &&
+      (panelMode === 'create' || panelMode === 'edit' || panelMode === 'view')
+    ) {
+      attemptNavigation(() => {
+        closeInvoicesPanel();
+        setPreviewInvoice(invoice);
+      });
+      return;
+    }
+    setPreviewInvoice((current) =>
+      current && String(current.id) === String(invoice.id) ? null : invoice,
+    );
   };
+
+  const handleInlineFormSave = useCallback(async () => {
+    await inlineFormRef.current?.submit();
+  }, []);
+
+  const handleInlineFormClose = useCallback(() => {
+    if (inlineFormRef.current) {
+      inlineFormRef.current.cancel();
+      return;
+    }
+    closeInvoicesPanel();
+  }, [closeInvoicesPanel]);
+
+  const handleInlineFormOnSave = useCallback(
+    async (data: any) => {
+      const ok = await saveInvoice(data);
+      return ok;
+    },
+    [saveInvoice],
+  );
+
+  const handleInlineFormPreview = useCallback(() => {
+    inlineFormRef.current?.preview?.();
+  }, []);
+
+  const inlineFormHasBlockingErrors = validationErrors.some(
+    (e) => !String(e?.message || '').includes('Warning'),
+  );
 
   const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
     const disabled = selectedCount === 0;
@@ -455,6 +552,172 @@ export function InvoicesList() {
     ];
   }, [selectedCount, t, handleExportCSV, handleExportPDF]);
 
+  const headerDropdownTriggerClass =
+    'gap-1.5 border-0 bg-primary/10 px-3.5 text-sm font-extrabold text-primary shadow-none hover:bg-primary hover:text-primary-foreground';
+
+  const headerDropdownTriggerDangerClass =
+    'gap-1.5 border-0 bg-red-600/10 px-3.5 text-sm font-extrabold text-red-700 shadow-none hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white';
+
+  const renderFilterChips = () => (
+    <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => setActiveFilters([])}
+        className={cn(
+          activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+        )}
+      >
+        <LayoutGrid className="h-3.5 w-3.5" />
+        <span>
+          {t('contacts.stats.total', { defaultValue: 'Total' })}{' '}
+          <span className="tabular-nums font-semibold">({stats.total})</span>
+        </span>
+      </Button>
+      {INVOICE_LIST_FILTERS.map((filter) => {
+        const Icon = TYPE_FILTER_ICONS[filter];
+        const label = t(`invoices.type.${filter}`, { defaultValue: filter });
+        const count = stats[filter];
+        return (
+          <Button
+            key={filter}
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => toggleFilter(filter)}
+            className={cn(
+              isFilterActive(filter) ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            <span>
+              {label} <span className="tabular-nums font-semibold">({count})</span>
+            </span>
+          </Button>
+        );
+      })}
+    </div>
+  );
+
+  const primarySortLabel =
+    SORT_FIELD_OPTIONS.find((option) => option.value === primarySort)?.labelKey ??
+    SORT_FIELD_OPTIONS[0].labelKey;
+
+  const renderSortDropdown = (triggerClassName: string) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('invoices.sort')}
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          <span>{t('invoices.sort')}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[14rem] rounded-xl border-border/50 shadow-xl"
+      >
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {t(primarySortLabel)}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={primarySort}
+          onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+        >
+          {SORT_FIELD_OPTIONS.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              className="rounded-md text-xs"
+              onSelect={(event) => event.preventDefault()}
+            >
+              {t(option.labelKey)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {sortOrder === 'asc' ? t('invoices.sortAsc') : t('invoices.sortDesc')}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={sortOrder}
+          onValueChange={(value) => setSortOrder(value as SortOrder)}
+        >
+          <DropdownMenuRadioItem
+            value="asc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowUp className="mr-2 h-3.5 w-3.5" />
+            {t('invoices.sortAsc')}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="desc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowDown className="mr-2 h-3.5 w-3.5" />
+            {t('invoices.sortDesc')}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const renderBulkActionBar = (className?: string) =>
+    selectionMode ? (
+      <BulkActionRoundBar
+        selectedCount={selectedCount}
+        actions={bulkRoundActions}
+        size="xs"
+        className={cn('gap-1.5', className)}
+      />
+    ) : null;
+
+  const renderSelectControls = (triggerClassName: string) => {
+    if (sortedInvoices.length === 0) {
+      return null;
+    }
+
+    if (!selectionMode) {
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('common.select')}
+          aria-pressed={false}
+          onClick={handleEnterSelectionMode}
+        >
+          <CheckSquare className="h-3.5 w-3.5" />
+          <span>{t('common.select')}</span>
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn(headerDropdownTriggerDangerClass, triggerClassName)}
+        aria-label={t('common.clear')}
+        aria-pressed={true}
+        onClick={handleExitSelectionMode}
+      >
+        <XCircle className="h-3.5 w-3.5" />
+        <span>{t('common.clear')}</span>
+      </Button>
+    );
+  };
+
   if (invoicesContentView === 'settings') {
     return (
       <div className="plugin-invoices min-h-full bg-background">
@@ -480,270 +743,200 @@ export function InvoicesList() {
     );
   }
 
-  return (
-    <div className={cn('plugin-invoices', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
-      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
-        <div className="hidden md:block">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex min-w-0 flex-1 flex-col gap-5">
-              <div className="min-w-0">
-                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
-                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.invoices')}</h2>
-                  <ExpandableIconButton
-                    icon={Settings}
-                    label={t('common.settings')}
-                    variant="soft"
-                    onClick={openInvoiceSettings}
-                  />
-                  <ExpandableIconButton
-                    icon={BarChart2}
-                    label={t('common.statistics', { defaultValue: 'Statistics' })}
-                    variant="soft"
-                    onClick={() => openInvoiceStatistics()}
-                  />
-                  {sortedInvoices.length > 0 ? (
-                    selectionMode ? (
-                      <ExpandableIconButton
-                        icon={XCircle}
-                        label={t('common.clear')}
-                        variant="danger"
-                        alwaysExpanded
-                        onClick={handleExitSelectionMode}
-                      />
-                    ) : (
-                      <ExpandableIconButton
-                        icon={CheckSquare}
-                        label={t('common.select')}
-                        variant="soft"
-                        alwaysExpanded
-                        onClick={handleEnterSelectionMode}
-                      />
-                    )
-                  ) : null}
-                </div>
-              </div>
-              {selectionMode ? (
-                <BulkActionRoundBar
-                  selectedCount={selectedCount}
-                  actions={bulkRoundActions}
-                  className="gap-2"
-                />
-              ) : null}
-            </div>
-            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
-              <RoundExpandableSearch
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('invoices.searchPlaceholder', { defaultValue: 'Search invoices…' })}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) => `${count} columns`}
-                tableAriaLabel={t('common.tableView', { defaultValue: 'Table view' })}
-              />
-              <ExpandableIconButton
-                icon={Plus}
-                label={t('invoices.addInvoice')}
-                variant="soft"
-                alwaysExpanded
-                onClick={() => attemptNavigation(() => openInvoicesPanel(null))}
+  const toolbarEdgeToggle =
+    typeof document !== 'undefined' && toolbarToggleBox
+      ? createPortal(
+          <div
+            className="pointer-events-none fixed z-40 hidden justify-center md:flex"
+            style={{
+              top: toolbarToggleBox.top,
+              left: toolbarToggleBox.left,
+              width: toolbarToggleBox.width,
+            }}
+          >
+            <div className="pointer-events-auto">
+              <RoundIconLabelButton
+                icon={Menu}
+                label={
+                  toolbarCollapsed ? t('invoices.expandToolbar') : t('invoices.collapseToolbar')
+                }
+                variant={toolbarCollapsed ? 'primary' : 'secondary'}
+                size="xs"
+                expandOnHover={false}
+                className={
+                  toolbarCollapsed
+                    ? undefined
+                    : 'bg-white text-primary shadow-sm hover:bg-primary hover:text-primary-foreground dark:bg-white dark:text-primary dark:hover:bg-primary dark:hover:text-primary-foreground'
+                }
+                aria-expanded={!toolbarCollapsed}
+                aria-controls="invoices-mail-toolbar"
+                onClick={toggleToolbarCollapsed}
               />
             </div>
-          </div>
-        </div>
+          </div>,
+          document.body,
+        )
+      : null;
 
-        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
-          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveFilters([])}
-              className={cn(
-                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>
-                Total <span className="tabular-nums font-semibold">({stats.total})</span>
-              </span>
-            </Button>
-            {INVOICE_LIST_FILTERS.map((filter) => {
-              const Icon = TYPE_FILTER_ICONS[filter];
-              const label = t(`invoices.type.${filter}`, { defaultValue: filter });
-              const count = stats[filter];
-              return (
-                <Button
-                  key={filter}
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleFilter(filter)}
-                  className={cn(
-                    isFilterActive(filter) ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span>
-                    {label} <span className="tabular-nums font-semibold">({count})</span>
-                  </span>
-                </Button>
-              );
-            })}
-          </div>
-          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-            <Select
-              value={primarySort}
-              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-            >
-              <SelectTrigger
-                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                aria-label="Sort by"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="item-aligned"
-                className="rounded-xl border-border/50 shadow-xl"
-              >
-                {SORT_FIELD_OPTIONS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="rounded-md text-xs"
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 px-0 text-xs"
-              onClick={toggleSortOrder}
-              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-            >
-              {sortOrder === 'asc' ? (
-                <ArrowUp className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowDown className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        <BulkDeleteModal
-          isOpen={showBulkDeleteModal}
-          onClose={() => setShowBulkDeleteModal(false)}
-          onConfirm={handleBulkDelete}
-          itemCount={selectedCount}
-          itemLabel="invoices"
-          isLoading={deleting}
+  const renderListContent = () => {
+    if (sortedInvoices.length === 0) {
+      return (
+        <ListEmptyState
+          message={
+            searchTerm || activeFilters.length > 0
+              ? t('invoices.noMatch', { defaultValue: 'No invoices match your filters.' })
+              : t('invoices.noYet', { defaultValue: 'No invoices yet' })
+          }
+          createLabel={
+            !searchTerm && activeFilters.length === 0 ? t('invoices.addInvoice') : undefined
+          }
+          onCreate={
+            !searchTerm && activeFilters.length === 0
+              ? () => attemptNavigation(() => openInvoicesPanel(null))
+              : undefined
+          }
         />
+      );
+    }
 
-        <div className="flex flex-col gap-3">
-          {sortedInvoices.length === 0 ? (
-            <ListEmptyState
-              message={
-                searchTerm || activeFilters.length > 0
-                  ? t('invoices.noMatch', { defaultValue: 'No invoices match your filters.' })
-                  : t('invoices.noYet', { defaultValue: 'No invoices yet' })
-              }
-              createLabel={
-                !searchTerm && activeFilters.length === 0 ? t('invoices.addInvoice') : undefined
-              }
-              onCreate={
-                !searchTerm && activeFilters.length === 0
-                  ? () => attemptNavigation(() => openInvoicesPanel(null))
-                  : undefined
-              }
-            />
-          ) : (
+    return (
+      <InvoiceListTable
+        invoices={sortedInvoices}
+        primarySort={primarySort}
+        sortOrder={sortOrder}
+        onSort={handleTableSort}
+        isSelected={isSelected}
+        onRowClick={handleRowActivate}
+        onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+        onCheckboxChange={onVisibleRowCheckboxChange}
+        allVisibleSelected={allVisibleSelected}
+        onHeaderCheckboxChange={handleHeaderCheckboxChange}
+        recentlyDuplicatedInvoiceId={recentlyDuplicatedInvoiceId}
+        activeInvoiceId={activeListInvoiceId}
+        selectionEnabled={selectionMode}
+        visibleColumnIds={visibleColumnIds}
+      />
+    );
+  };
+
+  return (
+    <>
+      {toolbarEdgeToggle}
+      <div
+        ref={pageShellRef}
+        className={cn(
+          'plugin-invoices flex min-h-0 flex-1 flex-col',
+          PLUGIN_PAGE_LIST_SHELL_CLASS,
+          showDesktopSplit
+            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+            : 'overflow-y-auto md:pt-3',
+        )}
+      >
+        <div
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 flex-col',
+            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+          )}
+        >
+          <div className="relative hidden shrink-0 md:block">
             <div
               className={cn(
-                'grid items-start gap-4',
-                showQuickContext && previewInvoice ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
+              )}
+              aria-hidden={toolbarCollapsed}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div
+                  id="invoices-mail-toolbar"
+                  className={cn(
+                    'flex flex-wrap items-center justify-between gap-3',
+                    toolbarCollapsed && 'pointer-events-none',
+                  )}
+                >
+                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.invoices')}</h2>
+                    <ExpandableIconButton
+                      icon={Settings}
+                      label={t('common.settings')}
+                      variant="soft"
+                      onClick={openInvoiceSettings}
+                    />
+                    <ExpandableIconButton
+                      icon={BarChart2}
+                      label={t('common.statistics', { defaultValue: 'Statistics' })}
+                      variant="soft"
+                      onClick={() => openInvoiceStatistics()}
+                    />
+                    {renderSortDropdown('h-11 rounded-full')}
+                    {renderSelectControls('h-11 rounded-full')}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <RoundExpandableSearch
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                      placeholder={t('invoices.searchPlaceholder', {
+                        defaultValue: 'Search invoices…',
+                      })}
+                    />
+                    <ExpandableIconButton
+                      icon={Plus}
+                      label={t('invoices.addInvoice')}
+                      variant="soft"
+                      onClick={() => attemptNavigation(() => openInvoicesPanel(null))}
+                    />
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    LIST_FILTER_AND_SORT_ROW_CLASS,
+                    'pt-2',
+                    toolbarCollapsed && 'pointer-events-none',
+                  )}
+                >
+                  {renderFilterChips()}
+                </div>
+                {renderBulkActionBar('py-3')}
+              </div>
+            </div>
+          </div>
+
+          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+            {renderFilterChips()}
+            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+              {renderSortDropdown('h-7 rounded-md')}
+            </div>
+          </div>
+
+          {selectionMode ? (
+            <div className="shrink-0 py-3 md:hidden">{renderBulkActionBar()}</div>
+          ) : null}
+
+          <BulkDeleteModal
+            isOpen={showBulkDeleteModal}
+            onClose={() => setShowBulkDeleteModal(false)}
+            onConfirm={handleBulkDelete}
+            itemCount={selectedCount}
+            itemLabel="invoices"
+            isLoading={deleting}
+          />
+
+          <div
+            className={cn(
+              'grid min-h-0 min-w-0 gap-2',
+              showDesktopSplit
+                ? 'flex-1 grid-cols-[minmax(220px,20%)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-stretch'
+                : 'grid-cols-1 items-start',
+            )}
+          >
+            <div
+              className={cn(
+                'min-w-0',
+                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
               )}
             >
-              {showQuickContext && previewInvoice ? (
-                <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
-                  <InvoiceQuickContextPanel
-                    invoice={previewInvoice}
-                    onClose={() => setPreviewInvoice(null)}
-                    onOpenFullProfile={() => handleOpenForView(previewInvoice)}
-                    onEdit={() => {
-                      markPendingAndOpen(previewInvoice, () =>
-                        attemptNavigation(() => openInvoiceForEdit(previewInvoice)),
-                      );
-                    }}
-                  />
-                </aside>
-              ) : null}
               <div className="flex min-w-0 flex-col gap-3">
-                {isTableView ? (
-                  <InvoiceListTable
-                    invoices={sortedInvoices}
-                    primarySort={primarySort}
-                    sortOrder={sortOrder}
-                    onSort={handleTableSort}
-                    isSelected={isSelected}
-                    onRowClick={handleRowActivate}
-                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                    onCheckboxChange={onVisibleRowCheckboxChange}
-                    allVisibleSelected={allVisibleSelected}
-                    onHeaderCheckboxChange={handleHeaderCheckboxChange}
-                    recentlyDuplicatedInvoiceId={recentlyDuplicatedInvoiceId}
-                    activeInvoiceId={previewInvoice?.id ?? null}
-                    selectionEnabled={selectionMode}
-                    visibleColumnIds={visibleColumnIds}
-                  />
-                ) : (
-                  <div
-                    className={cn(
-                      'grid gap-3',
-                      effectiveColumnCount === 1 && 'grid-cols-1',
-                      effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                      effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
-                    )}
-                  >
-                    {sortedInvoices.map((invoice, index) => (
-                      <InvoiceListItem
-                        key={invoice.id}
-                        invoice={invoice}
-                        selected={isSelected(String(invoice.id))}
-                        highlighted={recentlyDuplicatedInvoiceId === String(invoice.id)}
-                        active={
-                          previewInvoice != null && String(previewInvoice.id) === String(invoice.id)
-                        }
-                        columnCount={effectiveCardColumnCount}
-                        onClick={() => handleRowActivate(invoice)}
-                        checkbox={
-                          selectionMode ? (
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4"
-                              checked={isSelected(String(invoice.id))}
-                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                              onChange={() => onVisibleRowCheckboxChange(String(invoice.id))}
-                              onClick={(e) => e.stopPropagation()}
-                              aria-label={
-                                isSelected(String(invoice.id))
-                                  ? t('common.unselectRow')
-                                  : t('common.selectRow')
-                              }
-                            />
-                          ) : undefined
-                        }
-                      />
-                    ))}
-                  </div>
-                )}
+                {renderListContent()}
 
                 <ListFooterBar
                   meta={t('common.showingOf', {
@@ -754,9 +947,49 @@ export function InvoicesList() {
                 />
               </div>
             </div>
-          )}
+
+            {showDesktopSplit ? (
+              <aside
+                className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain"
+                role="region"
+                aria-label={t('invoices.quickContext.title', { defaultValue: 'Quick context' })}
+                aria-live="polite"
+              >
+                {inlineForm ? (
+                  <div className="flex min-h-0 flex-col gap-3">
+                    <div className="flex shrink-0 justify-end">
+                      <InlinePanelFormActions
+                        mode={panelMode === 'edit' ? 'edit' : 'create'}
+                        hasBlockingErrors={inlineFormHasBlockingErrors}
+                        showPreview
+                        onPreview={handleInlineFormPreview}
+                        onClose={handleInlineFormClose}
+                        onSave={() => {
+                          void handleInlineFormSave();
+                        }}
+                        t={t}
+                      />
+                    </div>
+                    <InvoicesForm
+                      ref={inlineFormRef}
+                      currentInvoice={currentInvoice as any}
+                      onSave={handleInlineFormOnSave}
+                      onCancel={closeInvoicesPanel}
+                      stacked
+                    />
+                  </div>
+                ) : detailInvoice ? (
+                  <InvoicesView invoice={detailInvoice} stacked />
+                ) : (
+                  <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
+                    <InvoicesStatisticsView />
+                  </Card>
+                )}
+              </aside>
+            ) : null}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

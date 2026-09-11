@@ -1,4 +1,4 @@
-import { Clock, Globe, Hash, Mail, Phone, Tag, X } from 'lucide-react';
+import { Clock, Globe, Hash, Mail, Phone, Tag, User, Users, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -17,6 +17,7 @@ import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   QuickContextHeaderActions,
   QuickContextOpenFullFooter,
@@ -28,18 +29,10 @@ import { ContactCopyableLink, mailtoHref, telHref, websiteHref } from './Contact
 import { ContactLinkedItemsSectionLazy as ContactLinkedItemsSection } from './ContactLinkedItemsSectionLazy';
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
-import { formatCompanyTypeLabel } from '../types/contacts';
+import { CONTACT_TYPE_ICON_SHELL_CLASS, formatCompanyTypeLabel } from '../types/contacts';
 
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
-
-function contactInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
-  }
-  return name.trim().slice(0, 2).toUpperCase() || '—';
-}
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -80,6 +73,10 @@ export function ContactQuickContextPanel({
   const displayTags = Array.isArray(contact.tags) ? contact.tags.filter(Boolean) : [];
   const isCompany = contact.contactType === 'company';
   const contactNotes = contact.notes?.trim() || '';
+  const ContactTypeIcon = isCompany ? Users : User;
+  const contactTypeLabel = t(`contacts.type.${contact.contactType}`, {
+    defaultValue: isCompany ? 'Company' : 'Private',
+  });
 
   const addableTags = useMemo(
     () =>
@@ -123,22 +120,19 @@ export function ContactQuickContextPanel({
     setContactHasTimeEntries(contact.id, timeEntries.length > 0);
   }, [isFullView, contact?.id, timeEntries, setContactHasTimeEntries]);
 
-  const avatarClass = isCompany
-    ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200'
-    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200';
-
   const identityHeader = (
     <div className="flex items-center gap-3">
-      <div
-        className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
-          avatarClass,
-        )}
-        aria-hidden
-      >
-        {contactInitials(contact.companyName)}
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span title={contactTypeLabel} className="inline-flex shrink-0">
+          <SectionCategoryIcon
+            icon={ContactTypeIcon}
+            className={CONTACT_TYPE_ICON_SHELL_CLASS[isCompany ? 'company' : 'private']}
+          />
+        </span>
+        <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+          {contact.companyName}
+        </h3>
       </div>
-      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{contact.companyName}</h3>
       <QuickContextHeaderActions
         onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
         onEdit={onEdit}

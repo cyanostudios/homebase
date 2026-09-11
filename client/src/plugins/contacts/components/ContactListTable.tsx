@@ -1,14 +1,19 @@
-import { Timer } from 'lucide-react';
+import { Timer, User, Users } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable } from '@/core/ui/SortableListTable';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import type { Contact } from '../types/contacts';
-import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
+import {
+  CONTACT_TYPE_BADGE_CLASS,
+  CONTACT_TYPE_COLORS,
+  CONTACT_TYPE_ICON_SHELL_CLASS,
+} from '../types/contacts';
 import type { ContactSortField, ContactSortOrder } from '../utils/contactListSort';
 import {
   DEFAULT_CONTACT_TABLE_COLUMNS,
@@ -43,6 +48,18 @@ function formatContactPhone(contact: Contact): string {
     return primary;
   }
   return contact.phone2?.trim() || '';
+}
+
+function contactIdentityMeta(contact: Contact): string | null {
+  if (contact.contactType === 'company') {
+    const org = contact.organizationNumber?.trim();
+    return org || null;
+  }
+  const personal = contact.personalNumber?.trim();
+  if (!personal) {
+    return null;
+  }
+  return personal.length > 9 ? `${personal.substring(0, 9)}XXXX` : personal;
 }
 
 export function ContactListTable({
@@ -85,11 +102,38 @@ export function ContactListTable({
       name: {
         field: 'name',
         header: t('contacts.table.name'),
-        cell: (contact: Contact) => (
-          <span className="font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary">
-            {contact.companyName}
-          </span>
-        ),
+        cell: (contact: Contact) => {
+          const identityMeta = contactIdentityMeta(contact);
+          const contactType = contact.contactType === 'private' ? 'private' : 'company';
+          const TypeIcon = contactType === 'private' ? User : Users;
+          const typeLabel = t(`contacts.type.${contactType}`, {
+            defaultValue: contactType === 'private' ? 'Private' : 'Company',
+          });
+
+          return (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={typeLabel} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={TypeIcon}
+                    className={cn(
+                      'h-5 w-5 [&_svg]:h-3 [&_svg]:w-3',
+                      CONTACT_TYPE_ICON_SHELL_CLASS[contactType],
+                    )}
+                  />
+                </span>
+                <span className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary">
+                  {contact.companyName}
+                </span>
+              </div>
+              {identityMeta ? (
+                <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                  {identityMeta}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
       },
       type: {
         field: 'type',
@@ -256,6 +300,9 @@ export function ContactListTable({
       isRowActive={(contact) =>
         activeContactId != null && String(contact.id) === String(activeContactId)
       }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       selection={
         selectionEnabled
           ? {

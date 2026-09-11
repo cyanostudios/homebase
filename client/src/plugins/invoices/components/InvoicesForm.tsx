@@ -96,10 +96,12 @@ interface InvoicesFormProps {
   currentInvoice?: Invoice | null;
   onSave: (data: any) => Promise<boolean>;
   onCancel: () => void;
+  /** Reserved for mail-style list detail column (form is already single-column). */
+  stacked?: boolean;
 }
 
 export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>(
-  function InvoicesForm({ currentInvoice, onSave, onCancel }, ref) {
+  function InvoicesForm({ currentInvoice, onSave, onCancel, stacked: _stacked = false }, ref) {
     const { t } = useTranslation();
     const { validationErrors, clearValidationErrors, invoiceCreatePrefill } = useInvoices();
     const { user, contacts } = useApp();
@@ -510,7 +512,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
 
     const formBody = (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4">
           <Card
             padding="none"
             className={cn(DETAIL_VIEW_CARD_CLASS, 'flex h-full min-h-0 flex-col')}
@@ -795,7 +797,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           </DetailSection>
         </Card>
 
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4">
           <div className="space-y-4">
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
@@ -861,7 +863,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                   defaultValue: 'This is how the invoice will look when shared or exported as PDF.',
                 })}
               </p>
-              <div className="w-full min-w-0">
+              <div className="mx-auto w-full min-w-0 max-w-[794px]">
                 <InvoiceDocumentPreview
                   formData={formData}
                   invoiceId={currentInvoice?.id}
