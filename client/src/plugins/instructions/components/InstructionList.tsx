@@ -24,13 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
@@ -42,7 +36,6 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -58,14 +51,6 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useInstructions } from '../hooks/useInstructions';
-import type { PublicationStatus } from '../types/instructions';
-import {
-  getInitialInstructionColumnCount,
-  INSTRUCTIONS_COLUMN_COUNT_STORAGE_KEY,
-  INSTRUCTIONS_SETTINGS_KEY,
-  resolveInstructionColumnCount,
-  type InstructionColumnCount,
-} from '../utils/instructionColumnCount';
 import {
   instructionMatchesListFilters,
   toggleInstructionListFilter,
@@ -80,15 +65,8 @@ import {
   type InstructionSortOrder,
 } from '../utils/instructionListSort';
 import { getInstructionListStatusErrorMessage } from '../utils/instructionListStatusError';
-import {
-  getInitialInstructionListViewMode,
-  persistInstructionListViewModeSession,
-  resolveInstructionListViewMode,
-  type InstructionListViewMode,
-} from '../utils/instructionListViewMode';
 import { sortCategoryNames } from '../utils/sortCategoryNames';
 
-import { InstructionListItem } from './InstructionListItem';
 import { InstructionListTable } from './InstructionListTable';
 import { InstructionSettingsView } from './InstructionSettingsView';
 
@@ -123,10 +101,7 @@ export const InstructionList: React.FC = () => {
     isSelected,
     recentlyDuplicatedInstructionId,
     openInstructionPanel,
-    updateInstructionPublicationStatus,
     validationErrors,
-    reorderInstructionsInCategory,
-    isSaving,
     instructionsContentView,
     instructionsSettingsTab,
     openInstructionSettings,
@@ -153,73 +128,14 @@ export const InstructionList: React.FC = () => {
     }),
   });
 
-  const { getSettings, updateSettings, settingsVersion } = useApp();
   const [primarySort, setPrimarySort] = useState<InstructionSortField>('title');
   const [sortOrder, setSortOrder] = useState<InstructionSortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<InstructionColumnCount>(
-    getInitialInstructionColumnCount,
-  );
-  const [listViewMode, setListViewModeState] = useState<InstructionListViewMode>(
-    getInitialInstructionListViewMode,
-  );
   const [activeFilters, setActiveFilters] = useState<InstructionListFilterSelection>([]);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
 
   useEffect(() => {
     setSettingsTab(instructionsSettingsTab);
   }, [instructionsSettingsTab]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getSettings(INSTRUCTIONS_SETTINGS_KEY)
-      .then((settings) => {
-        if (cancelled) {
-          return;
-        }
-        const resolved = resolveInstructionColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as InstructionColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(INSTRUCTIONS_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(INSTRUCTIONS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolveInstructionListViewMode(settings);
-        setListViewModeState(nextView);
-        persistInstructionListViewModeSession(nextView);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [getSettings, settingsVersion]);
-
-  const setColumnCount = useCallback(
-    (_count: InstructionColumnCount) => {
-      const next = 3 as InstructionColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistInstructionListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(INSTRUCTIONS_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(INSTRUCTIONS_SETTINGS_KEY, {
-        columnCount: next,
-        listViewMode: 'cards',
-      }).catch(() => {});
-    },
-    [updateSettings],
-  );
-
-  const setListViewMode = useCallback(
-    (mode: InstructionListViewMode) => {
-      setListViewModeState(mode);
-      persistInstructionListViewModeSession(mode);
-      updateSettings(INSTRUCTIONS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
 
   const handlePrimarySortChange = (field: InstructionSortField) => {
     setPrimarySort(field);
@@ -238,10 +154,6 @@ export const InstructionList: React.FC = () => {
     },
     [primarySort, sortOrder],
   );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const catalogOrder = useMemo(() => categories.map((c) => c.name), [categories]);
 
@@ -264,33 +176,8 @@ export const InstructionList: React.FC = () => {
         (item.slug || '').toLowerCase().includes(q),
     );
 
-    if (categoryFilter !== 'all' && !isTableView) {
-      return [...filtered].sort((a, b) => {
-        const ao = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
-        const bo = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
-        if (ao !== bo) {
-          return ao - bo;
-        }
-        return (a.title || '').localeCompare(b.title || '', 'sv');
-      });
-    }
-
     return [...filtered].sort((a, b) => compareInstructionsByField(a, b, primarySort, sortOrder));
-  }, [
-    instructions,
-    searchTerm,
-    primarySort,
-    sortOrder,
-    activeFilters,
-    categoryFilter,
-    isTableView,
-  ]);
-
-  const canReorderCategory =
-    !isTableView &&
-    categoryFilter !== 'all' &&
-    searchTerm.trim() === '' &&
-    activeFilters.length === 0;
+  }, [instructions, searchTerm, primarySort, sortOrder, activeFilters, categoryFilter]);
 
   const isFilterActive = (filter: InstructionListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: InstructionListFilter) => {
@@ -406,29 +293,6 @@ export const InstructionList: React.FC = () => {
     ];
   }, [selectedCount, t]);
 
-  const handleStatusChange = (item: (typeof instructions)[0], status: PublicationStatus) => {
-    void updateInstructionPublicationStatus(item, status);
-  };
-
-  const handleMoveInCategory = useCallback(
-    async (index: number, direction: -1 | 1) => {
-      if (!canReorderCategory) {
-        return;
-      }
-      const nextIndex = index + direction;
-      if (nextIndex < 0 || nextIndex >= sortedInstructions.length) {
-        return;
-      }
-      const orderedIds = sortedInstructions.map((row) => String(row.id));
-      const tmp = orderedIds[index];
-      orderedIds[index] = orderedIds[nextIndex];
-      orderedIds[nextIndex] = tmp;
-      const category = categoryFilter === UNCATEGORIZED_FILTER ? null : String(categoryFilter);
-      await reorderInstructionsInCategory(category, orderedIds);
-    },
-    [canReorderCategory, sortedInstructions, categoryFilter, reorderInstructionsInCategory],
-  );
-
   const listStatusError = getInstructionListStatusErrorMessage(validationErrors);
 
   if (instructionsContentView === 'settings') {
@@ -497,14 +361,6 @@ export const InstructionList: React.FC = () => {
                 placeholder={t('instructions.searchPlaceholder', {
                   count: instructions.length,
                 })}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) => t(`instructions.columns${count}`)}
-                tableAriaLabel={t('common.tableView')}
               />
               <ExpandableIconButton
                 icon={Plus}
@@ -691,7 +547,7 @@ export const InstructionList: React.FC = () => {
                   : undefined
               }
             />
-          ) : isTableView ? (
+          ) : (
             <InstructionListTable
               instructions={sortedInstructions}
               primarySort={primarySort}
@@ -706,57 +562,6 @@ export const InstructionList: React.FC = () => {
               recentlyDuplicatedInstructionId={recentlyDuplicatedInstructionId}
               selectionEnabled={selectionMode}
             />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {sortedInstructions.map((item, index) => {
-                const itemIsSelected = isSelected(item.id);
-                return (
-                  <InstructionListItem
-                    key={item.id}
-                    instruction={item}
-                    selected={itemIsSelected}
-                    highlighted={recentlyDuplicatedInstructionId === String(item.id)}
-                    onClick={() => handleRowActivate(item)}
-                    columnCount={effectiveCardColumnCount}
-                    onStatusChange={(status) => handleStatusChange(item, status)}
-                    canReorder={canReorderCategory}
-                    reorderDisabled={isSaving}
-                    onMoveUp={
-                      canReorderCategory ? () => void handleMoveInCategory(index, -1) : undefined
-                    }
-                    onMoveDown={
-                      canReorderCategory ? () => void handleMoveInCategory(index, 1) : undefined
-                    }
-                    isFirst={index === 0}
-                    isLast={index === sortedInstructions.length - 1}
-                    checkbox={
-                      selectionMode ? (
-                        <input
-                          type="checkbox"
-                          checked={itemIsSelected}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(item.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={
-                            itemIsSelected
-                              ? t('instructions.unselectInstruction')
-                              : t('instructions.selectInstruction')
-                          }
-                        />
-                      ) : undefined
-                    }
-                  />
-                );
-              })}
-            </div>
           )}
 
           <ListFooterBar

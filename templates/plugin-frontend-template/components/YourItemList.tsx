@@ -1,71 +1,28 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  CheckSquare,
-  Plus,
-  Search,
-  Settings,
-  Trash2,
-  X,
-  XCircle,
-} from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { CheckSquare, Plus, Search, Settings, Trash2, X, XCircle } from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { cn } from '@/lib/utils';
 
 import { useYourItems } from '../hooks/useYourItems';
 import type { YourItem } from '../types/your-items';
-import {
-  getInitialYourItemColumnCount,
-  resolveYourItemColumnCount,
-  settingsHasYourItemColumnPreference,
-  YOUR_ITEMS_COLUMN_COUNT_STORAGE_KEY,
-  YOUR_ITEMS_SETTINGS_KEY,
-  type YourItemColumnCount,
-} from '../utils/yourItemColumnCount';
 import {
   compareYourItemsByField,
   isYourItemAscDefaultField,
   type YourItemSortField,
   type YourItemSortOrder,
 } from '../utils/yourItemListSort';
-import {
-  getInitialYourItemListViewMode,
-  isYourItemListViewMode,
-  persistYourItemListViewModeSession,
-  resolveYourItemListViewMode,
-  type YourItemListViewMode,
-} from '../utils/yourItemListViewMode';
 
-import { YourItemListItem } from './YourItemListItem';
 import { YourItemListTable } from './YourItemListTable';
 import { YourItemsSettingsView } from './YourItemsSettingsView';
-
-const SORT_FIELD_OPTIONS: { value: YourItemSortField; label: string }[] = [
-  { value: 'updatedAt', label: 'Updated' },
-  { value: 'title', label: 'Title' },
-  { value: 'createdAt', label: 'Created' },
-  { value: 'id', label: 'ID' },
-];
 
 export const YourItemList: React.FC = () => {
   const { t } = useTranslation();
@@ -78,85 +35,14 @@ export const YourItemList: React.FC = () => {
     closeYourItemsSettingsView,
     deleteYourItems,
   } = useYourItems();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [primarySort, setPrimarySort] = useState<YourItemSortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<YourItemSortOrder>('desc');
-  const [columnCount, setColumnCountState] = useState<YourItemColumnCount>(
-    getInitialYourItemColumnCount,
-  );
-  const [listViewMode, setListViewModeState] = useState<YourItemListViewMode>(
-    getInitialYourItemListViewMode,
-  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    getSettings(YOUR_ITEMS_SETTINGS_KEY)
-      .then((settings) => {
-        if (cancelled) {
-          return;
-        }
-        const hasColumnPref = settingsHasYourItemColumnPreference(settings);
-        const hasListViewPref = isYourItemListViewMode(settings?.listViewMode);
-        if (!hasColumnPref && !hasListViewPref) {
-          return;
-        }
-        if (hasColumnPref) {
-          const next = resolveYourItemColumnCount(settings);
-          setColumnCountState(next);
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.setItem(YOUR_ITEMS_COLUMN_COUNT_STORAGE_KEY, String(next));
-          }
-        }
-        if (hasListViewPref) {
-          const nextView = resolveYourItemListViewMode(settings);
-          setListViewModeState(nextView);
-          persistYourItemListViewModeSession(nextView);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [getSettings, settingsVersion]);
-
-  const setColumnCount = useCallback(
-    (count: YourItemColumnCount) => {
-      setColumnCountState(count);
-      setListViewModeState('cards');
-      persistYourItemListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(YOUR_ITEMS_COLUMN_COUNT_STORAGE_KEY, String(count));
-      }
-      updateSettings(YOUR_ITEMS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
-
-  const setListViewMode = useCallback(
-    (mode: YourItemListViewMode) => {
-      setListViewModeState(mode);
-      persistYourItemListViewModeSession(mode);
-      updateSettings(YOUR_ITEMS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
-
-  const handlePrimarySortChange = (field: YourItemSortField) => {
-    setPrimarySort(field);
-    setSortOrder(isYourItemAscDefaultField(field) ? 'asc' : 'desc');
-  };
-
-  const toggleSortOrder = () => {
-    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-  };
 
   const handleTableSort = useCallback(
     (field: YourItemSortField) => {
@@ -166,8 +52,6 @@ export const YourItemList: React.FC = () => {
     },
     [primarySort, sortOrder],
   );
-
-  const isTableView = listViewMode === 'table';
 
   const filteredAndSorted = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
@@ -335,62 +219,7 @@ export const YourItemList: React.FC = () => {
                 />
               </div>
             }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as YourItemSortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => `${count} columns`}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
+            trailing={null}
             bulkActions={
               <>
                 <Button
@@ -427,7 +256,7 @@ export const YourItemList: React.FC = () => {
                 !searchTerm ? () => attemptNavigation(() => openYourItemPanel(null)) : undefined
               }
             />
-          ) : isTableView ? (
+          ) : (
             <YourItemListTable
               items={filteredAndSorted}
               primarySort={primarySort}
@@ -440,39 +269,6 @@ export const YourItemList: React.FC = () => {
               allVisibleSelected={allVisibleSelected}
               onHeaderCheckboxChange={handleHeaderCheckboxChange}
             />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((item, index) => {
-                const itemIsSelected = isSelected(String(item.id));
-                return (
-                  <YourItemListItem
-                    key={item.id}
-                    item={item}
-                    selected={itemIsSelected}
-                    onClick={() => handleOpenForView(item)}
-                    columnCount={columnCount}
-                    checkbox={
-                      <input
-                        type="checkbox"
-                        checked={itemIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(String(item.id))}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={itemIsSelected ? 'Unselect item' : 'Select item'}
-                      />
-                    }
-                  />
-                );
-              })}
-            </div>
           )}
 
           <ListFooterBar

@@ -8,7 +8,14 @@ import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/Detail
 import { useIngest } from '../hooks/useIngest';
 import type { IngestSource } from '../types/ingest';
 
-export function IngestSourceDetailHeaderMenus({ source }: { source: IngestSource }) {
+export function IngestSourceDetailHeaderMenus({
+  source,
+  leading,
+}: {
+  source: IngestSource;
+  /** Optional leading content on the Actions row (e.g. source name). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openIngestSourceForEdit,
@@ -69,7 +76,7 @@ export function IngestSourceDetailHeaderMenus({ source }: { source: IngestSource
   );
 
   return (
-    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')}>
+    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')} leading={leading}>
       <ConfirmDialog
         isOpen={showDelete}
         title={t('ingest.deleteTitle')}

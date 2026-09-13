@@ -1,7 +1,10 @@
+import { AtSign, StickyNote } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable } from '@/core/ui/SortableListTable';
+import { cn } from '@/lib/utils';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 
 import type { Note } from '../types/notes';
@@ -68,11 +71,42 @@ export function NoteListTable({
       title: {
         field: 'title',
         header: t('notes.title'),
-        cell: (note: Note) => (
-          <span className="font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary">
-            {note.title}
-          </span>
-        ),
+        cell: (note: Note) => {
+          const mentionCount = note.mentions?.length ?? 0;
+          return (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={t('nav.note')} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={StickyNote}
+                    className="h-5 w-5 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-3 [&_svg]:w-3"
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={note.title}
+                >
+                  {note.title}
+                </span>
+              </div>
+              {mentionCount > 0 ? (
+                <div className="flex min-w-0 items-center gap-1.5 pl-0.5">
+                  <span title={t('notes.mentions')} className="inline-flex shrink-0">
+                    <SectionCategoryIcon
+                      icon={AtSign}
+                      className={cn(
+                        'h-4 w-4 bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 [&_svg]:h-2.5 [&_svg]:w-2.5',
+                      )}
+                    />
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground tabular-nums">
+                    {mentionCount}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          );
+        },
       },
       mentions: {
         field: 'mentions',
@@ -132,6 +166,9 @@ export function NoteListTable({
           : undefined
       }
       isRowActive={(note) => activeNoteId != null && String(note.id) === String(activeNoteId)}
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       selection={
         selectionEnabled
           ? {

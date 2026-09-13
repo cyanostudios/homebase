@@ -40,6 +40,7 @@ import { TeamRequestsSection } from '@/plugins/requests/components/TeamRequestsS
 import { useRequests } from '@/plugins/requests/hooks/useRequests';
 import { matchesApi } from '@/plugins/matches/api/matchesApi';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
+import type { Match } from '@/plugins/matches/types/match';
 import { useGarments } from '@/plugins/garments/hooks/useGarments';
 import { TeamGarmentsSection } from '@/plugins/garments/components/TeamGarmentsSection';
 
@@ -71,6 +72,7 @@ import { SeriesTeamsSection } from './SeriesTeamsSection';
 import { TeamMatchesSection } from './TeamMatchesSection';
 import { TeamMatchStatsSection } from './TeamMatchStatsSection';
 import { TeamNotesSection } from './TeamNotesSection';
+import { TeamQuickContextPanel } from './TeamQuickContextPanel';
 import { TrainingSchedule } from './TrainingSchedule';
 
 type TeamViewTab =
@@ -103,12 +105,23 @@ function parseTeamViewTab(value: string | null): TeamViewTab {
   return 'overview';
 }
 
-export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: Team | null }) {
+export function TeamView({
+  team: teamProp,
+  item,
+  stacked: _stacked = false,
+  nextMatch = null,
+}: {
+  team?: Team | null;
+  item?: Team | null;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
+  nextMatch?: Match | null;
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, getSettings, settingsVersion } = useApp();
   const team = teamProp ?? item ?? null;
-  const { saveTeam } = useTeams();
+  const { saveTeam, openTeamForEdit } = useTeams();
   const { contacts } = useContacts();
   const { openRequestForView } = useRequests();
   const { openMatchForView } = useMatches();
@@ -533,6 +546,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
   return (
     <>
       <DetailLayout
+        gridClassName="grid-cols-1"
         sidebar={
           <div className="space-y-4">
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -564,6 +578,12 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
         }
       >
         <div className="space-y-3">
+          <TeamQuickContextPanel
+            team={team}
+            nextMatch={nextMatch}
+            onEdit={() => openTeamForEdit(team)}
+            variant="full"
+          />
           <Card
             padding="none"
             className={cn(

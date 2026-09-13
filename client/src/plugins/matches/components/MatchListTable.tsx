@@ -1,7 +1,9 @@
+import { Trophy } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useTimeFormat } from '@/core/settings/useTimeFormat';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 
@@ -77,11 +79,25 @@ export function MatchListTable({
         header: t('matches.matchupLabel'),
         className: 'md:hidden',
         sortable: false,
-        cell: (match) => (
-          <span className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {match.home_team || '—'} – {match.away_team || '—'}
-          </span>
-        ),
+        cell: (match) => {
+          const label = `${match.home_team || '—'} – ${match.away_team || '—'}`;
+          return (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span title={t('nav.match')} className="inline-flex shrink-0">
+                <SectionCategoryIcon
+                  icon={Trophy}
+                  className="h-5 w-5 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-3 [&_svg]:w-3"
+                />
+              </span>
+              <span
+                className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+                title={label}
+              >
+                {label}
+              </span>
+            </div>
+          );
+        },
       },
       start_time: {
         field: 'start_time',
@@ -97,14 +113,34 @@ export function MatchListTable({
         header: t('matches.homeTeamLabel'),
         className: 'hidden md:table-cell',
         cell: (match) => (
-          <span className="font-medium text-foreground">{match.home_team || '—'}</span>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span title={t('nav.match')} className="inline-flex shrink-0">
+              <SectionCategoryIcon
+                icon={Trophy}
+                className="h-5 w-5 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-3 [&_svg]:w-3"
+              />
+            </span>
+            <span
+              className="min-w-0 truncate font-medium text-foreground"
+              title={match.home_team || undefined}
+            >
+              {match.home_team || '—'}
+            </span>
+          </div>
         ),
       },
       away_team: {
         field: 'away_team',
         header: t('matches.awayTeamLabel'),
         className: 'hidden md:table-cell',
-        cell: (match) => <span className="text-foreground">{match.away_team || '—'}</span>,
+        cell: (match) => (
+          <span
+            className="block min-w-0 truncate text-foreground"
+            title={match.away_team || undefined}
+          >
+            {match.away_team || '—'}
+          </span>
+        ),
       },
       team_id: {
         field: 'team_id',
@@ -202,6 +238,9 @@ export function MatchListTable({
             }
           : undefined
       }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       pluginName="matches"
       dataListItem={(match) => match}
     />

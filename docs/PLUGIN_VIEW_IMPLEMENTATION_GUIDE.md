@@ -479,26 +479,16 @@ flex items-start justify-between gap-6
 {/* … */}
 <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
   <RoundExpandableSearch value={searchTerm} onChange={setSearchTerm} placeholder={…} />
-  {/* optional sort controls */}
-  <ListColumnLayoutToggle
-    columnCount={columnCount}
-    listViewMode={listViewMode}
-    onSelectColumns={setColumnCount}
-    onSelectTable={() => setListViewMode('table')}
-    columnAriaLabel={(count) => t(`myPlugin.columns${count}`)}
-    tableAriaLabel={t('common.tableView')}
-  />
+  {/* optional toolbar sort controls — table headers also sort via SortableListTable */}
   <ExpandableIconButton icon={Plus} label={t('myPlugin.add')} variant="soft" alwaysExpanded onClick={…} />
 </div>
 ```
 
-**Layout toggle:** desktop only **3 | table** (`ListColumnLayoutToggle`). Persisted cards preference is always `columnCount: 3`. Pass `{ quickContextOpen }` into `useEffectiveColumnCount` / `useEffectiveCardColumnCount` so the card grid shows **2** columns while quick context is open (preference unchanged). Hidden on pad/phone (effective clamps apply).
+**List layout:** **Table-only** (`*ListTable` / `SortableListTable`). Do not add a cards/column layout toggle. Do not add a settings **View** tab for list layout.
 
-**Chrome:** shared shell tokens `LIST_LAYOUT_TOGGLE_SHELL_CLASS` / `LIST_LAYOUT_TOGGLE_DIVIDER_CLASS` in `pluginPageStyles.ts` — white pill (`bg-white` / `dark:bg-slate-950`), selected half uses `bg-primary/10 text-primary`.
+**Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only).
 
-**Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only). Do **not** add a settings **View** tab for cards/table — that lives on the list header (`ListColumnLayoutToggle`).
-
-**Table column visibility:** optional per-user `tableColumns: { order, hidden }` on the plugin settings category (Contacts, Notes, Tasks, Requests, Teams, Matches, Garments inventory, Estimates, Invoices, Slots, Cups). Persist the **full** object via `updateSettings` (JSONB shallow merge). Normalize unknown/missing prefs to defaults; keep a required identity column always visible (`name` / `title` / `age_group` / `matchup` / `articleName` / `estimateNumber` / `invoiceNumber`). Settings UI: shared `TableColumnsSettingsSection` (HTML5 drag-and-drop + toggles) or plugin-local equivalent. Apply order/visibility in `*ListTable` only — cards view ignores `tableColumns`. Do not put column pickers on the list toolbar in this pattern. Shared helpers: `client/src/core/list/tableColumnsPref.ts`. Garments **list** person-matrix column settings (identity + Paid/custom checkboxes) are separate — see [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (Person rows).
+**Table column visibility:** optional per-user `tableColumns: { order, hidden }` on the plugin settings category (Contacts, Notes, Tasks, Requests, Teams, Matches, Garments inventory, Estimates, Invoices, Slots, Cups). Persist the **full** object via `updateSettings` (JSONB shallow merge). Normalize unknown/missing prefs to defaults; keep a required identity column always visible (`name` / `title` / `age_group` / `matchup` / `articleName` / `estimateNumber` / `invoiceNumber`). Settings UI: shared `TableColumnsSettingsSection` (HTML5 drag-and-drop + toggles) or plugin-local equivalent. Apply order/visibility in `*ListTable` only. Do not put column pickers on the list toolbar in this pattern. Shared helpers: `client/src/core/list/tableColumnsPref.ts`. Garments **list** person-matrix column settings (identity + Paid/custom checkboxes) are separate — see [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (Person rows).
 
 ### Panel / page titles
 
@@ -511,9 +501,11 @@ flex items-start justify-between gap-6
 
 Shared primitive: `client/src/core/ui/DetailHeaderMenus.tsx`. Plugin wrappers (e.g. `ContactDetailHeaderMenus`, `TaskDetailHeaderMenus`) supply actions/export/extra menus + dialogs. Wire via `Provider.getPanelTitle` in view mode; `PanelTitles` prefers non-string React nodes **before** the mobile “blank title” early-return.
 
-**Phone layout:** trigger row (`Actions` / `Export` / extras) scrolls horizontally when needed. When a menu is open, its action pills render **inline beside the active trigger** (horizontal scroll), not on a separate full-width row below — keeps one compact header band on narrow viewports. **Desktop (`md+`):** triggers wrap; open submenu pills sit on a **second row** below the triggers.
+**Layout (all breakpoints):** trigger buttons (`Actions` / `Export` / extras) stay on the first row and may scroll horizontally when needed. When a menu is open, its action pills **always** render on the **row below** the triggers (`justify-end`, `size="xs"` / `text-xs` — same density as Contacts `BulkActionRoundBar`). Do **not** render submenu pills inline beside the active trigger.
 
-| Trigger     | Idle / open                                                                   | Expanded row                                                                                                        |
+**Optional `leading`:** identity (name / invoice # / title) on the same row as the triggers, left side (`min-w-0 flex-1`). Used in mail-layout full QC card headers where there is no separate panel title. Edit remains under Actions (no standalone Edit beside menus).
+
+| Trigger     | Idle / open                                                                   | Expanded row (below triggers)                                                                                       |
 | ----------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | **Actions** | `RoundIconLabelButton` `variant="soft"` / `primary` when open                 | Secondary pills: Edit (`soft`), Delete / Duplicate (colored icons), Message (`text-sky-500`), Mail (`text-red-800`) |
 | **Export**  | same soft/primary toggle                                                      | TXT / CSV / PDF (+ share) secondary pills                                                                           |
@@ -817,7 +809,7 @@ Walk in order. No “probably OK” — verify in the running app.
 - [ ] Contacts-class header: Select/Clear + `BulkActionRoundBar` + `RoundExpandableSearch` in `PLUGIN_PAGE_HEADER_ACTIONS_CLASS` (not `ListToolbar`)
 - [ ] `selectionEnabled={selectionMode}` on table; bulk delete uses `BulkDeleteModal`
 - [ ] Provider lists without bulk: search-only header (`AIProvidersList.tsx` pattern)
-- [ ] Empty state Create; cards/table toggle per plugin
+- [ ] Empty state Create; **table-only** list (`SortableListTable` / `*ListTable`) — no cards/column layout toggle
 - [ ] Clickable table rows are focusable (`tabIndex={0}` via `SortableListTable`); ArrowUp/Down moves between `[data-list-item]`
 
 ### Quality gates

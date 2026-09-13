@@ -122,7 +122,10 @@ export function ContactListTable({
                     )}
                   />
                 </span>
-                <span className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary">
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={contact.companyName}
+                >
                   {contact.companyName}
                 </span>
               </div>

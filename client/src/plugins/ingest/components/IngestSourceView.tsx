@@ -3,6 +3,9 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -19,17 +22,24 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { formatDateTime } from '@/core/utils/dateFormat';
-import { cn } from '@/lib/utils';
 
 import { useIngest } from '../hooks/useIngest';
 import type { IngestSource } from '../types/ingest';
 
+import { IngestSourceDetailHeaderMenus } from './IngestSourceDetailHeaderMenus';
+
 interface IngestSourceViewProps {
   ingest?: IngestSource | null;
   item?: IngestSource | null;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
 }
 
-export const IngestSourceView: React.FC<IngestSourceViewProps> = ({ ingest: ingestProp, item }) => {
+export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
+  ingest: ingestProp,
+  item,
+  stacked = false,
+}) => {
   const source = ingestProp ?? item ?? null;
   const { t } = useTranslation();
   const { ingestRuns, runsLoading } = useIngest();
@@ -46,68 +56,81 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({ ingest: inge
     return null;
   }
 
-  return (
-    <DetailLayout
-      sidebar={
-        <div className="space-y-4">
-          <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-ingest')}>
-            <DetailSection
-              title={t('ingest.information')}
-              icon={Info}
-              iconPlugin="ingest"
-              subtleTitle
-              className="p-4"
-              collapsible
-            >
-              <div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {t('ingest.sourceType')}
-                  </span>
-                  <span className="font-extrabold text-foreground">{source.sourceType}</span>
-                </div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {t('ingest.fetchMethod')}
-                  </span>
-                  <span className="truncate text-right font-mono font-extrabold text-foreground">
-                    {source.fetchMethod}
-                  </span>
-                </div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">{t('ingest.active')}</span>
-                  <span className="font-extrabold text-foreground">
-                    {source.isActive ? t('common.yes') : t('common.no')}
-                  </span>
-                </div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {t('ingest.lastFetch')}
-                  </span>
-                  <span className="text-right font-extrabold text-foreground">
-                    {source.lastFetchedAt ? formatDateTime(source.lastFetchedAt) : '—'}
-                  </span>
-                </div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {t('ingest.lastStatus')}
-                  </span>
-                  <span className="font-extrabold text-foreground">{source.lastFetchStatus}</span>
-                </div>
-                {source.notes && (
-                  <div className="space-y-1 border-t border-border/50 pt-2">
-                    <div className={DETAIL_FIELD_LABEL_CLASS}>{t('ingest.notes')}</div>
-                    <p className="text-xs text-foreground whitespace-pre-wrap line-clamp-6">
-                      {source.notes}
-                    </p>
-                  </div>
-                )}
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={t('nav.ingest')} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={Globe}
+          className="h-8 w-8 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-4 [&_svg]:w-4"
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+        {source.name || '—'}
+      </h3>
+    </div>
+  );
+
+  const informationSidebar = (
+    <div className="space-y-4">
+      {stacked ? (
+        <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-ingest')}>
+          <div className="border-b border-border/50 px-4 py-3">
+            <IngestSourceDetailHeaderMenus source={source} leading={titleLeading} />
+          </div>
+        </Card>
+      ) : null}
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-ingest')}>
+        <DetailSection
+          title={t('ingest.information')}
+          icon={Info}
+          iconPlugin="ingest"
+          subtleTitle
+          className="p-4"
+          collapsible
+        >
+          <div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">{t('ingest.sourceType')}</span>
+              <span className="font-extrabold text-foreground">{source.sourceType}</span>
+            </div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">{t('ingest.fetchMethod')}</span>
+              <span className="truncate text-right font-mono font-extrabold text-foreground">
+                {source.fetchMethod}
+              </span>
+            </div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">{t('ingest.active')}</span>
+              <span className="font-extrabold text-foreground">
+                {source.isActive ? t('common.yes') : t('common.no')}
+              </span>
+            </div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">{t('ingest.lastFetch')}</span>
+              <span className="text-right font-extrabold text-foreground">
+                {source.lastFetchedAt ? formatDateTime(source.lastFetchedAt) : '—'}
+              </span>
+            </div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">{t('ingest.lastStatus')}</span>
+              <span className="font-extrabold text-foreground">{source.lastFetchStatus}</span>
+            </div>
+            {source.notes ? (
+              <div className="space-y-1 border-t border-border/50 pt-2">
+                <div className={DETAIL_FIELD_LABEL_CLASS}>{t('ingest.notes')}</div>
+                <p className="line-clamp-6 whitespace-pre-wrap text-xs text-foreground">
+                  {source.notes}
+                </p>
               </div>
-            </DetailSection>
-          </Card>
-        </div>
-      }
-    >
+            ) : null}
+          </div>
+        </DetailSection>
+      </Card>
+    </div>
+  );
+
+  return (
+    <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={informationSidebar}>
       <div className="space-y-4">
         <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-ingest')}>
           <DetailSection

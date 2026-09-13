@@ -8,7 +8,7 @@ import {
   Route,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -21,13 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useApp } from '@/core/api/AppContext';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
@@ -53,13 +46,6 @@ import { cn } from '@/lib/utils';
 import { useAIProviders } from '../hooks/useAIProviders';
 import type { ProviderSettings } from '../types/aiProviders';
 import {
-  AI_PROVIDERS_COLUMN_COUNT_STORAGE_KEY,
-  AI_PROVIDERS_SETTINGS_KEY,
-  getInitialAIProvidersColumnCount,
-  resolveAIProvidersColumnCount,
-  type AIProvidersColumnCount,
-} from '../utils/aiProvidersColumnCount';
-import {
   aiProviderMatchesListFilters,
   toggleAIProvidersListFilter,
   type AIProvidersListFilter,
@@ -71,14 +57,6 @@ import {
   type AIProviderSortField,
   type AIProviderSortOrder,
 } from '../utils/aiProvidersListSort';
-import {
-  getInitialAIProvidersListViewMode,
-  persistAIProvidersListViewModeSession,
-  resolveAIProvidersListViewMode,
-  type AIProvidersListViewMode,
-} from '../utils/aiProvidersListViewMode';
-
-import { AIProvidersListItem } from './AIProvidersListItem';
 import { AIProvidersListTable } from './AIProvidersListTable';
 import { AIProvidersRouting } from './AIProvidersRouting';
 
@@ -93,7 +71,6 @@ function providerTitle(
 
 export const AIProvidersList: React.FC = () => {
   const { t } = useTranslation();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   useMobileActions({
@@ -117,69 +94,7 @@ export const AIProvidersList: React.FC = () => {
   });
   const [primarySort, setPrimarySort] = useState<AIProviderSortField>('providerKey');
   const [sortOrder, setSortOrder] = useState<AIProviderSortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<AIProvidersColumnCount>(
-    getInitialAIProvidersColumnCount,
-  );
-  const [listViewMode, setListViewModeState] = useState<AIProvidersListViewMode>(
-    getInitialAIProvidersListViewMode,
-  );
   const [activeFilters, setActiveFilters] = useState<AIProvidersListFilterSelection>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getSettings(AI_PROVIDERS_SETTINGS_KEY)
-      .then((settings) => {
-        if (cancelled) {
-          return;
-        }
-        const resolved = resolveAIProvidersColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as AIProvidersColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(AI_PROVIDERS_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(AI_PROVIDERS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolveAIProvidersListViewMode(settings);
-        setListViewModeState(nextView);
-        persistAIProvidersListViewModeSession(nextView);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [getSettings, settingsVersion]);
-
-  const setColumnCount = useCallback(
-    (_count: AIProvidersColumnCount) => {
-      const next = 3 as AIProvidersColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistAIProvidersListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(AI_PROVIDERS_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(AI_PROVIDERS_SETTINGS_KEY, {
-        columnCount: next,
-        listViewMode: 'cards',
-      }).catch(() => {});
-    },
-    [updateSettings],
-  );
-
-  const setListViewMode = useCallback(
-    (mode: AIProvidersListViewMode) => {
-      setListViewModeState(mode);
-      persistAIProvidersListViewModeSession(mode);
-      updateSettings(AI_PROVIDERS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const stats = useMemo(
     () => ({
@@ -276,16 +191,6 @@ export const AIProvidersList: React.FC = () => {
                 value={searchTerm}
                 onChange={setSearchTerm}
                 placeholder={t('aiProviders.searchPlaceholder', { count: providers.length })}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) =>
-                  t(`aiProviders.columns${count}`, { defaultValue: `${count} columns` })
-                }
-                tableAriaLabel={t('common.tableView')}
               />
               <ExpandableIconButton
                 icon={Plus}
@@ -422,7 +327,7 @@ export const AIProvidersList: React.FC = () => {
                   : undefined
               }
             />
-          ) : isTableView ? (
+          ) : (
             <AIProvidersListTable
               providers={filteredAndSorted}
               primarySort={primarySort}
@@ -431,25 +336,6 @@ export const AIProvidersList: React.FC = () => {
               onRowClick={handleOpenForView}
               providerTitle={(provider) => providerTitle(t, provider)}
             />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((provider) => (
-                <AIProvidersListItem
-                  key={provider.providerKey}
-                  provider={provider}
-                  title={providerTitle(t, provider)}
-                  onClick={() => handleOpenForView(provider)}
-                  columnCount={effectiveCardColumnCount}
-                />
-              ))}
-            </div>
           )}
 
           <ListFooterBar

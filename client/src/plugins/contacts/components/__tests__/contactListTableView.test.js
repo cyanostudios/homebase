@@ -28,6 +28,8 @@ describe('ContactList table view wiring', () => {
     expect(listSrc).toMatch(/renderFilterChips/);
     expect(listSrc).toMatch(/LIST_FILTER_CHIP_ACTIVE_CLASS/);
     expect(listSrc).toMatch(/renderSortDropdown/);
+    expect(listSrc).toMatch(/ListFilterChipsToggle/);
+    expect(listSrc).toMatch(/filtersVisible/);
     expect(listSrc).toMatch(/DropdownMenuRadioItem/);
     expect(listSrc).toMatch(/handlePrimarySortChange/);
     expect(listSrc).toMatch(/md:hidden/);
@@ -96,6 +98,17 @@ describe('ContactList table view wiring', () => {
     expect(appContentSrc).toMatch(/inlineDesktopPanel/);
     expect(appContentSrc).toMatch(/contentOwnsScroll/);
     expect(appContentSrc).toMatch(/isAnyPanelOpen && !inlineDesktopPanel/);
+  });
+
+  test('desktop detail card header shows ContactDetailHeaderMenus', () => {
+    const quickContextSrc = fs.readFileSync(
+      path.join(__dirname, '../ContactQuickContextPanel.tsx'),
+      'utf8',
+    );
+    expect(quickContextSrc).toMatch(/ContactDetailHeaderMenus/);
+    expect(quickContextSrc).toMatch(/leading=\{titleLeading\}/);
+    expect(listSrc).not.toMatch(/ContactDetailHeaderMenus/);
+    expect(listSrc).toMatch(/stacked/);
   });
 
   test('bulk select mode shows BulkActionRoundBar under toolbar and keeps detail column visible', () => {

@@ -1,4 +1,14 @@
-import { CalendarDays, Flag, Trophy, User, Users } from 'lucide-react';
+import {
+  CalendarDays,
+  Circle,
+  CheckCircle2,
+  Clock,
+  Flag,
+  Trophy,
+  User,
+  Users,
+  XCircle,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +24,7 @@ import {
   QuickContextOpenFullFooter,
 } from '@/core/ui/QuickContextHeaderActions';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -38,6 +49,7 @@ import { taskShareApi } from '../api/tasksApi';
 import type { Task } from '../types/tasks';
 import { TASK_PRIORITY_COLORS, formatStatusForDisplay } from '../types/tasks';
 
+import { TaskDetailHeaderMenus } from './TaskDetailHeaderMenus';
 import { TaskDueDatePicker } from './TaskDueDatePicker';
 import { TaskPrioritySelect } from './TaskPrioritySelect';
 import { TaskStatusSelect } from './TaskStatusSelect';
@@ -45,12 +57,30 @@ import { TaskStatusSelect } from './TaskStatusSelect';
 /** Visible plain-text budget in list quick context (same as Notes). */
 const LIST_CONTENT_PREVIEW_CHARS = 1200;
 
-function taskInitials(title: string): string {
-  const parts = title.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+function taskStatusIcon(status: string) {
+  switch (status) {
+    case 'in progress':
+      return Clock;
+    case 'completed':
+      return CheckCircle2;
+    case 'cancelled':
+      return XCircle;
+    default:
+      return Circle;
   }
-  return title.trim().slice(0, 2).toUpperCase() || '—';
+}
+
+function taskStatusIconShellClass(status: string): string {
+  switch (status) {
+    case 'in progress':
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300';
+    case 'completed':
+      return 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300';
+    case 'cancelled':
+      return 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300';
+    default:
+      return 'bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300';
+  }
 }
 
 function truncateHtmlPreservingFormat(
@@ -144,6 +174,7 @@ export function TaskQuickContextPanel({
   onPriorityChange,
   onDueDateChange,
   variant = 'list',
+  selectionMode = false,
 }: {
   task: Task;
   onClose?: () => void;
@@ -154,6 +185,8 @@ export function TaskQuickContextPanel({
   onDueDateChange?: (date: Date | null) => void;
   /** `list` = small preview beside the list; `full` = first column in full detail view. */
   variant?: 'list' | 'full';
+  /** When true, header Open uses soft primary (bulk select active). */
+  selectionMode?: boolean;
 }) {
   const isFullView = variant === 'full';
   const canQuickEdit =
@@ -296,21 +329,32 @@ export function TaskQuickContextPanel({
   const displayedContentHtml = contentExpanded ? task.content || '' : contentPreview.html;
   const showReadMoreToggle = contentPreview.truncated && !isFullView;
 
-  const identityHeader = (
-    <div className="flex items-center gap-3">
-      <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
-        aria-hidden
-      >
-        {taskInitials(task.title)}
-      </div>
-      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{task.title || '—'}</h3>
+  const statusLabel = formatStatusForDisplay(task.status);
+  const StatusIcon = taskStatusIcon(task.status);
+
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={statusLabel} className="inline-flex shrink-0">
+        <SectionCategoryIcon icon={StatusIcon} className={taskStatusIconShellClass(task.status)} />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+        {task.title || '—'}
+      </h3>
+    </div>
+  );
+
+  const identityHeader = isFullView ? (
+    <TaskDetailHeaderMenus task={task} leading={titleLeading} />
+  ) : (
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="min-w-0 flex-1">{titleLeading}</div>
       <QuickContextHeaderActions
-        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onOpen={onOpenFullProfile}
         onEdit={onEdit}
-        onClose={!isFullView && onClose ? onClose : undefined}
+        onClose={onClose}
         editLabel={t('common.edit')}
         closeLabel={t('common.close')}
+        openVariant={selectionMode ? 'soft' : 'primary'}
       />
     </div>
   );

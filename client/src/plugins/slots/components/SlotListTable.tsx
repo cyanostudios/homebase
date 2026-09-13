@@ -68,11 +68,17 @@ export function SlotListTable({
       name: {
         field: 'name',
         header: t('slots.nameLabel'),
-        cell: (slot) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {slot.name?.trim() || `SLT ${slot.id}`}
-          </span>
-        ),
+        cell: (slot) => {
+          const label = slot.name?.trim() || `SLT ${slot.id}`;
+          return (
+            <span
+              className="block min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+              title={label}
+            >
+              {label}
+            </span>
+          );
+        },
       },
       category: {
         field: 'category',
@@ -80,7 +86,9 @@ export function SlotListTable({
         className: 'hidden sm:table-cell',
         cell: (slot) =>
           slot.category?.trim() ? (
-            <Badge className={cn(BADGE_CHIP_CLASS, 'bg-muted text-muted-foreground')}>
+            <Badge
+              className={cn(BADGE_CHIP_CLASS, 'max-w-full truncate bg-muted text-muted-foreground')}
+            >
               {slot.category.trim()}
             </Badge>
           ) : (
@@ -91,9 +99,17 @@ export function SlotListTable({
         field: 'location',
         header: t('slots.locationLabel'),
         className: 'hidden md:table-cell',
-        cell: (slot) => (
-          <span className="text-xs text-muted-foreground">{slot.location?.trim() || '—'}</span>
-        ),
+        cell: (slot) => {
+          const location = slot.location?.trim() || '—';
+          return (
+            <span
+              className="block min-w-0 truncate text-xs text-muted-foreground"
+              title={location !== '—' ? location : undefined}
+            >
+              {location}
+            </span>
+          );
+        },
       },
       slot_time: {
         field: 'slot_time',

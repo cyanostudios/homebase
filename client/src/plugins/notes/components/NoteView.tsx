@@ -26,17 +26,23 @@ import {
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
+import { NoteQuickContextPanel } from './NoteQuickContextPanel';
 import { NoteShareBlock } from './NoteShareBlock';
 
 interface NoteViewProps {
   note: any;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
 }
 
-export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
+export const NoteView = React.memo(function NoteView({
+  note,
+  stacked: _stacked = false,
+}: NoteViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { contacts } = useContacts();
-  const { closeNotePanel } = useNotes();
+  const { closeNotePanel, openNoteForEdit } = useNotes();
   const { user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
 
@@ -249,7 +255,12 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         />
       ) : null}
 
-      <DetailLayout>
+      <DetailLayout
+        gridClassName="grid-cols-1"
+        leftSidebar={
+          <NoteQuickContextPanel note={note} onEdit={() => openNoteForEdit(note)} variant="full" />
+        }
+      >
         <div className="min-w-0 space-y-4 overflow-x-hidden">
           {contentColumn}
           {!focusMode ? (
@@ -288,4 +299,4 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       />
     </>
   );
-};
+});

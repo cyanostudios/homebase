@@ -55,6 +55,8 @@ import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
+import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
@@ -94,6 +96,7 @@ type SortField = InvoiceSortField;
 type SortOrder = InvoiceSortOrder;
 
 const INVOICES_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.invoices.toolbar.collapsed';
+const INVOICES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.invoices.toolbar.filtersVisible';
 
 function readInvoicesToolbarCollapsed(): boolean {
   if (typeof window === 'undefined') {
@@ -196,6 +199,9 @@ export function InvoicesList() {
   const [settingsCategory, setSettingsCategory] = useState<InvoiceSettingsCategory>('columns');
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(readInvoicesToolbarCollapsed);
+  const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
+    INVOICES_FILTERS_VISIBLE_STORAGE_KEY,
+  );
   const restoredPendingInvoiceRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -869,6 +875,11 @@ export function InvoicesList() {
                       onClick={() => openInvoiceStatistics()}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
+                    <ListFilterChipsToggle
+                      visible={filtersVisible}
+                      onVisibleChange={setFiltersVisible}
+                      className="h-11 rounded-full"
+                    />
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -887,23 +898,30 @@ export function InvoicesList() {
                     />
                   </div>
                 </div>
-                <div
-                  className={cn(
-                    LIST_FILTER_AND_SORT_ROW_CLASS,
-                    'pt-2',
-                    toolbarCollapsed && 'pointer-events-none',
-                  )}
-                >
-                  {renderFilterChips()}
-                </div>
+                {filtersVisible ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {renderFilterChips()}
+                  </div>
+                ) : null}
                 {renderBulkActionBar('py-3')}
               </div>
             </div>
           </div>
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
-            {renderFilterChips()}
+            {filtersVisible ? renderFilterChips() : null}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+              <ListFilterChipsToggle
+                visible={filtersVisible}
+                onVisibleChange={setFiltersVisible}
+                className="h-7 rounded-md"
+              />
               {renderSortDropdown('h-7 rounded-md')}
             </div>
           </div>

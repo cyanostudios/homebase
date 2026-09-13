@@ -5,12 +5,12 @@ const listSrc = fs.readFileSync(path.join(__dirname, '../SlotsList.tsx'), 'utf8'
 const tableSrc = fs.readFileSync(path.join(__dirname, '../SlotListTable.tsx'), 'utf8');
 
 describe('SlotsList table view wiring', () => {
-  test('toolbar uses ListColumnLayoutToggle and always-visible sort row', () => {
-    expect(listSrc).toMatch(/setListViewMode\('table'\)/);
-    expect(listSrc).toMatch(/ListColumnLayoutToggle/);
+  test('list uses table-only view with always-visible sort row', () => {
+    expect(listSrc).not.toMatch(/ListColumnLayoutToggle/);
+    expect(listSrc).not.toMatch(/SlotListItem/);
+    expect(listSrc).not.toMatch(/setListViewMode\('table'\)/);
     expect(listSrc).toMatch(/aria-label="Sort by"/);
     expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
-    expect(listSrc).not.toMatch(/!isTableView \?/);
     expect(listSrc).toMatch(/SlotListTable/);
     expect(listSrc).toMatch(/selectionEnabled=\{selectionMode\}/);
   });

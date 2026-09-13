@@ -1,10 +1,10 @@
-import { Download, ExternalLink, File as FileIcon, Info, Trash2 } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { Download, ExternalLink, File as FileIcon, Info } from 'lucide-react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { QuickContextHeaderActions } from '@/core/ui/QuickContextHeaderActions';
@@ -15,6 +15,8 @@ import { filesApi } from '../api/filesApi';
 import { useFiles } from '../hooks/useFiles';
 import type { FileItem } from '../types/files';
 import { humanSize } from '../utils/humanSize';
+
+import { FileDetailHeaderMenus } from './FileDetailHeaderMenus';
 
 /** Preview box sized for list quick-context column (not full-panel height). */
 const PREVIEW_FRAME_CLASS =
@@ -42,14 +44,16 @@ export function FileQuickContextPanel({
   file,
   onClose,
   onEdit,
+  variant = 'list',
 }: {
   file: FileItem;
   onClose?: () => void;
-  onEdit: () => void;
+  onEdit?: () => void;
+  variant?: 'list' | 'full';
 }) {
   const { t } = useTranslation();
-  const { deleteFile, getDeleteMessage } = useFiles();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { openFileForEdit } = useFiles();
+  const isFullView = variant === 'full';
   const isImage = isRasterImageMime(file.mimeType);
   const isPdf = isPdfMime(file.mimeType);
   const previewUrl = file.id ? filesApi.getFileDownloadUrl(file.id, { inline: true }) : null;
@@ -66,10 +70,28 @@ export function FileQuickContextPanel({
     return u;
   }, [file.url]);
 
-  const identityHeader = (
-    <div className="flex items-center gap-3">
+  const handleEdit = onEdit ?? (() => openFileForEdit(file));
+
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={t('nav.file')} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={FileIcon}
+          className="h-8 w-8 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-4 [&_svg]:w-4"
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+        {file.name || '—'}
+      </h3>
+    </div>
+  );
+
+  const identityHeader = isFullView ? (
+    <FileDetailHeaderMenus file={file} leading={titleLeading} />
+  ) : (
+    <div className="flex min-w-0 items-center gap-3">
       <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+        className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sky-100 text-sm font-semibold text-sky-800 dark:bg-sky-950/50 dark:text-sky-200"
         aria-hidden
       >
         {isImage && previewUrl ? (
@@ -78,9 +100,9 @@ export function FileQuickContextPanel({
           fileInitials(file.name || '')
         )}
       </div>
-      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{file.name || '—'}</h3>
+      <div className="min-w-0 flex-1">{titleLeading}</div>
       <QuickContextHeaderActions
-        onEdit={onEdit}
+        onEdit={handleEdit}
         onClose={onClose}
         editLabel={t('common.edit')}
         closeLabel={t('common.close')}
@@ -122,7 +144,7 @@ export function FileQuickContextPanel({
       <div className="border-b border-border/50 px-4 py-3">{identityHeader}</div>
 
       <div className="min-w-0 space-y-4 overflow-x-hidden px-4 py-4">
-        {previewBlock}
+        {!isFullView ? previewBlock : null}
 
         <QuickContextSection title={t('files.detailsTitle')} icon={Info} iconPlugin="files">
           <div className="space-y-4 text-xs">
@@ -139,17 +161,8 @@ export function FileQuickContextPanel({
           </div>
         </QuickContextSection>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3">
-          <RoundIconLabelButton
-            type="button"
-            icon={Trash2}
-            label={t('common.delete')}
-            variant="secondary"
-            alwaysExpanded
-            contentClassName="text-red-600 dark:text-red-400"
-            onClick={() => setShowDeleteConfirm(true)}
-          />
-          <div className="flex flex-wrap items-center justify-end gap-2">
+        {!isFullView && (externalUrl || downloadUrl) ? (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/50 pt-3">
             {externalUrl ? (
               <RoundIconLabelButton
                 type="button"
@@ -175,25 +188,8 @@ export function FileQuickContextPanel({
               />
             ) : null}
           </div>
-        </div>
+        ) : null}
       </div>
-
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title={t('files.deleteTitle')}
-        message={getDeleteMessage(file)}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        variant="danger"
-        onConfirm={() => {
-          void (async () => {
-            await deleteFile(file.id);
-            setShowDeleteConfirm(false);
-            onClose?.();
-          })();
-        }}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
     </Card>
   );
 }

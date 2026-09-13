@@ -18,11 +18,8 @@ UI/UX design (etapp 1) requires three surfaces: phone (&lt;768), pad (768–1023
    - phone → full-height panel in `main` (`DetailPanel` `isMobile`; bottom actions bar)
    - pad → list and detail mounted together (split ~38% / remainder, list `min-w-[280px]`)
    - desktop → detail replaces list; optional **companion flyout** on the right rail (wider ~640px overlay; MVP Schedule via `canOpenAsCompanionFor` + `getCompanionCandidates`, global when plugin enabled). Primary plugin keeps full width inside `<main>`; companion stays open across plugin changes; not a MainLayout split; not shown on phone/pad.
-5. **List display overrides** (`effectiveListViewMode.ts`) take `ViewportTier`:
-   - phone: cards, 1 grid column, card content as column-2
-   - pad: cards, clamp grid columns to max 2; card content follows clamped count
-   - desktop: persisted preference (`columnCount` = **3** for cards); when quick context is open, display **2** columns (preference unchanged)
-6. **`ListColumnLayoutToggle`:** hidden on phone and pad; desktop shows **3 | table** only (selecting cards always persists `columnCount: 3`).
+5. **List display:** Plugin lists are **table-only** (`SortableListTable`) on all viewport tiers. Legacy `effectiveListViewMode.ts` cards clamps are obsolete for list chrome (prefer delete in a follow-up cleanup).
+6. **No layout toggle:** Do not reintroduce `ListColumnLayoutToggle` / cards vs table switching.
 7. **`MobileBottomBar`:** remains phone-only (`md:hidden`).
 
 ## Consequences

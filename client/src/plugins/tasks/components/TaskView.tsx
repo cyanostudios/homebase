@@ -28,18 +28,22 @@ import { TaskAssignedTeamSelect } from './TaskAssignedTeamSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { TaskDueDatePicker } from './TaskDueDatePicker';
 import { TaskPrioritySelect } from './TaskPrioritySelect';
+import { TaskQuickContextPanel } from './TaskQuickContextPanel';
 import { TaskShareBlock } from './TaskShareBlock';
 import { TaskStatusSelect } from './TaskStatusSelect';
 
 interface TaskViewProps {
   task: any;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
 }
 
-export function TaskView({ task }: TaskViewProps) {
+export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { contacts } = useContacts();
   const {
+    openTaskForEdit,
     closeTaskPanel,
     saveTask,
     validationErrors,
@@ -157,29 +161,37 @@ export function TaskView({ task }: TaskViewProps) {
   }
 
   const contentColumn = (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={String((displayTask ?? task)?.title || '').trim() || '—'}
-        className="p-6"
-        prominentTitle
-      >
-        {updatedLabel ? (
-          <p className="mb-3 text-xs text-muted-foreground">
-            {t('common.updated')} {updatedLabel}
-          </p>
-        ) : null}
-        <RichTextContent
-          content={task.content}
-          mentions={task.mentions}
-          onMentionClick={handleContactClick}
-        />
-      </DetailSection>
-    </Card>
+    <div className="space-y-4">
+      <TaskQuickContextPanel
+        task={displayTask ?? task}
+        onEdit={() => openTaskForEdit(task)}
+        variant="full"
+      />
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('tasks.taskContent')}
+          iconPlugin="tasks"
+          className="p-6"
+          subtleTitle
+        >
+          {updatedLabel ? (
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t('common.updated')} {updatedLabel}
+            </p>
+          ) : null}
+          <RichTextContent
+            content={task.content}
+            mentions={task.mentions}
+            onMentionClick={handleContactClick}
+          />
+        </DetailSection>
+      </Card>
+    </div>
   );
 
   return (
     <>
-      <DetailLayout gridClassName="grid-cols-1 lg:grid-cols-2" leftSidebar={contentColumn}>
+      <DetailLayout gridClassName="grid-cols-1" leftSidebar={contentColumn}>
         <div className="space-y-6">
           {blockingValidationErrors.length > 0 ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">

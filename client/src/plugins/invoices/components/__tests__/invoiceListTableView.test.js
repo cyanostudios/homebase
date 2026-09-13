@@ -26,6 +26,8 @@ describe('InvoicesList table view wiring', () => {
     expect(listSrc).toMatch(/renderFilterChips/);
     expect(listSrc).toMatch(/LIST_FILTER_CHIP_ACTIVE_CLASS/);
     expect(listSrc).toMatch(/renderSortDropdown/);
+    expect(listSrc).toMatch(/ListFilterChipsToggle/);
+    expect(listSrc).toMatch(/filtersVisible/);
     expect(listSrc).toMatch(/DropdownMenuRadioItem/);
     expect(listSrc).toMatch(/handlePrimarySortChange/);
     expect(listSrc).not.toMatch(/aria-label="Sort by"/);
@@ -80,6 +82,16 @@ describe('InvoicesList table view wiring', () => {
     expect(tableSrc).toMatch(/selectionEnabled/);
     expect(viewSrc).toMatch(/stacked\?: boolean/);
     expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
+  });
+
+  test('desktop detail card header shows InvoiceDetailHeaderMenus', () => {
+    const quickContextSrc = fs.readFileSync(
+      path.join(__dirname, '../InvoiceQuickContextPanel.tsx'),
+      'utf8',
+    );
+    expect(quickContextSrc).toMatch(/InvoiceDetailHeaderMenus/);
+    expect(quickContextSrc).toMatch(/leading=\{titleLeading\}/);
+    expect(listSrc).not.toMatch(/InvoiceDetailHeaderMenus/);
   });
 
   test('desktop create/edit renders InvoicesForm in the detail column', () => {

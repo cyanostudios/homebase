@@ -6,12 +6,14 @@ const TableStyleContext = React.createContext<{ rowBorders: boolean }>({ rowBord
 
 interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
   rowBorders?: boolean;
+  /** Classes for the scroll/containment wrapper around `<table>`. Default allows horizontal scroll. */
+  containerClassName?: string;
 }
 
 const Table = React.forwardRef<HTMLTableElement, TableProps>(
-  ({ className, rowBorders = true, ...props }, ref) => (
+  ({ className, rowBorders = true, containerClassName, ...props }, ref) => (
     <TableStyleContext.Provider value={{ rowBorders }}>
-      <div className="relative w-full overflow-auto">
+      <div className={cn('relative w-full', containerClassName ?? 'overflow-auto')}>
         <table
           ref={ref}
           className={cn(

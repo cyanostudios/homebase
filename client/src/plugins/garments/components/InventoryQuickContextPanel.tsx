@@ -12,6 +12,7 @@ import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { FORM_COMPACT_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import {
   QuickContextHeaderActions,
@@ -22,6 +23,8 @@ import { cn } from '@/lib/utils';
 
 import { useGarments } from '../hooks/useGarments';
 import type { InventoryItem, InventoryVariant } from '../types/garments';
+
+import { InventoryDetailHeaderMenus } from './GarmentDetailHeaderMenus';
 import { findDuplicateVariantIndices } from '../utils/inventoryValidation';
 import {
   VARIANT_LIST_ROW_CLASS,
@@ -215,7 +218,23 @@ export function InventoryQuickContextPanel({
     return garmentLists.filter((list) => ids.has(String(list.id)));
   }, [garmentLists, item.assignedListIds]);
 
-  const identityHeader = (
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={t('nav.garments-inventory')} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={ShoppingBag}
+          className="h-8 w-8 bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200 [&_svg]:h-4 [&_svg]:w-4"
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+        {item.articleName || '—'}
+      </h3>
+    </div>
+  );
+
+  const identityHeader = isFullView ? (
+    <InventoryDetailHeaderMenus item={item} leading={titleLeading} />
+  ) : (
     <div className="flex items-center gap-3">
       <div
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-sm font-semibold text-rose-800 dark:bg-rose-950/50 dark:text-rose-200"
@@ -223,11 +242,11 @@ export function InventoryQuickContextPanel({
       >
         {inventoryInitials(item.articleName)}
       </div>
-      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{item.articleName || '—'}</h3>
+      <div className="min-w-0 flex-1">{titleLeading}</div>
       <QuickContextHeaderActions
-        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onOpen={onOpenFullProfile}
         onEdit={onEdit}
-        onClose={!isFullView && onClose ? onClose : undefined}
+        onClose={onClose}
         editLabel={t('common.edit')}
         closeLabel={t('common.close')}
       />

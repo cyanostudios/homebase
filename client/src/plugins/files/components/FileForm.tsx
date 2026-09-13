@@ -23,12 +23,14 @@ interface FileFormProps {
   currentItem?: { id?: string; name?: string } | null;
   onSave: (data: any) => Promise<boolean> | boolean;
   onCancel: () => void;
+  /** Single-column layout for mail detail column. */
+  stacked?: boolean;
 }
 
 type Picked = { id: string; file: File };
 
 export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(function FileForm(
-  { currentItem, onSave, onCancel },
+  { currentItem, onSave, onCancel, stacked: _stacked = false },
   ref,
 ) {
   const { t } = useTranslation();
@@ -205,7 +207,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   if (isEdit) {
     return (
       <div className="plugin-files">
-        <DetailLayout>
+        <DetailLayout gridClassName="grid-cols-1">
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('files.formRenameTitle')} iconPlugin="files" className="p-6">
               <p className="mb-4 text-sm text-muted-foreground">{t('files.formRenameHelp')}</p>
@@ -237,7 +239,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
 
   return (
     <div className="plugin-files">
-      <DetailLayout>
+      <DetailLayout gridClassName="grid-cols-1">
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <DetailSection title={t('files.formUploadTitle')} iconPlugin="files" className="p-6">
             <p className="mb-4 text-sm text-muted-foreground">{t('files.formUploadHelp')}</p>

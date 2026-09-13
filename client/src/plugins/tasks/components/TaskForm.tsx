@@ -52,10 +52,18 @@ interface TaskFormProps {
   onSave: (data: TaskFormState) => Promise<boolean>;
   onCancel: () => void;
   isSubmitting?: boolean;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
 }
 
 export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(function TaskForm(
-  { currentTask, onSave, onCancel, isSubmitting: externalIsSubmitting = false },
+  {
+    currentTask,
+    onSave,
+    onCancel,
+    isSubmitting: externalIsSubmitting = false,
+    stacked: _stacked = false,
+  },
   ref,
 ) {
   const { t } = useTranslation();
@@ -273,7 +281,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
   return (
     <>
       <div className="plugin-tasks">
-        <DetailLayout leftSidebar={formLeftSidebar}>
+        <DetailLayout gridClassName="grid-cols-1" leftSidebar={formLeftSidebar}>
           <form
             className="space-y-6"
             onSubmit={(e) => {

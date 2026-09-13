@@ -1,14 +1,25 @@
+import { Circle, CheckCircle2, Clock, Flag, XCircle } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import type { Task } from '../types/tasks';
-import { TASK_PRIORITY_COLORS, TASK_STATUS_COLORS, formatStatusForDisplay } from '../types/tasks';
+import {
+  TASK_PRIORITY_COLORS,
+  TASK_PRIORITY_OPTIONS,
+  TASK_STATUS_COLORS,
+  TASK_STATUS_OPTIONS,
+  formatStatusForDisplay,
+} from '../types/tasks';
+
+type TaskStatus = (typeof TASK_STATUS_OPTIONS)[number];
+type TaskPriority = (typeof TASK_PRIORITY_OPTIONS)[number];
 import type { TaskSortField, TaskSortOrder } from '../utils/taskListSort';
 import {
   DEFAULT_TASK_TABLE_COLUMNS,
@@ -38,6 +49,32 @@ export type TaskListTableProps = {
   getAssignedNames: (task: Task) => string[];
   getAssignedTeamName: (task: Task) => string | null;
 };
+
+const TASK_STATUS_ICON_SHELL_CLASS: Record<TaskStatus, string> = {
+  'not started': 'bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300',
+  'in progress': 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+  completed: 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300',
+  cancelled: 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300',
+};
+
+const TASK_PRIORITY_ICON_SHELL_CLASS: Record<TaskPriority, string> = {
+  Low: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+  Medium: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200',
+  High: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
+};
+
+function taskStatusIcon(status: TaskStatus) {
+  switch (status) {
+    case 'in progress':
+      return Clock;
+    case 'completed':
+      return CheckCircle2;
+    case 'cancelled':
+      return XCircle;
+    default:
+      return Circle;
+  }
+}
 
 export function TaskListTable({
   tasks,
@@ -71,11 +108,48 @@ export function TaskListTable({
       title: {
         field: 'title',
         header: t('tasks.title'),
-        cell: (task: Task) => (
-          <span className="font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary">
-            {task.title}
-          </span>
-        ),
+        cell: (task: Task) => {
+          const status = (task.status as TaskStatus) || 'not started';
+          const priority = (task.priority as TaskPriority) || 'Medium';
+          const StatusIcon = taskStatusIcon(status);
+          const statusLabel = formatStatusForDisplay(status);
+
+          return (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={statusLabel} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={StatusIcon}
+                    className={cn(
+                      'h-5 w-5 [&_svg]:h-3 [&_svg]:w-3',
+                      TASK_STATUS_ICON_SHELL_CLASS[status],
+                    )}
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={task.title}
+                >
+                  {task.title}
+                </span>
+              </div>
+              <div className="flex min-w-0 items-center gap-1.5 pl-6">
+                <span title={priority} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={Flag}
+                    className={cn(
+                      'h-4 w-4 [&_svg]:h-2.5 [&_svg]:w-2.5',
+                      TASK_PRIORITY_ICON_SHELL_CLASS[priority],
+                    )}
+                  />
+                </span>
+                <span className="min-w-0 truncate text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                  {statusLabel} · {priority}
+                </span>
+              </div>
+            </div>
+          );
+        },
       },
       status: {
         field: 'status',
@@ -197,6 +271,9 @@ export function TaskListTable({
           : undefined
       }
       isRowActive={(task) => activeTaskId != null && String(task.id) === String(activeTaskId)}
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       selection={
         selectionEnabled
           ? {

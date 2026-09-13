@@ -1,8 +1,10 @@
+import { Globe } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   SortableListTable,
   type SortableListTableColumn,
@@ -39,6 +41,7 @@ export type IngestSourceListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   selectionEnabled?: boolean;
+  activeSourceId?: string | number | null;
 };
 
 export function IngestSourceListTable({
@@ -53,6 +56,7 @@ export function IngestSourceListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   selectionEnabled = true,
+  activeSourceId = null,
 }: IngestSourceListTableProps) {
   const { t } = useTranslation();
 
@@ -62,16 +66,32 @@ export function IngestSourceListTable({
         field: 'name',
         header: t('ingest.colName'),
         cell: (source) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {source.name}
-          </span>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span title={t('nav.ingest')} className="inline-flex shrink-0">
+              <SectionCategoryIcon
+                icon={Globe}
+                className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
+              />
+            </span>
+            <span
+              className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+              title={source.name}
+            >
+              {source.name}
+            </span>
+          </div>
         ),
       },
       {
         field: 'sourceType',
         header: t('ingest.colType'),
         cell: (source) => (
-          <span className="text-xs text-muted-foreground">{source.sourceType || '—'}</span>
+          <span
+            className="block min-w-0 truncate text-xs text-muted-foreground"
+            title={source.sourceType || undefined}
+          >
+            {source.sourceType || '—'}
+          </span>
         ),
       },
       {
@@ -137,6 +157,12 @@ export function IngestSourceListTable({
       selection={selection}
       pluginName="ingest"
       dataListItem={(source) => source}
+      isRowActive={(source) =>
+        activeSourceId != null && String(source.id) === String(activeSourceId)
+      }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
     />
   );
 }

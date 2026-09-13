@@ -9,7 +9,7 @@ import {
   Route,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -22,13 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useApp } from '@/core/api/AppContext';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
@@ -54,24 +47,11 @@ import { cn } from '@/lib/utils';
 import { useMail } from '../hooks/useMail';
 import type { MailProviderSettings } from '../types/mail';
 import {
-  getInitialMailColumnCount,
-  MAIL_COLUMN_COUNT_STORAGE_KEY,
-  MAIL_SETTINGS_KEY,
-  resolveMailColumnCount,
-  type MailColumnCount,
-} from '../utils/mailColumnCount';
-import {
   compareMailProviders,
   nextMailProviderTableSort,
   type MailProviderSortField,
   type MailProviderSortOrder,
 } from '../utils/mailListSort';
-import {
-  getInitialMailListViewMode,
-  persistMailListViewModeSession,
-  resolveMailListViewMode,
-  type MailListViewMode,
-} from '../utils/mailListViewMode';
 import {
   mailProviderMatchesListFilters,
   toggleMailProvidersListFilter,
@@ -79,7 +59,6 @@ import {
   type MailProvidersListFilterSelection,
 } from '../utils/mailProvidersListFilter';
 
-import { MailProvidersListItem } from './MailProvidersListItem';
 import { MailProvidersListTable } from './MailProvidersListTable';
 import { MailProvidersRouting } from './MailProvidersRouting';
 
@@ -94,7 +73,6 @@ function providerTitle(
 
 export const MailProvidersList: React.FC = () => {
   const { t } = useTranslation();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   useMobileActions({
@@ -122,66 +100,7 @@ export const MailProvidersList: React.FC = () => {
   });
   const [primarySort, setPrimarySort] = useState<MailProviderSortField>('providerKey');
   const [sortOrder, setSortOrder] = useState<MailProviderSortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<MailColumnCount>(getInitialMailColumnCount);
-  const [listViewMode, setListViewModeState] = useState<MailListViewMode>(
-    getInitialMailListViewMode,
-  );
   const [activeFilters, setActiveFilters] = useState<MailProvidersListFilterSelection>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getSettings(MAIL_SETTINGS_KEY)
-      .then((settings) => {
-        if (cancelled) {
-          return;
-        }
-        const resolved = resolveMailColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as MailColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(MAIL_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(MAIL_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolveMailListViewMode(settings);
-        setListViewModeState(nextView);
-        persistMailListViewModeSession(nextView);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [getSettings, settingsVersion]);
-
-  const setColumnCount = useCallback(
-    (_count: MailColumnCount) => {
-      const next = 3 as MailColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistMailListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(MAIL_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(MAIL_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
-
-  const setListViewMode = useCallback(
-    (mode: MailListViewMode) => {
-      setListViewModeState(mode);
-      persistMailListViewModeSession(mode);
-      updateSettings(MAIL_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const stats = useMemo(
     () => ({
@@ -281,16 +200,6 @@ export const MailProvidersList: React.FC = () => {
                   defaultValue: 'Search providers ({{count}})',
                   count: providers.length,
                 })}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) =>
-                  t(`mail.columns${count}`, { defaultValue: `${count} columns` })
-                }
-                tableAriaLabel={t('common.tableView')}
               />
               <ExpandableIconButton
                 icon={Plus}
@@ -429,7 +338,7 @@ export const MailProvidersList: React.FC = () => {
                 !searchTerm.trim() ? () => attemptNavigation(() => openMailPanel(null)) : undefined
               }
             />
-          ) : isTableView ? (
+          ) : (
             <MailProvidersListTable
               providers={filteredAndSorted}
               primarySort={primarySort}
@@ -438,25 +347,6 @@ export const MailProvidersList: React.FC = () => {
               onRowClick={handleOpenForView}
               providerTitle={(provider) => providerTitle(t, provider)}
             />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((provider) => (
-                <MailProvidersListItem
-                  key={provider.providerKey}
-                  provider={provider}
-                  title={providerTitle(t, provider)}
-                  onClick={() => handleOpenForView(provider)}
-                  columnCount={effectiveCardColumnCount}
-                />
-              ))}
-            </div>
           )}
 
           <ListFooterBar

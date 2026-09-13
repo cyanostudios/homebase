@@ -1,4 +1,19 @@
-import { CalendarDays, Flag, Mail, Phone, Tag, Trophy, User, Users } from 'lucide-react';
+import {
+  CalendarDays,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Flag,
+  Inbox,
+  Mail,
+  Phone,
+  Tag,
+  Trophy,
+  User,
+  Users,
+  XCircle,
+  type LucideIcon,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +28,7 @@ import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   QuickContextHeaderActions,
   QuickContextOpenFullFooter,
@@ -45,11 +61,14 @@ import type { Request, RequestPriority, RequestStatus } from '../types/requests'
 import {
   REQUEST_PRIORITY_COLORS,
   REQUEST_STATUS_COLORS,
+  REQUEST_STATUS_ICON_SHELL_CLASS,
+  REQUEST_TYPE_ICON_SHELL_CLASS,
   formatRequestStatusForDisplay,
   formatSubmittedDateWithAge,
   getTypeLabel,
 } from '../types/requests';
 
+import { RequestDetailHeaderMenus } from './RequestDetailHeaderMenus';
 import { RequestPrioritySelect } from './RequestPrioritySelect';
 import { RequestResponseDueControl } from './RequestResponseDueControl';
 import { RequestStatusSelect } from './RequestStatusSelect';
@@ -61,12 +80,17 @@ const FACT_LABEL_CLASS =
 /** Visible plain-text budget in list quick context (same as Tasks/Notes). */
 const LIST_CONTENT_PREVIEW_CHARS = 1200;
 
-function requestInitials(title: string): string {
-  const parts = title.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+function requestStatusIcon(status: RequestStatus): LucideIcon {
+  switch (status) {
+    case 'in progress':
+      return Clock;
+    case 'completed':
+      return CheckCircle2;
+    case 'cancelled':
+      return XCircle;
+    default:
+      return Circle;
   }
-  return title.trim().slice(0, 2).toUpperCase() || '—';
 }
 
 function truncatePlainText(
@@ -223,19 +247,49 @@ export function RequestQuickContextPanel({
     : contentPreview.text;
   const showReadMoreToggle = contentPreview.truncated && !isFullView;
 
-  const identityHeader = (
-    <div className="flex items-center gap-3">
-      <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-100 text-sm font-semibold text-purple-900 dark:bg-purple-950/50 dark:text-purple-200"
-        aria-hidden
-      >
-        {requestInitials(request.title)}
+  const typeLabel = getTypeLabel(request.requestType, t);
+  const statusLabel = formatRequestStatusForDisplay(request.status, t);
+  const StatusIcon = requestStatusIcon(request.status);
+
+  const titleLeading = (
+    <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 items-center gap-2">
+        <span title={statusLabel} className="inline-flex shrink-0">
+          <SectionCategoryIcon
+            icon={StatusIcon}
+            className={cn(
+              'h-8 w-8 [&_svg]:h-4 [&_svg]:w-4',
+              REQUEST_STATUS_ICON_SHELL_CLASS[request.status],
+            )}
+          />
+        </span>
+        <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+          {request.title || '—'}
+        </h3>
       </div>
-      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{request.title || '—'}</h3>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span title={typeLabel} className="inline-flex shrink-0">
+          <SectionCategoryIcon
+            icon={Inbox}
+            className={cn('h-5 w-5 [&_svg]:h-3 [&_svg]:w-3', REQUEST_TYPE_ICON_SHELL_CLASS)}
+          />
+        </span>
+        <span className="min-w-0 truncate text-sm font-normal leading-tight text-slate-400 dark:text-slate-500">
+          {typeLabel}
+        </span>
+      </div>
+    </div>
+  );
+
+  const identityHeader = isFullView ? (
+    <RequestDetailHeaderMenus request={request} leading={titleLeading} />
+  ) : (
+    <div className="flex min-w-0 items-start gap-3">
+      <div className="min-w-0 flex-1">{titleLeading}</div>
       <QuickContextHeaderActions
-        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onOpen={onOpenFullProfile}
         onEdit={onEdit}
-        onClose={!isFullView && onClose ? onClose : undefined}
+        onClose={onClose}
         editLabel={t('common.edit')}
         closeLabel={t('common.close')}
       />

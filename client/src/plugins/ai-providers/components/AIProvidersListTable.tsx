@@ -13,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
+import { ListTableSortIcon } from '@/core/ui/ListTableSortIcon';
 import { cn } from '@/lib/utils';
 
 import type { ProviderSettings } from '../types/aiProviders';
@@ -46,11 +46,11 @@ export function AIProvidersListTable({
 
   return (
     <Card className={cn('overflow-hidden', DETAIL_VIEW_CARD_CLASS)}>
-      <Table rowBorders={false}>
+      <Table rowBorders={false} containerClassName="overflow-x-hidden" className="table-fixed">
         <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
           <TableRow>
             <TableHead
-              className="cursor-pointer select-none text-xs hover:bg-muted/50"
+              className="min-w-0 overflow-hidden cursor-pointer select-none text-xs hover:bg-muted/50"
               onClick={() => onSort('providerKey')}
               aria-sort={
                 primarySort === 'providerKey'
@@ -60,13 +60,15 @@ export function AIProvidersListTable({
                   : 'none'
               }
             >
-              <div className="flex items-center gap-2">
-                <span>{t('aiProviders.colProvider', { defaultValue: 'Provider' })}</span>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 truncate">
+                  {t('aiProviders.colProvider', { defaultValue: 'Provider' })}
+                </span>
                 <ListTableSortIcon active={primarySort === 'providerKey'} order={sortOrder} />
               </div>
             </TableHead>
             <TableHead
-              className="cursor-pointer select-none text-xs hover:bg-muted/50"
+              className="min-w-0 overflow-hidden cursor-pointer select-none text-xs hover:bg-muted/50"
               onClick={() => onSort('status')}
               aria-sort={
                 primarySort === 'status'
@@ -76,13 +78,15 @@ export function AIProvidersListTable({
                   : 'none'
               }
             >
-              <div className="flex items-center gap-2">
-                <span>{t('aiProviders.colStatus', { defaultValue: 'Status' })}</span>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 truncate">
+                  {t('aiProviders.colStatus', { defaultValue: 'Status' })}
+                </span>
                 <ListTableSortIcon active={primarySort === 'status'} order={sortOrder} />
               </div>
             </TableHead>
             <TableHead
-              className="cursor-pointer select-none text-xs hover:bg-muted/50"
+              className="min-w-0 overflow-hidden cursor-pointer select-none text-xs hover:bg-muted/50"
               onClick={() => onSort('defaultModel')}
               aria-sort={
                 primarySort === 'defaultModel'
@@ -92,12 +96,12 @@ export function AIProvidersListTable({
                   : 'none'
               }
             >
-              <div className="flex items-center gap-2">
-                <span>{t('aiProviders.defaultModel')}</span>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 truncate">{t('aiProviders.defaultModel')}</span>
                 <ListTableSortIcon active={primarySort === 'defaultModel'} order={sortOrder} />
               </div>
             </TableHead>
-            <TableHead className="hidden text-xs md:table-cell">
+            <TableHead className="hidden min-w-0 overflow-hidden text-xs md:table-cell">
               {t('aiProviders.apiKey')}
             </TableHead>
           </TableRow>
@@ -115,23 +119,36 @@ export function AIProvidersListTable({
                 role="button"
                 aria-label={t('aiProviders.openProvider', { provider: title })}
               >
-                <TableCell>
-                  <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+                <TableCell className="min-w-0 overflow-hidden">
+                  <span
+                    className="block min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+                    title={title}
+                  >
                     {title}
                   </span>
-                  <div className="text-xs text-muted-foreground">{provider.providerKey}</div>
+                  <div
+                    className="truncate text-xs text-muted-foreground"
+                    title={provider.providerKey}
+                  >
+                    {provider.providerKey}
+                  </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="min-w-0 overflow-hidden">
                   <Badge className={cn(BADGE_CHIP_CLASS, enabledBadgeClass(provider.enabled))}>
                     {provider.enabled
                       ? t('aiProviders.statusEnabled')
                       : t('aiProviders.statusDisabled')}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {provider.defaultModel || '—'}
+                <TableCell className="min-w-0 overflow-hidden text-xs text-muted-foreground">
+                  <span
+                    className="block min-w-0 truncate"
+                    title={provider.defaultModel || undefined}
+                  >
+                    {provider.defaultModel || '—'}
+                  </span>
                 </TableCell>
-                <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
+                <TableCell className="hidden min-w-0 overflow-hidden text-xs text-muted-foreground md:table-cell">
                   {provider.hasApiKey
                     ? t('aiProviders.keyConfigured')
                     : t('aiProviders.keyMissing')}

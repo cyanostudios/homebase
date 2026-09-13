@@ -184,10 +184,9 @@ export function FilesProvider({
 
   const openFileForView = useCallback(
     (item: FileItem) => {
-      // Files has no full view — deep links / compact open edit instead.
       clearFileSelectionCore();
       setCurrentFile(item);
-      setPanelMode('edit');
+      setPanelMode('view');
       setIsFilesPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
@@ -380,7 +379,6 @@ export function FilesProvider({
   };
 
   const getPanelTitle = (mode: string, item: FileItem | null) => {
-    // Full view unused; keep edit/create title chrome from shell. Header menus only if view opens.
     if (mode === 'view' && item) {
       return <FileDetailHeaderMenus key={String(item.id)} file={item} />;
     }

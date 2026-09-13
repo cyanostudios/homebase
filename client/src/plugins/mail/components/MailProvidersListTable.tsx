@@ -13,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
+import { ListTableSortIcon } from '@/core/ui/ListTableSortIcon';
 import { cn } from '@/lib/utils';
 
 import type { MailProviderSettings } from '../types/mail';
@@ -57,14 +57,14 @@ export function MailProvidersListTable({
 
   return (
     <Card className={cn('overflow-hidden', DETAIL_VIEW_CARD_CLASS)}>
-      <Table rowBorders={false}>
+      <Table rowBorders={false} containerClassName="overflow-x-hidden" className="table-fixed">
         <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
           <TableRow>
             {SORTABLE_COLUMNS.map((col) => (
               <TableHead
                 key={col.field}
                 className={cn(
-                  'cursor-pointer select-none text-xs hover:bg-muted/50',
+                  'min-w-0 overflow-hidden cursor-pointer select-none text-xs hover:bg-muted/50',
                   col.className,
                 )}
                 onClick={() => onSort(col.field)}
@@ -76,13 +76,15 @@ export function MailProvidersListTable({
                     : 'none'
                 }
               >
-                <div className="flex items-center gap-2">
-                  <span>{t(col.labelKey, { defaultValue: col.defaultLabel })}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="min-w-0 truncate">
+                    {t(col.labelKey, { defaultValue: col.defaultLabel })}
+                  </span>
                   <ListTableSortIcon active={primarySort === col.field} order={sortOrder} />
                 </div>
               </TableHead>
             ))}
-            <TableHead className="hidden text-xs md:table-cell">
+            <TableHead className="hidden min-w-0 overflow-hidden text-xs md:table-cell">
               {t('mail.credentials', { defaultValue: 'Credentials' })}
             </TableHead>
           </TableRow>
@@ -103,25 +105,33 @@ export function MailProvidersListTable({
                   provider: title,
                 })}
               >
-                <TableCell>
-                  <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+                <TableCell className="min-w-0 overflow-hidden">
+                  <span
+                    className="block min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+                    title={title}
+                  >
                     {title}
                   </span>
-                  <div className="text-xs text-muted-foreground">{provider.providerKey}</div>
+                  <div
+                    className="truncate text-xs text-muted-foreground"
+                    title={provider.providerKey}
+                  >
+                    {provider.providerKey}
+                  </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="min-w-0 overflow-hidden">
                   <Badge className={cn(BADGE_CHIP_CLASS, enabledBadgeClass(provider.enabled))}>
                     {provider.enabled
                       ? t('mail.statusEnabled', { defaultValue: 'Enabled' })
                       : t('mail.statusDisabled', { defaultValue: 'Disabled' })}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
+                <TableCell className="min-w-0 overflow-hidden text-xs text-muted-foreground">
                   {provider.emailCapable
                     ? t('mail.emailCapable', { defaultValue: 'Email' })
                     : t('mail.notEmailCapable', { defaultValue: 'Not email capable' })}
                 </TableCell>
-                <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
+                <TableCell className="hidden min-w-0 overflow-hidden text-xs text-muted-foreground md:table-cell">
                   {provider.configured
                     ? t('mail.keyConfigured', { defaultValue: 'Configured' })
                     : t('mail.keyMissing', { defaultValue: 'Missing' })}

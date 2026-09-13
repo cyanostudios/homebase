@@ -45,7 +45,10 @@ export function PriceListListTable({
         field: 'title',
         header: t('clubdesk.sort.title'),
         cell: (row) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+          <span
+            className="block min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+            title={row.title}
+          >
             {row.title}
           </span>
         ),

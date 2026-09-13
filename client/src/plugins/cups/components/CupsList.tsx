@@ -29,15 +29,9 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
@@ -63,13 +57,7 @@ import { ingestApi } from '@/plugins/ingest/api/ingestApi';
 import type { IngestSource } from '@/plugins/ingest/types/ingest';
 
 import { useCups } from '../hooks/useCups';
-import {
-  CUPS_COLUMN_COUNT_STORAGE_KEY,
-  CUPS_SETTINGS_KEY,
-  getInitialCupColumnCount,
-  resolveCupColumnCount,
-  type CupColumnCount,
-} from '../utils/cupColumnCount';
+import { CUPS_SETTINGS_KEY } from '../utils/cupColumnCount';
 import {
   cupMatchesListFilters,
   toggleCupListFilter,
@@ -82,12 +70,6 @@ import {
   type CupSortField,
   type CupSortOrder,
 } from '../utils/cupListSort';
-import {
-  getInitialCupListViewMode,
-  persistCupListViewModeSession,
-  resolveCupListViewMode,
-  type CupListViewMode,
-} from '../utils/cupListViewMode';
 import { resolveVisibleCupTableColumns, type CupTableColumnId } from '../utils/cupTableColumns';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
@@ -96,7 +78,6 @@ import {
   type CupIngestImportResultVariant,
 } from './CupIngestImportResultDialog';
 import { CupIngestPickSourceDialog } from './CupIngestPickSourceDialog';
-import { CupListItem } from './CupListItem';
 import { CupListTable } from './CupListTable';
 import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView';
 import { CupsStatisticsView } from './CupsStatisticsView';
@@ -137,7 +118,7 @@ export function CupsList() {
     importFromIngestSource,
     refreshCups,
   } = useCups();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
+  const { getSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   useMobileActions({
@@ -156,8 +137,6 @@ export function CupsList() {
 
   const [primarySort, setPrimarySort] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<CupColumnCount>(getInitialCupColumnCount);
-  const [listViewMode, setListViewModeState] = useState<CupListViewMode>(getInitialCupListViewMode);
   const [visibleColumnIds, setVisibleColumnIds] = useState<CupTableColumnId[]>(() =>
     resolveVisibleCupTableColumns(null),
   );
@@ -235,18 +214,6 @@ export function CupsList() {
         if (cancelled) {
           return;
         }
-        const resolved = resolveCupColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as CupColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(CUPS_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(CUPS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolveCupListViewMode(settings);
-        setListViewModeState(nextView);
-        persistCupListViewModeSession(nextView);
         setVisibleColumnIds(resolveVisibleCupTableColumns(settings));
       })
       .catch(() => {});
@@ -254,31 +221,6 @@ export function CupsList() {
       cancelled = true;
     };
   }, [getSettings, settingsVersion]);
-
-  const setColumnCount = useCallback(
-    (_count: CupColumnCount) => {
-      const next = 3 as CupColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistCupListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(CUPS_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(CUPS_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
-
-  const setListViewMode = useCallback(
-    (mode: CupListViewMode) => {
-      setListViewModeState(mode);
-      persistCupListViewModeSession(mode);
-      updateSettings(CUPS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
 
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
@@ -297,10 +239,6 @@ export function CupsList() {
     },
     [primarySort, sortOrder],
   );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const filtered = useMemo(() => {
     const todayStart = new Date();
@@ -596,14 +534,6 @@ export function CupsList() {
                 onChange={setSearch}
                 placeholder={t('cups.searchPlaceholder', { count: cups.length })}
               />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) => t(`cups.columns${count}`)}
-                tableAriaLabel={t('common.tableView')}
-              />
               <ExpandableIconButton
                 icon={Plus}
                 label={t('cups.addCup')}
@@ -793,7 +723,7 @@ export function CupsList() {
                 !search.trim() ? () => attemptNavigation(() => openCupPanel(null)) : undefined
               }
             />
-          ) : isTableView ? (
+          ) : (
             <CupListTable
               cups={filteredAndSorted}
               primarySort={primarySort}
@@ -809,39 +739,6 @@ export function CupsList() {
               selectionEnabled={selectionMode}
               visibleColumnIds={visibleColumnIds}
             />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((cup, index) => (
-                <CupListItem
-                  key={cup.id}
-                  cup={cup}
-                  selected={isSelected(cup.id)}
-                  onClick={() => handleRowActivate(cup)}
-                  ingestTitle={ingestTitleForCup(cup.ingest_source_id) || null}
-                  columnCount={effectiveCardColumnCount}
-                  checkbox={
-                    selectionMode ? (
-                      <input
-                        type="checkbox"
-                        checked={isSelected(cup.id)}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(cup.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={isSelected(cup.id) ? 'Unselect cup' : 'Select cup'}
-                      />
-                    ) : undefined
-                  }
-                />
-              ))}
-            </div>
           )}
 
           <ListFooterBar

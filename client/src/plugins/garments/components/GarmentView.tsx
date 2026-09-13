@@ -1,11 +1,11 @@
-import { Layers, SlidersHorizontal, Users } from 'lucide-react';
+import { Layers, Shirt, SlidersHorizontal, Users } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import {
   DETAIL_FIELD_LABEL_CLASS,
@@ -34,14 +34,18 @@ import {
   VARIANT_WARNING_DOT_PLACEHOLDER_CLASS,
 } from '../utils/variantListStyles';
 
+import { GarmentListDetailHeaderMenus } from './GarmentDetailHeaderMenus';
 import { GarmentShareBlock } from './GarmentShareBlock';
 import { InventoryListAssignmentCheckboxes } from './InventoryListAssignmentCheckboxes';
-import { VariantQuantityEditor } from './InventoryQuickContextPanel';
+import { InventoryQuickContextPanel, VariantQuantityEditor } from './InventoryQuickContextPanel';
 import { PersonMatrix } from './PersonMatrix';
 
 interface GarmentViewProps {
   garment?: GarmentList | null;
   item?: GarmentList | null;
+  inventoryItem?: InventoryItem | null;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
 }
 
 function formatPurchasePrice(price: number | null | undefined, currency: string): string {
@@ -252,16 +256,40 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
   );
 }
 
-export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
+export const GarmentView: React.FC<GarmentViewProps> = ({
+  garment,
+  item,
+  inventoryItem,
+  stacked = false,
+}) => {
   const { t } = useTranslation();
-  const { panelKind, currentInventoryItem } = useGarments();
+  const {
+    panelKind,
+    currentInventoryItem,
+    openInventoryForEdit,
+    updateInventoryVariantQuantity,
+    isSaving,
+  } = useGarments();
   const { teams } = useTeams();
 
-  if (panelKind === 'inventory') {
-    if (!currentInventoryItem) {
-      return null;
+  const inv =
+    inventoryItem ?? (panelKind === 'inventory' && !garment && !item ? currentInventoryItem : null);
+
+  if (inv) {
+    if (stacked) {
+      return (
+        <InventoryQuickContextPanel
+          item={inv}
+          variant="full"
+          onEdit={() => openInventoryForEdit(inv)}
+          onVariantQuantityChange={async (variantId, quantity) => {
+            await updateInventoryVariantQuantity(inv.id, variantId, quantity);
+          }}
+          quantitySaving={isSaving}
+        />
+      );
     }
-    return <InventoryDetailView item={currentInventoryItem} />;
+    return <InventoryDetailView item={inv} />;
   }
 
   const list = garment ?? item;
@@ -278,6 +306,36 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
       : null;
   const teamLabel = matchedTeam ? formatTeamLabel(matchedTeam) || matchedTeam.name : null;
   const personCount = list.personCount ?? list.persons?.length ?? 0;
+
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={t('nav.garments-lists')} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={Shirt}
+          className="h-8 w-8 bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 [&_svg]:h-4 [&_svg]:w-4"
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+        {list.name || '—'}
+      </h3>
+    </div>
+  );
+
+  if (stacked) {
+    return (
+      <div className="min-w-0 space-y-4">
+        <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'min-w-0 overflow-hidden')}>
+          <div className="border-b border-border/50 px-4 py-5">
+            <GarmentListDetailHeaderMenus list={list} leading={titleLeading} />
+          </div>
+          <div className="min-w-0 px-4 pb-4 pt-1 md:px-6 md:pb-6">
+            <PersonMatrix key={list.id} list={list} />
+          </div>
+        </Card>
+        <GarmentShareBlock list={list} />
+      </div>
+    );
+  }
 
   return (
     <DetailLayout>
@@ -302,7 +360,7 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
             </div>
           </div>
           <div className="min-w-0 px-4 pb-4 pt-1 md:px-6 md:pb-6">
-            <PersonMatrix list={list} />
+            <PersonMatrix key={list.id} list={list} />
           </div>
         </Card>
 

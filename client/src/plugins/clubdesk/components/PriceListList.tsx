@@ -9,7 +9,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -22,13 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
@@ -40,7 +34,6 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -56,14 +49,6 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useClubdesk } from '../hooks/useClubdesk';
-import type { PublicationStatus } from '../types/clubdesk';
-import {
-  getInitialClubdeskColumnCount,
-  CLUBDESK_COLUMN_COUNT_STORAGE_KEY,
-  CLUBDESK_SETTINGS_KEY,
-  resolveClubdeskColumnCount,
-  type ClubdeskColumnCount,
-} from '../utils/clubdeskColumnCount';
 import { getClubdeskListStatusErrorMessage } from '../utils/clubdeskListStatusError';
 import {
   priceListMatchesListFilters,
@@ -72,19 +57,12 @@ import {
   type PriceListListFilterSelection,
 } from '../utils/priceListListFilter';
 import {
-  getInitialClubdeskListViewMode,
-  persistClubdeskListViewModeSession,
-  resolveClubdeskListViewMode,
-  type ClubdeskListViewMode,
-} from '../utils/clubdeskListViewMode';
-import {
   comparePriceListsByField,
   isPriceListAscDefaultField,
   type PriceListSortField,
   type PriceListSortOrder,
 } from '../utils/priceListListSort';
 
-import { PriceListListItem } from './PriceListListItem';
 import { PriceListListTable } from './PriceListListTable';
 
 const SORT_FIELD_OPTIONS: { value: PriceListSortField; labelKey: string }[] = [
@@ -111,13 +89,8 @@ export const PriceListList: React.FC = () => {
     isPriceListSelected,
     recentlyDuplicatedPriceListId,
     openPriceListPanel,
-    updatePriceListPublicationStatus,
-    updatePriceListFeatured,
     validationErrors,
-    reorderPriceLists,
-    isSaving,
   } = useClubdesk();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   useMobileActions({
@@ -139,65 +112,7 @@ export const PriceListList: React.FC = () => {
 
   const [primarySort, setPrimarySort] = useState<PriceListSortField>('title');
   const [sortOrder, setSortOrder] = useState<PriceListSortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<ClubdeskColumnCount>(
-    getInitialClubdeskColumnCount,
-  );
-  const [listViewMode, setListViewModeState] = useState<ClubdeskListViewMode>(
-    getInitialClubdeskListViewMode,
-  );
-
   const [activeFilters, setActiveFilters] = useState<PriceListListFilterSelection>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getSettings(CLUBDESK_SETTINGS_KEY)
-      .then((settings) => {
-        if (cancelled) {
-          return;
-        }
-        const resolved = resolveClubdeskColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as ClubdeskColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(CLUBDESK_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(CLUBDESK_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolveClubdeskListViewMode(settings);
-        setListViewModeState(nextView);
-        persistClubdeskListViewModeSession(nextView);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [getSettings, settingsVersion]);
-
-  const setColumnCount = useCallback(
-    (_count: ClubdeskColumnCount) => {
-      const next = 3 as ClubdeskColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistClubdeskListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(CLUBDESK_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(CLUBDESK_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
-
-  const setListViewMode = useCallback(
-    (mode: ClubdeskListViewMode) => {
-      setListViewModeState(mode);
-      persistClubdeskListViewModeSession(mode);
-      updateSettings(CLUBDESK_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
 
   const handlePrimarySortChange = (field: PriceListSortField) => {
     setPrimarySort(field);
@@ -217,10 +132,6 @@ export const PriceListList: React.FC = () => {
     [primarySort, sortOrder],
   );
 
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
-
   const sortedPriceLists = useMemo(() => {
     const byFilter = priceLists.filter((item) => priceListMatchesListFilters(item, activeFilters));
 
@@ -233,21 +144,8 @@ export const PriceListList: React.FC = () => {
         (item.currency || '').toLowerCase().includes(q),
     );
 
-    if (!isTableView && searchTerm.trim() === '' && activeFilters.length === 0) {
-      return [...filtered].sort((a, b) => {
-        const ao = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
-        const bo = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
-        if (ao !== bo) {
-          return ao - bo;
-        }
-        return (a.title || '').localeCompare(b.title || '', 'sv');
-      });
-    }
-
     return [...filtered].sort((a, b) => comparePriceListsByField(a, b, primarySort, sortOrder));
-  }, [priceLists, searchTerm, primarySort, sortOrder, activeFilters, isTableView]);
-
-  const canReorder = !isTableView && searchTerm.trim() === '' && activeFilters.length === 0;
+  }, [priceLists, searchTerm, primarySort, sortOrder, activeFilters]);
 
   const isFilterActive = (filter: PriceListListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: PriceListListFilter) => {
@@ -343,32 +241,6 @@ export const PriceListList: React.FC = () => {
     ];
   }, [priceListSelectedCount, t]);
 
-  const handleStatusChange = (item: (typeof priceLists)[0], status: PublicationStatus) => {
-    void updatePriceListPublicationStatus(item, status);
-  };
-
-  const handleFeaturedChange = (item: (typeof priceLists)[0], featured: boolean) => {
-    void updatePriceListFeatured(item, featured);
-  };
-
-  const handleMove = useCallback(
-    async (index: number, direction: -1 | 1) => {
-      if (!canReorder) {
-        return;
-      }
-      const nextIndex = index + direction;
-      if (nextIndex < 0 || nextIndex >= sortedPriceLists.length) {
-        return;
-      }
-      const orderedIds = sortedPriceLists.map((row) => String(row.id));
-      const tmp = orderedIds[index];
-      orderedIds[index] = orderedIds[nextIndex];
-      orderedIds[nextIndex] = tmp;
-      await reorderPriceLists(orderedIds);
-    },
-    [canReorder, sortedPriceLists, reorderPriceLists],
-  );
-
   const listStatusError = getClubdeskListStatusErrorMessage(validationErrors);
 
   return (
@@ -416,14 +288,6 @@ export const PriceListList: React.FC = () => {
                 placeholder={t('clubdesk.priceList.searchPlaceholder', {
                   count: priceLists.length,
                 })}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) => t(`clubdesk.columns${count}`)}
-                tableAriaLabel={t('common.tableView')}
               />
               <ExpandableIconButton
                 icon={Plus}
@@ -561,7 +425,7 @@ export const PriceListList: React.FC = () => {
                   : undefined
               }
             />
-          ) : isTableView ? (
+          ) : (
             <PriceListListTable
               priceLists={sortedPriceLists}
               primarySort={primarySort}
@@ -576,54 +440,6 @@ export const PriceListList: React.FC = () => {
               recentlyDuplicatedPriceListId={recentlyDuplicatedPriceListId}
               selectionEnabled={selectionMode}
             />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {sortedPriceLists.map((item, index) => {
-                const itemIsSelected = isPriceListSelected(item.id);
-                return (
-                  <PriceListListItem
-                    key={item.id}
-                    priceList={item}
-                    selected={itemIsSelected}
-                    highlighted={recentlyDuplicatedPriceListId === String(item.id)}
-                    onClick={() => handleRowActivate(item)}
-                    columnCount={effectiveCardColumnCount}
-                    onStatusChange={(status) => handleStatusChange(item, status)}
-                    onFeaturedChange={(featured) => handleFeaturedChange(item, featured)}
-                    canReorder={canReorder}
-                    reorderDisabled={isSaving}
-                    onMoveUp={canReorder ? () => void handleMove(index, -1) : undefined}
-                    onMoveDown={canReorder ? () => void handleMove(index, 1) : undefined}
-                    isFirst={index === 0}
-                    isLast={index === sortedPriceLists.length - 1}
-                    checkbox={
-                      selectionMode ? (
-                        <input
-                          type="checkbox"
-                          checked={itemIsSelected}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(item.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={
-                            itemIsSelected
-                              ? t('clubdesk.priceList.unselect')
-                              : t('clubdesk.priceList.select')
-                          }
-                        />
-                      ) : undefined
-                    }
-                  />
-                );
-              })}
-            </div>
           )}
 
           <ListFooterBar

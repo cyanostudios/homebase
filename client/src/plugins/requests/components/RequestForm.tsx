@@ -46,10 +46,12 @@ interface RequestFormProps {
   currentItem?: Request | null;
   onSave: (data: RequestPayload) => Promise<boolean>;
   onCancel: () => void;
+  /** Reserved for mail-style list detail column (form is already single-column). */
+  stacked?: boolean;
 }
 
 export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(function RequestForm(
-  { currentRequest, currentItem, onSave, onCancel },
+  { currentRequest, currentItem, onSave, onCancel, stacked: _stacked = false },
   ref,
 ) {
   const { t } = useTranslation();
@@ -476,7 +478,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
 
   return (
     <>
-      <DetailLayout leftSidebar={formLeftSidebar}>
+      <DetailLayout gridClassName="grid-cols-1" leftSidebar={formLeftSidebar}>
         <form
           className="space-y-6"
           onSubmit={(e) => {

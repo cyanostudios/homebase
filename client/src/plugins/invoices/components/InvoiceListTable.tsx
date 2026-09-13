@@ -110,7 +110,10 @@ export function InvoiceListTable({
 
           const numberRow = (
             <div className="flex min-w-0 items-center gap-1.5">
-              <span className="min-w-0 truncate font-mono text-xs font-extrabold text-foreground transition-colors group-hover:text-primary">
+              <span
+                className="min-w-0 truncate font-mono text-xs font-extrabold text-foreground transition-colors group-hover:text-primary"
+                title={formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}
+              >
                 {formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}
               </span>
               <Badge
@@ -176,7 +179,10 @@ export function InvoiceListTable({
         field: 'contactName',
         header: t('invoices.fieldContact', { defaultValue: 'Customer' }),
         cell: (invoice) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+          <span
+            className="block min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+            title={invoice.contactName || undefined}
+          >
             {invoice.contactName || '—'}
           </span>
         ),

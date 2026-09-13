@@ -17,7 +17,14 @@ function getMatchActionIconColorClass(actionId: string): string {
   return '';
 }
 
-export function MatchDetailHeaderMenus({ match }: { match: Match }) {
+export function MatchDetailHeaderMenus({
+  match,
+  leading,
+}: {
+  match: Match;
+  /** Optional leading content on the Actions trigger row (e.g. match identity). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openMatchForEdit,
@@ -85,6 +92,7 @@ export function MatchDetailHeaderMenus({ match }: { match: Match }) {
 
   return (
     <DetailHeaderMenus
+      leading={leading}
       actions={actions}
       actionsLabel={t('matches.headerActions', { defaultValue: t('common.headerActions') })}
     >

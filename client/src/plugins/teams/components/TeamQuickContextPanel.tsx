@@ -18,6 +18,7 @@ import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
@@ -42,6 +43,7 @@ import {
 } from '../types/teams';
 import { formatTeamLabel } from '../utils/formatTeamLabel';
 
+import { TeamDetailHeaderMenus } from './TeamDetailHeaderMenus';
 import { TeamSeriesTeamBadges } from './TeamSeriesTeamBadges';
 const REQUESTS_PREVIEW_LIMIT = 4;
 const FACT_LABEL_CLASS =
@@ -180,23 +182,31 @@ export function TeamQuickContextPanel({
       })}${nextTraining.location ? ` · ${nextTraining.location}` : ''}`
     : t('teams.quickContext.noTraining');
 
-  const identityHeader = (
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={t('nav.team')} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={Users}
+          className={cn(
+            'h-9 w-9 bg-gradient-to-br text-xs font-bold [&_svg]:h-4 [&_svg]:w-4',
+            TEAM_COLOR_GRADIENTS[team.color],
+            teamColorGradientTextClass(team.color),
+          )}
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>{title}</h3>
+    </div>
+  );
+
+  const identityHeader = isFullView ? (
+    <TeamDetailHeaderMenus team={team} leading={titleLeading} />
+  ) : (
     <div className="flex items-center gap-3">
-      <div
-        className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold',
-          TEAM_COLOR_GRADIENTS[team.color],
-          teamColorGradientTextClass(team.color),
-        )}
-        aria-hidden
-      >
-        {(team.age_group || team.name).slice(0, 3).toUpperCase()}
-      </div>
-      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{title}</h3>
+      <div className="min-w-0 flex-1">{titleLeading}</div>
       <QuickContextHeaderActions
-        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onOpen={onOpenFullProfile}
         onEdit={onEdit}
-        onClose={!isFullView && onClose ? onClose : undefined}
+        onClose={onClose}
         editLabel={t('common.edit')}
         closeLabel={t('common.close')}
       />

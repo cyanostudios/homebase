@@ -77,7 +77,10 @@
     "settings": "Settings",
     "statistics": "Statistics",
     "remove": "Remove",
-    "clearFilters": "Clear filters"
+    "clearFilters": "Clear filters",
+    "filters": "Filters",
+    "showFilters": "Show filters",
+    "hideFilters": "Hide filters"
   },
   "importWizard": {
     "file": "File",
@@ -301,8 +304,15 @@
     "defaultHomeTeamLabel": "Home team name",
     "defaultHomeTeamPlaceholder": "e.g. Sorgenfri FF",
     "defaultHomeTeamHelp": "When set, a filter card appears in the matches list for home fixtures whose home team starts with this name (e.g. Sorgenfri FF also matches Sorgenfri FF black). The Teams matches tab and Matches statistics also use it to split home vs away and to compute club results.",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "statistics": {
       "title": "Match statistics",
+      "embeddedDescription": "Overview of upcoming fixtures and schedule.",
+      "overview": "Overview",
       "description": "Results for counted matches (with a score; canceled and postponed excluded). Points: 3 for a win, 1 for a draw.",
       "club": "Club",
       "byTeam": "By team",
@@ -377,6 +387,7 @@
     "statusDatePassed": "Past due",
     "openMatch": "Open match",
     "quickContext": {
+      "title": "Quick context",
       "openFullProfile": "Open full match",
       "contacts": "Contacts"
     },
@@ -731,6 +742,18 @@
       "completed": "Completed",
       "overdue": "Overdue"
     },
+    "statistics": {
+      "title": "Task statistics",
+      "description": "Overview of open, completed, and overdue tasks.",
+      "overview": "Overview",
+      "workloadMix": "Open vs completed",
+      "workloadMixAria": "Share of open, completed, and overdue tasks"
+    },
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "quickAdd": "Quick task",
     "quickAddPlaceholder": "Create quick task...",
     "addTask": "Add Task",
@@ -809,6 +832,25 @@
   },
   "notes": {
     "listDescription": "Capture ideas with mentions and rich context.",
+    "stats": {
+      "total": "Total",
+      "withMentions": "With mentions",
+      "withoutMentions": "Without mentions",
+      "withContent": "With content",
+      "recentlyUpdated": "Updated 7d"
+    },
+    "statistics": {
+      "title": "Note statistics",
+      "description": "Overview of mentions, content, and recent updates.",
+      "overview": "Overview",
+      "mentionsMix": "Notes with mentions",
+      "mentionsMixAria": "Share of notes with and without mentions"
+    },
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "searchPlaceholder": "Search {{count}} notes...",
     "noMatch": "No notes found matching your search.",
     "noYet": "No notes yet",
@@ -1101,6 +1143,26 @@
     "table": {
       "number": "Number",
       "total": "Total"
+    },
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "filter": {
+      "total": "Total",
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted"
+    },
+    "statistics": {
+      "title": "Estimate statistics",
+      "description": "Overview of draft, sent, and accepted estimates.",
+      "overview": "Overview",
+      "total": "Total",
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted"
     }
   },
   "ingest": {
@@ -1157,6 +1219,29 @@
     "columns2": "2 columns",
     "columns3": "3 columns",
     "columnsLabel": "Columns",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "stats": {
+      "total": "Total",
+      "success": "Success",
+      "failed": "Failed"
+    },
+    "quickContext": {
+      "title": "Source details"
+    },
+    "statistics": {
+      "title": "Ingest statistics",
+      "description": "Overview of sources, active status, and content types.",
+      "overview": "Overview",
+      "types": "Source types",
+      "activeMix": "Active vs inactive",
+      "activeMixAria": "Share of active and inactive ingest sources",
+      "typeMix": "Sources by type",
+      "typeMixAria": "Distribution of ingest sources by content type"
+    },
     "errors": {
       "nameRequired": "Name is required",
       "urlRequired": "URL is required",
@@ -1934,6 +2019,22 @@
     "filterImages": "Images",
     "filterWithSize": "With size",
     "filterUpdated7d": "Updated 7d",
+    "sortLabel": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "quickContext": {
+      "title": "File details"
+    },
+    "statistics": {
+      "title": "File statistics",
+      "description": "Overview of file types, sizes, and recent uploads.",
+      "overview": "Overview",
+      "mimeMix": "Images vs other files",
+      "mimeMixAria": "Share of image files versus other file types",
+      "otherFiles": "Other files"
+    },
     "sort": {
       "updatedAt": "Updated",
       "name": "Name",
@@ -2501,6 +2602,11 @@
     "bulkAgeGroupPlaceholder": "Age group",
     "searchPlaceholder": "Search teams ({{count}})",
     "filterAll": "All",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "noMatchTitle": "No teams found",
     "noMatch": "Try another filter or search.",
     "noYet": "No teams yet",
@@ -2750,6 +2856,7 @@
     },
     "statistics": {
       "title": "Teams statistics",
+      "embeddedDescription": "Overview of team status and roster size.",
       "overview": "Team overview",
       "totalTeams": "Total teams",
       "active": "Active",
@@ -2943,6 +3050,21 @@
     "statCompleted": "Completed",
     "statExternal": "External",
     "statNotRelated": "Not related",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "statistics": {
+      "title": "Request statistics",
+      "description": "Overview of open, completed, unlinked, and external requests.",
+      "overview": "Overview",
+      "statusMix": "Status mix",
+      "statusMixAria": "Share of active, completed, and cancelled requests"
+    },
+    "quickContext": {
+      "title": "Quick context"
+    },
     "dashboardOpen": "{{count}} open",
     "dashboardExternal": "{{count}} external",
     "sourceExternal": "External",
@@ -3390,6 +3512,21 @@
     "searchLists": "Search lists...",
     "searchInventory": "Search inventory...",
     "sortBy": "Sort by",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "filterAll": "All",
+    "statistics": {
+      "title": "Garment statistics",
+      "description": "Overview of lists, inventory, and assignments.",
+      "overview": "Overview",
+      "listCount": "Lists",
+      "inventoryCount": "Inventory items",
+      "assignedInventory": "Assigned to lists",
+      "totalPersons": "Total persons"
+    },
     "columnsAria": "{{count}} columns",
     "noSearchResults": "No items match your search.",
     "noListsYet": "No garment lists yet.",

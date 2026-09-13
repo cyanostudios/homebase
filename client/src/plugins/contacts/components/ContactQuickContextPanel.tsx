@@ -26,6 +26,7 @@ import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
 import { ContactCopyableLink, mailtoHref, telHref, websiteHref } from './ContactCopyableLink';
+import { ContactDetailHeaderMenus } from './ContactDetailHeaderMenus';
 import { ContactLinkedItemsSectionLazy as ContactLinkedItemsSection } from './ContactLinkedItemsSectionLazy';
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
@@ -120,23 +121,29 @@ export function ContactQuickContextPanel({
     setContactHasTimeEntries(contact.id, timeEntries.length > 0);
   }, [isFullView, contact?.id, timeEntries, setContactHasTimeEntries]);
 
-  const identityHeader = (
-    <div className="flex items-center gap-3">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span title={contactTypeLabel} className="inline-flex shrink-0">
-          <SectionCategoryIcon
-            icon={ContactTypeIcon}
-            className={CONTACT_TYPE_ICON_SHELL_CLASS[isCompany ? 'company' : 'private']}
-          />
-        </span>
-        <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
-          {contact.companyName}
-        </h3>
-      </div>
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={contactTypeLabel} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={ContactTypeIcon}
+          className={CONTACT_TYPE_ICON_SHELL_CLASS[isCompany ? 'company' : 'private']}
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+        {contact.companyName}
+      </h3>
+    </div>
+  );
+
+  const identityHeader = isFullView ? (
+    <ContactDetailHeaderMenus contact={contact} leading={titleLeading} />
+  ) : (
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="min-w-0 flex-1">{titleLeading}</div>
       <QuickContextHeaderActions
-        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onOpen={onOpenFullProfile}
         onEdit={onEdit}
-        onClose={!isFullView && onClose ? onClose : undefined}
+        onClose={onClose}
         editLabel={t('contacts.edit')}
         closeLabel={t('common.close')}
         openVariant={selectionMode ? 'soft' : 'primary'}

@@ -20,9 +20,9 @@ describe('FilesProvider deep-link wiring', () => {
     expect(src).toMatch(/closeFilePanel/);
   });
 
-  test('openFileForView opens edit (no full view)', () => {
-    expect(src).toMatch(/setPanelMode\('edit'\)/);
-    expect(src).toMatch(/Files has no full view/);
+  test('openFileForView opens view mode for mail detail column', () => {
+    expect(src).toMatch(/setPanelMode\('view'\)/);
+    expect(src).toMatch(/openFileForView/);
   });
 
   test('exposes getPanelTitle with FileDetailHeaderMenus', () => {

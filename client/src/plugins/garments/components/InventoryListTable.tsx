@@ -1,7 +1,9 @@
+import { ShoppingBag } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   SortableListTable,
   type SortableListTableColumn,
@@ -71,16 +73,34 @@ export function InventoryListTable({
         field: 'articleName',
         header: t('garments.articleName'),
         cell: (item) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {item.articleName || '—'}
-          </span>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span title={t('nav.garments-inventory')} className="inline-flex shrink-0">
+              <SectionCategoryIcon
+                icon={ShoppingBag}
+                className="h-6 w-6 bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200 [&_svg]:h-3 [&_svg]:w-3"
+              />
+            </span>
+            <span
+              className="block min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+              title={item.articleName || undefined}
+            >
+              {item.articleName || '—'}
+            </span>
+          </div>
         ),
       },
       brand: {
         field: 'brand',
         header: t('garments.brand'),
         className: 'hidden sm:table-cell',
-        cell: (item) => <span className="text-xs text-muted-foreground">{item.brand || '—'}</span>,
+        cell: (item) => (
+          <span
+            className="block min-w-0 truncate text-xs text-muted-foreground"
+            title={item.brand || undefined}
+          >
+            {item.brand || '—'}
+          </span>
+        ),
       },
       tags: {
         field: 'tags',
@@ -221,6 +241,9 @@ export function InventoryListTable({
           ? 'bg-green-50 dark:bg-green-950/30'
           : undefined
       }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       selection={selection}
       pluginName="garments"
       dataListItem={(item) => item}

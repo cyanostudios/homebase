@@ -76,7 +76,10 @@ export function CupListTable({
         field: 'name',
         header: t('cups.columnName'),
         cell: (cup) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+          <span
+            className="block min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+            title={cup.name || undefined}
+          >
             {cup.name || '—'}
           </span>
         ),
@@ -87,9 +90,13 @@ export function CupListTable({
         className: 'hidden md:table-cell',
         cell: (cup) => {
           const title = ingestTitleForCup(cup.ingest_source_id).trim();
+          const label = title || (cup.ingest_source_id ? String(cup.ingest_source_id) : '—');
           return (
-            <span className="text-xs text-muted-foreground">
-              {title || (cup.ingest_source_id ? String(cup.ingest_source_id) : '—')}
+            <span
+              className="block min-w-0 truncate text-xs text-muted-foreground"
+              title={label !== '—' ? label : undefined}
+            >
+              {label}
             </span>
           );
         },
@@ -107,7 +114,14 @@ export function CupListTable({
         field: 'location',
         header: t('cups.columnLocation'),
         className: 'hidden md:table-cell',
-        cell: (cup) => <span className="text-xs text-muted-foreground">{cup.location || '—'}</span>,
+        cell: (cup) => (
+          <span
+            className="block min-w-0 truncate text-xs text-muted-foreground"
+            title={cup.location || undefined}
+          >
+            {cup.location || '—'}
+          </span>
+        ),
       },
       featured: {
         field: 'featured',

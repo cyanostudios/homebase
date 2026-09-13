@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
+import { ListTableSortIcon } from '@/core/ui/ListTableSortIcon';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
@@ -79,7 +79,9 @@ export function SortableListTable<TRow, TField extends string>({
     <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
       <Table
         rowBorders={subtleRowDividers}
+        containerClassName="overflow-x-hidden"
         className={cn(
+          'table-fixed',
           subtleRowDividers && '[&_tbody>tr]:border-border/10 dark:[&_tbody>tr]:border-white/5',
         )}
       >
@@ -102,7 +104,7 @@ export function SortableListTable<TRow, TField extends string>({
                 <TableHead
                   key={col.field}
                   className={cn(
-                    'text-xs font-black text-slate-400 dark:text-slate-500',
+                    'min-w-0 overflow-hidden text-xs font-black text-slate-400 dark:text-slate-500',
                     sortable && 'cursor-pointer select-none hover:bg-primary/10',
                     headerCellClassName,
                     col.className,
@@ -118,8 +120,8 @@ export function SortableListTable<TRow, TField extends string>({
                         : undefined
                   }
                 >
-                  <div className="flex items-center gap-2 leading-4">
-                    <span>{col.header}</span>
+                  <div className="flex min-w-0 items-center gap-2 leading-4">
+                    <span className="min-w-0 truncate">{col.header}</span>
                     {sortable ? (
                       <ListTableSortIcon active={primarySort === col.field} order={sortOrder} />
                     ) : null}
@@ -171,9 +173,15 @@ export function SortableListTable<TRow, TField extends string>({
                   return (
                     <TableCell
                       key={col.field}
-                      className={cn(isFirstDataCol && 'pl-2', col.className)}
+                      className={cn(
+                        'min-w-0 overflow-hidden',
+                        isFirstDataCol && 'pl-2',
+                        col.className,
+                      )}
                     >
-                      {col.cell(row, index)}
+                      <div className="min-w-0 max-w-full overflow-hidden">
+                        {col.cell(row, index)}
+                      </div>
                     </TableCell>
                   );
                 })}

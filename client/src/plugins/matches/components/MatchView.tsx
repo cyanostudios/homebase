@@ -39,6 +39,7 @@ import {
 import { useSlotsContext } from '@/plugins/slots/context/SlotsContext';
 
 import { useMatchContext } from '../context/MatchContext';
+import { MatchQuickContextPanel } from './MatchQuickContextPanel';
 import { MatchTeamBadge } from './MatchTeamBadge';
 import { MatchStatusBadges } from './MatchStatusBadges';
 import { formatMatchScore, hasMatchResult, type Match } from '../types/match';
@@ -46,6 +47,8 @@ import { formatMatchScore, hasMatchResult, type Match } from '../types/match';
 interface MatchViewProps {
   match?: Match;
   item?: Match;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
 }
 
 type AssignableContact = {
@@ -271,7 +274,7 @@ function RelatedItemsCard({
   );
 }
 
-export function MatchView({ match: matchProp, item }: MatchViewProps) {
+export function MatchView({ match: matchProp, item, stacked: _stacked = false }: MatchViewProps) {
   const { t } = useTranslation();
   const match = matchProp ?? item ?? null;
   const { contacts, openContactForView } = useContacts();
@@ -305,6 +308,7 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
     showDiscardQuickEditDialog,
     setShowDiscardQuickEditDialog,
     onDiscardQuickEditAndClose,
+    openMatchForEdit,
   } = useMatchContext();
 
   const [contactSearch, setContactSearch] = useState('');
@@ -371,6 +375,7 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
   return (
     <>
       <DetailLayout
+        gridClassName="grid-cols-1"
         sidebar={
           hasSlotsPlugin ? (
             <div className="space-y-4">
@@ -409,6 +414,11 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
         }
       >
         <div className="space-y-4 plugin-matches">
+          <MatchQuickContextPanel
+            match={match}
+            onEdit={() => openMatchForEdit(match)}
+            variant="full"
+          />
           <MatchMainInfoCard match={match} sportLabel={sportLabel} />
 
           <Card

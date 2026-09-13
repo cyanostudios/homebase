@@ -60,6 +60,8 @@ import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
+import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { exportItems } from '@/core/utils/exportUtils';
@@ -101,6 +103,7 @@ type SortField = ContactSortField;
 type SortOrder = ContactSortOrder;
 
 const CONTACTS_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.contacts.toolbar.collapsed';
+const CONTACTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.contacts.toolbar.filtersVisible';
 
 function readContactsToolbarCollapsed(): boolean {
   if (typeof window === 'undefined') {
@@ -210,6 +213,9 @@ export const ContactList: React.FC = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [previewContact, setPreviewContact] = useState<Contact | null>(null);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(readContactsToolbarCollapsed);
+  const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
+    CONTACTS_FILTERS_VISIBLE_STORAGE_KEY,
+  );
   const restoredPendingContactRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -937,6 +943,11 @@ export const ContactList: React.FC = () => {
                       onClick={() => openContactSettings()}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
+                    <ListFilterChipsToggle
+                      visible={filtersVisible}
+                      onVisibleChange={setFiltersVisible}
+                      className="h-11 rounded-full"
+                    />
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -953,23 +964,30 @@ export const ContactList: React.FC = () => {
                     />
                   </div>
                 </div>
-                <div
-                  className={cn(
-                    LIST_FILTER_AND_SORT_ROW_CLASS,
-                    'pt-2',
-                    toolbarCollapsed && 'pointer-events-none',
-                  )}
-                >
-                  {renderFilterChips()}
-                </div>
+                {filtersVisible ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {renderFilterChips()}
+                  </div>
+                ) : null}
                 {renderBulkActionBar('py-3')}
               </div>
             </div>
           </div>
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
-            {renderFilterChips()}
+            {filtersVisible ? renderFilterChips() : null}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+              <ListFilterChipsToggle
+                visible={filtersVisible}
+                onVisibleChange={setFiltersVisible}
+                className="h-7 rounded-md"
+              />
               {renderSortDropdown('h-7 rounded-md')}
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   SortableListTable,
   type SortableListTableColumn,
@@ -22,13 +23,14 @@ function isRasterImageMime(mimeType: string | null | undefined): boolean {
 }
 
 function FileNameCell({ file }: { file: FileItem }) {
+  const { t } = useTranslation();
   const isImage = isRasterImageMime(file.mimeType);
   const thumbUrl = file.id ? filesApi.getFileDownloadUrl(file.id, { inline: true }) : null;
 
   return (
     <span className="flex min-w-0 items-center gap-2.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
-        {isImage && thumbUrl ? (
+      {isImage && thumbUrl ? (
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
           <img
             src={thumbUrl}
             alt=""
@@ -37,11 +39,19 @@ function FileNameCell({ file }: { file: FileItem }) {
               (e.target as HTMLImageElement).style.display = 'none';
             }}
           />
-        ) : (
-          <FileIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
-        )}
-      </span>
-      <span className="truncate font-extrabold text-foreground transition-colors group-hover:text-primary">
+        </span>
+      ) : (
+        <span title={t('nav.file')} className="inline-flex shrink-0">
+          <SectionCategoryIcon
+            icon={FileIcon}
+            className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
+          />
+        </span>
+      )}
+      <span
+        className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+        title={file.name}
+      >
         {file.name}
       </span>
     </span>
@@ -139,6 +149,9 @@ export function FileListTable({
       pluginName="files"
       dataListItem={(file) => file}
       isRowActive={(file) => activeFileId != null && String(file.id) === String(activeFileId)}
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
     />
   );
 }

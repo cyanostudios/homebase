@@ -2,36 +2,42 @@ import {
   CheckSquare,
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
   Clock,
   HardDrive,
   Image,
   LayoutGrid,
+  Menu,
   Plus,
   Settings,
   Trash2,
   XCircle,
 } from 'lucide-react';
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useApp } from '@/core/api/AppContext';
-import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { useIsEffectiveTableView } from '@/core/list/effectiveListViewMode';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
+  DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
@@ -39,34 +45,21 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
+import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
-import {
-  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
-  PLUGIN_PAGE_LIST_SHELL_CLASS,
-  PLUGIN_PAGE_SECTION_GAP_CLASS,
-  PLUGIN_PAGE_TITLE_CLASS,
-  PLUGIN_PAGE_TITLE_ROW_CLASS,
-} from '@/core/ui/pluginPageStyles';
+import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
+import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { useViewportTier } from '@/hooks/useMediaQuery';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useFiles } from '../hooks/useFiles';
-import {
-  FILES_CARDS_COLUMN_COUNT,
-  getEffectiveFileGridColumns,
-  getInitialFileColumnCount,
-  normalizeFileCardsColumnCount,
-  resolveFileColumnCount,
-  settingsHasFileColumnPreference,
-  FILES_COLUMN_COUNT_STORAGE_KEY,
-  FILES_SETTINGS_KEY,
-  type FileColumnCount,
-} from '../utils/fileColumnCount';
+import type { FileItem } from '../types/files';
 import {
   fileHasSize,
   fileIsImage,
@@ -82,37 +75,58 @@ import {
   type FileSortField,
   type FileSortOrder,
 } from '../utils/fileListSort';
-import {
-  getInitialFileListViewMode,
-  isFileListViewMode,
-  persistFileListViewModeSession,
-  resolveFileListViewMode,
-  type FileListViewMode,
-} from '../utils/fileListViewMode';
 
-import { FileListItem } from './FileListItem';
+import { FileForm } from './FileForm';
 import { FileListTable } from './FileListTable';
-import { FileQuickContextPanel } from './FileQuickContextPanel';
 import { FileSettingsView } from './FileSettingsView';
+import { FilesStatisticsView } from './FilesStatisticsView';
+import { FileView } from './FileView';
 
 type SortField = FileSortField;
 type SortOrder = FileSortOrder;
 
-const SORT_FIELD_KEYS: { value: SortField; labelKey: string }[] = [
-  { value: 'updatedAt', labelKey: 'files.sort.updatedAt' },
+const FILES_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.files.toolbar.collapsed';
+const FILES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.files.toolbar.filtersVisible';
+
+function readFilesToolbarCollapsed(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem(FILES_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeFilesToolbarCollapsed(collapsed: boolean): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    window.localStorage.setItem(FILES_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'name', labelKey: 'files.sort.name' },
+  { value: 'updatedAt', labelKey: 'files.sort.updatedAt' },
   { value: 'mimeType', labelKey: 'files.sort.mimeType' },
   { value: 'size', labelKey: 'files.sort.size' },
   { value: 'createdAt', labelKey: 'files.sort.createdAt' },
   { value: 'id', labelKey: 'files.sort.id' },
 ];
 
+let pendingPreviewFileId: string | null = null;
+
 export const FileList: React.FC = () => {
   const { t } = useTranslation();
   const {
     files,
     filesContentView,
-    openFileForEdit,
+    openFileForView,
     openFilePanel,
     openFileSettings,
     closeFileSettingsView,
@@ -124,8 +138,13 @@ export const FileList: React.FC = () => {
     selectedCount,
     isSelected,
     deleteFiles,
+    isFilesPanelOpen,
+    panelMode,
+    currentFile,
+    saveFile,
+    closeFilePanel,
+    validationErrors,
   } = useFiles();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   useMobileActions({
@@ -133,93 +152,101 @@ export const FileList: React.FC = () => {
     onSettings: () => openFileSettings(),
   });
 
-  const { searchTerm, setSearchTerm } = usePersistedListSearch('files');
-  const [selectionMode, setSelectionMode] = useState(false);
+  const isCompactViewport = useMediaQuery('(max-width: 1023px)');
+  const showDesktopSplit = !isCompactViewport;
 
+  const { searchTerm, setSearchTerm } = usePersistedListSearch('files');
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,
     placeholder: t('files.searchPlaceholder'),
   });
 
-  const [primarySort, setPrimarySort] = useState<SortField>('name');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<FileColumnCount>(getInitialFileColumnCount);
-  const [listViewMode, setListViewModeState] = useState<FileListViewMode>(
-    getInitialFileListViewMode,
-  );
-  const [activeFilters, setActiveFilters] = useState<FileListFilterSelection>([]);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [primarySort, setPrimarySort] = useState<SortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [activeFilters, setActiveFilters] = useState<FileListFilterSelection>([]);
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(readFilesToolbarCollapsed);
+  const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
+    FILES_FILTERS_VISIBLE_STORAGE_KEY,
+  );
+  const restoredPendingFileRef = useRef(false);
+  const pageShellRef = useRef<HTMLDivElement>(null);
+  const inlineFormRef = useRef<PanelFormHandle | null>(null);
+  const [toolbarToggleBox, setToolbarToggleBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const inlineForm =
+    showDesktopSplit && isFilesPanelOpen && (panelMode === 'create' || panelMode === 'edit');
+  const inlinePanelView =
+    showDesktopSplit && isFilesPanelOpen && panelMode === 'view' && currentFile != null;
+  const detailFile = inlinePanelView ? currentFile : previewFile;
+  const activeListFileId =
+    (inlineForm || inlinePanelView) && currentFile != null
+      ? currentFile.id
+      : (previewFile?.id ?? null);
+
+  const toggleToolbarCollapsed = useCallback(() => {
+    setToolbarCollapsed((prev) => {
+      const next = !prev;
+      writeFilesToolbarCollapsed(next);
+      return next;
+    });
+  }, []);
+
+  const updateToolbarToggleBox = useCallback(() => {
+    const el = pageShellRef.current;
+    if (!el) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const sidebarToggle = document.querySelector<HTMLElement>('[aria-controls="left-sidebar-nav"]');
+    const sidebarTop = sidebarToggle?.getBoundingClientRect().top;
+    setToolbarToggleBox({
+      top: typeof sidebarTop === 'number' ? sidebarTop : rect.top + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    updateToolbarToggleBox();
+    window.addEventListener('resize', updateToolbarToggleBox);
+    const scrollParent = pageShellRef.current?.closest('.overflow-y-auto, .overflow-auto');
+    scrollParent?.addEventListener('scroll', updateToolbarToggleBox, { passive: true });
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateToolbarToggleBox) : null;
+    if (pageShellRef.current && ro) {
+      ro.observe(pageShellRef.current);
+    }
+    return () => {
+      window.removeEventListener('resize', updateToolbarToggleBox);
+      scrollParent?.removeEventListener('scroll', updateToolbarToggleBox);
+      ro?.disconnect();
+    };
+  }, [updateToolbarToggleBox]);
 
   useEffect(() => {
-    let cancelled = false;
-    getSettings(FILES_SETTINGS_KEY)
-      .then((settings) => {
-        if (cancelled) {
-          return;
-        }
-        // Empty/failed settings must not wipe session selection (list remounts on detail close).
-        const hasColumnPref = settingsHasFileColumnPreference(settings);
-        const hasListViewPref = isFileListViewMode(settings?.listViewMode);
-        if (!hasColumnPref && !hasListViewPref) {
-          return;
-        }
-        if (hasColumnPref) {
-          const resolved = resolveFileColumnCount(settings);
-          const next = normalizeFileCardsColumnCount(resolved);
-          setColumnCountState(next);
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.setItem(FILES_COLUMN_COUNT_STORAGE_KEY, String(next));
-          }
-          if (next !== resolved) {
-            updateSettings(FILES_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-          }
-        }
-        if (hasListViewPref) {
-          const nextView = resolveFileListViewMode(settings);
-          setListViewModeState(nextView);
-          persistFileListViewModeSession(nextView);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [getSettings, settingsVersion]);
-
-  const setColumnCount = useCallback(
-    (_count: 1 | 2 | 3) => {
-      const next = FILES_CARDS_COLUMN_COUNT;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistFileListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(FILES_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(FILES_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
-
-  const setListViewMode = useCallback(
-    (mode: FileListViewMode) => {
-      setListViewModeState(mode);
-      persistFileListViewModeSession(mode);
-      updateSettings(FILES_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
+    if (restoredPendingFileRef.current || !pendingPreviewFileId) {
+      return;
+    }
+    const restored = files.find((file) => String(file.id) === pendingPreviewFileId);
+    if (restored) {
+      setPreviewFile(restored);
+      restoredPendingFileRef.current = true;
+      pendingPreviewFileId = null;
+    }
+  }, [files]);
 
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
     setSortOrder(isFileAscDefaultField(field) ? 'asc' : 'desc');
-  };
-
-  const toggleSortOrder = () => {
-    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
 
   const handleTableSort = useCallback(
@@ -231,29 +258,11 @@ export const FileList: React.FC = () => {
     [primarySort, sortOrder],
   );
 
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const viewportTier = useViewportTier();
-  const {
-    previewItem: previewFile,
-    setPreviewItem: setPreviewFile,
-    showQuickContext,
-    markPendingAndOpen,
-    activateRow,
-  } = useQuickContextPreview({
-    storeKey: 'files',
-    items: files,
-    getItemId: (item) => String(item.id),
-  });
-  const quickContextOpen = Boolean(showQuickContext && previewFile);
-  const gridColumnCount = getEffectiveFileGridColumns(viewportTier, { quickContextOpen });
-  // Dense grids use compact card chrome (meta under title)
-  const cardLayoutColumns: FileColumnCount = 2;
-
   const filteredAndSorted = useMemo(() => {
-    const byFilter = files.filter((item: any) => fileMatchesListFilters(item, activeFilters));
+    const byFilter = files.filter((item) => fileMatchesListFilters(item, activeFilters));
 
     const needle = searchTerm.trim().toLowerCase();
-    const filtered = byFilter.filter((item: any) => {
+    const filtered = byFilter.filter((item) => {
       if (!needle) {
         return true;
       }
@@ -276,9 +285,9 @@ export const FileList: React.FC = () => {
   const stats = useMemo(
     () => ({
       total: files.length,
-      images: files.filter((f: any) => fileIsImage(f)).length,
-      withSize: files.filter((f: any) => fileHasSize(f)).length,
-      updated7d: files.filter((f: any) => fileIsUpdatedWithinDays(f, 7)).length,
+      images: files.filter((f) => fileIsImage(f)).length,
+      withSize: files.filter((f) => fileHasSize(f)).length,
+      updated7d: files.filter((f) => fileIsUpdatedWithinDays(f, 7)).length,
     }),
     [files],
   );
@@ -288,10 +297,30 @@ export const FileList: React.FC = () => {
     setActiveFilters((prev) => toggleFileListFilter(prev, filter));
   };
 
-  const visibleIds = useMemo(
-    () => filteredAndSorted.map((f: any) => String(f.id)),
-    [filteredAndSorted],
-  );
+  useEffect(() => {
+    if (!previewFile) {
+      return;
+    }
+    const next = files.find((file) => String(file.id) === String(previewFile.id));
+    if (!next) {
+      setPreviewFile(null);
+      return;
+    }
+    if (next !== previewFile) {
+      setPreviewFile(next);
+    }
+  }, [files, previewFile]);
+
+  useEffect(() => {
+    if (!showDesktopSplit || !isFilesPanelOpen) {
+      return;
+    }
+    if ((panelMode === 'edit' || panelMode === 'view') && currentFile) {
+      setPreviewFile(currentFile);
+    }
+  }, [showDesktopSplit, isFilesPanelOpen, panelMode, currentFile]);
+
+  const visibleIds = useMemo(() => filteredAndSorted.map((f) => String(f.id)), [filteredAndSorted]);
 
   const allVisibleSelected = useMemo(
     () => visibleIds.length > 0 && visibleIds.every((id) => isSelected(id)),
@@ -305,13 +334,15 @@ export const FileList: React.FC = () => {
       toggleOne: toggleFileSelected,
     });
 
-  const handleHeaderCheckboxChange = () => {
+  const onToggleAllVisible = useCallback(() => {
     if (allVisibleSelected) {
-      clearFileSelection();
+      const set = new Set(visibleIds);
+      const remaining = selectedFileIds.filter((id) => !set.has(id));
+      selectAllFiles(remaining);
     } else {
-      selectAllFiles(visibleIds);
+      selectAllFiles(Array.from(new Set([...selectedFileIds, ...visibleIds])));
     }
-  };
+  }, [allVisibleSelected, visibleIds, selectedFileIds, selectAllFiles]);
 
   const handleBulkDelete = async () => {
     if (selectedFileIds.length === 0) {
@@ -321,14 +352,17 @@ export const FileList: React.FC = () => {
     try {
       await deleteFiles(selectedFileIds);
       setShowBulkDeleteModal(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Bulk delete failed:', err);
     } finally {
       setDeleting(false);
     }
   };
 
-  const handleOpenForEdit = (item: any) => attemptNavigation(() => openFileForEdit(item));
+  const handleOpenForView = (item: FileItem) => {
+    pendingPreviewFileId = String(item.id);
+    attemptNavigation(() => openFileForView(item));
+  };
 
   const handleEnterSelectionMode = () => {
     setSelectionMode(true);
@@ -339,14 +373,51 @@ export const FileList: React.FC = () => {
     setSelectionMode(false);
   };
 
-  const handleRowActivate = (item: any) => {
+  const handleRowActivate = (item: FileItem) => {
+    if (isCompactViewport) {
+      handleOpenForView(item);
+      return;
+    }
     if (selectionMode) {
       toggleFileSelected(String(item.id));
       return;
     }
-    // Desktop: sticky quick context. Compact: edit panel (no full view).
-    activateRow(item, (file) => attemptNavigation(() => openFileForEdit(file)));
+    if (
+      isFilesPanelOpen &&
+      (panelMode === 'create' || panelMode === 'edit' || panelMode === 'view')
+    ) {
+      attemptNavigation(() => {
+        closeFilePanel();
+        setPreviewFile(item);
+      });
+      return;
+    }
+    setPreviewFile((current) => (current && String(current.id) === String(item.id) ? null : item));
   };
+
+  const handleInlineFormSave = useCallback(async () => {
+    await inlineFormRef.current?.submit();
+  }, []);
+
+  const handleInlineFormClose = useCallback(() => {
+    if (inlineFormRef.current) {
+      inlineFormRef.current.cancel();
+      return;
+    }
+    closeFilePanel();
+  }, [closeFilePanel]);
+
+  const handleInlineFormOnSave = useCallback(
+    async (data: Parameters<typeof saveFile>[0]) => {
+      const ok = await saveFile(data);
+      return ok;
+    },
+    [saveFile],
+  );
+
+  const inlineFormHasBlockingErrors = validationErrors.some(
+    (e) => !String(e?.message || '').includes('Warning'),
+  );
 
   const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
     const disabled = selectedCount === 0;
@@ -362,6 +433,199 @@ export const FileList: React.FC = () => {
     ];
   }, [selectedCount, t]);
 
+  const headerDropdownTriggerClass =
+    'gap-1.5 border-0 bg-primary/10 px-3.5 text-sm font-extrabold text-primary shadow-none hover:bg-primary hover:text-primary-foreground';
+
+  const headerDropdownTriggerDangerClass =
+    'gap-1.5 border-0 bg-red-600/10 px-3.5 text-sm font-extrabold text-red-700 shadow-none hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white';
+
+  const renderFilterChips = () => {
+    const chips: Array<{
+      key: string;
+      active: boolean;
+      icon: typeof LayoutGrid;
+      label: string;
+      count: number;
+      onClick: () => void;
+    }> = [
+      {
+        key: 'all',
+        active: activeFilters.length === 0,
+        icon: LayoutGrid,
+        label: t('files.filterTotal'),
+        count: stats.total,
+        onClick: () => setActiveFilters([]),
+      },
+      {
+        key: 'images',
+        active: isFilterActive('images'),
+        icon: Image,
+        label: t('files.filterImages'),
+        count: stats.images,
+        onClick: () => toggleFilter('images'),
+      },
+      {
+        key: 'withSize',
+        active: isFilterActive('withSize'),
+        icon: HardDrive,
+        label: t('files.filterWithSize'),
+        count: stats.withSize,
+        onClick: () => toggleFilter('withSize'),
+      },
+      {
+        key: 'updated7d',
+        active: isFilterActive('updated7d'),
+        icon: Clock,
+        label: t('files.filterUpdated7d'),
+        count: stats.updated7d,
+        onClick: () => toggleFilter('updated7d'),
+      },
+    ];
+
+    return (
+      <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+        {chips.map((chip) => {
+          const Icon = chip.icon;
+          return (
+            <Button
+              key={chip.key}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={chip.onClick}
+              className={cn(chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span>
+                {chip.label} <span className="tabular-nums font-semibold">({chip.count})</span>
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const primarySortLabel =
+    SORT_FIELD_OPTIONS.find((option) => option.value === primarySort)?.labelKey ??
+    SORT_FIELD_OPTIONS[0].labelKey;
+
+  const renderSortDropdown = (triggerClassName: string) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('files.sortLabel', { defaultValue: 'Sort' })}
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          <span>{t('files.sortLabel', { defaultValue: 'Sort' })}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[14rem] rounded-xl border-border/50 shadow-xl"
+      >
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {t(primarySortLabel)}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={primarySort}
+          onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+        >
+          {SORT_FIELD_OPTIONS.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              className="rounded-md text-xs"
+              onSelect={(event) => event.preventDefault()}
+            >
+              {t(option.labelKey)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {sortOrder === 'asc'
+            ? t('files.sortAsc', { defaultValue: 'Ascending' })
+            : t('files.sortDesc', { defaultValue: 'Descending' })}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={sortOrder}
+          onValueChange={(value) => setSortOrder(value as SortOrder)}
+        >
+          <DropdownMenuRadioItem
+            value="asc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowUp className="mr-2 h-3.5 w-3.5" />
+            {t('files.sortAsc', { defaultValue: 'Ascending' })}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="desc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowDown className="mr-2 h-3.5 w-3.5" />
+            {t('files.sortDesc', { defaultValue: 'Descending' })}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const renderBulkActionBar = (className?: string) =>
+    selectionMode ? (
+      <BulkActionRoundBar
+        selectedCount={selectedCount}
+        actions={bulkRoundActions}
+        size="xs"
+        className={cn('gap-1.5', className)}
+      />
+    ) : null;
+
+  const renderSelectControls = (triggerClassName: string) => {
+    if (filteredAndSorted.length === 0) {
+      return null;
+    }
+
+    if (!selectionMode) {
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('common.select')}
+          aria-pressed={false}
+          onClick={handleEnterSelectionMode}
+        >
+          <CheckSquare className="h-3.5 w-3.5" />
+          <span>{t('common.select')}</span>
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn(headerDropdownTriggerDangerClass, triggerClassName)}
+        aria-label={t('common.clear')}
+        aria-pressed={true}
+        onClick={handleExitSelectionMode}
+      >
+        <XCircle className="h-3.5 w-3.5" />
+        <span>{t('common.clear')}</span>
+      </Button>
+    );
+  };
+
   if (filesContentView === 'settings') {
     return (
       <div className="plugin-files min-h-full bg-background">
@@ -372,286 +636,238 @@ export const FileList: React.FC = () => {
     );
   }
 
-  return (
-    <div className={cn('plugin-files', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
-      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
-        <div className="hidden md:block">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex min-w-0 flex-1 flex-col gap-5">
-              <div className="min-w-0">
-                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
-                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.files')}</h2>
-                  <ExpandableIconButton
-                    icon={Settings}
-                    label={t('common.settings')}
-                    variant="soft"
-                    onClick={() => openFileSettings()}
-                  />
-                  {filteredAndSorted.length > 0 ? (
-                    selectionMode ? (
-                      <ExpandableIconButton
-                        icon={XCircle}
-                        label={t('common.clear')}
-                        variant="danger"
-                        alwaysExpanded
-                        onClick={handleExitSelectionMode}
-                      />
-                    ) : (
-                      <ExpandableIconButton
-                        icon={CheckSquare}
-                        label={t('common.select')}
-                        variant="soft"
-                        alwaysExpanded
-                        onClick={handleEnterSelectionMode}
-                      />
-                    )
-                  ) : null}
-                </div>
-              </div>
-              {selectionMode ? (
-                <BulkActionRoundBar
-                  selectedCount={selectedCount}
-                  actions={bulkRoundActions}
-                  className="gap-2"
-                />
-              ) : null}
-            </div>
-            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
-              <RoundExpandableSearch
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('files.searchPlaceholder')}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount === 6 ? 3 : columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) => t(`files.columns${count}`)}
-                cardsAriaLabel={t('files.columns6')}
-                tableAriaLabel={t('common.tableView')}
-              />
-              <ExpandableIconButton
-                icon={Plus}
-                label={t('files.addFile')}
-                variant="soft"
-                alwaysExpanded
-                onClick={() => attemptNavigation(() => openFilePanel(null))}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
-          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveFilters([])}
-              className={cn(
-                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>
-                {t('files.filterTotal')}{' '}
-                <span className="tabular-nums font-semibold">({stats.total})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('images')}
-              className={cn(
-                isFilterActive('images') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <Image className="h-3.5 w-3.5" />
-              <span>
-                {t('files.filterImages')}{' '}
-                <span className="tabular-nums font-semibold">({stats.images})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('withSize')}
-              className={cn(
-                isFilterActive('withSize') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <HardDrive className="h-3.5 w-3.5" />
-              <span>
-                {t('files.filterWithSize')}{' '}
-                <span className="tabular-nums font-semibold">({stats.withSize})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('updated7d')}
-              className={cn(
-                isFilterActive('updated7d')
-                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
-                  : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <Clock className="h-3.5 w-3.5" />
-              <span>
-                {t('files.filterUpdated7d')}{' '}
-                <span className="tabular-nums font-semibold">({stats.updated7d})</span>
-              </span>
-            </Button>
-          </div>
-          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-            <Select
-              value={primarySort}
-              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-            >
-              <SelectTrigger
-                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                aria-label="Sort by"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="item-aligned"
-                className="rounded-xl border-border/50 shadow-xl"
-              >
-                {SORT_FIELD_KEYS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="rounded-md text-xs"
-                  >
-                    {t(option.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 px-0 text-xs"
-              onClick={toggleSortOrder}
-              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-            >
-              {sortOrder === 'asc' ? (
-                <ArrowUp className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowDown className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        <BulkDeleteModal
-          isOpen={showBulkDeleteModal}
-          onClose={() => setShowBulkDeleteModal(false)}
-          onConfirm={handleBulkDelete}
-          itemCount={selectedCount}
-          itemLabel="files"
-          isLoading={deleting}
-          warningMessage={t('files.bulkDeleteWarning')}
-        />
-
-        <div className="flex flex-col gap-3">
+  const toolbarEdgeToggle =
+    typeof document !== 'undefined' && toolbarToggleBox
+      ? createPortal(
           <div
-            className={cn(
-              'grid items-start gap-4',
-              showQuickContext && previewFile ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
-            )}
+            className="pointer-events-none fixed z-40 hidden justify-center md:flex"
+            style={{
+              top: toolbarToggleBox.top,
+              left: toolbarToggleBox.left,
+              width: toolbarToggleBox.width,
+            }}
           >
-            {showQuickContext && previewFile ? (
-              <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
-                <FileQuickContextPanel
-                  file={previewFile}
-                  onClose={() => setPreviewFile(null)}
-                  onEdit={() => {
-                    markPendingAndOpen(previewFile, () => handleOpenForEdit(previewFile));
-                  }}
-                />
-              </aside>
-            ) : null}
-            <div className="flex min-w-0 flex-col gap-3">
-              {filteredAndSorted.length === 0 ? (
-                <ListEmptyState
-                  message={searchTerm ? t('files.noMatch') : t('files.noYet')}
-                  createLabel={!searchTerm ? t('files.addFile') : undefined}
-                  onCreate={
-                    !searchTerm ? () => attemptNavigation(() => openFilePanel(null)) : undefined
-                  }
-                />
-              ) : isTableView ? (
-                <FileListTable
-                  files={filteredAndSorted}
-                  primarySort={primarySort}
-                  sortOrder={sortOrder}
-                  onSort={handleTableSort}
-                  isSelected={isSelected}
-                  onRowClick={handleRowActivate}
-                  onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                  onCheckboxChange={onVisibleRowCheckboxChange}
-                  allVisibleSelected={allVisibleSelected}
-                  onHeaderCheckboxChange={handleHeaderCheckboxChange}
-                  selectionEnabled={selectionMode}
-                  activeFileId={previewFile?.id ?? null}
-                />
-              ) : (
+            <div className="pointer-events-auto">
+              <RoundIconLabelButton
+                icon={Menu}
+                label={toolbarCollapsed ? t('files.expandToolbar') : t('files.collapseToolbar')}
+                variant={toolbarCollapsed ? 'primary' : 'secondary'}
+                size="xs"
+                expandOnHover={false}
+                className={
+                  toolbarCollapsed
+                    ? undefined
+                    : 'bg-white text-primary shadow-sm hover:bg-primary hover:text-primary-foreground dark:bg-white dark:text-primary dark:hover:bg-primary dark:hover:text-primary-foreground'
+                }
+                aria-expanded={!toolbarCollapsed}
+                aria-controls="files-mail-toolbar"
+                onClick={toggleToolbarCollapsed}
+              />
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  const detailColumnOpen = Boolean(detailFile || inlineForm);
+
+  return (
+    <>
+      {toolbarEdgeToggle}
+      <div
+        ref={pageShellRef}
+        className={cn(
+          'plugin-files flex min-h-0 flex-1 flex-col',
+          PLUGIN_PAGE_LIST_SHELL_CLASS,
+          showDesktopSplit
+            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+            : 'overflow-y-auto md:pt-3',
+        )}
+      >
+        <div
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 flex-col',
+            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+          )}
+        >
+          <div className="relative hidden shrink-0 md:block">
+            <div
+              className={cn(
+                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
+              )}
+              aria-hidden={toolbarCollapsed}
+            >
+              <div className="min-h-0 overflow-hidden">
                 <div
+                  id="files-mail-toolbar"
                   className={cn(
-                    'grid gap-3',
-                    gridColumnCount === 2 && 'grid-cols-2',
-                    gridColumnCount === 4 && 'grid-cols-4',
-                    gridColumnCount === 6 && 'grid-cols-6',
+                    'flex flex-wrap items-center justify-between gap-3',
+                    toolbarCollapsed && 'pointer-events-none',
                   )}
                 >
-                  {filteredAndSorted.map((file: any, index: number) => {
-                    const fileIsSelected = isSelected(String(file.id));
-                    return (
-                      <FileListItem
-                        key={file.id}
-                        file={file}
-                        selected={fileIsSelected}
-                        active={previewFile != null && String(previewFile.id) === String(file.id)}
-                        onClick={() => handleRowActivate(file)}
-                        columnCount={cardLayoutColumns}
-                        checkbox={
-                          selectionMode ? (
-                            <input
-                              type="checkbox"
-                              checked={fileIsSelected}
-                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                              onChange={() => onVisibleRowCheckboxChange(String(file.id))}
-                              onClick={(e) => e.stopPropagation()}
-                              className="h-4 w-4 cursor-pointer"
-                              aria-label={fileIsSelected ? 'Unselect file' : 'Select file'}
-                            />
-                          ) : undefined
-                        }
-                      />
-                    );
-                  })}
+                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.files')}</h2>
+                    <ExpandableIconButton
+                      icon={Settings}
+                      label={t('common.settings')}
+                      variant="soft"
+                      onClick={() => openFileSettings()}
+                    />
+                    {renderSortDropdown('h-11 rounded-full')}
+                    <ListFilterChipsToggle
+                      visible={filtersVisible}
+                      onVisibleChange={setFiltersVisible}
+                      className="h-11 rounded-full"
+                    />
+                    {renderSelectControls('h-11 rounded-full')}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <RoundExpandableSearch
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                      placeholder={t('files.searchPlaceholder')}
+                    />
+                    <ExpandableIconButton
+                      icon={Plus}
+                      label={t('files.addFile')}
+                      variant={detailColumnOpen ? 'soft' : 'primary'}
+                      onClick={() => attemptNavigation(() => openFilePanel(null))}
+                    />
+                  </div>
                 </div>
-              )}
-
-              <ListFooterBar
-                meta={
-                  <>
-                    Showing {filteredAndSorted.length} of {files.length} Files
-                  </>
-                }
-              />
+                {filtersVisible ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {renderFilterChips()}
+                  </div>
+                ) : null}
+                {renderBulkActionBar('py-3')}
+              </div>
             </div>
+          </div>
+
+          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+            {filtersVisible ? renderFilterChips() : null}
+            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+              <ListFilterChipsToggle
+                visible={filtersVisible}
+                onVisibleChange={setFiltersVisible}
+                className="h-7 rounded-md"
+              />
+              {renderSortDropdown('h-7 rounded-md')}
+            </div>
+          </div>
+
+          {selectionMode ? (
+            <div className="shrink-0 py-3 md:hidden">{renderBulkActionBar()}</div>
+          ) : null}
+
+          <BulkDeleteModal
+            isOpen={showBulkDeleteModal}
+            onClose={() => setShowBulkDeleteModal(false)}
+            onConfirm={handleBulkDelete}
+            itemCount={selectedCount}
+            itemLabel="files"
+            isLoading={deleting}
+            warningMessage={t('files.bulkDeleteWarning')}
+          />
+
+          <div
+            className={cn(
+              'grid min-h-0 min-w-0 gap-2',
+              showDesktopSplit
+                ? 'flex-1 grid-cols-[minmax(220px,20%)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-stretch'
+                : 'grid-cols-1 items-start',
+            )}
+          >
+            <div
+              className={cn(
+                'min-w-0',
+                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+              )}
+            >
+              <div className="flex min-w-0 flex-col gap-3">
+                {filteredAndSorted.length === 0 ? (
+                  <ListEmptyState
+                    message={searchTerm ? t('files.noMatch') : t('files.noYet')}
+                    createLabel={!searchTerm ? t('files.addFile') : undefined}
+                    onCreate={
+                      !searchTerm ? () => attemptNavigation(() => openFilePanel(null)) : undefined
+                    }
+                  />
+                ) : (
+                  <FileListTable
+                    files={filteredAndSorted}
+                    primarySort={primarySort}
+                    sortOrder={sortOrder}
+                    onSort={handleTableSort}
+                    isSelected={isSelected}
+                    onRowClick={handleRowActivate}
+                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                    onCheckboxChange={onVisibleRowCheckboxChange}
+                    allVisibleSelected={allVisibleSelected}
+                    onHeaderCheckboxChange={onToggleAllVisible}
+                    selectionEnabled={selectionMode}
+                    activeFileId={activeListFileId}
+                  />
+                )}
+
+                <ListFooterBar
+                  meta={
+                    <>
+                      Showing {filteredAndSorted.length} of {files.length} Files
+                    </>
+                  }
+                />
+              </div>
+            </div>
+
+            {showDesktopSplit ? (
+              <aside
+                className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain"
+                role="region"
+                aria-label={t('files.quickContext.title', { defaultValue: 'File details' })}
+                aria-live="polite"
+              >
+                {inlineForm ? (
+                  <div className="flex min-h-0 flex-col gap-3">
+                    <div className="flex shrink-0 justify-end">
+                      <InlinePanelFormActions
+                        mode={panelMode === 'edit' ? 'edit' : 'create'}
+                        hasBlockingErrors={inlineFormHasBlockingErrors}
+                        onClose={handleInlineFormClose}
+                        onSave={() => {
+                          void handleInlineFormSave();
+                        }}
+                        t={t}
+                      />
+                    </div>
+                    <FileForm
+                      ref={inlineFormRef}
+                      currentItem={currentFile}
+                      onSave={handleInlineFormOnSave}
+                      onCancel={closeFilePanel}
+                      stacked
+                    />
+                  </div>
+                ) : detailFile ? (
+                  <FileView file={detailFile} stacked />
+                ) : (
+                  <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
+                    <FilesStatisticsView />
+                  </Card>
+                )}
+              </aside>
+            ) : null}
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

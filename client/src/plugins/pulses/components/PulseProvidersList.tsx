@@ -9,7 +9,7 @@ import {
   Route,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -22,13 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useApp } from '@/core/api/AppContext';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
@@ -54,24 +47,11 @@ import { cn } from '@/lib/utils';
 import { usePulses } from '../hooks/usePulses';
 import type { PulseProviderSettings } from '../types/pulse';
 import {
-  getInitialPulseColumnCount,
-  PULSES_COLUMN_COUNT_STORAGE_KEY,
-  PULSES_SETTINGS_KEY,
-  resolvePulseColumnCount,
-  type PulseColumnCount,
-} from '../utils/pulseColumnCount';
-import {
   comparePulseProviders,
   nextPulseProviderTableSort,
   type PulseProviderSortField,
   type PulseProviderSortOrder,
 } from '../utils/pulseListSort';
-import {
-  getInitialPulseListViewMode,
-  persistPulseListViewModeSession,
-  resolvePulseListViewMode,
-  type PulseListViewMode,
-} from '../utils/pulseListViewMode';
 import {
   pulseProviderMatchesListFilters,
   togglePulseProvidersListFilter,
@@ -79,7 +59,6 @@ import {
   type PulseProvidersListFilterSelection,
 } from '../utils/pulseProvidersListFilter';
 
-import { PulseProvidersListItem } from './PulseProvidersListItem';
 import { PulseProvidersListTable } from './PulseProvidersListTable';
 import { PulseProvidersRouting } from './PulseProvidersRouting';
 
@@ -94,7 +73,6 @@ function providerTitle(
 
 export const PulseProvidersList: React.FC = () => {
   const { t } = useTranslation();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   useMobileActions({
@@ -122,66 +100,7 @@ export const PulseProvidersList: React.FC = () => {
   });
   const [primarySort, setPrimarySort] = useState<PulseProviderSortField>('providerKey');
   const [sortOrder, setSortOrder] = useState<PulseProviderSortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<PulseColumnCount>(getInitialPulseColumnCount);
-  const [listViewMode, setListViewModeState] = useState<PulseListViewMode>(
-    getInitialPulseListViewMode,
-  );
   const [activeFilters, setActiveFilters] = useState<PulseProvidersListFilterSelection>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getSettings(PULSES_SETTINGS_KEY)
-      .then((settings) => {
-        if (cancelled) {
-          return;
-        }
-        const resolved = resolvePulseColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as PulseColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(PULSES_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(PULSES_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolvePulseListViewMode(settings);
-        setListViewModeState(nextView);
-        persistPulseListViewModeSession(nextView);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [getSettings, settingsVersion]);
-
-  const setColumnCount = useCallback(
-    (_count: PulseColumnCount) => {
-      const next = 3 as PulseColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistPulseListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(PULSES_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(PULSES_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
-
-  const setListViewMode = useCallback(
-    (mode: PulseListViewMode) => {
-      setListViewModeState(mode);
-      persistPulseListViewModeSession(mode);
-      updateSettings(PULSES_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const stats = useMemo(
     () => ({
@@ -281,16 +200,6 @@ export const PulseProvidersList: React.FC = () => {
                   defaultValue: 'Search providers ({{count}})',
                   count: providers.length,
                 })}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) =>
-                  t(`pulses.columns${count}`, { defaultValue: `${count} columns` })
-                }
-                tableAriaLabel={t('common.tableView')}
               />
               <ExpandableIconButton
                 icon={Plus}
@@ -429,7 +338,7 @@ export const PulseProvidersList: React.FC = () => {
                 !searchTerm.trim() ? () => attemptNavigation(() => openPulsePanel(null)) : undefined
               }
             />
-          ) : isTableView ? (
+          ) : (
             <PulseProvidersListTable
               providers={filteredAndSorted}
               primarySort={primarySort}
@@ -438,25 +347,6 @@ export const PulseProvidersList: React.FC = () => {
               onRowClick={handleOpenForView}
               providerTitle={(provider) => providerTitle(t, provider)}
             />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((provider) => (
-                <PulseProvidersListItem
-                  key={provider.providerKey}
-                  provider={provider}
-                  title={providerTitle(t, provider)}
-                  onClick={() => handleOpenForView(provider)}
-                  columnCount={effectiveCardColumnCount}
-                />
-              ))}
-            </div>
           )}
 
           <ListFooterBar

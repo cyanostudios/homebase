@@ -67,6 +67,8 @@ interface GarmentFormProps {
   onSave: (data: GarmentListPayload | InventoryItemPayload) => Promise<boolean> | boolean;
   onCancel: () => void;
   isSubmitting?: boolean;
+  /** Single-column layout for mail detail column. */
+  stacked?: boolean;
 }
 
 function emptyVariant(): InventoryVariantPayload {
@@ -80,6 +82,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     onSave,
     onCancel,
     isSubmitting: externalIsSubmitting = false,
+    stacked = false,
   },
   ref,
 ) {
@@ -833,9 +836,11 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     <>
       <div className="plugin-garments">
         <DetailLayout
-          gridClassName={isInventory ? 'grid-cols-1 lg:grid-cols-2' : undefined}
-          leftSidebar={isInventory ? inventoryLeftSidebar : undefined}
-          sidebar={isInventory ? undefined : formSidebar}
+          gridClassName={
+            stacked ? 'grid-cols-1' : isInventory ? 'grid-cols-1 lg:grid-cols-2' : undefined
+          }
+          leftSidebar={!stacked && isInventory ? inventoryLeftSidebar : undefined}
+          sidebar={!stacked && !isInventory ? formSidebar : undefined}
         >
           <form
             className="space-y-4"

@@ -46,7 +46,7 @@ import { garmentsApi } from '@/plugins/garments/api/garmentsApi';
 
 import { useRequests } from '../hooks/useRequests';
 import type { Request } from '../types/requests';
-import { REQUEST_SOURCE_COLORS, formatSubmittedDateWithAge, getTypeLabel } from '../types/requests';
+import { REQUEST_SOURCE_COLORS, formatSubmittedDateWithAge } from '../types/requests';
 import {
   buildRequestAssigneesSavePayload,
   buildRequestResponseDueSavePayload,
@@ -58,6 +58,7 @@ import { findRequestTypeConfig, intakeFieldLabelKey } from '../utils/requestType
 import { RequestAssignedTeamSelect } from './RequestAssignedTeamSelect';
 import { RequestAssigneeSelect } from './RequestAssigneeSelect';
 import { RequestPrioritySelect } from './RequestPrioritySelect';
+import { RequestQuickContextPanel } from './RequestQuickContextPanel';
 import { RequestResponseDueControl } from './RequestResponseDueControl';
 import { RequestStatusSelect } from './RequestStatusSelect';
 import { RequestTypeSelect } from './RequestTypeSelect';
@@ -65,12 +66,18 @@ import { RequestTypeSelect } from './RequestTypeSelect';
 interface RequestViewProps {
   request?: Request | null;
   item?: Request | null;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
 }
 
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
-export function RequestView({ request: requestProp, item }: RequestViewProps) {
+export function RequestView({
+  request: requestProp,
+  item,
+  stacked: _stacked = false,
+}: RequestViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const request = requestProp ?? item ?? null;
@@ -79,8 +86,14 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
   const enabledPlugins = useEnabledPlugins();
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const garmentsEnabled = enabledPlugins.has('garments');
-  const { saveRequest, closeRequestPanel, validationErrors, clearValidationErrors, requestTypes } =
-    useRequests();
+  const {
+    saveRequest,
+    closeRequestPanel,
+    openRequestForEdit,
+    validationErrors,
+    clearValidationErrors,
+    requestTypes,
+  } = useRequests();
   const { contacts } = useContacts();
   const [targetListName, setTargetListName] = useState<string | null>(null);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
@@ -233,26 +246,20 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
       : t('requests.settings.targetListMissing'));
 
   const contentColumn = (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <RequestQuickContextPanel
+        request={request}
+        onEdit={() => openRequestForEdit(request)}
+        variant="full"
+      />
+
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={String(request.title || '').trim() || '—'}
-          className="p-6"
-          prominentTitle
-        >
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Badge
-              variant="outline"
-              className={cn(BADGE_CHIP_CLASS, 'bg-muted text-muted-foreground')}
-            >
-              {getTypeLabel(request.requestType, t)}
-            </Badge>
-            {updatedLabel ? (
-              <span className="text-xs text-muted-foreground">
-                {t('common.updated')} {updatedLabel}
-              </span>
-            ) : null}
-          </div>
+        <DetailSection title={t('requests.form.description')} className="p-6" subtleTitle>
+          {updatedLabel ? (
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t('common.updated')} {updatedLabel}
+            </p>
+          ) : null}
           <p className="whitespace-pre-wrap text-sm text-foreground">
             {request.description?.trim() || '—'}
           </p>
@@ -394,7 +401,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
 
   return (
     <>
-      <DetailLayout gridClassName="grid-cols-1 lg:grid-cols-2" leftSidebar={contentColumn}>
+      <DetailLayout gridClassName="grid-cols-1" leftSidebar={contentColumn}>
         <div className="space-y-6">
           {blockingValidationErrors.length > 0 ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">

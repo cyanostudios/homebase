@@ -31,11 +31,6 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
@@ -48,7 +43,6 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { formatDateTime, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { exportItems } from '@/core/utils/exportUtils';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
@@ -61,13 +55,7 @@ import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { slotsApi } from '../api/slotsApi';
 import { useSlotsContext as useSlots } from '../context/SlotsContext';
 import type { Slot } from '../types/slots';
-import {
-  getInitialSlotColumnCount,
-  resolveSlotColumnCount,
-  SLOTS_COLUMN_COUNT_STORAGE_KEY,
-  SLOTS_SETTINGS_KEY,
-  type SlotColumnCount,
-} from '../utils/slotColumnCount';
+import { SLOTS_SETTINGS_KEY } from '../utils/slotColumnCount';
 import {
   appendPublicBookingsToEmailRecipients,
   appendPublicBookingsToMessageRecipients,
@@ -92,16 +80,9 @@ import {
   type SlotSortField,
   type SlotSortOrder,
 } from '../utils/slotListSort';
-import {
-  getInitialSlotListViewMode,
-  persistSlotListViewModeSession,
-  resolveSlotListViewMode,
-  type SlotListViewMode,
-} from '../utils/slotListViewMode';
 import { resolveVisibleSlotTableColumns, type SlotTableColumnId } from '../utils/slotTableColumns';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
-import { SlotListItem } from './SlotListItem';
 import { SlotListTable } from './SlotListTable';
 import { SlotQuickContextPanel } from './SlotQuickContextPanel';
 import { SlotsSettingsView, type SlotsSettingsCategory } from './SlotsSettingsView';
@@ -151,7 +132,7 @@ export function SlotsList() {
     canSendEmail,
     openSlotPanel,
   } = useSlots();
-  const { getSettings, updateSettings, settingsVersion, contacts: appContacts } = useApp();
+  const { getSettings, settingsVersion, contacts: appContacts } = useApp();
   const { contacts: hookContacts } = useContacts();
   const contacts = useMemo(() => appContacts ?? hookContacts ?? [], [appContacts, hookContacts]);
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -171,10 +152,6 @@ export function SlotsList() {
   const [primarySort, setPrimarySort] = useState<SortField>('slot_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<SlotListFilterSelection>([]);
-  const [columnCount, setColumnCountState] = useState<SlotColumnCount>(getInitialSlotColumnCount);
-  const [listViewMode, setListViewModeState] = useState<SlotListViewMode>(
-    getInitialSlotListViewMode,
-  );
   const [visibleColumnIds, setVisibleColumnIds] = useState<SlotTableColumnId[]>(() =>
     resolveVisibleSlotTableColumns(null),
   );
@@ -201,18 +178,6 @@ export function SlotsList() {
         if (cancelled) {
           return;
         }
-        const resolved = resolveSlotColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as SlotColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(SLOTS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolveSlotListViewMode(settings);
-        setListViewModeState(nextView);
-        persistSlotListViewModeSession(nextView);
         setVisibleColumnIds(resolveVisibleSlotTableColumns(settings));
       })
       .catch(() => {});
@@ -220,31 +185,6 @@ export function SlotsList() {
       cancelled = true;
     };
   }, [getSettings, settingsVersion]);
-
-  const setColumnCount = useCallback(
-    (_count: SlotColumnCount) => {
-      const next = 3 as SlotColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistSlotListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(SLOTS_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
-
-  const setListViewMode = useCallback(
-    (mode: SlotListViewMode) => {
-      setListViewModeState(mode);
-      persistSlotListViewModeSession(mode);
-      updateSettings(SLOTS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
 
   const formatDateTimeForFilter = useCallback(
     (s: string | null) => (s ? formatDateTimeShort(s) : ''),
@@ -328,8 +268,6 @@ export function SlotsList() {
     [primarySort, sortOrder],
   );
 
-  const isTableView = useIsEffectiveTableView(listViewMode);
-
   const {
     previewItem: previewSlot,
     setPreviewItem: setPreviewSlot,
@@ -341,10 +279,6 @@ export function SlotsList() {
     items: slots,
     getItemId: (slot) => String(slot.id),
   });
-
-  const quickContextOpen = Boolean(showQuickContext && previewSlot);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
 
   const handleOpenForView = (slot: Slot) => {
     markPendingAndOpen(slot, () => attemptNavigation(() => openSlotForView(slot)));
@@ -589,14 +523,6 @@ export function SlotsList() {
                 onChange={setSearchTerm}
                 placeholder={t('slots.searchPlaceholder', { count: slots.length })}
               />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) => t(`slots.columns${count}`)}
-                tableAriaLabel={t('common.tableView')}
-              />
               <ExpandableIconButton
                 icon={Plus}
                 label={t('slots.addSlot')}
@@ -787,7 +713,7 @@ export function SlotsList() {
                   !searchTerm ? () => attemptNavigation(() => openSlotPanel(null)) : undefined
                 }
               />
-            ) : isTableView ? (
+            ) : (
               <SlotListTable
                 slots={filteredAndSorted}
                 primarySort={primarySort}
@@ -804,43 +730,6 @@ export function SlotsList() {
                 selectionEnabled={selectionMode}
                 visibleColumnIds={visibleColumnIds}
               />
-            ) : (
-              <div
-                className={cn(
-                  'grid gap-3',
-                  effectiveColumnCount === 1 && 'grid-cols-1',
-                  effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                  effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-                )}
-              >
-                {filteredAndSorted.map((slot, index) => {
-                  const selected = isSelected(slot.id);
-                  return (
-                    <SlotListItem
-                      key={slot.id}
-                      slot={slot}
-                      selected={selected}
-                      highlighted={recentlyDuplicatedSlotId === String(slot.id)}
-                      active={previewSlot !== null && String(previewSlot.id) === String(slot.id)}
-                      onClick={() => handleRowActivate(slot)}
-                      columnCount={effectiveCardColumnCount}
-                      checkbox={
-                        selectionMode ? (
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onChange={() => onVisibleRowCheckboxChange(slot.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-4 w-4 cursor-pointer"
-                            aria-label={selected ? t('common.deselect') : t('common.select')}
-                          />
-                        ) : undefined
-                      }
-                    />
-                  );
-                })}
-              </div>
             )}
 
             <ListFooterBar

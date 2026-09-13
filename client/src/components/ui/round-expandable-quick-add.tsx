@@ -1,4 +1,4 @@
-import { Plus, X } from 'lucide-react';
+import { Plus, X, type LucideIcon } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -11,6 +11,8 @@ export interface RoundExpandableQuickAddProps {
   label: string;
   placeholder: string;
   className?: string;
+  /** Leading icon when collapsed (and in the expanded chrome). Default Plus. */
+  icon?: LucideIcon;
   /** Tailwind width class when expanded (default w-80). */
   expandedWidthClass?: string;
   /** Start expanded (input visible). Only initial state — outside click / Escape collapse to icon. */
@@ -33,6 +35,7 @@ export function RoundExpandableQuickAdd({
   label,
   placeholder,
   className,
+  icon: Icon = Plus,
   expandedWidthClass = 'w-80',
   defaultExpanded = false,
   alwaysExpanded = false,
@@ -138,7 +141,7 @@ export function RoundExpandableQuickAdd({
           aria-label={label}
           title={label}
         >
-          <Plus className="size-5 shrink-0" aria-hidden />
+          <Icon className="size-5 shrink-0" aria-hidden />
         </button>
       ) : (
         <form
@@ -168,7 +171,7 @@ export function RoundExpandableQuickAdd({
             title={alwaysExpanded ? label : t('common.close')}
             disabled={isSaving}
           >
-            <Plus className="size-5 shrink-0 opacity-90" aria-hidden />
+            <Icon className="size-5 shrink-0 opacity-90" aria-hidden />
           </button>
           <input
             ref={inputRef}

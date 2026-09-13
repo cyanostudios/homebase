@@ -77,7 +77,10 @@
     "settings": "Inställningar",
     "statistics": "Statistik",
     "remove": "Ta bort",
-    "clearFilters": "Rensa filter"
+    "clearFilters": "Rensa filter",
+    "filters": "Filter",
+    "showFilters": "Visa filter",
+    "hideFilters": "Dölj filter"
   },
   "importWizard": {
     "file": "Fil",
@@ -301,8 +304,15 @@
     "defaultHomeTeamLabel": "Hemmalagsnamn",
     "defaultHomeTeamPlaceholder": "t.ex. Sorgenfri FF",
     "defaultHomeTeamHelp": "När det är angivet visas ett filterkort i matchlistan för hemmamatcher vars hemmalag börjar med detta namn (t.ex. Sorgenfri FF matchar även Sorgenfri FF svart). Teams matchflik och Matches-statistik använder samma värde för hemma/borta och klubbresultat.",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "statistics": {
       "title": "Matchstatistik",
+      "embeddedDescription": "Översikt av kommande matcher och schema.",
+      "overview": "Översikt",
       "description": "Resultat för räknade matcher (med resultat; inställda och uppskjutna exkluderas). Poäng: 3 för vinst, 1 för oavgjort.",
       "club": "Klubb",
       "byTeam": "Per lag",
@@ -377,6 +387,7 @@
     "statusDatePassed": "Datum passerat",
     "openMatch": "Öppna match",
     "quickContext": {
+      "title": "Snabbkontext",
       "openFullProfile": "Öppna hela matchen",
       "contacts": "Kontakter"
     },
@@ -725,6 +736,18 @@
       "completed": "Klara",
       "overdue": "Försenade"
     },
+    "statistics": {
+      "title": "Uppgiftsstatistik",
+      "description": "Översikt av öppna, klara och försenade uppgifter.",
+      "overview": "Översikt",
+      "workloadMix": "Öppna vs klara",
+      "workloadMixAria": "Andel öppna, klara och försenade uppgifter"
+    },
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "quickAdd": "Snabb uppgift",
     "quickAddPlaceholder": "Skapa snabb uppgift...",
     "addTask": "Lägg till uppgift",
@@ -803,6 +826,25 @@
   },
   "notes": {
     "listDescription": "Samla idéer med omnämnanden och sammanhang.",
+    "stats": {
+      "total": "Totalt",
+      "withMentions": "Med omnämnanden",
+      "withoutMentions": "Utan omnämnanden",
+      "withContent": "Med innehåll",
+      "recentlyUpdated": "Uppdaterade 7d"
+    },
+    "statistics": {
+      "title": "Anteckningsstatistik",
+      "description": "Översikt av omnämnanden, innehåll och senaste uppdateringar.",
+      "overview": "Översikt",
+      "mentionsMix": "Anteckningar med omnämnanden",
+      "mentionsMixAria": "Andel anteckningar med och utan omnämnanden"
+    },
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "searchPlaceholder": "Sök {{count}} anteckningar...",
     "noMatch": "Inga anteckningar matchar sökningen.",
     "noYet": "Inga anteckningar ännu",
@@ -1095,6 +1137,26 @@
     "table": {
       "number": "Nummer",
       "total": "Totalt"
+    },
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "filter": {
+      "total": "Totalt",
+      "draft": "Utkast",
+      "sent": "Skickad",
+      "accepted": "Godkänd"
+    },
+    "statistics": {
+      "title": "Offertstatistik",
+      "description": "Översikt av utkast, skickade och godkända offerter.",
+      "overview": "Översikt",
+      "total": "Totalt",
+      "draft": "Utkast",
+      "sent": "Skickad",
+      "accepted": "Godkänd"
     }
   },
   "ingest": {
@@ -1151,6 +1213,29 @@
     "columns2": "2 kolumner",
     "columns3": "3 kolumner",
     "columnsLabel": "Kolumner",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "stats": {
+      "total": "Totalt",
+      "success": "Lyckade",
+      "failed": "Misslyckade"
+    },
+    "quickContext": {
+      "title": "Källdetaljer"
+    },
+    "statistics": {
+      "title": "Ingest-statistik",
+      "description": "Översikt av källor, aktiv status och innehållstyper.",
+      "overview": "Översikt",
+      "types": "Källtyper",
+      "activeMix": "Aktiva vs inaktiva",
+      "activeMixAria": "Andel aktiva och inaktiva ingest-källor",
+      "typeMix": "Källor per typ",
+      "typeMixAria": "Fördelning av ingest-källor per innehållstyp"
+    },
     "errors": {
       "nameRequired": "Namn krävs",
       "urlRequired": "URL krävs",
@@ -1973,6 +2058,22 @@
     "filterImages": "Bilder",
     "filterWithSize": "Med storlek",
     "filterUpdated7d": "Uppdaterad 7d",
+    "sortLabel": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "quickContext": {
+      "title": "Fildetaljer"
+    },
+    "statistics": {
+      "title": "Filstatistik",
+      "description": "Översikt av filtyper, storlekar och senaste uppladdningar.",
+      "overview": "Översikt",
+      "mimeMix": "Bilder vs övriga filer",
+      "mimeMixAria": "Andel bildfiler jämfört med andra filtyper",
+      "otherFiles": "Övriga filer"
+    },
     "sort": {
       "updatedAt": "Uppdaterad",
       "name": "Namn",
@@ -2495,6 +2596,11 @@
     "bulkAgeGroupPlaceholder": "Åldersgrupp",
     "searchPlaceholder": "Sök lag ({{count}})",
     "filterAll": "Alla",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "noMatchTitle": "Inga lag hittades",
     "noMatch": "Prova ett annat filter eller sök.",
     "noYet": "Inga lag ännu",
@@ -2744,6 +2850,7 @@
     },
     "statistics": {
       "title": "Lagstatistik",
+      "embeddedDescription": "Översikt av lagstatus och truppstorlek.",
       "overview": "Lagöversikt",
       "totalTeams": "Totalt antal lag",
       "active": "Aktiva",
@@ -2937,6 +3044,21 @@
     "statCompleted": "Avslutade",
     "statExternal": "Externa",
     "statNotRelated": "Ej kopplad",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "statistics": {
+      "title": "Ärendestatistik",
+      "description": "Översikt av öppna, avslutade, okopplade och externa ärenden.",
+      "overview": "Översikt",
+      "statusMix": "Statusfördelning",
+      "statusMixAria": "Andel aktiva, avslutade och avbrutna ärenden"
+    },
+    "quickContext": {
+      "title": "Snabbkontext"
+    },
     "dashboardOpen": "{{count}} öppna",
     "dashboardExternal": "{{count}} externa",
     "sourceExternal": "Externt",
@@ -3384,6 +3506,20 @@
     "searchLists": "Sök listor...",
     "searchInventory": "Sök inventarie...",
     "sortBy": "Sortera efter",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "statistics": {
+      "title": "Klädstatistik",
+      "description": "Översikt av listor, inventarie och tilldelningar.",
+      "overview": "Översikt",
+      "listCount": "Listor",
+      "inventoryCount": "Inventarieartiklar",
+      "assignedInventory": "Tilldelade till listor",
+      "totalPersons": "Personer totalt"
+    },
     "columnsAria": "{{count}} kolumner",
     "noSearchResults": "Inga träffar.",
     "noListsYet": "Inga klädlistor ännu.",

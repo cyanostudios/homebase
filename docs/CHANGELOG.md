@@ -4,10 +4,76 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-13 – Garments list hydrate + Tasks/Notes list UX
+
+**Typ:** fix / enhancement / UI  
+**Scope:** `GarmentList` soft-preview + `GarmentView` `PersonMatrix` key; `TaskList` default sort; `NoteList` quick-add placement/icon; `RoundExpandableQuickAdd` optional `icon`  
+**QA:** Approved (2026-09-13, after CHANGELOG rework). **Security:** Approved (2026-09-13). UI-only; soft-preview uses existing authenticated `garmentsApi.getList` (same authz as view-open); informational Low S-UI-2 (more frequent getList). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:**
+
+- **Garments lists (mail detail):** Soft-select clears `persons` and hydrates via `garmentsApi.getList` so PersonMatrix is not empty (index payload has `personCount` only). Preview sync keeps hydrated fields for the **same** list id only (no cross-list persons leak). `PersonMatrix` remounts with `key={list.id}`.
+- **Tasks:** Default list sort is **Created**, newest first (`createdAt` / `desc`).
+- **Notes:** Quick note control sits **left of search** in the mail toolbar; uses **StickyNote** icon (shared `RoundExpandableQuickAdd` `icon` prop; default remains Plus elsewhere).
+
+## 2026-09-13 – Mail toolbar: show/hide filter chips
+
+**Typ:** enhancement / UI  
+**Scope:** Shared `ListFilterChipsToggle` + `usePersistedFiltersVisible`; wired next to Sort in Contacts, Invoices, Notes, Tasks, Requests, Teams, Matches, Garments, Estimates, Files, Ingest mail toolbars  
+**QA:** Approved (2026-09-13, after CHANGELOG rework). **Security:** Approved (2026-09-13). UI-only; no new API/auth; filter visibility prefs in `localStorage` (`'1'`/`'0'` only); informational Low S-LS-1. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Collapsible mail toolbar gains a pressed **Filters** toggle (same chrome as Sort/Select) that shows or hides filter chips. Preference persists per plugin in `localStorage` (`homebase.<plugin>.toolbar.filtersVisible`, `'1'`/`'0'`; default visible). Hiding chips does not clear active filters. Toggle chrome: **on** = white, **off** = `bg-primary/10` (same soft primary as Sort/Select).
+
+## 2026-09-12 – Teams / Matches / Garments / Estimates / Files / Ingest mail-layout
+
+**Typ:** enhancement / UI  
+**Scope:** Teams, Matches, Garments (lists + inventory), Estimates, Files, Ingest lists/views/forms/QC + `pluginRegistry` `contentOwnsScroll`; soft-sky `*StatisticsView` empty panes; sky table headers; `*DetailHeaderMenus` `leading`  
+**QA:** Approved (2026-09-12, after GarmentForm stacked rework). **Security:** Approved (2026-09-12). UI-only; no new API/auth; toolbar collapse prefs in `localStorage` (`'1'`/`'0'` only); informational Low S-UI-2 / S-LS-1. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Same Contacts/Invoices/Notes **mail-layout reference** rolled out to six more plugins:
+
+- Desktop ~20% list | `1fr` detail; collapsible toolbar; `contentOwnsScroll`
+- Inline create/edit/view + `InlinePanelFormActions`; empty detail → soft-sky statistics card
+- Soft sky `SortableListTable` headers; list meta with domain icon shells
+- Full detail / QC: `*DetailHeaderMenus` + `leading` (Edit under Actions)
+- Card stacking `grid-cols-1` when stacked in the detail column (`GarmentForm` stacked omits list/inventory sidebars)
+- Garments: both lists and inventory modes share the mail shell
+- Files: `openFileForView` opens **view** mode for the mail detail column
+
+## 2026-09-11 – List tables: no horizontal scroll from long titles
+
+**Typ:** fix / UI  
+**Scope:** `SortableListTable` (`table-fixed` + `overflow-x-hidden`), `Table` optional `containerClassName`, identity/meta cells across plugin list tables (+ mail/pulses/AI provider tables); [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) list text-overflow rule  
+**QA:** Approved (2026-09-11, after doc rework). **Security:** Approved (2026-09-12). UI-only; no new API/auth; informational Low S-UI-1 (user text in `title`/cells, React-escaped). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** List tables must not create horizontal scroll from long titles or other cell text. Long strings truncate with ellipsis (`truncate`); prefer native `title` for the full value on hover.
+
+## 2026-09-11 – Notes / Tasks / Requests mail-layout (Contacts/Invoices reference)
+
+**Typ:** enhancement / UI  
+**Scope:** Notes, Tasks, Requests lists/views/forms/QC + `pluginRegistry` `contentOwnsScroll`; new `*StatisticsView`; soft sky table headers; `*DetailHeaderMenus` `leading` in QC full card  
+**QA:** Approved (2026-09-11, after doc rework). **Security:** Approved (2026-09-12). UI-only; no new API/auth; toolbar collapse prefs in `localStorage` (`'1'`/`'0'` only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Notes, Tasks, and Requests aligned to the Contacts/Invoices **mail-layout reference** from the entry below:
+
+- Desktop ~20% list | `1fr` detail; collapsible toolbar; `contentOwnsScroll`
+- Inline create/edit/view + `InlinePanelFormActions`; empty detail → soft-sky `*StatisticsView`
+- Soft sky `SortableListTable` headers; list meta with domain icon shells
+- Full QC card: `*DetailHeaderMenus` + `leading` (Actions/Export under identity; Edit under Actions)
+- Card stacking `grid-cols-1` (already in place; kept)
+
+## 2026-09-11 – Plugin lists table-only (no cards/column toggle)
+
+**Typ:** enhancement / UI  
+**Scope:** All dual-mode plugin lists + template; removed `ListColumnLayoutToggle` / `SettingsListViewModeToggle`; `ListTableSortIcon` extracted; docs (`UI_AND_UX_STANDARDS_V3`, `PLUGIN_VIEW_IMPLEMENTATION_GUIDE`, `PLUGIN_DEVELOPMENT_STANDARDS_V2`, ADR viewport tier)  
+**QA:** Approved (2026-09-11, after doc rework). **Security:** Approved (2026-09-12). UI-only; no new API/auth. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Cards | table layout switching removed everywhere. Plugin lists always render `*ListTable` / `SortableListTable` (Contacts/Invoices reference). Toolbar sort + visible-column settings unchanged where they existed.
+
 ## 2026-09-11 – Contacts + Invoices mail-style list|detail (reference)
 
 **Typ:** enhancement / UI  
-**Scope:** Contacts + Invoices lists/views/forms/QC; shared shell (`AppContent` `inlineDesktopPanel`/`contentOwnsScroll`, `InlinePanelFormActions`, `SortableListTable` header overrides, `StatKpiTile` soft classes); i18n `contacts.statistics.*`; [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) §5.1 iOS Mail palette (doc reference only)  
+**Scope:** Contacts + Invoices lists/views/forms/QC; shared shell (`AppContent` `inlineDesktopPanel`/`contentOwnsScroll`, `InlinePanelFormActions`, `SortableListTable` header overrides, `StatKpiTile` soft classes, `DetailHeaderMenus` leading + below-submenu); i18n `contacts.statistics.*`; [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) §5.1 iOS Mail palette (doc reference only)  
 **QA:** Approved (2026-09-11, after empty-state wiring-test rework). **Security:** N/A this pass (UI-only; no new API/auth). **Local-first; not a prod release** by itself.
 
 **Sammanfattning:** Contacts and Invoices become the **reference mail-layout** for other list|detail plugins:
@@ -18,6 +84,8 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - Soft sky table headers (opt-in `headerBarClassName` / `headerCellClassName`); KPI soft tiles; empty detail shows statistics card
 - Invoices: table-only list; centered document preview; card stacking `grid-cols-1`
 - Shared button color transitions / round-icon expand timing polish
+- **Detail Actions/Export in card header** (mail-split has no separate full-panel title): `*DetailHeaderMenus` with `leading` = identity (name / invoice #) in `*QuickContextPanel` `variant="full"`; no standalone Edit beside menus (Edit lives under Actions)
+- **`DetailHeaderMenus` layout:** trigger row stays put (Actions / Export / extras); submenu always opens on the row below; submenu pills `size="xs"` + `justify-end` (same density as Contacts bulk `BulkActionRoundBar`)
 
 ## 2026-09-09 – Prev/next follows visible list order (browse order)
 

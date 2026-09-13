@@ -1,8 +1,10 @@
+import { FileSpreadsheet } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -33,6 +35,7 @@ export type EstimateListTableProps = {
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedEstimateId: string | null;
   selectionEnabled?: boolean;
+  activeEstimateId?: string | number | null;
   visibleColumnIds?: EstimateTableColumnId[];
 };
 
@@ -56,6 +59,7 @@ export function EstimateListTable({
   onHeaderCheckboxChange,
   recentlyDuplicatedEstimateId,
   selectionEnabled = true,
+  activeEstimateId = null,
   visibleColumnIds,
 }: EstimateListTableProps) {
   const { t } = useTranslation();
@@ -75,17 +79,34 @@ export function EstimateListTable({
       estimateNumber: {
         field: 'estimateNumber',
         header: t('estimates.table.number'),
-        cell: (estimate) => (
-          <span className="font-mono text-xs font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {formatDisplayNumber('estimates', estimate.estimateNumber)}
-          </span>
-        ),
+        cell: (estimate) => {
+          const number = formatDisplayNumber('estimates', estimate.estimateNumber);
+          return (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span title={t('nav.estimate')} className="inline-flex shrink-0">
+                <SectionCategoryIcon
+                  icon={FileSpreadsheet}
+                  className="h-6 w-6 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 [&_svg]:h-3 [&_svg]:w-3"
+                />
+              </span>
+              <span
+                className="block min-w-0 truncate font-mono text-xs font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                title={number}
+              >
+                {number}
+              </span>
+            </div>
+          );
+        },
       },
       contactName: {
         field: 'contactName',
         header: t('estimates.fieldContact'),
         cell: (estimate) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+          <span
+            className="block min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+            title={estimate.contactName || undefined}
+          >
             {estimate.contactName || '—'}
           </span>
         ),
@@ -175,6 +196,12 @@ export function EstimateListTable({
           ? 'bg-green-50 dark:bg-green-950/30'
           : undefined
       }
+      isRowActive={(estimate) =>
+        activeEstimateId != null && String(estimate.id) === String(activeEstimateId)
+      }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       selection={
         selectionEnabled
           ? {

@@ -1,4 +1,4 @@
-import { Users } from 'lucide-react';
+import { StickyNote, Users } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { QuickContextActiveShareLink } from '@/core/ui/QuickContextActiveShareLink';
 import {
@@ -26,6 +27,8 @@ import {
 
 import { noteShareApi } from '../api/notesApi';
 import type { Note } from '../types/notes';
+
+import { NoteDetailHeaderMenus } from './NoteDetailHeaderMenus';
 
 /** Visible plain-text budget in list quick context. Tune: 400 / 800 / 1200 / 1600. */
 const LIST_CONTENT_PREVIEW_CHARS = 1200;
@@ -221,19 +224,35 @@ export function NoteQuickContextPanel({
   const displayedContentHtml = contentExpanded ? note.content || '' : contentPreview.html;
   const showReadMoreToggle = contentPreview.truncated && !isFullView;
 
-  const identityHeader = (
-    <div className="flex items-center gap-3">
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={t('nav.note')} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={StickyNote}
+          className="h-8 w-8 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-4 [&_svg]:w-4"
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+        {note.title || '—'}
+      </h3>
+    </div>
+  );
+
+  const identityHeader = isFullView ? (
+    <NoteDetailHeaderMenus note={note} leading={titleLeading} />
+  ) : (
+    <div className="flex min-w-0 items-center gap-3">
       <div
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
         aria-hidden
       >
         {noteInitials(note.title)}
       </div>
-      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{note.title || '—'}</h3>
+      <div className="min-w-0 flex-1">{titleLeading}</div>
       <QuickContextHeaderActions
-        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onOpen={onOpenFullProfile}
         onEdit={onEdit}
-        onClose={!isFullView && onClose ? onClose : undefined}
+        onClose={onClose}
         editLabel={t('common.edit')}
         closeLabel={t('common.close')}
       />
@@ -256,7 +275,7 @@ export function NoteQuickContextPanel({
             </p>
           ) : null}
 
-          {displayedContentHtml ? (
+          {!isFullView && displayedContentHtml ? (
             <div className="min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [&_.rich-text-content]:break-words [&_.rich-text-content]:[overflow-wrap:anywhere] [&_.rich-text-content_pre]:whitespace-pre-wrap [&_.rich-text-content_pre]:break-words [&_.rich-text-content_pre]:overflow-x-hidden">
               <RichTextContent
                 content={displayedContentHtml}

@@ -14,7 +14,14 @@ import { canCreateCreditNoteFromInvoice } from '../utils/buildCreditNoteFromInvo
 
 import { InvoiceShareModals } from './InvoiceShareModals';
 
-export function InvoiceDetailHeaderMenus({ invoice }: { invoice: Invoice }) {
+export function InvoiceDetailHeaderMenus({
+  invoice,
+  leading,
+}: {
+  invoice: Invoice;
+  /** Optional leading content on the Actions/Export trigger row (e.g. invoice number). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openInvoiceForEdit,
@@ -149,6 +156,7 @@ export function InvoiceDetailHeaderMenus({ invoice }: { invoice: Invoice }) {
 
   return (
     <DetailHeaderMenus
+      leading={leading}
       actions={actions}
       exportActions={exportActions}
       actionsLabel={t('common.headerActions')}

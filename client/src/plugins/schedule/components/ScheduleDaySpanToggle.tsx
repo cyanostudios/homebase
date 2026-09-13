@@ -28,7 +28,7 @@ const segmentClass = cn(
 );
 
 /**
- * Segmented control: 1 | 3 | 7 | stacked — round pill like ListColumnLayoutToggle.
+ * Segmented control: 1 | 3 | 7 | stacked — round pill chrome.
  * Companion mode omits 7. Prev/next browse within the week for span 1 and 3 only.
  */
 export function ScheduleDaySpanToggle({

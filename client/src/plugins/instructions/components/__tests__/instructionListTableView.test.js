@@ -6,18 +6,15 @@ const tableSrc = fs.readFileSync(path.join(__dirname, '../InstructionListTable.t
 const settingsSrc = fs.readFileSync(path.join(__dirname, '../InstructionSettingsView.tsx'), 'utf8');
 
 describe('InstructionList table view wiring', () => {
-  test('toolbar includes table mode control and always-visible sort row', () => {
-    expect(listSrc).toMatch(/setListViewMode\('table'\)/);
-    expect(listSrc).toMatch(/ListColumnLayoutToggle/);
+  test('toolbar uses table-only list without layout toggle', () => {
+    expect(listSrc).not.toMatch(/ListColumnLayoutToggle/);
+    expect(listSrc).not.toMatch(/InstructionListItem/);
+    expect(listSrc).not.toMatch(/setListViewMode/);
+    expect(listSrc).not.toMatch(/useIsEffectiveTableView/);
     expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
     expect(listSrc).toMatch(/instructions\.sortBy/);
     expect(listSrc).not.toMatch(/!isTableView \? \(/);
     expect(listSrc).toMatch(/InstructionListTable/);
-  });
-
-  test('persists listViewMode with columnCount when selecting cards columns', () => {
-    expect(listSrc).toMatch(/listViewMode: 'cards'/);
-    expect(listSrc).toMatch(/persistInstructionListViewModeSession/);
   });
 
   test('table uses SortableListTable with expected columns', () => {

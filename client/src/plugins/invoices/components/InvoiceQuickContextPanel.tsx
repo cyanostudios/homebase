@@ -41,6 +41,7 @@ import { displayPlainText } from '../utils/htmlText';
 import { formatInvoiceDueDate, formatPaymentTermsLabel } from '../utils/invoiceDueDate';
 
 import { InvoicePricingSummary } from './InvoicePricingSummary';
+import { InvoiceDetailHeaderMenus } from './InvoiceDetailHeaderMenus';
 import {
   INVOICE_STATUS_BADGE_CLASS,
   INVOICE_STATUS_COLORS,
@@ -139,44 +140,50 @@ export function InvoiceQuickContextPanel({
     };
   }, [isFullView, invoice.id]);
 
-  const identityHeader = (
-    <div className="flex items-start gap-3">
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 font-mono')}>{numberLabel}</h3>
-          <Badge
-            className={cn(
-              INVOICE_STATUS_BADGE_CLASS,
-              INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
-              'h-5 shrink-0 px-1.5 py-0 text-[11px] font-normal leading-none',
-            )}
-          >
-            {formatInvoiceStatusForDisplay(status)}
-          </Badge>
-        </div>
-        <div className="flex min-w-0 items-center gap-1.5">
-          {ContactTypeIcon ? (
-            <span title={contactTypeLabel ?? undefined} className="inline-flex shrink-0">
-              <SectionCategoryIcon
-                icon={ContactTypeIcon}
-                className={contactType ? CONTACT_TYPE_ICON_SHELL_CLASS[contactType] : undefined}
-              />
-            </span>
-          ) : null}
-          <span className="min-w-0 truncate text-sm font-normal leading-tight text-slate-400 dark:text-slate-500">
-            {contactName || t('invoices.noCustomer')}
-          </span>
-          {totalLabel ? (
-            <span className="shrink-0 tabular-nums text-sm font-normal leading-tight text-slate-400 dark:text-slate-500">
-              {totalLabel}
-            </span>
-          ) : null}
-        </div>
+  const titleLeading = (
+    <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 font-mono')}>{numberLabel}</h3>
+        <Badge
+          className={cn(
+            INVOICE_STATUS_BADGE_CLASS,
+            INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
+            'h-5 shrink-0 px-1.5 py-0 text-[11px] font-normal leading-none',
+          )}
+        >
+          {formatInvoiceStatusForDisplay(status)}
+        </Badge>
       </div>
+      <div className="flex min-w-0 items-center gap-1.5">
+        {ContactTypeIcon ? (
+          <span title={contactTypeLabel ?? undefined} className="inline-flex shrink-0">
+            <SectionCategoryIcon
+              icon={ContactTypeIcon}
+              className={contactType ? CONTACT_TYPE_ICON_SHELL_CLASS[contactType] : undefined}
+            />
+          </span>
+        ) : null}
+        <span className="min-w-0 truncate text-sm font-normal leading-tight text-slate-400 dark:text-slate-500">
+          {contactName || t('invoices.noCustomer')}
+        </span>
+        {totalLabel ? (
+          <span className="shrink-0 tabular-nums text-sm font-normal leading-tight text-slate-400 dark:text-slate-500">
+            {totalLabel}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const identityHeader = isFullView ? (
+    <InvoiceDetailHeaderMenus invoice={invoice} leading={titleLeading} />
+  ) : (
+    <div className="flex min-w-0 items-start gap-3">
+      <div className="min-w-0 flex-1">{titleLeading}</div>
       <QuickContextHeaderActions
-        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onOpen={onOpenFullProfile}
         onEdit={onEdit}
-        onClose={!isFullView && onClose ? onClose : undefined}
+        onClose={onClose}
         editLabel={t('common.edit')}
         closeLabel={t('common.close')}
       />

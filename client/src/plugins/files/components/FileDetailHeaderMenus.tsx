@@ -9,7 +9,14 @@ import { filesApi } from '../api/filesApi';
 import { useFiles } from '../hooks/useFiles';
 import type { FileItem } from '../types/files';
 
-export function FileDetailHeaderMenus({ file }: { file: FileItem }) {
+export function FileDetailHeaderMenus({
+  file,
+  leading,
+}: {
+  file: FileItem;
+  /** Optional leading content on the Actions row (e.g. file name). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const { openFileForEdit, deleteFile, getDeleteMessage, closeFilePanel } = useFiles();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -45,7 +52,7 @@ export function FileDetailHeaderMenus({ file }: { file: FileItem }) {
   }, [file, openFileForEdit, t]);
 
   return (
-    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')}>
+    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')} leading={leading}>
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title={t('files.deleteTitle')}

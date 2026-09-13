@@ -1,8 +1,10 @@
+import { CheckCircle2, Circle, Clock, Inbox, XCircle, type LucideIcon } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -16,7 +18,10 @@ import {
   getResponseDueUrgency,
   getTypeLabel,
   isRequestUnopened,
+  REQUEST_STATUS_ICON_SHELL_CLASS,
+  REQUEST_TYPE_ICON_SHELL_CLASS,
   type Request,
+  type RequestStatus,
 } from '../types/requests';
 import type { RequestSortField, RequestSortOrder } from '../utils/requestListSort';
 import {
@@ -43,6 +48,19 @@ export type RequestListTableProps = {
   activeRequestId?: string | number | null;
   visibleColumnIds?: RequestTableColumnId[];
 };
+
+function requestStatusIcon(status: RequestStatus): LucideIcon {
+  switch (status) {
+    case 'in progress':
+      return Clock;
+    case 'completed':
+      return CheckCircle2;
+    case 'cancelled':
+      return XCircle;
+    default:
+      return Circle;
+  }
+}
 
 function responseDueStatusLabel(
   daysLeft: number | null,
@@ -101,11 +119,47 @@ export function RequestListTable({
       title: {
         field: 'title',
         header: t('requests.form.title'),
-        cell: (request) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {request.title || '—'}
-          </span>
-        ),
+        cell: (request) => {
+          const StatusIcon = requestStatusIcon(request.status);
+          const statusLabel = formatRequestStatusForDisplay(request.status, t);
+          const typeLabel = getTypeLabel(request.requestType, t);
+
+          return (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={statusLabel} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={StatusIcon}
+                    className={cn(
+                      'h-5 w-5 [&_svg]:h-3 [&_svg]:w-3',
+                      REQUEST_STATUS_ICON_SHELL_CLASS[request.status],
+                    )}
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={request.title || undefined}
+                >
+                  {request.title || '—'}
+                </span>
+              </div>
+              <div className="flex min-w-0 items-center gap-1 pl-6">
+                <span title={typeLabel} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={Inbox}
+                    className={cn(
+                      'h-4 w-4 [&_svg]:h-2.5 [&_svg]:w-2.5',
+                      REQUEST_TYPE_ICON_SHELL_CLASS,
+                    )}
+                  />
+                </span>
+                <span className="min-w-0 truncate text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                  {typeLabel}
+                </span>
+              </div>
+            </div>
+          );
+        },
       },
       status: {
         field: 'status',
@@ -206,6 +260,9 @@ export function RequestListTable({
       isRowActive={(request) =>
         activeRequestId != null && String(request.id) === String(activeRequestId)
       }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       selection={
         selectionEnabled
           ? {

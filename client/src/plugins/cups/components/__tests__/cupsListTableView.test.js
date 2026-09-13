@@ -6,12 +6,12 @@ const tableSrc = fs.readFileSync(path.join(__dirname, '../CupListTable.tsx'), 'u
 const settingsSrc = fs.readFileSync(path.join(__dirname, '../CupsSettingsView.tsx'), 'utf8');
 
 describe('CupsList table view wiring', () => {
-  test('toolbar uses ListColumnLayoutToggle and always-visible sort row', () => {
-    expect(listSrc).toMatch(/ListColumnLayoutToggle/);
-    expect(listSrc).toMatch(/setListViewMode\('table'\)/);
+  test('list uses table-only view with always-visible sort row', () => {
+    expect(listSrc).not.toMatch(/ListColumnLayoutToggle/);
+    expect(listSrc).not.toMatch(/CupListItem/);
+    expect(listSrc).not.toMatch(/setListViewMode\('table'\)/);
     expect(listSrc).toMatch(/aria-label="Sort by"/);
     expect(listSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
-    expect(listSrc).not.toMatch(/!isTableView \?/);
     expect(listSrc).toMatch(/CupListTable/);
   });
 

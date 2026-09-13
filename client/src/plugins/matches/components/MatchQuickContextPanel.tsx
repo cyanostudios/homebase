@@ -14,6 +14,7 @@ import {
   QuickContextOpenFullFooter,
 } from '@/core/ui/QuickContextHeaderActions';
 import { DETAIL_FIELD_VALUE_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
@@ -34,6 +35,7 @@ import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { formatMatchDateTime, formatMatchScore, type Match } from '../types/match';
 
+import { MatchDetailHeaderMenus } from './MatchDetailHeaderMenus';
 import { MatchStatusBadges } from './MatchStatusBadges';
 
 const FACT_LABEL_CLASS =
@@ -41,15 +43,6 @@ const FACT_LABEL_CLASS =
 
 function matchLabel(match: Match): string {
   return match.name?.trim() || `${match.home_team} – ${match.away_team}`;
-}
-
-function matchInitials(match: Match): string {
-  const home = match.home_team?.trim().slice(0, 1).toUpperCase() ?? '';
-  const away = match.away_team?.trim().slice(0, 1).toUpperCase() ?? '';
-  if (home && away) {
-    return `${home}${away}`;
-  }
-  return matchLabel(match).slice(0, 2).toUpperCase() || '—';
 }
 
 export function MatchQuickContextPanel({
@@ -161,19 +154,27 @@ export function MatchQuickContextPanel({
     navigate(`/teams/${buildSlug(team, teams, 'name')}`);
   };
 
-  const identityHeader = (
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={t('nav.match')} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={Trophy}
+          className="h-9 w-9 bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-4 [&_svg]:w-4"
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>{title}</h3>
+    </div>
+  );
+
+  const identityHeader = isFullView ? (
+    <MatchDetailHeaderMenus match={match} leading={titleLeading} />
+  ) : (
     <div className="flex items-center gap-3">
-      <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
-        aria-hidden
-      >
-        {matchInitials(match)}
-      </div>
-      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{title}</h3>
+      <div className="min-w-0 flex-1">{titleLeading}</div>
       <QuickContextHeaderActions
-        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onOpen={onOpenFullProfile}
         onEdit={onEdit}
-        onClose={!isFullView && onClose ? onClose : undefined}
+        onClose={onClose}
         editLabel={t('common.edit')}
         closeLabel={t('common.close')}
       />
