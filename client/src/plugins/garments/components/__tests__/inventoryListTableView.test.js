@@ -89,7 +89,7 @@ describe('Garment inventory list split view wiring', () => {
     expect(listSrc).toMatch(/isGarmentPanelOpen/);
     expect(formSrc).toMatch(/stacked\?: boolean/);
     // Mail detail: stacked forces single column for both list and inventory forms
-    expect(formSrc).toMatch(/stacked\s*\n\s*\? 'grid-cols-1'/);
+    expect(formSrc).toMatch(/stacked \? 'grid-cols-1'/);
     expect(formSrc).toMatch(/sidebar=\{!stacked && !isInventory \? formSidebar : undefined\}/);
     expect(formSrc).toMatch(
       /leftSidebar=\{!stacked && isInventory \? inventoryLeftSidebar : undefined\}/,
