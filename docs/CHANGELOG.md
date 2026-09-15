@@ -4,6 +4,11 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-15 – Garments list: clear size and audience
+
+- **Why:** Choosing **—** (or emptying free text) for size/audience in the person matrix did not persist — the client omitted the key, and the server’s partial merge kept the old value.
+- **What:** Send `""` for cleared keys (`ctFieldPatch`); optimistic `patchPersonLocal` on size/audience save so the matrix UI updates immediately.
+
 ## 2026-09-09 – Prev/next follows visible list order (browse order)
 
 **Typ:** fix / enhancement  

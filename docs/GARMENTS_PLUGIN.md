@@ -83,11 +83,11 @@ The client applies **optimistic** assignment updates (`GarmentProvider.patchInve
 
 All routes require garments plugin access + CSRF on mutations. List and inventory ownership enforced via `user_id` on parent rows.
 
-| Method   | Path                                                 | Body / notes                                                                                                                                                                                                             |
-| -------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `POST`   | `/api/garments/lists/:id/inventory-items/:itemId`    | Assign article to list; returns updated list                                                                                                                                                                             |
-| `DELETE` | `/api/garments/lists/:id/inventory-items/:itemId`    | Unassign; 409 if checked in list                                                                                                                                                                                         |
-| `PATCH`  | `/api/garments/lists/:id/persons/:personId/ct-sizes` | `{ "ctSizes": { "<itemId>": "M" }, "ctAudiences": { "<itemId>": "Men" } }` — partial merge; only keys for articles assigned to the list are applied. Values trimmed to 50 chars (`ctSizes`) / 100 chars (`ctAudiences`). |
+| Method   | Path                                                 | Body / notes                                                                                                                                                                                                                                                                                                              |
+| -------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST`   | `/api/garments/lists/:id/inventory-items/:itemId`    | Assign article to list; returns updated list                                                                                                                                                                                                                                                                              |
+| `DELETE` | `/api/garments/lists/:id/inventory-items/:itemId`    | Unassign; 409 if checked in list                                                                                                                                                                                                                                                                                          |
+| `PATCH`  | `/api/garments/lists/:id/persons/:personId/ct-sizes` | `{ "ctSizes": { "<itemId>": "M" }, "ctAudiences": { "<itemId>": "Men" } }` — partial merge; only keys for articles assigned to the list are applied. Values trimmed to 50 chars (`ctSizes`) / 100 chars (`ctAudiences`). To **clear** a size or audience, send that key with `""` (omitted keys keep the previous value). |
 
 Lists and inventory items in API responses include `assignedInventoryItemIds` / `assignedListIds` respectively.
 
@@ -136,9 +136,9 @@ Below the spreadsheet (admin and public share), a **size summary** (`buildGarmen
 
 For child rows whose checkbox group maps to an assigned inventory article (`inv_{itemId}_*` column ids):
 
-- **Audience:** if the article’s variants define one or more distinct **audience** values → dropdown per person (stored in `garment_list_persons.ct_audiences`, keyed by inventory item id); otherwise free-text input.
-- **Size:** if the article’s variants define one or more **size** values → dropdown per person (stored in `garment_list_persons.ct_sizes`, keyed by inventory item id); otherwise free-text input.
-- Updates via `PATCH …/ct-sizes` with optional `ctSizes` and/or `ctAudiences` (partial merge; only assigned item ids accepted server-side).
+- **Audience:** if the article’s variants define one or more distinct **audience** values → dropdown per person (stored in `garment_list_persons.ct_audiences`, keyed by inventory item id); otherwise free-text input. Choosing **—** / clearing free text persists as empty (`""` in the PATCH body).
+- **Size:** if the article’s variants define one or more **size** values → dropdown per person (stored in `garment_list_persons.ct_sizes`, keyed by inventory item id); otherwise free-text input. Same clear behaviour as audience. Changing audience clears size when the current size is not valid for the new audience (also via `""`).
+- Updates via `PATCH …/ct-sizes` with optional `ctSizes` and/or `ctAudiences` (partial merge; only assigned item ids accepted server-side). Client sends **only changed keys** via `ctFieldPatch` (empty string clears) and applies optimistic `patchPersonLocal` so the matrix updates immediately.
 
 Legacy size columns (`shirt_size`, `shorts_size`, `socks_size`) remain on the person model for older layouts; inventory-linked sizes use `ct_sizes` / `ct_audiences` only.
 

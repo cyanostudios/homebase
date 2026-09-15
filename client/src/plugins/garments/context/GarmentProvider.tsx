@@ -1064,22 +1064,22 @@ export function GarmentProvider({
       try {
         const person = await garmentsApi.updatePersonCtSizes(listId, personId, patch);
         setCurrentGarment((prev) => {
-          if (!prev || prev.id !== listId || !prev.persons) {
+          if (!prev || String(prev.id) !== String(listId) || !prev.persons) {
             return prev;
           }
           return {
             ...prev,
-            persons: prev.persons.map((p) => (p.id === person.id ? person : p)),
+            persons: prev.persons.map((p) => (String(p.id) === String(person.id) ? person : p)),
           };
         });
         setGarmentLists((prev) =>
           prev.map((list) => {
-            if (list.id !== listId || !list.persons) {
+            if (String(list.id) !== String(listId) || !list.persons) {
               return list;
             }
             return {
               ...list,
-              persons: list.persons.map((p) => (p.id === person.id ? person : p)),
+              persons: list.persons.map((p) => (String(p.id) === String(person.id) ? person : p)),
             };
           }),
         );
