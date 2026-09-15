@@ -27,6 +27,10 @@
 
 **Principle:** Kopiera exakt från referensfilerna. Ändra bara plugin-namn och domänfält. Gissa aldrig layout, knappar eller dialoger.
 
+**New CRUD scaffolds (default):** copy **`templates/plugin-frontend-template/`** or **`ContactList.tsx`** — **Contacts-class mail-layout** (table-only, 20/80 desktop split, detail column shows stacked `*View`, inline create/edit, or `*StatisticsView` when empty). Register `contentFlush: true` and `contentOwnsScroll: true` in `pluginRegistry.ts`. See ADR [`ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md`](ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md).
+
+**Legacy/alternate:** a **50/50 sticky aside** with a separate `*QuickContextPanel` (`variant="list"`) beside the list — do **not** use for new plugins unless product explicitly requires it. Mail-layout renders full QC via stacked `*View` in the detail column instead.
+
 ---
 
 ## Mental model
@@ -193,40 +197,38 @@ Do **not** call `open*ForView` from the global Space handler. Full profile stays
 
 Use the **Contacts list header** (§4) — not `ListToolbar` — above the split. Outer page shell must use `PLUGIN_PAGE_LIST_SHELL_CLASS` (`overflow-x-clip` — `overflow-x-hidden` breaks sticky). Do **not** nest the header row inside a shrinking flex child.
 
-Canonical quick-context split (Contacts / Tasks / Notes / …): **50/50 grid**, sticky only in **list** view.
+**Default (mail-layout):** **20/80** list|detail columns on desktop (`≥1024px` / `showDesktopSplit`). Left: table only. Right: stacked `*View`, inline `*Form` + `InlinePanelFormActions`, or `*StatisticsView` when nothing selected. Copy `ContactList.tsx` / `YourItemList.tsx`:
 
 ```tsx
 <div
   className={cn(
-    'grid items-start gap-4',
-    showQuickContext && previewItem ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+    'grid min-h-0 min-w-0 gap-2',
+    showDesktopSplit
+      ? 'flex-1 grid-cols-[minmax(220px,20%)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-stretch'
+      : 'grid-cols-1 items-start',
   )}
 >
-  {showQuickContext && previewItem ? (
-    <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
-      <MyPluginQuickContextPanel
-        item={previewItem}
-        onClose={() => setPreviewItem(null)}
-        onOpenFullProfile={() =>
-          markPendingAndOpen(previewItem, () =>
-            attemptNavigation(() => openMyPluginForView(previewItem)),
-          )
-        }
-        onEdit={() =>
-          markPendingAndOpen(previewItem, () =>
-            attemptNavigation(() => openMyPluginForEdit(previewItem)),
-          )
-        }
-      />
+  <div
+    className={cn(
+      'min-w-0',
+      showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+    )}
+  >
+    {/* *ListTable only; pass activeItemId */}
+  </div>
+  {showDesktopSplit ? (
+    <aside
+      className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain"
+      role="region"
+      aria-label="Item preview"
+    >
+      {/* inlineForm ? InlinePanelFormActions + *Form : detailItem ? *View stacked : *StatisticsView */}
     </aside>
   ) : null}
-  <div className="flex min-w-0 flex-col gap-3">
-    {/* table or card grid only; pass activeId = previewItem?.id */}
-  </div>
 </div>
 ```
 
-Do **not** sticky the quick-context panel in full detail view — sticky is list-only.
+**Legacy/alternate (50/50 sticky QC):** separate `*QuickContextPanel` beside the list in a `lg:grid-cols-2` grid with `lg:sticky lg:top-4` on the aside — not the golden template or Contacts mail-layout. Do not sticky QC in full detail view.
 
 ### Active row highlight
 
@@ -240,7 +242,7 @@ Pass `active*Id={previewItem?.id ?? null}` into `*ListItem` / `*ListTable` so th
 - [ ] Header uses `QuickContextHeaderActions` (Open expanded; Edit hover-expand; Close icon-only)
 - [ ] Footer uses `QuickContextOpenFullFooter` when `variant !== 'full'`
 - [ ] No Delete / Duplicate / Export in the panel
-- [ ] List uses `useQuickContextPreview` + 50/50 `lg:grid-cols-2` with sticky `<aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">`
+- [ ] Mail-layout list uses 20/80 split + detail column (`ContactList.tsx` / template `YourItemList.tsx`); legacy 50/50 sticky QC only when explicitly required
 - [ ] Outer list shell uses `PLUGIN_PAGE_LIST_SHELL_CLASS` (not hardcoded `overflow-x-hidden`)
 - [ ] Active row id synced to preview; bulk selection may run while panel is open
 - [ ] i18n: `common.open`, `common.openFullProfile`, `common.edit`, `common.close`, `common.select`, `common.clear`; plugin keys for readMore / showLess in **en** and **sv**
@@ -449,7 +451,7 @@ Same tokens apply to plugin **settings** forms/views with text fields.
 
 ### List page header (canonical — CRUD lists)
 
-**Reference:** `ContactList.tsx`. Do **not** use `ListToolbar` as the default list header (`ListToolbar` is **legacy / exception only**, e.g. plugin template).
+**Reference:** `ContactList.tsx` and `templates/plugin-frontend-template` (`YourItemList.tsx`). Do **not** use `ListToolbar` as the default list header — new CRUD scaffolds and the golden template use the Contacts-class header below. (`ListToolbar` is **legacy / exception only** for older live plugins that have not migrated yet.)
 
 Layout (desktop, `hidden md:block`):
 

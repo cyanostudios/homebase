@@ -4,6 +4,13 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-15 – Plugin frontend template: Contacts-class mail-layout
+
+**Typ:** Docs / template  
+**Scope:** `templates/plugin-frontend-template/`, `templates/README.md`, integration/design checklists, ADR [`ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md`](ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md)
+
+**Sammanfattning:** Golden frontend template aligned to production Contacts mail-layout: table-only 20/80 list|detail split, `BulkActionRoundBar` + `RoundExpandableSearch`, `YourItemQuickContextPanel` (list|full), `YourItemDetailHeaderMenus`, `YourItemsStatisticsView` empty pane, inline form via `InlinePanelFormActions`. Removed card-column artifacts (`YourItemListItem`, `listViewMode` / `columnCount` utils). New CRUD scaffolds require `contentFlush` + `contentOwnsScroll` in registry. Template stays outside `client/src/` (not linted until copied).
+
 ## 2026-09-15 – Garments list: clear size and audience
 
 - **Why:** Choosing **—** (or emptying free text) for size/audience in the person matrix did not persist — the client omitted the key, and the server’s partial merge kept the old value. Soft-preview also failed to show any size/audience change because hydrate never wrote persons into `garmentLists`.

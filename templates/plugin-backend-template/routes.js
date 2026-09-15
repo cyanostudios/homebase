@@ -1,7 +1,9 @@
 // templates/plugin-backend-template/routes.js
 // Align with production plugins: context from plugin-loader, shared validation + CSRF hooks.
-// List layout (listViewMode / columnCount) persists via AppContext getSettings/updateSettings
-// (core user_settings) — do not add a plugin GET/PUT /settings for that.
+// List layout prefs (listViewMode / columnCount) are legacy — not used by the Contacts-class
+// mail-layout frontend template (table-only; no cards/column toggle). Do not document or add
+// plugin GET/PUT /settings for those keys on new scaffolds. Older plugins may still persist
+// them via AppContext getSettings/updateSettings (core user_settings).
 // Optional: add DELETE /batch with commonRules.requiredArray('ids') before /:id routes (see notes).
 const express = require('express');
 const router = express.Router();

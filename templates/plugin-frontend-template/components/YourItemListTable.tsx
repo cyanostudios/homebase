@@ -21,6 +21,8 @@ export type YourItemListTableProps = {
   onCheckboxChange: (id: string) => void;
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
+  selectionEnabled?: boolean;
+  activeItemId?: string | number | null;
 };
 
 export function YourItemListTable({
@@ -34,6 +36,8 @@ export function YourItemListTable({
   onCheckboxChange,
   allVisibleSelected,
   onHeaderCheckboxChange,
+  selectionEnabled = true,
+  activeItemId = null,
 }: YourItemListTableProps) {
   const { t } = useTranslation();
 
@@ -48,15 +52,18 @@ export function YourItemListTable({
     [],
   );
 
-  const selection: SortableListTableSelection = {
-    isSelected,
-    onCheckboxMouseDown,
-    onCheckboxChange,
-    allVisibleSelected,
-    onHeaderCheckboxChange,
-    selectAllAriaLabel: t('common.selectAllVisible'),
-    selectRowAriaLabel: (selected) => (selected ? t('common.unselectRow') : t('common.selectRow')),
-  };
+  const selection: SortableListTableSelection | undefined = selectionEnabled
+    ? {
+        isSelected,
+        onCheckboxMouseDown,
+        onCheckboxChange,
+        allVisibleSelected,
+        onHeaderCheckboxChange,
+        selectAllAriaLabel: t('common.selectAllVisible'),
+        selectRowAriaLabel: (selected) =>
+          selected ? t('common.unselectRow') : t('common.selectRow'),
+      }
+    : undefined;
 
   return (
     <SortableListTable
@@ -68,6 +75,9 @@ export function YourItemListTable({
       onSort={onSort}
       onRowClick={onRowClick}
       rowAriaLabel={(item) => `Open ${item.title || item.id}`}
+      isRowActive={(item) =>
+        activeItemId != null && String(item.id) === String(activeItemId)
+      }
       selection={selection}
       pluginName="your-items"
       dataListItem={(item) => item}

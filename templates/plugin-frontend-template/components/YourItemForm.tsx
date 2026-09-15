@@ -1,25 +1,25 @@
-import { Check, Info, X } from 'lucide-react';
+/**
+ * Detail form — see docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md
+ * and client/src/plugins/contacts/components/ContactForm.tsx.
+ */
+import { FileText } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import {
   FORM_INPUT_CLASS,
   FORM_INPUT_ERROR_CLASS,
   FORM_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
-import { formatDate } from '@/core/utils/dateFormat';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
@@ -38,15 +38,23 @@ interface YourItemFormProps {
   onSave: (data: YourItemPayload) => Promise<boolean> | boolean;
   onCancel: () => void;
   isSubmitting?: boolean;
+  /** Single-column stack in list mail-layout aside. */
+  stacked?: boolean;
 }
 
 export const YourItemForm = React.forwardRef<PanelFormHandle, YourItemFormProps>(
   function YourItemForm(
-    { currentItem, onSave, onCancel, isSubmitting: externalIsSubmitting = false },
+    {
+      currentItem,
+      onSave,
+      onCancel,
+      isSubmitting: externalIsSubmitting = false,
+      stacked: _stacked = false,
+    },
     ref,
   ) {
     const { t } = useTranslation();
-    const { validationErrors, clearValidationErrors, panelMode, isSaving } = useYourItems();
+    const { validationErrors, clearValidationErrors, isSaving } = useYourItems();
     const {
       isDirty,
       showWarning,
@@ -140,56 +148,10 @@ export const YourItemForm = React.forwardRef<PanelFormHandle, YourItemFormProps>
       clearValidationErrors();
     };
 
-    const formSidebar = currentItem ? (
-      <div className="space-y-4">
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection
-            title="Information"
-            icon={Info}
-            iconPlugin="your-items"
-            subtleTitle
-            className="p-4"
-            collapsible
-          >
-            <div>
-              <div className={DETAIL_INFO_ROW_CLASS}>
-                <span className="text-slate-500 dark:text-slate-400">ID</span>
-                <span className="font-mono font-semibold text-foreground">
-                  {formatDisplayNumber('your-items', currentItem.id)}
-                </span>
-              </div>
-              {currentItem.createdAt ? (
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">Created</span>
-                  <span className="font-mono font-semibold text-foreground">
-                    {formatDate(currentItem.createdAt)}
-                  </span>
-                </div>
-              ) : null}
-              {currentItem.updatedAt ? (
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">Updated</span>
-                  <span className="font-mono font-semibold text-foreground">
-                    {formatDate(currentItem.updatedAt)}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          </DetailSection>
-        </Card>
-        <DetailActivityLog
-          entityType="your_item"
-          entityId={currentItem.id}
-          title="Activity"
-          refreshKey={currentItem.id}
-        />
-      </div>
-    ) : undefined;
-
     return (
       <>
         <div className="plugin-your-items">
-          <DetailLayout sidebar={formSidebar}>
+          <DetailLayout gridClassName="grid-cols-1">
             <form
               className="space-y-4"
               onSubmit={(e) => {
@@ -198,7 +160,7 @@ export const YourItemForm = React.forwardRef<PanelFormHandle, YourItemFormProps>
               }}
             >
               {hasBlockingErrors && (
-                <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
+                <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
                   <div className="text-sm font-medium text-destructive">
                     {t('common.cannotSave')}
                   </div>
@@ -213,7 +175,7 @@ export const YourItemForm = React.forwardRef<PanelFormHandle, YourItemFormProps>
               )}
 
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title="Details" iconPlugin="your-items" className="p-6">
+                <DetailSection title="Details" icon={FileText} iconPlugin="your-items" className="p-6">
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="your-item-title">Title</Label>
@@ -246,35 +208,6 @@ export const YourItemForm = React.forwardRef<PanelFormHandle, YourItemFormProps>
                   </div>
                 </DetailSection>
               </Card>
-
-              <div className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  icon={X}
-                  onClick={handleCancel}
-                  disabled={isCurrentlySubmitting}
-                  className="h-9 px-3 text-xs"
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  icon={Check}
-                  onClick={() => void handleSubmit()}
-                  disabled={hasBlockingErrors || isCurrentlySubmitting}
-                  className="h-9 px-3 text-xs bg-green-600 hover:bg-green-700 text-white border-none"
-                >
-                  {isCurrentlySubmitting
-                    ? t('common.saving')
-                    : panelMode === 'edit'
-                      ? t('common.update')
-                      : t('common.save')}
-                </Button>
-              </div>
             </form>
           </DetailLayout>
         </div>

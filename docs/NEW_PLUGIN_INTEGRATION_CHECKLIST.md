@@ -19,7 +19,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - **Routes factory:** `createYourRoutes(controller, context)` — pass `context` through; do not thread `requirePlugin` as a separate top-level argument.
 - **Validation:** use `validateRequest` and `commonRules` / `body` from `server/core/middleware/validation.js` (same stack as production plugins).
 - **CSRF:** import `csrfProtection` from `server/core/middleware/csrf.js` on all POST/PUT/PATCH/DELETE routes (template already does). Server uses session-backed `csrf({ cookie: false })` when `ENABLE_CSRF=true` — see `docs/RAILWAY_HOMEBASE_SETUP.md` §5. Frontend must use `createApiClient` / `apiFetch` (template `templateApi.ts`).
-- **List layout settings:** persist `listViewMode` / `columnCount` with AppContext `getSettings` / `updateSettings` (core `user_settings`) only where still used. Do **not** add a plugin `GET/PUT /settings` for that (template has none). Do **not** add user-configurable table column prefs — lists default to name/title only; metadata columns are coded per plugin (`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`, `client/src/core/list/tableColumnsPref.ts`).
+- **List layout settings:** new Contacts-class CRUD plugins are **table-only mail-layout** — do **not** add `listViewMode`, `columnCount`, or layout toggles. Legacy plugins may still persist layout via AppContext `getSettings` / `updateSettings`; do **not** copy that into new scaffolds. Do **not** add a plugin `GET/PUT /settings` for list layout (template has none). Do **not** add user-configurable table column prefs — lists default to name/title only; metadata columns are coded per plugin (`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`, `client/src/core/list/tableColumnsPref.ts`).
 - **Discovery:** folder under `plugins/<name>/` with `index.js` + `plugin.config.js` so `plugin-loader.js` picks it up.
 - **Schema:** add tenant migrations under `server/migrations/` for plugin tables; optional extra runner under `scripts/` if you need data backfills.
 
@@ -33,12 +33,13 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - **Register in `client/src/core/pluginRegistry.ts`:**
   - Required: `name`, `Provider`, `hook`, `panelKey`, `components.List`, `components.Form`, `components.View`.
   - Usually: `providerLoader`, `NullProvider`, `navigation`.
-  - Optional: `dashboardWidget`, `displayPrefix`, `contentFlush`, `slugField`, `contentViewKey`, `noPrimaryAction`, `getViewExtraProps`, `getFormExtraProps`, `canOpenAsCompanionFor` (non-empty enables a **global** desktop companion flyout on the right rail via `getCompanionCandidates`; host entries ignored; List must honor `isCompanion`; rail icon = `navigation.icon`; see JSDoc on `PluginRegistryEntry`).
+  - Optional: `dashboardWidget`, `displayPrefix`, `slugField`, `contentViewKey`, `noPrimaryAction`, `getViewExtraProps`, `getFormExtraProps`, `canOpenAsCompanionFor` (non-empty enables a **global** desktop companion flyout on the right rail via `getCompanionCandidates`; host entries ignored; List must honor `isCompanion`; rail icon = `navigation.icon`; see JSDoc on `PluginRegistryEntry`).
+  - **Required for Contacts-class CRUD mail-layout:** `contentFlush: true` and `contentOwnsScroll: true` (same as `contacts` in `pluginRegistry.ts`) so the list fills height and owns column scroll.
   - **Home dashboard (v1):** den sammansatta startsidan (`client/src/core/ui/Dashboard.tsx` + `dashboard/*`) läser **inte** `dashboardWidget`. Nya översiktsytor läggs i core-dashboard-sektionerna (villkorligt via `useEnabledPlugins`). Se [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md). `dashboardWidget` / `*DashboardWidget.tsx` kan finnas kvar i registret men är legacy för den shellen.
 - **`panelKey`:** must match the boolean the hook exposes (e.g. `isContactPanelOpen`). Template plugin `your-items` uses `isYourItemPanelOpen` (`pluginSingular.ts`).
 - **`NullProvider`:** copy `YourItemsNullProvider` from the template context; register it as eager `Provider` / `NullProvider` with `providerLoader` for the real provider.
 - **Singular names:** ensure `pluginSingular.ts` rules fit your `name` (`contacts` → `contact`, `matches` → `match`, `your-items` → `yourItem`).
-- **List UI:** keep the template card-column shell (`ListToolbar`, `1 | 2 | 3 | table`, `*ListItem`, `*ListTable`, `ListFooterBar`). See `UI_AND_UX_STANDARDS_V3.md` §0.1.
+- **List UI:** keep the template **Contacts-class mail-layout** shell: table-only `*ListTable`, page header (Sort, Select/Clear, `BulkActionRoundBar`, `RoundExpandableSearch`, Add), 20/80 list|detail split, `*StatisticsView` empty detail pane, inline create/edit via `InlinePanelFormActions`. Copy `YourItemList.tsx` / `ContactList.tsx` — **not** `ListToolbar`, cards, or `*ListItem`. See `UI_AND_UX_STANDARDS_V3.md` §0.1 and ADR [`ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md`](ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md).
 - **Mounting:** plugin should participate in `useEnabledPlugins()` / `PluginProviders.tsx` so heavy providers load only when the tenant has access.
 - **Routes:** add entries in `client/src/core/routing/routeMap.ts` (and any deep-link rules) so list URLs resolve.
 
@@ -91,11 +92,11 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - `npm run build` passes.
 - **[`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) §8** verification checklist completed (quick context if applicable, full view actions/dialogs, view/edit sync, i18n).
 - Manual smoke test:
-  - list loads (cards 1/2/3 and table)
+  - list loads (table; desktop 20/80 split with statistics empty pane when nothing selected)
   - empty list shows short `No X yet` + Create button that opens create
   - search/filter with no results shows match copy **without** Create
-  - create works
+  - create works (inline in detail column on desktop, or full panel on compact)
   - edit works and matches view chrome
   - view shows correct details; delete asks for confirmation (`ConfirmDialog` danger); duplicate (if supported) uses `DuplicateDialog` + list highlight
-  - settings save/close works via dirty header Save (`listViewMode` / `columnCount`)
+  - settings save/close works when domain settings exist (template settings shell may be empty)
   - tenant without plugin access sees no broken hooks / no stray panel state

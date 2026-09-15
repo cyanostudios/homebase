@@ -10,7 +10,7 @@
 - New plugins must be generated from:
   - `templates/plugin-frontend-template`
   - `templates/plugin-backend-template`
-- The templates are the source of truth for Contract v2 panel wiring **and** the card-column list shell (`ListToolbar`, `1 | 2 | 3 | table`, `*ListItem` / `*ListTable`). List visual rules live in `UI_AND_UX_STANDARDS_V3.md` §0.1 — do not copy the legacy in-card grid/list toggle.
+- The templates are the source of truth for Contract v2 panel wiring **and** the **Contacts-class mail-layout** list shell (table-only, 20/80 split, `BulkActionRoundBar`, `RoundExpandableSearch`, `*ListTable`, `*QuickContextPanel`, `*DetailHeaderMenus`, `*StatisticsView`, inline form via `InlinePanelFormActions`). List visual rules live in `UI_AND_UX_STANDARDS_V3.md` §0.1 and ADR [`ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md`](ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md) — do **not** copy legacy `ListToolbar`, cards/column toggles, or `*ListItem` card grids.
 - **Before implementing List / QuickContext / View / Form:** read **`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** (mandatory) — quick context, full view, view/edit sync, buttons, and default dialogs.
 - Integration steps are tracked in `NEW_PLUGIN_INTEGRATION_CHECKLIST.md`.
 

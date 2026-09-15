@@ -18,10 +18,8 @@ export interface YourItemPayload {
   description: string | null;
 }
 
-/** Persisted via AppContext getSettings/updateSettings — not a plugin /settings route. */
+/** Persisted via AppContext getSettings/updateSettings — add domain keys as needed. */
 export interface YourItemsSettings {
-  listViewMode?: 'cards' | 'table';
-  columnCount?: 1 | 2 | 3;
-  /** Legacy; migrate grid→3, list→1 in columnCount helper. */
-  viewMode?: 'grid' | 'list';
+  /** Example placeholder — no list layout prefs in this template (table-only). */
+  exampleSetting?: string;
 }
