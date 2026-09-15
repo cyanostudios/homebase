@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { ctFieldPatch, isCtSizeIncompatible } from '../ctFieldPatch';
 
 describe('ctFieldPatch', () => {
