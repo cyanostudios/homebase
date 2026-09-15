@@ -4,6 +4,11 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-15 – Garments list: clear size and audience
+
+- **Why:** Choosing **—** (or emptying free text) for size/audience in the person matrix did not persist — the client omitted the key, and the server’s partial merge kept the old value. Soft-preview also failed to show any size/audience change because hydrate never wrote persons into `garmentLists`.
+- **What:** Send `""` for cleared keys (`ctFieldPatch`); hydrate soft-selected lists via `refreshGarmentList`; optimistic `patchPersonLocal` on size/audience save.
+
 ## 2026-09-13 – Garments list hydrate + Tasks/Notes list UX
 
 **Typ:** fix / enhancement / UI  

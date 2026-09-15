@@ -55,10 +55,9 @@ describe('Garment inventory list split view wiring', () => {
       /aside[\s\S]*h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain/,
     );
     expect(listSrc).toMatch(/GarmentsStatisticsView/);
-    // Soft-selected lists hydrate via getList so PersonMatrix is not empty (index omits persons).
-    // Preview sync must never copy persons across different list ids.
-    expect(listSrc).toMatch(/garmentsApi/);
-    expect(listSrc).toMatch(/\.getList\(/);
+    // Soft-selected lists hydrate via refreshGarmentList so PersonMatrix is not empty
+    // (index omits persons) and person PATCH/optimistic updates reach the preview.
+    expect(listSrc).toMatch(/refreshGarmentList/);
     expect(listSrc).toMatch(/Array\.isArray\(previewList\.persons\)/);
     expect(listSrc).toMatch(/persons: undefined/);
     expect(listSrc).toMatch(/persons: current\.persons/);

@@ -60,7 +60,6 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
-import { garmentsApi } from '../api/garmentsApi';
 import { useGarments } from '../hooks/useGarments';
 import type { GarmentList as GarmentListModel, InventoryItem } from '../types/garments';
 import { GARMENTS_SETTINGS_KEY } from '../utils/garmentColumnCount';
@@ -169,6 +168,7 @@ export const GarmentList: React.FC = () => {
     saveGarment,
     closeGarmentPanel,
     validationErrors,
+    refreshGarmentList,
   } = useGarments();
   const location = useLocation();
   const garmentsNavPage = pathToNavPage(location.pathname);
@@ -362,6 +362,7 @@ export const GarmentList: React.FC = () => {
   }, [garmentLists, inventoryItems, isInventory, previewInventory]);
 
   // Soft-selected lists need a full getList payload for PersonMatrix (index omits persons).
+  // Refresh into garmentLists too so person PATCH/optimistic updates reach the preview.
   useEffect(() => {
     if (isInventory || !previewList?.id) {
       return;
@@ -371,10 +372,9 @@ export const GarmentList: React.FC = () => {
     }
     const listId = previewList.id;
     let cancelled = false;
-    void garmentsApi
-      .getList(listId)
+    void refreshGarmentList(listId)
       .then((full) => {
-        if (cancelled) {
+        if (cancelled || !full) {
           return;
         }
         setPreviewList((current) =>
@@ -385,7 +385,7 @@ export const GarmentList: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [isInventory, previewList?.id, previewList?.persons]);
+  }, [isInventory, previewList?.id, previewList?.persons, refreshGarmentList]);
 
   useEffect(() => {
     if (!showDesktopSplit || !isGarmentPanelOpen || !modeMatchesPanel) {

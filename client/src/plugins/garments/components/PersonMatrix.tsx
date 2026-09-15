@@ -33,6 +33,7 @@ import type {
   GarmentPerson,
   InventoryItem,
 } from '../types/garments';
+import { ctFieldPatch, isCtSizeIncompatible } from '../utils/ctFieldPatch';
 import {
   findDuplicateJerseyNumbers,
   getMasterCheckboxState,
@@ -478,13 +479,15 @@ export function PersonMatrix({
     if (next === current) {
       return;
     }
-    const nextSizes = { ...(person.ctSizes ?? {}) };
-    if (next) {
-      nextSizes[itemId] = next;
-    } else {
-      delete nextSizes[itemId];
+    // Empty string must be sent so the server clears the key (partial merge).
+    const ctSizes = ctFieldPatch(itemId, next);
+    patchPersonLocal(list.id, person.id, {
+      ctSizes: { ...(person.ctSizes ?? {}), ...ctSizes },
+    });
+    const saved = await updatePersonCtSizes(list.id, person.id, { ctSizes });
+    if (!saved) {
+      patchPersonLocal(list.id, person.id, { ctSizes: person.ctSizes ?? {} });
     }
-    await updatePersonCtSizes(list.id, person.id, { ctSizes: nextSizes });
   };
 
   const saveCtAudience = async (
@@ -501,24 +504,27 @@ export function PersonMatrix({
     if (next === current) {
       return;
     }
-    const nextAudiences = { ...(person.ctAudiences ?? {}) };
-    if (next) {
-      nextAudiences[itemId] = next;
-    } else {
-      delete nextAudiences[itemId];
-    }
-    const nextSizes = { ...(person.ctSizes ?? {}) };
-    const currentSize = nextSizes[itemId] ?? '';
-    if (currentSize) {
-      const allowed = inventoryItemSizesForAudience(inventoryItem, next);
-      if (!allowed.includes(currentSize)) {
-        delete nextSizes[itemId];
-      }
-    }
-    await updatePersonCtSizes(list.id, person.id, {
-      ctAudiences: nextAudiences,
-      ctSizes: nextSizes,
+    const ctAudiences = ctFieldPatch(itemId, next);
+    const currentSize = person.ctSizes?.[itemId] ?? '';
+    const allowed = inventoryItemSizesForAudience(inventoryItem, next);
+    const clearSize = isCtSizeIncompatible(currentSize, allowed);
+    const ctSizes = clearSize ? ctFieldPatch(itemId, '') : undefined;
+    const prevSizes = person.ctSizes ?? {};
+    const prevAudiences = person.ctAudiences ?? {};
+    patchPersonLocal(list.id, person.id, {
+      ctAudiences: { ...prevAudiences, ...ctAudiences },
+      ...(ctSizes ? { ctSizes: { ...prevSizes, ...ctSizes } } : {}),
     });
+    const saved = await updatePersonCtSizes(list.id, person.id, {
+      ctAudiences,
+      ...(ctSizes ? { ctSizes } : {}),
+    });
+    if (!saved) {
+      patchPersonLocal(list.id, person.id, {
+        ctAudiences: prevAudiences,
+        ctSizes: prevSizes,
+      });
+    }
   };
 
   const enqueueOptimisticCheckboxSave = (
