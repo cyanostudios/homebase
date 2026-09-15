@@ -62,13 +62,13 @@ Contact-style day select (`0` / `15` / `30` / `60`). Due date = issue date + day
 
 ## List UI
 
-Card-column shell per `docs/UI_AND_UX_STANDARDS_V3.md` §0.1 (cards + table). Due dates use Tasks-style urgency colors (`formatInvoiceDueDate`). Table includes an **Invoice type** column (`invoiceType`) by default (after number); card rows show a type badge. Sortable via list sort “Type”.
+Table-only mail-layout per `docs/UI_AND_UX_STANDARDS_V3.md` §0.1. Due dates use Tasks-style urgency colors (`formatInvoiceDueDate`). Table identity is name/number with type as coded meta; sort includes “Type”.
 
 **No sidebar submenu.** Single nav entry Invoices. Filter chips: Total, Invoice, Credit note, Cash invoice, Receipt (document type; exclusive).
 
-Desktop/pad: row click opens sticky **Quick Context** (`InvoiceQuickContextPanel` via `useQuickContextPreview`); compact viewports open full view.
+Desktop/pad: row click shows stacked `InvoicesView` in the detail column (`InvoiceQuickContextPanel` is the view header card). There is **no** sticky list-side QC and no `variant="list"`. Compact viewports use panel flow.
 
-List header also opens **Statistics** content view (Matches-style overlay), plus Settings (columns + numbering).
+List header also opens **Statistics** content view (Matches-style overlay), plus Settings (numbering).
 
 ### Invoice numbering settings
 
@@ -91,7 +91,7 @@ Canonical key `numberingByType` holds one series per document type (`invoice` | 
 
 Settings UI field order per type: **Prefix → Year → Start number**, with a checkbox to show/hide year in the allocated number.
 
-List Quick Context (`variant="list"`): Contacts-style header with **status badge beside the title** + fact grid (**number · type · issue date · due date · …**); **item count only** (no line-item rows); notes callout when present; footer “Open full invoice”. No Delete, Duplicate, or Export in the panel. Same fact order and header status placement in full-view QC (`variant="full"`).
+Full-view Quick Context (`InvoiceQuickContextPanel`, no `variant`): Contacts-style header with **status badge beside the title** + fact grid (**number · type · issue date · due date · …**); **item count only** (no line-item rows); notes callout when present. No Delete, Duplicate, or Export in the QC **body** (those live in `InvoiceDetailHeaderMenus`).
 
 ## Full view & edit (plugin view contract)
 

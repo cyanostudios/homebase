@@ -3,7 +3,7 @@
 **Referensplugin:** `slots` (primär), `notes` och `tasks` (sekundära)  
 **Princip:** Kopiera exakt. Ta bort gammal kod. Inga workarounds.
 
-**Kompletterande guide (quick context, full view, view/edit-sync, dialoger):** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) — canonical referens för list-side preview är garments inventory.
+**Kompletterande guide (quick context, full view, view/edit-sync, dialoger):** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) — mail-layout QC: `ContactQuickContextPanel`; enda list-side QC: `SlotQuickContextPanel`.
 
 ## Official Template Rule
 

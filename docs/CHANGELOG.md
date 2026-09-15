@@ -4,6 +4,24 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-16 – Core list leftovers after A+B+C (effectiveListViewMode / TeamCard helper)
+
+**Typ:** Refactor / cleanup  
+**Scope:** `client/src/core/list/`, `client/src/plugins/teams/types/teams.ts`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Deleted unused card-era list helpers: `effectiveListViewMode.ts` (+ tests), `createPluginListViewMode.ts`, and unused `ListViewMode`/`session` APIs from `listViewMode.ts` (live export is `nextListTableSort` only). Removed `getDaysUntilTrainingAfterBreak` (no UI consumer after `TeamCard` delete) and its test. ListItem wiring tests kept as regression guards.
+
+## 2026-09-16 – Grind 1 A+B+C: plugin dead-code hygiene (frontend)
+
+**Typ:** Refactor / cleanup  
+**Scope:** `client/src/plugins/*` leftover list/QC/`columnCount` modules  
+**Local-first; not a prod release** by itself. Extends [2026-09-15 Depth A](#2026-09-15--grind-1-depth-a-orphan-cleanup-requestscontactstasks) (requests/contacts/tasks) across remaining plugins.
+
+**Sammanfattning:** Removed unused pre-table-only list artifacts (`*ListItem`, `*QuickAdd`, plugin-local `*ListViewMode`, `TeamCard`) and `*ColumnCount` modules that had no live `SETTINGS_KEY`. Kept `*ColumnCount.ts` files are **SETTINGS_KEY-only** (`contacts`, `tasks`, `notes`, `teams`, `matches`, `garments`, `invoices`, `estimates`, `cups`, `slots`). Unused Quick Context **list** branches stripped except **Slots** (still 50/50 sticky `variant="list"|"full"`). Mail-layout `*QuickContextPanel` components are full-only header cards in `*View`. Request QC reads `request.updated_at` (the field on the type; `updatedAt` was dead). No list-chrome behavior change — production lists were already table-only.
+
+**Not in this entry:** mail-layout/detail-tabs/invoice-controller work landed in the same commit range is documented in earlier 2026-09-15 entries, not as A+B+C.
+
 ## 2026-09-16 – Docs: align Mail/Pulse/AI Sent + routing notes with verified UI
 
 - **Why:** CHANGELOG still described shell category chips / `min-h-full` mounts after Sent history and scrollport fixes; UI standards omitted provider mail-layout.

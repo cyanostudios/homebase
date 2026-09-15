@@ -121,17 +121,17 @@ describe('TaskList table view wiring', () => {
     expect(listSrc).not.toMatch(/TaskDetailHeaderMenus/);
     expect(viewSrc).toMatch(/TaskQuickContextPanel/);
     expect(viewSrc).toMatch(/RichTextContent/);
-    expect(viewSrc).not.toMatch(/tasks\.taskContent/);
+    expect(viewSrc).toMatch(/tasks\.taskContent/);
   });
 
-  test('full detail merges title header and content into one card', () => {
+  test('full detail shows header card plus tab content', () => {
     const quickContextSrc = fs.readFileSync(
       path.join(__dirname, '../TaskQuickContextPanel.tsx'),
       'utf8',
     );
     expect(viewSrc).toMatch(/TaskQuickContextPanel/);
     expect(viewSrc).toMatch(/RichTextContent/);
-    expect(viewSrc).not.toMatch(/tasks\.taskContent/);
+    expect(viewSrc).toMatch(/tasks\.taskContent/);
     expect(quickContextSrc).toMatch(/TaskDetailHeaderMenus/);
   });
 

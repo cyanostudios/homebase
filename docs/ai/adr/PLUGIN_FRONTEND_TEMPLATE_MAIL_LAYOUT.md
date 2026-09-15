@@ -30,6 +30,8 @@ Stale checklist and template docs caused new plugins to copy obsolete list patte
 
 5. **50/50 sticky quick-context aside** (separate `*QuickContextPanel` beside the list) is **legacy/alternate** — not the golden template. Use only when product explicitly requires that pattern; otherwise follow mail-layout.
 
+**Production note (2026-09-16, A+B+C):** live mail-layout `*QuickContextPanel` components are **full-only** (no `variant`). The only production list-side QC is **Slots**. The golden template still ships `variant="list" | "full"` for optional sticky preview; do not copy that branch into new plugins unless product requires Slots-style QC.
+
 6. **Template location:** `templates/plugin-frontend-template/` remains outside `client/src/` and is not linted until copied into `client/src/plugins/<name>/`.
 
 ## Canonical references

@@ -46,8 +46,8 @@ export function RequestQuickContextPanel({
   headerBelow?: React.ReactNode;
 }) {
   const { t } = useTranslation();
-  const updatedLabel = request.updatedAt
-    ? new Date(request.updatedAt).toLocaleString(undefined, {
+  const updatedLabel = request.updated_at
+    ? new Date(request.updated_at).toLocaleString(undefined, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
