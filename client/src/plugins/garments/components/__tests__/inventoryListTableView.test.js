@@ -79,7 +79,6 @@ describe('Garment inventory list split view wiring', () => {
   test('desktop detail uses stacked view with header menus on inventory full variant', () => {
     expect(viewSrc).toMatch(/stacked\?: boolean/);
     expect(viewSrc).toMatch(/InventoryQuickContextPanel/);
-    expect(viewSrc).toMatch(/variant="full"/);
     expect(panelSrc).toMatch(/InventoryDetailHeaderMenus/);
     expect(panelSrc).toMatch(/leading=\{titleLeading\}/);
     expect(listSrc).toMatch(/inlineForm/);
@@ -96,9 +95,6 @@ describe('Garment inventory list split view wiring', () => {
   });
 
   test('quick context and form support variants with editable quantity', () => {
-    expect(panelSrc).toMatch(/variant = 'list'/);
-    expect(panelSrc).toMatch(/QuickContextOpenFullFooter/);
-    expect(panelSrc).toMatch(/garments\.variants/);
     expect(panelSrc).toMatch(/onVariantQuantityChange/);
     expect(formSrc).toMatch(/addVariant/);
     expect(tableSrc).toMatch(/totalQuantity/);

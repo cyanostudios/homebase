@@ -32,13 +32,16 @@ describe('IngestSourceList table view wiring', () => {
     expect(listSrc).toMatch(/useRegisterMobileSearch/);
   });
 
-  test('table uses SortableListTable with expected columns', () => {
+  test('table uses SortableListTable with name-only default (meta under name)', () => {
     expect(tableSrc).toMatch(/SortableListTable/);
+    expect(tableSrc).toMatch(/resolveVisibleIngestTableColumns/);
+    expect(tableSrc).toMatch(/DEFAULT_INGEST_TABLE_COLUMNS/);
     expect(tableSrc).toMatch(/field: 'name'/);
     expect(tableSrc).toMatch(/field: 'sourceType'/);
     expect(tableSrc).toMatch(/field: 'isActive'/);
     expect(tableSrc).toMatch(/field: 'lastFetchStatus'/);
     expect(tableSrc).toMatch(/field: 'lastFetchedAt'/);
+    expect(tableSrc).toMatch(/ingestIdentityMeta/);
     expect(tableSrc).not.toMatch(/field: 'updatedAt'/);
     expect(tableSrc).toMatch(/headerBarClassName="bg-sky-50 dark:bg-sky-950\/40"/);
     expect(tableSrc).toMatch(
@@ -72,10 +75,11 @@ describe('IngestSourceList table view wiring', () => {
     expect(listSrc).toMatch(/stacked/);
   });
 
-  test('stacked view embeds IngestSourceDetailHeaderMenus with leading identity', () => {
+  test('detail view embeds IngestSourceDetailHeaderMenus with leading identity and tabs', () => {
     expect(viewSrc).toMatch(/IngestSourceDetailHeaderMenus/);
     expect(viewSrc).toMatch(/leading=\{titleLeading\}/);
-    expect(viewSrc).toMatch(/gridClassName=\{stacked \? 'grid-cols-1' : undefined\}/);
+    expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
+    expect(viewSrc).toMatch(/useSearchParams/);
     expect(listSrc).not.toMatch(/IngestSourceDetailHeaderMenus/);
   });
 });

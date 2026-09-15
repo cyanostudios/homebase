@@ -121,7 +121,12 @@ export function DetailSection({
   if (!collapsible) {
     return (
       <section className={cn('space-y-3', className)}>
-        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className={cn(
+            'flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between',
+            subtleTitle && 'border-b border-border/50 pb-3',
+          )}
+        >
           <div className="flex min-w-0 items-center gap-2">
             {iconNode}
             {titleNode}
@@ -140,7 +145,12 @@ export function DetailSection({
   return (
     <section className={cn(className)}>
       <Collapsible open={open} onOpenChange={setOpen} className="space-y-3">
-        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className={cn(
+            'flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between',
+            subtleTitle && 'border-b border-border/50 pb-3',
+          )}
+        >
           <CollapsibleTrigger asChild>
             <button
               type="button"

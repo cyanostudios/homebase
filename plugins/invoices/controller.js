@@ -35,10 +35,19 @@ function pickContactAddress(addresses) {
   };
 }
 
-/** First non-empty contact person name on a contact card (kundreferens). */
-function pickFirstContactPersonName(contactPersons) {
+/** Prefer flagged invoice reference person; otherwise first non-empty name (legacy). */
+function pickInvoiceReferencePersonName(contactPersons) {
   if (!Array.isArray(contactPersons) || contactPersons.length === 0) {
     return '';
+  }
+  for (const person of contactPersons) {
+    if (!person || typeof person !== 'object' || person.invoiceReference !== true) {
+      continue;
+    }
+    const name = String(person.name || '').trim();
+    if (name) {
+      return name;
+    }
   }
   for (const person of contactPersons) {
     if (!person || typeof person !== 'object') {
@@ -174,7 +183,7 @@ class InvoiceController {
         postalCode: addr.postalCode || '',
         city: addr.city || '',
         country: addr.country || '',
-        reference: pickFirstContactPersonName(contactPersons),
+        reference: pickInvoiceReferencePersonName(contactPersons),
         customerNumber: String(row.contact_number || '').trim(),
       };
     } catch (error) {

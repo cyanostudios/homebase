@@ -1,11 +1,30 @@
-import { ArrowLeft, RefreshCw, Trash2 } from 'lucide-react';
+import {
+  AlertCircle,
+  CalendarDays,
+  CheckSquare,
+  ChevronDown,
+  LayoutGrid,
+  RefreshCw,
+  Trash2,
+  X,
+  XCircle,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   Table,
   TableBody,
@@ -16,12 +35,18 @@ import {
 } from '@/components/ui/table';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { useTimeFormat } from '@/core/settings/useTimeFormat';
-import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
-import { ListSearchInput } from '@/core/ui/ListSearchInput';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  LIST_FILTER_AND_SORT_ROW_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+  LIST_FILTER_CHIP_SLOT_CLASS,
+} from '@/core/ui/detailViewCardStyles';
+import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
+import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
+import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -34,13 +59,19 @@ import {
   type PulseHistoryListFilter,
 } from '../utils/pulseHistoryListFilter';
 
+const ALL_PLUGINS_VALUE = '__all__';
+const PULSES_HISTORY_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.pulses.history.filtersVisible';
+const headerDropdownTriggerClass =
+  'gap-1.5 border-0 bg-primary/10 px-3.5 text-sm font-extrabold text-primary shadow-none hover:bg-primary hover:text-primary-foreground';
+const headerDropdownTriggerDangerClass =
+  'gap-1.5 border-0 bg-red-600/10 px-3.5 text-sm font-extrabold text-red-700 shadow-none hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white';
+
 export const PulseHistoryView: React.FC = () => {
   useTimeFormat();
   const { t } = useTranslation();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const {
     pulseHistory,
-    totalCount,
     providers,
     routing,
     loading,
@@ -56,11 +87,39 @@ export const PulseHistoryView: React.FC = () => {
     deleteHistory,
   } = usePulses();
   const { searchTerm, setSearchTerm } = usePersistedListSearch('pulses-history');
+  const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
+    PULSES_HISTORY_FILTERS_VISIBLE_STORAGE_KEY,
+  );
   const [pluginFilter, setPluginFilter] = useState('');
   const [activeFilters, setActiveFilters] = useState<PulseHistoryListFilter[]>([]);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
+  const handleClose = useCallback(() => {
+    attemptNavigation(closePulseSettingsView);
+  }, [attemptNavigation, closePulseSettingsView]);
+
+  const isFilterActive = (filter: PulseHistoryListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: PulseHistoryListFilter) => {
+    setActiveFilters((prev) => togglePulseHistoryListFilter(prev, filter));
+  };
+
+  const stats = useMemo(() => {
+    const today = new Date().toDateString();
+    let failed = 0;
+    let todayCount = 0;
+    for (const entry of pulseHistory) {
+      if (String(entry.status || '').toLowerCase() === 'failed') {
+        failed += 1;
+      }
+      if (entry.sentAt && new Date(entry.sentAt).toDateString() === today) {
+        todayCount += 1;
+      }
+    }
+    return { total: pulseHistory.length, failed, today: todayCount };
+  }, [pulseHistory]);
 
   const filtered = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
@@ -75,32 +134,12 @@ export const PulseHistoryView: React.FC = () => {
     return baseFiltered.filter((entry) => pulseHistoryMatchesListFilters(entry, activeFilters));
   }, [pulseHistory, searchTerm, pluginFilter, activeFilters]);
 
-  const isFilterActive = (filter: PulseHistoryListFilter) => activeFilters.includes(filter);
-  const onToggleFilter = (filter: PulseHistoryListFilter | 'all') => {
-    setActiveFilters((prev) => togglePulseHistoryListFilter(prev, filter));
-  };
-
   const pluginSources = useMemo(
     () =>
       Array.from(
         new Set(pulseHistory.map((e) => e.pluginSource).filter((ps): ps is string => !!ps)),
       ),
     [pulseHistory],
-  );
-
-  const stats = useMemo(
-    () => ({
-      total: pulseHistory.length,
-      filtered: filtered.length,
-      failed: pulseHistory.filter((p) => String(p.status || '').toLowerCase() === 'failed').length,
-      today: pulseHistory.filter((p) => {
-        if (!p.sentAt) {
-          return false;
-        }
-        return new Date(p.sentAt).toDateString() === new Date().toDateString();
-      }).length,
-    }),
-    [pulseHistory, filtered.length],
   );
 
   const statusBadge = useMemo(() => {
@@ -164,164 +203,289 @@ export const PulseHistoryView: React.FC = () => {
     }
   };
 
-  return (
-    <div className="plugin-pulses min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
-      <div className="space-y-3">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 space-y-1">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
-              {t('pulses.historyTitle', { defaultValue: 'SMS history' })}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {t('pulses.historyDescription', {
-                defaultValue: 'Monitor SMS and message traffic from plugins.',
-              })}
-            </p>
-          </div>
-          <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
-            <Badge
-              variant="secondary"
-              className={cn(BADGE_CHIP_CLASS, 'bg-secondary/50 text-secondary-foreground')}
+  const handleEnterSelectionMode = () => {
+    setSelectionMode(true);
+  };
+
+  const handleExitSelectionMode = () => {
+    clearSelection();
+    setSelectionMode(false);
+  };
+
+  const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
+    return [
+      {
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled: selectedCount === 0,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      },
+    ];
+  }, [selectedCount, t]);
+
+  const renderBulkActionBar = (className?: string) =>
+    selectionMode ? (
+      <BulkActionRoundBar
+        selectedCount={selectedCount}
+        actions={bulkRoundActions}
+        size="xs"
+        className={cn('gap-1.5', className)}
+      />
+    ) : null;
+
+  const renderSelectControls = (triggerClassName: string) => {
+    if (filtered.length === 0) {
+      return null;
+    }
+
+    if (!selectionMode) {
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('common.select')}
+          aria-pressed={false}
+          onClick={handleEnterSelectionMode}
+        >
+          <CheckSquare className="h-3.5 w-3.5" />
+          <span>{t('common.select')}</span>
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn(headerDropdownTriggerDangerClass, triggerClassName)}
+        aria-label={t('common.clear')}
+        aria-pressed={true}
+        onClick={handleExitSelectionMode}
+      >
+        <XCircle className="h-3.5 w-3.5" />
+        <span>{t('common.clear')}</span>
+      </Button>
+    );
+  };
+
+  const renderFilterChips = () => {
+    const chips: Array<{
+      key: string;
+      active: boolean;
+      icon: typeof LayoutGrid;
+      label: string;
+      count: number;
+      onClick: () => void;
+    }> = [
+      {
+        key: 'all',
+        active: activeFilters.length === 0,
+        icon: LayoutGrid,
+        label: t('pulses.history.categories.all', { defaultValue: 'All' }),
+        count: stats.total,
+        onClick: () => setActiveFilters([]),
+      },
+      {
+        key: 'failed',
+        active: isFilterActive('failed'),
+        icon: AlertCircle,
+        label: t('pulses.history.categories.failed', { defaultValue: 'Failed' }),
+        count: stats.failed,
+        onClick: () => toggleFilter('failed'),
+      },
+      {
+        key: 'today',
+        active: isFilterActive('today'),
+        icon: CalendarDays,
+        label: t('pulses.history.categories.today', { defaultValue: 'Today' }),
+        count: stats.today,
+        onClick: () => toggleFilter('today'),
+      },
+    ];
+
+    return (
+      <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+        {chips.map((chip) => {
+          const Icon = chip.icon;
+          return (
+            <Button
+              key={chip.key}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={chip.onClick}
+              className={cn(chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
             >
-              {totalCount} {t('pulses.total')}
-            </Badge>
-            <Badge
-              className={cn(
-                BADGE_CHIP_CLASS,
-                statusBadge.isOk
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-              )}
+              <Icon className="h-3.5 w-3.5" />
+              <span>
+                {chip.label} <span className="tabular-nums font-semibold">({chip.count})</span>
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderPluginDropdown = (triggerClassName: string) => {
+    if (pluginSources.length === 0) {
+      return null;
+    }
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className={cn(headerDropdownTriggerClass, triggerClassName)}
+            aria-label={t('pulses.allPlugins')}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            <span>{pluginFilter ? pluginFilter : t('pulses.allPlugins')}</span>
+            <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="min-w-[14rem] rounded-xl border-border/50 shadow-xl"
+        >
+          <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+            {t('pulses.source')}
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={pluginFilter || ALL_PLUGINS_VALUE}
+            onValueChange={(value) => setPluginFilter(value === ALL_PLUGINS_VALUE ? '' : value)}
+          >
+            <DropdownMenuRadioItem
+              value={ALL_PLUGINS_VALUE}
+              className="rounded-md text-xs"
+              onSelect={(event) => event.preventDefault()}
             >
-              {statusBadge.label}
-            </Badge>
-            {pluginSources.length > 0 && (
-              <select
-                value={pluginFilter}
-                onChange={(e) => setPluginFilter(e.target.value)}
-                className="h-9 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
+              {t('pulses.allPlugins')}
+            </DropdownMenuRadioItem>
+            {pluginSources.map((ps) => (
+              <DropdownMenuRadioItem
+                key={ps}
+                value={ps}
+                className="rounded-md text-xs capitalize"
+                onSelect={(event) => event.preventDefault()}
               >
-                <option value="">{t('pulses.allPlugins')}</option>
-                {pluginSources.map((ps: string) => (
-                  <option key={ps} value={ps}>
-                    {ps}
-                  </option>
-                ))}
-              </select>
-            )}
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={ArrowLeft}
-              onClick={() => attemptNavigation(closePulseSettingsView)}
-              className="h-9 px-3 text-xs"
-            >
-              {t('pulses.backToProviders', { defaultValue: 'Providers' })}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={RefreshCw}
-              onClick={() => loadHistory()}
-              disabled={loading}
-              className={cn('h-9 px-3 text-xs', loading && '[&>svg]:animate-spin')}
-            >
-              {t('pulses.refresh')}
-            </Button>
-          </div>
-        </div>
+                {ps}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
 
-        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
-          <ListFilterStatCard
-            label="Total"
-            value={stats.total}
-            dotClassName="bg-blue-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label="Filtered"
-            value={stats.filtered}
-            dotClassName="bg-emerald-500"
-            active={activeFilters.length === 0}
-            onClick={() => setActiveFilters([])}
-          />
-          <ListFilterStatCard
-            label="Failed"
-            value={stats.failed}
-            dotClassName="bg-rose-500"
-            active={isFilterActive('failed')}
-            onClick={() => onToggleFilter('failed')}
-          />
-          <ListFilterStatCard
-            label="Sent Today"
-            value={stats.today}
-            dotClassName="bg-violet-500"
-            active={isFilterActive('today')}
-            onClick={() => onToggleFilter('today')}
-          />
-        </div>
+  return (
+    <div className="plugin-pulses flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
+      <div className="px-4 py-4 md:px-6">
+        <PluginSettingsPageShell
+          title={t('pulses.historyTitle', { defaultValue: 'Pulse – Sent SMS' })}
+          subtitle={t('pulses.historyDescription', {
+            defaultValue: 'Monitor SMS and message traffic from plugins.',
+          })}
+          onClose={handleClose}
+          trailing={
+            <>
+              <RoundIconLabelButton
+                type="button"
+                icon={RefreshCw}
+                label={t('pulses.refresh')}
+                variant="secondary"
+                alwaysExpanded
+                onClick={() => loadHistory()}
+                disabled={loading}
+                className={cn(loading && '[&>svg]:animate-spin')}
+              />
+              <RoundIconLabelButton
+                type="button"
+                icon={X}
+                label={t('common.close')}
+                variant="secondary"
+                alwaysExpanded
+                onClick={handleClose}
+              />
+            </>
+          }
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                <Badge
+                  className={cn(
+                    BADGE_CHIP_CLASS,
+                    statusBadge.isOk
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+                  )}
+                >
+                  {statusBadge.label}
+                </Badge>
+                {renderPluginDropdown('h-11 rounded-full')}
+                <ListFilterChipsToggle
+                  visible={filtersVisible}
+                  onVisibleChange={setFiltersVisible}
+                  className="h-11 rounded-full"
+                />
+                {renderSelectControls('h-11 rounded-full')}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <RoundExpandableSearch
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder={t('pulses.searchPlaceholder')}
+                />
+              </div>
+            </div>
 
-        {selectedCount > 0 && (
-          <BulkActionBar
-            selectedCount={selectedCount}
-            onClearSelection={clearSelection}
-            actions={[
-              {
-                label: t('common.delete'),
-                icon: Trash2,
-                onClick: () => setShowBulkDeleteModal(true),
-                variant: 'destructive',
-              },
-            ]}
-          />
-        )}
+            {filtersVisible ? (
+              <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>{renderFilterChips()}</div>
+            ) : null}
 
-        <BulkDeleteModal
-          isOpen={showBulkDeleteModal}
-          onClose={() => setShowBulkDeleteModal(false)}
-          onConfirm={handleBulkDelete}
-          itemCount={selectedCount}
-          itemLabel="pulses"
-          isLoading={deleting}
-        />
+            {renderBulkActionBar('py-3')}
 
-        <Card className={cn('overflow-hidden', DETAIL_VIEW_CARD_CLASS)}>
-          <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
-            <ListSearchInput
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t('pulses.searchPlaceholder')}
-              className="hidden md:block"
+            <BulkDeleteModal
+              isOpen={showBulkDeleteModal}
+              onClose={() => setShowBulkDeleteModal(false)}
+              onConfirm={handleBulkDelete}
+              itemCount={selectedCount}
+              itemLabel="pulses"
+              isLoading={deleting}
             />
-          </div>
-          {loading && pulseHistory.length === 0 ? (
-            <Card className="shadow-none">
-              <div className="p-6 text-center text-sm text-muted-foreground">
+
+            {loading && pulseHistory.length === 0 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
                 {t('common.loading')}
               </div>
-            </Card>
-          ) : filtered.length === 0 ? (
-            <Card className="shadow-none">
-              <div className="p-6 text-center text-sm text-muted-foreground">
+            ) : filtered.length === 0 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
                 {t('pulses.emptyHistory')}
               </div>
-            </Card>
-          ) : (
-            <Card className="shadow-none">
+            ) : (
               <Table rowBorders={false}>
                 <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
                   <TableRow>
-                    <TableHead className="hidden w-12 text-xs md:table-cell">
-                      <input
-                        ref={headerCheckboxRef}
-                        type="checkbox"
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
-                        checked={allVisibleSelected}
-                        onChange={onToggleAllVisible}
-                      />
-                    </TableHead>
+                    {selectionMode ? (
+                      <TableHead className="hidden w-12 text-xs md:table-cell">
+                        <input
+                          ref={headerCheckboxRef}
+                          type="checkbox"
+                          className="h-4 w-4 cursor-pointer"
+                          aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                          checked={allVisibleSelected}
+                          onChange={onToggleAllVisible}
+                        />
+                      </TableHead>
+                    ) : null}
                     <TableHead className="text-xs">{t('pulses.date')}</TableHead>
                     <TableHead className="text-xs">{t('pulses.recipient')}</TableHead>
                     <TableHead className="text-xs">{t('pulses.body')}</TableHead>
@@ -335,22 +499,24 @@ export const PulseHistoryView: React.FC = () => {
                       key={entry.id}
                       className={cn(
                         'bg-white transition-colors hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
-                        isSelected(entry.id) && 'bg-plugin-subtle',
+                        selectionMode && isSelected(entry.id) && 'bg-plugin-subtle',
                       )}
                     >
-                      <TableCell
-                        className="hidden w-12 text-xs md:table-cell"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 cursor-pointer"
-                          checked={isSelected(entry.id)}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(entry.id)}
-                          aria-label={isSelected(entry.id) ? 'Deselect row' : 'Select row'}
-                        />
-                      </TableCell>
+                      {selectionMode ? (
+                        <TableCell
+                          className="hidden w-12 text-xs md:table-cell"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 cursor-pointer"
+                            checked={isSelected(entry.id)}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(entry.id)}
+                            aria-label={isSelected(entry.id) ? 'Deselect row' : 'Select row'}
+                          />
+                        </TableCell>
+                      ) : null}
                       <TableCell className="text-xs text-muted-foreground">
                         {entry.sentAt ? formatDateTimeShort(entry.sentAt) : '—'}
                       </TableCell>
@@ -405,12 +571,13 @@ export const PulseHistoryView: React.FC = () => {
                   ))}
                 </TableBody>
               </Table>
-            </Card>
-          )}
-          <div className="border-t border-border/60 px-4 py-2 text-xs text-muted-foreground">
-            Showing {filtered.length} of {pulseHistory.length} Pulses
+            )}
+
+            <div className="border-t border-border/60 pt-2 text-xs text-muted-foreground">
+              Showing {filtered.length} of {pulseHistory.length} Pulses
+            </div>
           </div>
-        </Card>
+        </PluginSettingsPageShell>
       </div>
     </div>
   );

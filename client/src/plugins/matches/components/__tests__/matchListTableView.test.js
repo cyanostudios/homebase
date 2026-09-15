@@ -120,7 +120,6 @@ describe('MatchList table view wiring', () => {
     expect(quickContextSrc).toMatch(/leading=\{titleLeading\}/);
     expect(listSrc).not.toMatch(/MatchDetailHeaderMenus/);
     expect(viewSrc).toMatch(/MatchQuickContextPanel/);
-    expect(viewSrc).toMatch(/variant="full"/);
   });
 
   test('bulk select mode shows BulkActionRoundBar under toolbar and keeps detail column visible', () => {

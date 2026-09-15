@@ -8,7 +8,6 @@ import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 
 import { filesApi } from '../api/filesApi';
-import { useFiles } from '../hooks/useFiles';
 import type { FileItem } from '../types/files';
 import { humanSize } from '../utils/humanSize';
 
@@ -23,7 +22,6 @@ type Props = {
 
 export const FileView: React.FC<Props> = ({ file, item, stacked = false }) => {
   const { t } = useTranslation();
-  const { openFileForEdit } = useFiles();
   const f = (file ?? item) as FileItem | undefined;
 
   const previewUrl = useMemo(() => {
@@ -120,12 +118,7 @@ export const FileView: React.FC<Props> = ({ file, item, stacked = false }) => {
 
   if (stacked) {
     return (
-      <DetailLayout
-        gridClassName="grid-cols-1"
-        leftSidebar={
-          <FileQuickContextPanel file={f} variant="full" onEdit={() => openFileForEdit(f)} />
-        }
-      >
+      <DetailLayout gridClassName="grid-cols-1" leftSidebar={<FileQuickContextPanel file={f} />}>
         {previewSection}
       </DetailLayout>
     );

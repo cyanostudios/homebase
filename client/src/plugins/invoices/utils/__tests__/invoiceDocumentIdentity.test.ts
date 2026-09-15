@@ -54,7 +54,21 @@ describe('buildInvoiceCustomerBlock', () => {
     });
   });
 
-  it('uses the first contact person name as kundreferens', () => {
+  it('uses the invoice-reference contact person as kundreferens', () => {
+    const block = buildInvoiceCustomerBlock({
+      contact: {
+        companyName: 'Acme AB',
+        contactPersons: [
+          { id: '1', name: 'Anna Andersson', title: 'Buyer' },
+          { id: '2', name: 'Bertil Berg', title: 'Other', invoiceReference: true },
+        ],
+      },
+    });
+
+    expect(block.reference).toBe('Bertil Berg');
+  });
+
+  it('falls back to the first named contact person as kundreferens', () => {
     const block = buildInvoiceCustomerBlock({
       contact: {
         companyName: 'Acme AB',

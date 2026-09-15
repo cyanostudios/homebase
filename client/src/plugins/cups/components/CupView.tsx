@@ -1,13 +1,20 @@
-import { Globe, RotateCcw, SlidersHorizontal, Trophy } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import { Download, Globe, Info, RotateCcw, SlidersHorizontal, Star, Trophy } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
-import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
@@ -20,10 +27,21 @@ import { CupDetailHeaderMenus } from './CupDetailHeaderMenus';
 import { CupPropertiesFields } from './CupPropertiesFields';
 import { CupRatings } from './CupRatings';
 
+type CupViewTab = 'information' | 'properties' | 'ratings' | 'ingest';
+
+const CUP_VIEW_TABS: CupViewTab[] = ['information', 'properties', 'ratings', 'ingest'];
+
+function parseCupViewTab(value: string | null): CupViewTab {
+  if (value && CUP_VIEW_TABS.includes(value as CupViewTab)) {
+    return value as CupViewTab;
+  }
+  return 'information';
+}
+
 export function CupView({
   cup,
   item,
-  stacked = false,
+  stacked: _stacked = false,
 }: {
   cup?: Cup | null;
   item?: Cup | null;
@@ -31,6 +49,25 @@ export function CupView({
   stacked?: boolean;
 }) {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseCupViewTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: CupViewTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'information') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
   const current = cup ?? item ?? null;
   const {
     restoreCup,
@@ -90,6 +127,69 @@ export function CupView({
     };
   }, [current, quickEditDraft]);
 
+  const ratingsCount = current != null && current.ratings_count > 0 ? current.ratings_count : null;
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: 'information' as const,
+        label: t('cups.tabs.information'),
+        icon: Info,
+        count: null as number | null,
+      },
+      {
+        id: 'properties' as const,
+        label: t('cups.tabs.properties'),
+        icon: SlidersHorizontal,
+        count: null as number | null,
+      },
+      {
+        id: 'ratings' as const,
+        label: t('cups.tabs.ratings'),
+        icon: Star,
+        count: ratingsCount,
+      },
+      {
+        id: 'ingest' as const,
+        label: t('cups.tabs.ingest'),
+        icon: Download,
+        count: null as number | null,
+      },
+    ],
+    [ratingsCount, t],
+  );
+
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span>
+              {tab.label}
+              {tab.count != null ? (
+                <>
+                  {' '}
+                  <span className="tabular-nums font-semibold">({tab.count})</span>
+                </>
+              ) : null}
+            </span>
+          </Button>
+        );
+      })}
+    </div>
+  );
+
   if (!current || !displayCup) {
     return null;
   }
@@ -108,46 +208,152 @@ export function CupView({
     </div>
   );
 
-  const ingestSidebar = (
-    <div className="space-y-3">
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title={t('cups.columnIngest')} subtleTitle className="p-4" collapsible>
-          <div>
-            <div className={DETAIL_INFO_ROW_CLASS}>
-              <span className="text-slate-500 dark:text-slate-400">Source URL</span>
-              <span className="max-w-[170px] truncate font-extrabold text-foreground">
-                {current.source_url || '—'}
-              </span>
-            </div>
-            <div className={DETAIL_INFO_ROW_CLASS}>
-              <span className="text-slate-500 dark:text-slate-400">Ingest source</span>
-              <span className="font-extrabold text-foreground">
-                {ingestSourceName(current.ingest_source_id)}
-              </span>
-            </div>
-            <div className={DETAIL_INFO_ROW_CLASS}>
-              <span className="text-slate-500 dark:text-slate-400">Ingest run</span>
-              <span className="font-extrabold text-foreground">{current.ingest_run_id || '—'}</span>
+  const informationCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={t('cups.tabs.information')} icon={Trophy} subtleTitle className="p-6">
+        <div className="space-y-3 text-sm">
+          <div className="grid grid-cols-3 gap-3">
+            <span className="text-muted-foreground">Name</span>
+            <span className="col-span-2 font-medium">{current.name}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <span className="text-muted-foreground">Organizer</span>
+            <span className="col-span-2">{current.organizer || '—'}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <span className="text-muted-foreground">Location</span>
+            <span className="col-span-2">{current.location || '—'}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <span className="text-muted-foreground">Date range</span>
+            <span className="col-span-2">
+              {current.start_date ? new Date(current.start_date).toLocaleDateString('sv-SE') : '—'}{' '}
+              - {current.end_date ? new Date(current.end_date).toLocaleDateString('sv-SE') : '—'}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <span className="text-muted-foreground">Categories</span>
+            <span className="col-span-2">{current.categories || '—'}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <span className="text-muted-foreground">Match format</span>
+            <span className="col-span-2">{current.match_format || '—'}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <span className="text-muted-foreground">Teams</span>
+            <span className="col-span-2">
+              {current.team_count !== null && current.team_count !== undefined
+                ? String(current.team_count)
+                : '—'}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <span className="text-muted-foreground">Registration</span>
+            <span className="col-span-2">
+              {current.registration_url ? (
+                <a
+                  className="text-primary hover:underline inline-flex items-center gap-1"
+                  href={current.registration_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Open
+                </a>
+              ) : (
+                '—'
+              )}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <span className="text-muted-foreground">Description</span>
+            <span className="col-span-2 whitespace-pre-wrap">{current.description || '—'}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3 items-start">
+            <span className="text-muted-foreground">{t('cups.heroImageView')}</span>
+            <div className="col-span-2 min-w-0">
+              {heroImageUrl ? (
+                <a
+                  href={heroImageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block rounded-md border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <img
+                    src={heroImageUrl}
+                    alt={`${current.name} — ${t('cups.heroImageView')}`}
+                    className="h-24 w-40 max-w-full rounded-md object-cover"
+                    loading="lazy"
+                  />
+                </a>
+              ) : (
+                <p className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-4 text-xs leading-relaxed text-muted-foreground">
+                  {t('cups.heroImageNone')}
+                </p>
+              )}
             </div>
           </div>
-        </DetailSection>
-      </Card>
-    </div>
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const propertiesCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('cups.cupProperties')}
+        icon={SlidersHorizontal}
+        subtleTitle
+        className="p-6"
+      >
+        <CupPropertiesFields
+          values={{
+            visible: displayCup.visible !== false,
+            sanctioned: displayCup.sanctioned !== false,
+            featured: displayCup.featured === true,
+          }}
+          onVisibleChange={(value) => setQuickEditField('visible', value)}
+          onSanctionedChange={(value) => setQuickEditField('sanctioned', value)}
+          onFeaturedChange={(value) => setQuickEditField('featured', value)}
+        />
+      </DetailSection>
+    </Card>
+  );
+
+  const ingestCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={t('cups.columnIngest')} subtleTitle className="p-4" collapsible>
+        <div>
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">Source URL</span>
+            <span className="max-w-[170px] truncate font-extrabold text-foreground">
+              {current.source_url || '—'}
+            </span>
+          </div>
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">Ingest source</span>
+            <span className="font-extrabold text-foreground">
+              {ingestSourceName(current.ingest_source_id)}
+            </span>
+          </div>
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">Ingest run</span>
+            <span className="font-extrabold text-foreground">{current.ingest_run_id || '—'}</span>
+          </div>
+        </div>
+      </DetailSection>
+    </Card>
   );
 
   return (
     <>
-      <DetailLayout
-        gridClassName={stacked ? 'grid-cols-1' : undefined}
-        sidebar={stacked ? undefined : ingestSidebar}
-      >
-        {stacked ? (
-          <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
-            <div className="border-b border-border/50 px-4 py-5">
-              <CupDetailHeaderMenus cup={current} leading={titleLeading} />
-            </div>
-          </Card>
-        ) : null}
+      <DetailLayout gridClassName="grid-cols-1">
+        <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+          <div className="border-b border-border/50 px-4 py-5">
+            <CupDetailHeaderMenus cup={current} leading={titleLeading} />
+            <div className="mt-4">{tabChips}</div>
+          </div>
+        </Card>
         {current.deleted_at !== null && current.deleted_at !== undefined && (
           <Card
             padding="none"
@@ -176,117 +382,10 @@ export function CupView({
             </div>
           </Card>
         )}
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection title="Cup information" icon={Trophy} subtleTitle className="p-6">
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-3 gap-3">
-                <span className="text-muted-foreground">Name</span>
-                <span className="col-span-2 font-medium">{current.name}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <span className="text-muted-foreground">Organizer</span>
-                <span className="col-span-2">{current.organizer || '—'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <span className="text-muted-foreground">Location</span>
-                <span className="col-span-2">{current.location || '—'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <span className="text-muted-foreground">Date range</span>
-                <span className="col-span-2">
-                  {current.start_date
-                    ? new Date(current.start_date).toLocaleDateString('sv-SE')
-                    : '—'}{' '}
-                  -{' '}
-                  {current.end_date ? new Date(current.end_date).toLocaleDateString('sv-SE') : '—'}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <span className="text-muted-foreground">Categories</span>
-                <span className="col-span-2">{current.categories || '—'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <span className="text-muted-foreground">Match format</span>
-                <span className="col-span-2">{current.match_format || '—'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <span className="text-muted-foreground">Teams</span>
-                <span className="col-span-2">
-                  {current.team_count !== null && current.team_count !== undefined
-                    ? String(current.team_count)
-                    : '—'}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <span className="text-muted-foreground">Registration</span>
-                <span className="col-span-2">
-                  {current.registration_url ? (
-                    <a
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                      href={current.registration_url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <Globe className="h-3.5 w-3.5" />
-                      Open
-                    </a>
-                  ) : (
-                    '—'
-                  )}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <span className="text-muted-foreground">Description</span>
-                <span className="col-span-2 whitespace-pre-wrap">{current.description || '—'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3 items-start">
-                <span className="text-muted-foreground">{t('cups.heroImageView')}</span>
-                <div className="col-span-2 min-w-0">
-                  {heroImageUrl ? (
-                    <a
-                      href={heroImageUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-block rounded-md border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <img
-                        src={heroImageUrl}
-                        alt={`${current.name} — ${t('cups.heroImageView')}`}
-                        className="h-24 w-40 max-w-full rounded-md object-cover"
-                        loading="lazy"
-                      />
-                    </a>
-                  ) : (
-                    <p className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-4 text-xs leading-relaxed text-muted-foreground">
-                      {t('cups.heroImageNone')}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </DetailSection>
-        </Card>
-        <Card padding="none" className={cn('mt-3', DETAIL_VIEW_CARD_CLASS)}>
-          <DetailSection
-            title={t('cups.cupProperties')}
-            icon={SlidersHorizontal}
-            subtleTitle
-            className="p-6"
-          >
-            <CupPropertiesFields
-              values={{
-                visible: displayCup.visible !== false,
-                sanctioned: displayCup.sanctioned !== false,
-                featured: displayCup.featured === true,
-              }}
-              onVisibleChange={(value) => setQuickEditField('visible', value)}
-              onSanctionedChange={(value) => setQuickEditField('sanctioned', value)}
-              onFeaturedChange={(value) => setQuickEditField('featured', value)}
-            />
-          </DetailSection>
-        </Card>
-        <CupRatings cupId={current.id} />
-        {stacked ? ingestSidebar : null}
+        {activeTab === 'information' ? informationCard : null}
+        {activeTab === 'properties' ? propertiesCard : null}
+        {activeTab === 'ratings' ? <CupRatings cupId={current.id} /> : null}
+        {activeTab === 'ingest' ? ingestCard : null}
       </DetailLayout>
       <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}

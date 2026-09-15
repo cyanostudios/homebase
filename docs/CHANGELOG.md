@@ -4,12 +4,148 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-16 – Docs: align Mail/Pulse/AI Sent + routing notes with verified UI
+
+- **Why:** CHANGELOG still described shell category chips / `min-h-full` mounts after Sent history and scrollport fixes; UI standards omitted provider mail-layout.
+- **What:** Supersession notes on older 2026-09-15 entries; `UI_AND_UX_STANDARDS_V3.md` §0.1 lists Mail/Pulse/AI mail-layout and Sent history bulk/filter pattern.
+
+## 2026-09-15 – Mail Sent: same Contacts-style toolbar as Pulse Sent SMS
+
+- **Why:** Mail – Sent still used settings-shell category buttons, full-width search, and legacy bulk bar.
+- **What:** `MailHistoryView` mirrors Pulse history: `RoundExpandableSearch`, Filters toggle + All/With source/Today chips, plugin dropdown beside Filters, Select/Clear + `BulkActionRoundBar`.
+
+## 2026-09-15 – Pulse Sent SMS: Contacts-style bulk selection
+
+- **Why:** Sent SMS always showed row checkboxes and the legacy `BulkActionBar`.
+- **What:** Opt-in Select/Clear, `BulkActionRoundBar` while selecting, and checkboxes only in selection mode (Contacts pattern).
+
+## 2026-09-15 – Pulse Sent SMS: Contacts-style search + filter toolbar
+
+- **Why:** Sent SMS used settings-shell category buttons and a full-width search field instead of the Contacts list toolbar pattern.
+- **What:** `PulseHistoryView` uses `RoundExpandableSearch`, `ListFilterChipsToggle` + compact All/Failed/Today chips; plugin-source dropdown sits next to the Filters button.
+
+## 2026-09-15 – Pulse/Mail/AI settings mounts: own scroll under contentOwnsScroll
+
+- **Why:** With `contentOwnsScroll`, MainLayout clips overflow; history/routing used `min-h-full` without a scrollport, so Sent SMS / Sent mail / routing could not scroll.
+- **What:** Pulse/Mail history and Pulse/Mail/AI routing page mounts use `flex min-h-0 flex-1 flex-col overflow-y-auto` so the settings page owns vertical scroll.
+
+## 2026-09-15 – Mail + Pulse provider detail: Actions + tabs (AI Providers pattern)
+
+- **Why:** Stacked Mail/Pulse provider detail lacked the Actions header row used by AI Providers.
+- **What:** `MailProviderView` / `PulseProviderView` mount `*DetailHeaderMenus` with leading title, Information / Configuration / Test chips via `?tab=`, and Actions Edit / Delete / Send test (opens test tab).
+
+## 2026-09-15 – Mail + Pulse sent history: routing settings page layout
+
+- **Why:** Sent mail / Sent SMS still used custom list chrome instead of the shared settings shell used by routing.
+- **What:** `MailHistoryView` and `PulseHistoryView` use `PluginSettingsPageShell` with Refresh + Close in the header, and Contacts-style page mount. Titles: **Mail – Sent** / **Pulse – Sent SMS**.
+- **Superseded:** Category chips in the shell header were replaced the same day by Contacts-style `ListFilterChipsToggle` + compact chips (see entries above).
+
+## 2026-09-15 – Mail + Pulse lists: name-only column default
+
+- **Why:** Align Mail/Pulse provider tables with AI Providers/Contacts name-only list defaults in the narrow list column.
+- **What:** `mailProvidersTableColumns` / `pulseProvidersTableColumns` hide status/capability/credentials by default; those show as meta under the provider name with a category icon.
+
+## 2026-09-15 – Mail + Pulse routing: Contacts settings page layout
+
+- **Why:** Routing still used custom page chrome instead of the shared plugin settings shell (categories, header Save/Close).
+- **What:** `MailProvidersRouting` and `PulseProvidersRouting` use `PluginSettingsPageShell` with Global / Per-plugin categories, header Save when global default is dirty, and Contacts-style page mount + padding. Per-plugin row Save/Clear unchanged.
+- **Note:** Mount scroll class later corrected to `flex min-h-0 flex-1 flex-col overflow-y-auto` under `contentOwnsScroll` (see “Pulse/Mail/AI settings mounts: own scroll”).
+
+## 2026-09-15 – Mail + Pulse provider lists: mail-layout list|content
+
+- **Why:** Mail and Pulse provider lists were full-width only — no desktop list|detail split like AI Providers/Contacts.
+- **What:** `MailProvidersList` and `PulseProvidersList` use 20/80 grid on desktop with `*StatisticsView` empty state, row preview, and inline create/edit form + provider view in the detail column. Collapsible toolbar, filter toggle, sort dropdown. Registry: `contentOwnsScroll: true` for both plugins.
+
+## 2026-09-15 – AI Providers routing: full Contacts settings page layout
+
+- **Why:** Routing used the settings shell components but not the Contacts settings page mount (padding/surface, lifted category state, header Save when dirty).
+- **What:** `AIProvidersList` mounts routing with Contacts-style padding (`px-4 py-4 md:px-6`). `AIProvidersRouting` accepts category/close props, uses `SETTINGS_CATEGORY_ICONS`, and shows `SettingsHeaderSaveButton` for dirty global default (per-plugin row Save/Clear unchanged).
+- **Note:** Mount scroll class later corrected to `flex min-h-0 flex-1 flex-col overflow-y-auto` under `contentOwnsScroll` (see “Pulse/Mail/AI settings mounts: own scroll”).
+
+## 2026-09-15 – AI Providers mail-layout list|content
+
+- **Why:** AI Providers list was full-width only — no desktop list|detail split like Contacts/Ingest.
+- **What:** `AIProvidersList` uses 20/80 grid on desktop with `AIProvidersStatisticsView` empty state, stacked `AIProviderView` on row select, and inline create/edit form. Compact viewport keeps panel flow. Registry: `contentOwnsScroll: true`, `contentViewKey: 'aiProvidersContentView'`.
+
+## 2026-09-15 – AI Providers routing: settings shell design
+
+- **Why:** Routing is a settings-like surface but used custom page chrome instead of the shared plugin settings layout.
+- **What:** `AIProvidersRouting` uses `PluginSettingsPageShell` with RoundIconLabelButton categories (Global default / Per-plugin) and shell Close — same pattern as Contacts/Guides settings.
+
+## 2026-09-15 – AI Providers: detail tabs + name-only list
+
+- **Why:** Long detail card stack and wide list table — align with Contacts/Cups/Ingest patterns.
+- **What:** `AIProviderView` tabs Information / Configuration / Test via `?tab=` and header-card chips; test tab always visible with empty state. List table defaults to provider-only column with status, model, and API key as meta under the name.
+
+## 2026-09-15 – Ingest list: name-only column default
+
+- **Why:** Align Ingest with Contacts/Cups/Tasks name-only list defaults.
+- **What:** `ingestTableColumns` hides type/active/status/last-fetch by default; those show as meta under the name row.
+
+## 2026-09-15 – Ingest detail: tab layout (Contacts pattern)
+
+- **Why:** Long card stack in source detail; information and URL lived in sidebar + main column.
+- **What:** `IngestSourceView` tabs Information / Excerpt / Fetch history via `?tab=` and header-card chips. Information merges sidebar fields and source URL; excerpt tab always visible with empty state; runs count on chip when history exists.
+
+## 2026-09-15 – Guides detail: tab layout (Contacts pattern)
+
+- **Why:** Long guide detail card stack — split main column into tabs for scanability while keeping production sidebar always visible.
+- **What:** `GuideView` tabs Details / Presentations / Review via `?tab=` and header-card chips. Review tab always visible with empty state; production banner and review queue gated to Review tab. Validation errors stay above tabs.
+
+## 2026-09-15 – Clubdesk detail: tab layout (Contacts pattern)
+
+- **Why:** Long card stacks in guide and price-list detail; currency lived only in sidebar for full panel.
+- **What:** `ClubdeskGuideView` tabs Information / Steps; `PriceListView` tabs Information / Items / Currency via `?tab=` and header-card chips. Currency moved from sidebar into tab.
+
+## 2026-09-15 – Grind 1 Depth A: orphan cleanup (requests/contacts/tasks)
+
+**Typ:** Refactor / cleanup (delete-only)  
+**Scope:** `client/src/plugins/{requests,contacts,tasks}/`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Removed 12 unused orphan files from the pre-table-only list era (`*ListItem`, `*QuickAdd`, plugin-local `*ListViewMode`, `requestColumnCount` + associated tests). No user-facing behavior change; production list views remain table-only. `contactColumnCount.ts` and `taskColumnCount.ts` kept for SETTINGS_KEY / columnCount persistence.
+
+## 2026-09-15 – Estimates detail: trial tab layout (Contacts pattern)
+
+- **Why:** Long estimate detail card stack — split into tabs for scanability.
+- **What:** `EstimateView` tabs Properties / Line items / Notes via `?tab=` and header-card chips (no QuickContextPanel). Notes tab always visible with empty state.
+
+## 2026-09-15 – Cups detail: tab layout (Contacts pattern)
+
+- **Why:** Long card stack in cup detail; ingest lived only in sidebar for full panel.
+- **What:** `CupView` tabs Information / Properties / Ratings / Ingest via `?tab=` and header-card chips (`CupDetailHeaderMenus` + `headerBelow`). Ingest moved from sidebar into tab; deleted banner stays above tab content.
+
+## 2026-09-15 – Invoices detail: trial tab layout (Contacts pattern)
+
+- **Why:** Same long card-stack problem as Contacts — split full detail into tabs for scanability.
+- **What:** `InvoicesView` tabs Information / Line items / Payments / Linked via `?tab=` and `InvoiceQuickContextPanel.headerBelow` chips. Sticky preview column unchanged. List quick context unchanged.
+
 ## 2026-09-15 – Plugin frontend template: Contacts-class mail-layout
 
 **Typ:** Docs / template  
 **Scope:** `templates/plugin-frontend-template/`, `templates/README.md`, integration/design checklists, ADR [`ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md`](ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md)
 
 **Sammanfattning:** Golden frontend template aligned to production Contacts mail-layout: table-only 20/80 list|detail split, `BulkActionRoundBar` + `RoundExpandableSearch`, `YourItemQuickContextPanel` (list|full), `YourItemDetailHeaderMenus`, `YourItemsStatisticsView` empty pane, inline form via `InlinePanelFormActions`. Removed card-column artifacts (`YourItemListItem`, `listViewMode` / `columnCount` utils). New CRUD scaffolds require `contentFlush` + `contentOwnsScroll` in registry. Template stays outside `client/src/` (not linted until copied).
+
+## 2026-09-15 – Matches detail: trial tab layout (Contacts pattern)
+
+- **Why:** Same long card-stack problem as Contacts — split full detail into tabs for scanability.
+- **What:** `MatchView` tabs Information / Properties / Contacts / Linked via `?tab=` and `MatchQuickContextPanel.headerBelow` chips. Related slots move from sidebar into Linked tab. List quick context unchanged.
+
+## 2026-09-15 – Tasks & Requests detail: trial tab layout (Contacts pattern)
+
+- **Why:** Same long card-stack problem as Contacts — split full detail into tabs for scanability.
+- **What:** `TaskView` tabs Information / Properties / Assignees / Linked; `RequestView` tabs Information / Properties / Assignees / Files (files gated on plugin). Both use `?tab=` + QuickContext `headerBelow` chips. List quick context unchanged.
+
+## 2026-09-15 – Contacts: invoice reference checkbox on contact persons
+
+- **Why:** Kundreferens on invoices was always the first contact person; users need to pick which person to use.
+- **What:** `invoiceReference` flag on person JSON; checkbox in ContactView + ContactForm (`CHECKBOX_SM_CLASS`); invoices prefer flagged person, else first named (legacy).
+
+## 2026-09-15 – Contacts detail: trial tab layout (Teams pattern)
+
+- **Why:** Test splitting the long contact detail card stack into tabs like Teams (one section at a time).
+- **What:** `ContactView` tabs Information / Addresses / Contact persons / Linked via `?tab=` and `ContactQuickContextPanel.headerBelow` chips. Edit form unchanged.
 
 ## 2026-09-15 – Garments list: clear size and audience
 

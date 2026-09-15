@@ -70,7 +70,7 @@ describe('PriceListList table view wiring', () => {
     expect(listSrc).toMatch(/getPriceList\(listId\)/);
     expect(listSrc).toMatch(/Index rows omit `items`/);
     expect(viewSrc).toMatch(/stacked\?: boolean/);
-    expect(viewSrc).toMatch(/gridClassName={stacked \? 'grid-cols-1'/);
+    expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
   });
 
   test('desktop create/edit renders PriceListForm in the detail column', () => {

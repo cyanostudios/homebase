@@ -116,11 +116,8 @@ describe('RequestList table view wiring', () => {
     );
     expect(quickContextSrc).toMatch(/RequestDetailHeaderMenus/);
     expect(quickContextSrc).toMatch(/leading=\{titleLeading\}/);
-    expect(quickContextSrc).toMatch(/children\?: React\.ReactNode/);
-    expect(quickContextSrc).toMatch(/isFullView && children/);
     expect(listSrc).not.toMatch(/RequestDetailHeaderMenus/);
     expect(viewSrc).toMatch(/RequestQuickContextPanel/);
-    expect(viewSrc).toMatch(/variant="full"/);
   });
 
   test('full detail merges title header and description into one card', () => {
@@ -130,7 +127,7 @@ describe('RequestList table view wiring', () => {
     );
     expect(viewSrc).toMatch(/RequestQuickContextPanel/);
     expect(viewSrc).not.toMatch(/requests\.form\.description/);
-    expect(quickContextSrc).toMatch(/isFullView && children/);
+    expect(quickContextSrc).toMatch(/RequestDetailHeaderMenus/);
     expect(quickContextSrc).toMatch(/responseDueBadge/);
     expect(quickContextSrc).toMatch(/REQUEST_PRIORITY_COLORS\[request\.priority\]/);
   });

@@ -1,9 +1,7 @@
-import { Bell, Route, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -21,10 +19,27 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  PluginSettingsPageShell,
+  SettingsHeaderSaveButton,
+  type PluginSettingsCategory,
+} from '@/core/ui/PluginSettingsPageShell';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 
 import { usePulses } from '../hooks/usePulses';
 import type { PulsePluginRoutingAssignment, SavePulseRoutingInput } from '../types/pulse';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+
+const GLOBAL_DEFAULT_VALUE = '__global__';
+
+export type PulseProvidersRoutingCategory = 'global' | 'plugins';
+
+interface PulseProvidersRoutingProps {
+  selectedCategory?: PulseProvidersRoutingCategory;
+  onSelectedCategoryChange?: (category: PulseProvidersRoutingCategory) => void;
+  /** @deprecated Category buttons live in the settings header. Kept for call-site compatibility. */
+  renderCategoryButtonsInline?: boolean;
+  onClose?: () => void;
+}
 
 function providerLabel(
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -33,7 +48,11 @@ function providerLabel(
   return t(`pulses.providers.${providerKey}.title`, { defaultValue: providerKey });
 }
 
-export const PulseProvidersRouting: React.FC = () => {
+export function PulseProvidersRouting({
+  selectedCategory,
+  onSelectedCategoryChange,
+  onClose,
+}: PulseProvidersRoutingProps = {}) {
   const { t } = useTranslation();
   const {
     providers,
@@ -47,6 +66,8 @@ export const PulseProvidersRouting: React.FC = () => {
     closeRoutingView,
   } = usePulses();
 
+  const handleClose = onClose ?? closeRoutingView;
+
   const smsRoutableProviders = useMemo(
     () =>
       providers.filter(
@@ -55,25 +76,71 @@ export const PulseProvidersRouting: React.FC = () => {
     [providers],
   );
 
+  const [internalCategory, setInternalCategory] = useState<PulseProvidersRoutingCategory>('global');
+  const activeCategory = selectedCategory ?? internalCategory;
+  const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
+
   const [globalProviderKey, setGlobalProviderKey] = useState('');
+  const [initialGlobalProviderKey, setInitialGlobalProviderKey] = useState('');
   const [pluginDrafts, setPluginDrafts] = useState<Record<string, string>>({});
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [savingPluginKey, setSavingPluginKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const categories: PluginSettingsCategory[] = useMemo(
+    () => [
+      {
+        id: 'global',
+        label: t('pulses.routing.categories.global', {
+          defaultValue: 'Global default',
+        }),
+        description: t('pulses.routing.globalHint', {
+          defaultValue:
+            'Used by any plugin without its own override. Only configured and enabled SMS providers are available.',
+        }),
+        icon: SETTINGS_CATEGORY_ICONS.routingGlobal,
+      },
+      {
+        id: 'plugins',
+        label: t('pulses.routing.categories.plugins', {
+          defaultValue: 'Per-plugin',
+        }),
+        description: t('pulses.routing.pluginsHint', {
+          defaultValue:
+            'Optional. When set, a plugin uses its assigned provider instead of the global default.',
+        }),
+        icon: SETTINGS_CATEGORY_ICONS.routingPlugins,
+      },
+    ],
+    [t],
+  );
 
   useEffect(() => {
-    void loadProviderSettings();
-    void loadRouting();
+    let cancelled = false;
+    setIsLoading(true);
+    void Promise.all([loadProviderSettings(), loadRouting()]).finally(() => {
+      if (!cancelled) {
+        setIsLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [loadProviderSettings, loadRouting]);
 
   useEffect(() => {
-    setGlobalProviderKey(routing?.global?.providerKey ?? '');
-    const next: Record<string, string> = {};
+    const nextProvider = routing?.global?.providerKey ?? '';
+    setGlobalProviderKey(nextProvider);
+    setInitialGlobalProviderKey(nextProvider);
+    const nextDrafts: Record<string, string> = {};
     for (const plugin of routing?.plugins ?? []) {
-      next[plugin.pluginKey] = plugin.providerKey ?? '';
+      nextDrafts[plugin.pluginKey] = plugin.providerKey ?? '';
     }
-    setPluginDrafts(next);
+    setPluginDrafts(nextDrafts);
   }, [routing]);
+
+  const isDirty = activeCategory === 'global' && globalProviderKey !== initialGlobalProviderKey;
 
   const handleSaveGlobal = useCallback(async () => {
     if (!globalProviderKey) {
@@ -89,6 +156,7 @@ export const PulseProvidersRouting: React.FC = () => {
     try {
       const payload: SavePulseRoutingInput = { providerKey: globalProviderKey };
       await saveGlobalRouting(payload);
+      setInitialGlobalProviderKey(globalProviderKey);
     } catch {
       setError(t('pulses.routing.saveError', { defaultValue: 'Failed to save routing settings.' }));
     } finally {
@@ -140,47 +208,52 @@ export const PulseProvidersRouting: React.FC = () => {
     [deletePluginRouting, t],
   );
 
+  if (isLoading || (routingLoading && !routing)) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        {t('common.loading', { defaultValue: 'Loading…' })}
+      </div>
+    );
+  }
+
   return (
-    <div className="plugin-pulses min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
-          <div className="min-w-0">
-            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
-              {t('pulses.routing.title', { defaultValue: 'SMS provider routing' })}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {t('pulses.routing.description', {
-                defaultValue:
-                  'Set a global default SMS provider and optional per-plugin overrides. Only SMS-capable providers appear here.',
-              })}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            icon={X}
-            className="h-9 px-3 text-xs"
-            onClick={closeRoutingView}
-          >
-            {t('common.close')}
-          </Button>
+    <PluginSettingsPageShell
+      title={t('pulses.routing.title', { defaultValue: 'Pulse – Routing' })}
+      subtitle={t('pulses.routing.description', {
+        defaultValue:
+          'Set a global default SMS provider and optional per-plugin overrides. Only SMS-capable providers appear here.',
+      })}
+      categories={categories}
+      activeCategory={activeCategory}
+      onCategoryChange={(id) => setActiveCategory(id as PulseProvidersRoutingCategory)}
+      onClose={handleClose}
+      onSave={isDirty ? () => void handleSaveGlobal() : undefined}
+      isSaving={savingGlobal}
+      saveAction={
+        isDirty ? (
+          <SettingsHeaderSaveButton
+            onClick={() => void handleSaveGlobal()}
+            isSaving={savingGlobal}
+            disabled={!globalProviderKey}
+            label={t('common.save', { defaultValue: 'Save' })}
+            savingLabel={t('common.saving', { defaultValue: 'Saving…' })}
+          />
+        ) : null
+      }
+    >
+      {error ? (
+        <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+          <p className="text-sm text-destructive">{error}</p>
         </div>
+      ) : null}
 
-        {error ? (
-          <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
-            <p className="text-sm text-destructive">{error}</p>
-          </Card>
-        ) : null}
-
-        <Card padding="none" className="overflow-hidden border border-border/70 bg-card shadow-sm">
-          <DetailSection
-            title={t('pulses.routing.globalTitle', { defaultValue: 'Global default' })}
-            icon={Bell}
-            iconPlugin="pulses"
-            className="p-6"
-          >
-            <p className="mb-4 text-sm text-muted-foreground">
+      {activeCategory === 'global' ? (
+        <DetailSection
+          title={t('pulses.routing.globalTitle', { defaultValue: 'Global default' })}
+          className="pt-0"
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
               {t('pulses.routing.globalHint', {
                 defaultValue:
                   'Used by any plugin without its own override. Only configured and enabled SMS providers are available.',
@@ -214,60 +287,61 @@ export const PulseProvidersRouting: React.FC = () => {
                 </p>
               ) : null}
             </div>
-            <div className="mt-4">
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                disabled={savingGlobal || routingLoading || !globalProviderKey}
-                onClick={() => void handleSaveGlobal()}
-              >
-                {savingGlobal
-                  ? t('common.saving', { defaultValue: 'Saving…' })
-                  : t('pulses.routing.saveGlobal', { defaultValue: 'Save global default' })}
-              </Button>
-            </div>
-          </DetailSection>
-        </Card>
+          </div>
+        </DetailSection>
+      ) : null}
 
-        <Card padding="none" className="overflow-hidden border border-border/70 bg-card shadow-sm">
-          <DetailSection
-            title={t('pulses.routing.pluginsTitle', { defaultValue: 'Per-plugin overrides' })}
-            icon={Route}
-            iconPlugin="pulses"
-            className="p-6"
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('pulses.routing.plugin', { defaultValue: 'Plugin' })}</TableHead>
-                  <TableHead>
-                    {t('pulses.routing.provider', { defaultValue: 'Provider' })}
-                  </TableHead>
-                  <TableHead className="w-[200px]">
-                    {t('common.actions', { defaultValue: 'Actions' })}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(routing?.plugins ?? []).map((plugin) => (
+      {activeCategory === 'plugins' ? (
+        <DetailSection
+          title={t('pulses.routing.pluginsTitle', { defaultValue: 'Per-plugin overrides' })}
+          className="pt-0"
+        >
+          <p className="mb-4 text-sm text-muted-foreground">
+            {t('pulses.routing.pluginsHint', {
+              defaultValue:
+                'Optional. When set, a plugin uses its assigned provider instead of the global default.',
+            })}
+          </p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('pulses.routing.plugin', { defaultValue: 'Plugin' })}</TableHead>
+                <TableHead>{t('pulses.routing.provider', { defaultValue: 'Provider' })}</TableHead>
+                <TableHead className="text-right">
+                  {t('common.actions', { defaultValue: 'Actions' })}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(routing?.plugins ?? []).map((plugin) => {
+                const draft = pluginDrafts[plugin.pluginKey] ?? '';
+                return (
                   <TableRow key={plugin.pluginKey}>
                     <TableCell className="font-medium">{plugin.label}</TableCell>
                     <TableCell>
                       <Select
-                        value={pluginDrafts[plugin.pluginKey] || undefined}
-                        onValueChange={(value) =>
-                          setPluginDrafts((prev) => ({ ...prev, [plugin.pluginKey]: value }))
-                        }
+                        value={draft || GLOBAL_DEFAULT_VALUE}
+                        onValueChange={(value) => {
+                          const providerKey = value === GLOBAL_DEFAULT_VALUE ? '' : value;
+                          setPluginDrafts((prev) => ({
+                            ...prev,
+                            [plugin.pluginKey]: providerKey,
+                          }));
+                        }}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="min-w-[180px]">
                           <SelectValue
-                            placeholder={t('pulses.routing.inheritGlobal', {
-                              defaultValue: 'Inherit global',
+                            placeholder={t('pulses.routing.useGlobalDefault', {
+                              defaultValue: 'Use global default',
                             })}
                           />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value={GLOBAL_DEFAULT_VALUE}>
+                            {t('pulses.routing.useGlobalDefault', {
+                              defaultValue: 'Use global default',
+                            })}
+                          </SelectItem>
                           {smsRoutableProviders.map((provider) => (
                             <SelectItem key={provider.providerKey} value={provider.providerKey}>
                               {providerLabel(t, provider.providerKey)}
@@ -276,39 +350,39 @@ export const PulseProvidersRouting: React.FC = () => {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
                         <Button
                           type="button"
                           variant="secondary"
                           size="sm"
-                          disabled={savingPluginKey === plugin.pluginKey || routingLoading}
+                          disabled={!draft || savingPluginKey === plugin.pluginKey}
                           onClick={() => void handleSavePlugin(plugin)}
                         >
-                          {t('common.save')}
+                          {savingPluginKey === plugin.pluginKey
+                            ? t('common.saving', { defaultValue: 'Saving…' })
+                            : t('common.save', { defaultValue: 'Save' })}
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={
-                            savingPluginKey === plugin.pluginKey ||
-                            routingLoading ||
-                            !plugin.providerKey
-                          }
-                          onClick={() => void handleClearPlugin(plugin.pluginKey)}
-                        >
-                          {t('pulses.routing.clear', { defaultValue: 'Clear' })}
-                        </Button>
+                        {plugin.providerKey ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={savingPluginKey === plugin.pluginKey}
+                            onClick={() => void handleClearPlugin(plugin.pluginKey)}
+                          >
+                            {t('common.clear', { defaultValue: 'Clear' })}
+                          </Button>
+                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DetailSection>
-        </Card>
-      </div>
-    </div>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </DetailSection>
+      ) : null}
+    </PluginSettingsPageShell>
   );
-};
+}

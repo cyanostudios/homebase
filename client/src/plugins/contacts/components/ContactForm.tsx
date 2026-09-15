@@ -23,6 +23,7 @@ import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
@@ -38,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
@@ -59,6 +61,10 @@ import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
 import { COMPANY_TYPE_OPTIONS } from '../types/contacts';
+import {
+  isContactPersonInvoiceReference,
+  withContactPersonInvoiceReference,
+} from '../utils/contactInvoiceReference';
 
 import { ContactSettingsForm } from './ContactSettingsForm';
 const FACT_LABEL_CLASS =
@@ -69,6 +75,7 @@ interface ContactPerson {
   title: string;
   email: string;
   phone: string;
+  invoiceReference?: boolean;
 }
 
 interface Address {
@@ -354,12 +361,20 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
     markDirty();
   };
 
-  const updateContactPerson = (id: string, field: keyof ContactPerson, value: string) => {
+  const updateContactPerson = (id: string, field: keyof ContactPerson, value: string | boolean) => {
     setFormData((prev) => ({
       ...prev,
       contactPersons: prev.contactPersons.map((person) =>
         person.id === id ? { ...person, [field]: value } : person,
       ),
+    }));
+    markDirty();
+  };
+
+  const setInvoiceReferencePerson = (id: string, selected: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      contactPersons: withContactPersonInvoiceReference(prev.contactPersons, id, selected),
     }));
     markDirty();
   };
@@ -971,10 +986,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                 >
                   <div className="space-y-4">
                     <p className="text-xs text-muted-foreground">
-                      {t('contacts.contactPersonsInvoiceReferenceHint', {
-                        defaultValue:
-                          'The first person is used as invoice customer reference (kundreferens).',
-                      })}
+                      {t('contacts.contactPersonsInvoiceReferenceHint')}
                     </p>
                     <RoundIconLabelButton
                       type="button"
@@ -998,49 +1010,62 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                           className="space-y-4 rounded-lg border border-border p-4"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                            <div className="min-w-0 flex-1">
                               <span className="text-sm font-medium">
                                 {person.name ||
                                   t('contacts.personFallback', { defaultValue: 'Person' })}
                               </span>
-                              {index === 0 ? (
-                                <Badge variant="secondary" className="text-[10px] font-semibold">
-                                  {t('contacts.invoiceReferenceBadge', {
-                                    defaultValue: 'Invoice reference',
-                                  })}
-                                </Badge>
-                              ) : null}
                             </div>
-                            <div className="flex shrink-0 items-center gap-1.5">
-                              <RoundIconLabelButton
-                                type="button"
-                                icon={ArrowUp}
-                                label={t('common.moveUp')}
-                                variant="secondary"
-                                size="xs"
-                                expandOnHover={false}
-                                disabled={index === 0}
-                                onClick={() => moveContactPerson(person.id, 'up')}
-                              />
-                              <RoundIconLabelButton
-                                type="button"
-                                icon={ArrowDown}
-                                label={t('common.moveDown')}
-                                variant="secondary"
-                                size="xs"
-                                expandOnHover={false}
-                                disabled={index === formData.contactPersons.length - 1}
-                                onClick={() => moveContactPerson(person.id, 'down')}
-                              />
-                              <RoundIconLabelButton
-                                type="button"
-                                icon={Trash2}
-                                label={t('common.delete')}
-                                variant="dangerSoft"
-                                size="xs"
-                                expandOnHover={false}
-                                onClick={() => removeContactPerson(person.id)}
-                              />
+                            <div className="flex shrink-0 items-center gap-3">
+                              <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                                <Checkbox
+                                  checked={isContactPersonInvoiceReference(
+                                    formData.contactPersons,
+                                    person.id,
+                                  )}
+                                  className={CHECKBOX_SM_CLASS}
+                                  onChange={(e) =>
+                                    setInvoiceReferencePerson(person.id, e.target.checked)
+                                  }
+                                  aria-label={t('contacts.invoiceReferenceCheckbox', {
+                                    name:
+                                      person.name ||
+                                      t('contacts.personFallback', { defaultValue: 'Person' }),
+                                  })}
+                                />
+                                <span>{t('contacts.invoiceReferenceCheckboxLabel')}</span>
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                <RoundIconLabelButton
+                                  type="button"
+                                  icon={ArrowUp}
+                                  label={t('common.moveUp')}
+                                  variant="secondary"
+                                  size="xs"
+                                  expandOnHover={false}
+                                  disabled={index === 0}
+                                  onClick={() => moveContactPerson(person.id, 'up')}
+                                />
+                                <RoundIconLabelButton
+                                  type="button"
+                                  icon={ArrowDown}
+                                  label={t('common.moveDown')}
+                                  variant="secondary"
+                                  size="xs"
+                                  expandOnHover={false}
+                                  disabled={index === formData.contactPersons.length - 1}
+                                  onClick={() => moveContactPerson(person.id, 'down')}
+                                />
+                                <RoundIconLabelButton
+                                  type="button"
+                                  icon={Trash2}
+                                  label={t('common.delete')}
+                                  variant="dangerSoft"
+                                  size="xs"
+                                  expandOnHover={false}
+                                  onClick={() => removeContactPerson(person.id)}
+                                />
+                              </div>
                             </div>
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

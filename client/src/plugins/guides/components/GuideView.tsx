@@ -1,14 +1,23 @@
-import { Info, Languages, MapPin, Receipt } from 'lucide-react';
-import React, { useMemo, useRef, useState } from 'react';
+import { ChevronRight, Info, Languages, MapPin, Receipt } from 'lucide-react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
+import {
+  DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { cn } from '@/lib/utils';
 
 import { useGuides } from '../hooks/useGuides';
 import { useProductionJob } from '../hooks/useProductionJob';
@@ -27,7 +36,11 @@ import {
   type ProductionStartMode,
   type ProductionStartScope,
 } from '../types/guides';
-import { isProductionJobActive, resolveSourceSummary } from '../utils/productionJobHelpers';
+import {
+  isProductionJobActive,
+  resolveSourceSummary,
+  shouldShowReviewQueue,
+} from '../utils/productionJobHelpers';
 import { resolveAudioGenerateErrorMessage } from '../utils/resolveAudioGenerateErrorMessage';
 import { SourceResearchSummary } from './SourceResearchSummary';
 import { GuideLanguageBadges } from './GuideLanguageBadges';
@@ -38,8 +51,38 @@ interface GuideViewProps {
   item?: Guide;
 }
 
+type GuideViewTab = 'details' | 'presentations' | 'review';
+
+const GUIDE_VIEW_TABS: GuideViewTab[] = ['details', 'presentations', 'review'];
+
+function parseGuideViewTab(value: string | null): GuideViewTab {
+  if (value && GUIDE_VIEW_TABS.includes(value as GuideViewTab)) {
+    return value as GuideViewTab;
+  }
+  return 'details';
+}
+
 export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseGuideViewTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: GuideViewTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'details') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
   const { validationErrors } = useGuides();
   const [startDialogOpen, setStartDialogOpen] = useState(false);
   const [startDialogMode, setStartDialogMode] = useState<ProductionStartMode>('source');
@@ -64,6 +107,39 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
         .join('|'),
     [production.items],
   );
+
+  const presentationsCount = presentations.length > 0 ? presentations.length : null;
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: 'details' as const,
+        label: t('guides.tabs.details'),
+        icon: MapPin,
+        count: null as number | null,
+      },
+      {
+        id: 'presentations' as const,
+        label: t('guides.tabs.presentations'),
+        icon: Languages,
+        count: presentationsCount,
+      },
+      {
+        id: 'review' as const,
+        label: t('guides.tabs.review'),
+        icon: ChevronRight,
+        count: null as number | null,
+      },
+    ],
+    [presentationsCount, t],
+  );
+
+  const showReviewTab = useCallback(() => {
+    setActiveTab('review');
+    window.requestAnimationFrame(() => {
+      reviewQueueRef.current?.scrollIntoView();
+    });
+  }, [setActiveTab]);
 
   if (!actualGuide) return null;
 
@@ -215,6 +291,167 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
       production.job.status === 'completed' ||
       production.job.status === 'failed');
 
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span>
+              {tab.label}
+              {tab.count != null ? (
+                <>
+                  {' '}
+                  <span className="tabular-nums font-semibold">({tab.count})</span>
+                </>
+              ) : null}
+            </span>
+          </Button>
+        );
+      })}
+    </div>
+  );
+
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={t('nav.guides')} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={MapPin}
+          className="h-9 w-9 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 [&_svg]:h-4 [&_svg]:w-4"
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+        {actualGuide.displayName}
+      </h3>
+    </div>
+  );
+
+  const headerCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <div className="px-4 py-5">
+        {titleLeading}
+        <div className="mt-4">{tabChips}</div>
+      </div>
+    </Card>
+  );
+
+  const detailsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('guides.tabs.details')}
+        icon={MapPin}
+        iconPlugin="guides"
+        subtleTitle
+        className="p-6"
+      >
+        <div className="space-y-4">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {t('guides.displayName')}
+            </div>
+            <div className={PLUGIN_PAGE_TITLE_CLASS}>{actualGuide.displayName}</div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={GUIDE_LIFECYCLE_COLORS[actualGuide.lifecycleStatus]}>
+              {lifecycleLabel(actualGuide.lifecycleStatus)}
+            </Badge>
+            <Badge className={GUIDE_LANGUAGE_SOURCE_BADGE_CLASS}>
+              {actualGuide.sourceLanguage}
+            </Badge>
+          </div>
+
+          {actualGuide.shortIntro && (
+            <div className="border-t border-border/50 pt-4">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {t('guides.shortIntro')}
+              </div>
+              <div className="whitespace-pre-wrap text-sm">{actualGuide.shortIntro}</div>
+            </div>
+          )}
+
+          <div className="border-t border-border/50 pt-4">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {t('guides.place.label')}
+            </div>
+            <div className="text-sm">
+              {actualGuide.place?.displayName ||
+                actualGuide.place?.formattedAddress ||
+                actualGuide.geographicReference ||
+                '—'}
+            </div>
+            {actualGuide.place?.formattedAddress &&
+              actualGuide.place.displayName &&
+              actualGuide.place.formattedAddress !== actualGuide.place.displayName && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {actualGuide.place.formattedAddress}
+                </div>
+              )}
+          </div>
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const presentationsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('guides.tabs.presentations')}
+        icon={Languages}
+        iconPlugin="guides"
+        subtleTitle
+        className="p-6"
+      >
+        <GuidePresentationSection
+          placeId={actualGuide.id}
+          sourceLanguage={actualGuide.sourceLanguage}
+          disabled={production.hasActiveJob || production.isBusy || isGeneratingSourceAudio}
+          refreshKey={presentationsRefreshKey}
+          audioRefreshKey={audioRefreshKey}
+          onPresentationsChange={setPresentations}
+          onAudioLedgerChange={() => void production.refreshJobs()}
+        />
+      </DetailSection>
+    </Card>
+  );
+
+  const reviewContent =
+    production.job && shouldShowReviewQueue(production.job) ? (
+      <GuideReviewQueue
+        ref={reviewQueueRef}
+        placeId={actualGuide.id}
+        job={production.job}
+        items={production.items}
+        isBusy={production.isBusy}
+        onApproveItem={(id) => void production.approveItem(id)}
+        onRejectItem={(id) => void production.rejectItem(id)}
+        onRegenerateItem={(id) => void production.regenerateItem(id)}
+        onApprovePhase={() => void production.approvePhase()}
+      />
+    ) : (
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('guides.tabs.review')}
+          icon={ChevronRight}
+          iconPlugin="guides"
+          subtleTitle
+          className="p-6"
+        >
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('guides.tabs.reviewEmpty')}</p>
+        </DetailSection>
+      </Card>
+    );
+
   return (
     <div className="plugin-guides">
       <DetailLayout
@@ -231,7 +468,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
               onStartSource={() => openStartDialog('source')}
               onStartTranslations={() => openStartDialog('translation')}
               onGenerateSourceAudio={() => void requestGenerateSourceAudio()}
-              onShowReview={() => reviewQueueRef.current?.scrollIntoView()}
+              onShowReview={showReviewTab}
               onCancel={() => void production.cancelJob()}
             />
 
@@ -383,105 +620,26 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
             </p>
           )}
 
-          {showBanner && production.job && (
-            <ProductionPhaseBanner
-              job={production.job}
-              items={production.items}
-              isPolling={production.isPolling}
-              isBusy={production.isBusy}
-              onCancel={() => void production.cancelJob()}
-              onRetry={() => void production.retryJob()}
-              onShowReview={() => reviewQueueRef.current?.scrollIntoView()}
-            />
-          )}
+          {headerCard}
 
-          {production.job && (
-            <GuideReviewQueue
-              ref={reviewQueueRef}
-              placeId={actualGuide.id}
-              job={production.job}
-              items={production.items}
-              isBusy={production.isBusy}
-              onApproveItem={(id) => void production.approveItem(id)}
-              onRejectItem={(id) => void production.rejectItem(id)}
-              onRegenerateItem={(id) => void production.regenerateItem(id)}
-              onApprovePhase={() => void production.approvePhase()}
-            />
-          )}
-
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('guides.details')}
-              icon={MapPin}
-              iconPlugin="guides"
-              className="p-6"
-            >
-              <div className="space-y-4">
-                <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t('guides.displayName')}
-                  </div>
-                  <div className={PLUGIN_PAGE_TITLE_CLASS}>{actualGuide.displayName}</div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className={GUIDE_LIFECYCLE_COLORS[actualGuide.lifecycleStatus]}>
-                    {lifecycleLabel(actualGuide.lifecycleStatus)}
-                  </Badge>
-                  <Badge className={GUIDE_LANGUAGE_SOURCE_BADGE_CLASS}>
-                    {actualGuide.sourceLanguage}
-                  </Badge>
-                </div>
-
-                {actualGuide.shortIntro && (
-                  <div className="border-t border-border/50 pt-4">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {t('guides.shortIntro')}
-                    </div>
-                    <div className="whitespace-pre-wrap text-sm">{actualGuide.shortIntro}</div>
-                  </div>
-                )}
-
-                <div className="border-t border-border/50 pt-4">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t('guides.place.label')}
-                  </div>
-                  <div className="text-sm">
-                    {actualGuide.place?.displayName ||
-                      actualGuide.place?.formattedAddress ||
-                      actualGuide.geographicReference ||
-                      '—'}
-                  </div>
-                  {actualGuide.place?.formattedAddress &&
-                    actualGuide.place.displayName &&
-                    actualGuide.place.formattedAddress !== actualGuide.place.displayName && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {actualGuide.place.formattedAddress}
-                      </div>
-                    )}
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
-
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('guides.presentations')}
-              icon={Languages}
-              iconPlugin="guides"
-              className="p-6"
-            >
-              <GuidePresentationSection
-                placeId={actualGuide.id}
-                sourceLanguage={actualGuide.sourceLanguage}
-                disabled={production.hasActiveJob || production.isBusy || isGeneratingSourceAudio}
-                refreshKey={presentationsRefreshKey}
-                audioRefreshKey={audioRefreshKey}
-                onPresentationsChange={setPresentations}
-                onAudioLedgerChange={() => void production.refreshJobs()}
-              />
-            </DetailSection>
-          </Card>
+          {activeTab === 'details' ? detailsCard : null}
+          {activeTab === 'presentations' ? presentationsCard : null}
+          {activeTab === 'review' ? (
+            <>
+              {showBanner && production.job ? (
+                <ProductionPhaseBanner
+                  job={production.job}
+                  items={production.items}
+                  isPolling={production.isPolling}
+                  isBusy={production.isBusy}
+                  onCancel={() => void production.cancelJob()}
+                  onRetry={() => void production.retryJob()}
+                  onShowReview={showReviewTab}
+                />
+              ) : null}
+              {reviewContent}
+            </>
+          ) : null}
         </div>
       </DetailLayout>
 

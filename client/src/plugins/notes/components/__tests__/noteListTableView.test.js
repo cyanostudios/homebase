@@ -113,7 +113,7 @@ describe('NoteList table view wiring', () => {
     expect(quickContextSrc).toMatch(/afterActions=\{afterHeaderActions\}/);
     expect(quickContextSrc).toMatch(/children/);
     expect(viewSrc).toMatch(/NoteQuickContextPanel/);
-    expect(viewSrc).toMatch(/variant="full"/);
+    expect(quickContextSrc).toMatch(/children/);
     expect(viewSrc).not.toMatch(/leftSidebar=/);
     expect(viewSrc).not.toMatch(/focusMode/);
     expect(listSrc).not.toMatch(/NoteDetailHeaderMenus/);
@@ -131,7 +131,7 @@ describe('NoteList table view wiring', () => {
     expect(viewSrc).not.toMatch(/contentColumn/);
     expect(viewSrc).not.toMatch(/showTitleInContent/);
     expect(viewSrc).not.toMatch(/focusMode/);
-    expect(quickContextSrc).toMatch(/isFullView && children/);
+    expect(quickContextSrc).toMatch(/children/);
   });
 
   test('bulk select mode shows BulkActionRoundBar under toolbar and keeps detail column visible', () => {

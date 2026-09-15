@@ -58,12 +58,9 @@ import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
-import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
-import { useMatches } from '@/plugins/matches/hooks/useMatches';
-import type { Match } from '@/plugins/matches/types/match';
 
 import type { TeamPayload } from '../api/teamsApi';
 import { useTeams } from '../hooks/useTeams';
@@ -171,9 +168,6 @@ export function TeamList() {
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
   const showDesktopSplit = !isCompactViewport;
-  const enabledPlugins = useEnabledPlugins();
-  const hasMatchesPlugin = enabledPlugins.has('matches');
-  const { matches } = useMatches();
   const { searchTerm: search, setSearchTerm: setSearch } = usePersistedListSearch('teams');
 
   useRegisterMobileSearch({
@@ -371,29 +365,6 @@ export function TeamList() {
     }
     return counts;
   }, [teams]);
-
-  const nextMatchByTeamId = useMemo(() => {
-    const map = new Map<string, Match>();
-    if (!hasMatchesPlugin) {
-      return map;
-    }
-    const now = Date.now();
-    for (const match of matches) {
-      if (!match.team_id || match.is_canceled) {
-        continue;
-      }
-      const start = new Date(match.start_time).getTime();
-      if (Number.isNaN(start) || start < now) {
-        continue;
-      }
-      const teamId = String(match.team_id);
-      const existing = map.get(teamId);
-      if (!existing || match.start_time.localeCompare(existing.start_time) < 0) {
-        map.set(teamId, match);
-      }
-    }
-    return map;
-  }, [hasMatchesPlugin, matches]);
 
   const visibleIds = useMemo(
     () => filteredAndSorted.map((team) => String(team.id)),
@@ -987,11 +958,7 @@ export function TeamList() {
                     />
                   </div>
                 ) : detailTeam ? (
-                  <TeamView
-                    team={detailTeam}
-                    stacked
-                    nextMatch={nextMatchByTeamId.get(String(detailTeam.id)) ?? null}
-                  />
+                  <TeamView team={detailTeam} stacked />
                 ) : (
                   <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
                     <TeamsStatisticsView />

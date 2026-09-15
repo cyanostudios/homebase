@@ -450,6 +450,13 @@
     "dateTimePlaceholder": "Date & time",
     "dateTimeClear": "Clear date & time",
     "activity": "Activity",
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "contacts": "Contacts",
+      "linked": "Linked",
+      "linkedEmpty": "No slots linked to this match yet."
+    },
     "relatedSlots": "Slots",
     "noRelatedSlots": "No slots linked to this match yet",
     "open": "Open",
@@ -570,7 +577,9 @@
     "personEmail": "Email",
     "personPhone": "Phone",
     "invoiceReferenceBadge": "Invoice reference",
-    "contactPersonsInvoiceReferenceHint": "The first person is used as invoice customer reference (kundreferens).",
+    "invoiceReferenceCheckboxLabel": "Use for invoices",
+    "invoiceReferenceCheckbox": "Use {{name}} as invoice customer reference",
+    "contactPersonsInvoiceReferenceHint": "Choose which person is used as invoice customer reference (kundreferens).",
     "settings": "Settings",
     "settingsContacts": "Contacts – Settings",
     "grid": "Grid",
@@ -601,6 +610,13 @@
     "activity": "Activity",
     "contactContent": "Contact Content",
     "contactProperties": "Contact Properties",
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "addresses": "Addresses",
+      "persons": "Contact persons",
+      "linked": "Linked"
+    },
     "relatedTeams": "Teams",
     "relatedTasks": "Tasks",
     "relatedSlots": "Slots",
@@ -781,6 +797,13 @@
     "exportOptions": "Export options",
     "activity": "Activity",
     "taskContent": "Task Content",
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "assignees": "Assignees",
+      "linked": "Linked",
+      "linkedEmpty": "No mentioned contacts yet."
+    },
     "quickEditDiscardMessage": "You have unsaved changes to status, priority, due date or assignees. Do you want to discard them?",
     "assignee": "Assignee",
     "noAssigneesYet": "No assignees yet.",
@@ -942,6 +965,13 @@
     "subtitleEdit": "Update invoice information",
     "subtitleCreate": "Enter new invoice details",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "lines": "Line items",
+      "payments": "Payments",
+      "linked": "Linked",
+      "linkedEmpty": "No linked contact yet."
+    },
     "quickActions": "Quick actions",
     "exportOptions": "Export options",
     "relations": "Relations",
@@ -1125,6 +1155,12 @@
     "activity": "Activity",
     "pricingSummary": "Pricing Summary",
     "lineItemsCount": "Line Items ({{count}})",
+    "tabs": {
+      "properties": "Properties",
+      "lines": "Line items",
+      "notes": "Notes",
+      "notesEmpty": "No notes yet."
+    },
     "quickInfo": {
       "items": "Items",
       "itemsCount_one": "{{count}} item",
@@ -1205,6 +1241,12 @@
     "running": "Fetching…",
     "openUrl": "Open URL",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "excerpt": "Excerpt",
+      "runs": "Fetch history",
+      "excerptEmpty": "No excerpt yet. Run a fetch to see the latest result."
+    },
     "lastFetch": "Last fetched",
     "lastStatus": "Last status",
     "runsTitle": "Fetch history",
@@ -1405,6 +1447,10 @@
     "selectClubdesk": "Select guide",
     "unselectClubdesk": "Unselect guide",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "steps": "Steps"
+    },
     "quickActions": "Quick actions",
     "activity": "Activity",
     "notVisiblePublic": "Not visible on the kiosk",
@@ -1461,6 +1507,11 @@
     },
     "settingsSubtitle": "Manage view layout and categories.",
     "priceList": {
+      "tabs": {
+        "information": "Information",
+        "items": "Items",
+        "currency": "Currency"
+      },
       "listDescription": "Create and manage price lists for the clubdesk kiosk.",
       "searchPlaceholder": "Search {{count}} price lists...",
       "noMatch": "No matches",
@@ -1665,6 +1716,12 @@
     "colUpdated": "Updated",
     "colCreated": "Created",
     "details": "Details",
+    "tabs": {
+      "details": "Details",
+      "presentations": "Presentations",
+      "review": "Review",
+      "reviewEmpty": "No production review in progress."
+    },
     "information": {
       "title": "Information",
       "generatedLanguages": "Generated in",
@@ -2126,7 +2183,7 @@
     "providerCount": "{{count}} providers · {{status}}",
     "settingsButton": "Settings",
     "refresh": "Refresh",
-    "historyTitle": "Sent mail history",
+    "historyTitle": "Mail – Sent",
     "total": "Total",
     "emptyHistory": "No sent emails yet. Mail is sent from other plugins (e.g. Contacts or Slots).",
     "date": "Date",
@@ -2170,6 +2227,13 @@
     "addProvider": "Add provider",
     "backToProviders": "Providers",
     "historyDescription": "Monitor email traffic from plugins.",
+    "history": {
+      "categories": {
+        "all": "All",
+        "withSource": "With source",
+        "today": "Today"
+      }
+    },
     "showingHistoryCount": "Showing {{visible}} of {{total}} emails",
     "createSubtitle": "Configure an email provider",
     "providerType": "Provider type",
@@ -2189,12 +2253,31 @@
     "quickActions": "Quick actions",
     "information": "Information",
     "sectionDetails": "Configuration",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Configuration",
+      "test": "Test",
+      "testEmpty": "Enter an address to send a test email."
+    },
     "enabled": "Enabled",
     "enabledHint": "Disabled providers cannot be selected in routing.",
     "secretHint": "Leave unchanged to keep the stored value. Clear and save to remove it.",
     "searchProviders": "Search providers ({{count}})",
     "showingCount": "Showing {{visible}} of {{total}} providers",
     "openProvider": "Open {{provider}}",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "statistics": {
+      "title": "Email provider statistics",
+      "description": "Overview of enabled, disabled, and configured providers.",
+      "overview": "Overview"
+    },
+    "quickContext": {
+      "title": "Provider details"
+    },
     "columns1": "1 column",
     "columns2": "2 columns",
     "columns3": "3 columns",
@@ -2214,10 +2297,15 @@
     },
     "routing": {
       "open": "Routing",
-      "title": "Email provider routing",
+      "title": "Mail – Routing",
       "description": "Set a global default email provider and optional per-plugin overrides. Only email-capable providers appear here.",
+      "categories": {
+        "global": "Global default",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global default",
       "globalHint": "Used by any plugin without its own override. Only configured and enabled email providers are available.",
+      "pluginsHint": "Optional. When set, a plugin uses its assigned provider instead of the global default.",
       "provider": "Provider",
       "plugin": "Plugin",
       "pluginsTitle": "Per-plugin overrides",
@@ -2239,8 +2327,15 @@
     "notConfigured": "Not configured",
     "settingsButton": "Settings",
     "refresh": "Refresh",
-    "historyTitle": "SMS history",
+    "historyTitle": "Pulse – Sent SMS",
     "historyDescription": "Monitor SMS and message traffic from plugins.",
+    "history": {
+      "categories": {
+        "all": "All",
+        "failed": "Failed",
+        "today": "Today"
+      }
+    },
     "backToProviders": "Providers",
     "total": "Total",
     "emptyHistory": "No SMS sent yet. SMS can be sent from other plugins when Pulse is configured.",
@@ -2295,6 +2390,12 @@
     "quickActions": "Quick actions",
     "information": "Information",
     "sectionDetails": "Configuration",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Configuration",
+      "test": "Test",
+      "testEmpty": "Enter a number to send a test SMS."
+    },
     "enabled": "Enabled",
     "enabledHint": "Disabled providers cannot be selected in routing.",
     "secretHint": "Leave unchanged to keep the stored value. Clear and save to remove it.",
@@ -2302,6 +2403,19 @@
     "searchProviders": "Search providers ({{count}})",
     "showingCount": "Showing {{visible}} of {{total}} providers",
     "openProvider": "Open {{provider}}",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "statistics": {
+      "title": "SMS provider statistics",
+      "description": "Overview of enabled, disabled, and configured providers.",
+      "overview": "Overview"
+    },
+    "quickContext": {
+      "title": "Provider details"
+    },
     "columns1": "1 column",
     "columns2": "2 columns",
     "columns3": "3 columns",
@@ -2332,10 +2446,15 @@
     },
     "routing": {
       "open": "Routing",
-      "title": "SMS provider routing",
+      "title": "Pulse – Routing",
       "description": "Set a global default SMS provider and optional per-plugin overrides. Only SMS-capable providers appear here.",
+      "categories": {
+        "global": "Global default",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global default",
-      "globalHint": "Used by any plugin without its own override.",
+      "globalHint": "Used by any plugin without its own override. Only configured and enabled SMS providers are available.",
+      "pluginsHint": "Optional. When set, a plugin uses its assigned provider instead of the global default.",
       "provider": "Provider",
       "plugin": "Plugin",
       "pluginsTitle": "Per-plugin overrides",
@@ -2374,11 +2493,30 @@
     "deleteConfirm": "Delete the {{provider}} configuration? This cannot be undone.",
     "deleteError": "Failed to delete provider",
     "filterAll": "Total",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "quickContext": {
+      "title": "Provider details"
+    },
+    "statistics": {
+      "title": "AI provider statistics",
+      "description": "Overview of enabled, disabled, and configured providers.",
+      "overview": "Overview"
+    },
     "colProvider": "Provider",
     "colStatus": "Status",
     "providerKey": "Key",
     "quickActions": "Quick actions",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Configuration",
+      "test": "Test connection",
+      "testEmpty": "No test result yet. Use Test connection in the header actions."
+    },
     "sectionDetails": "Configuration",
     "showingCount": "Showing {{visible}} of {{total}} providers",
     "columns1": "1 column",
@@ -2400,8 +2538,12 @@
     "saveError": "Failed to save settings",
     "routing": {
       "open": "Routing",
-      "title": "Provider routing",
+      "title": "AI Providers – Routing",
       "description": "Set a global default provider and optional per-plugin overrides. Plugins request AI through routing — never a specific vendor directly.",
+      "categories": {
+        "global": "Global default",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global default",
       "globalHint": "Used by any plugin without its own override. Only configured and enabled providers are available.",
       "pluginsTitle": "Per-plugin overrides",
@@ -2545,6 +2687,12 @@
     "propertySanctioned": "Sanctioned",
     "propertyFeatured": "Featured",
     "cupProperties": "Properties",
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "ratings": "Ratings",
+      "ingest": "Ingest"
+    },
     "quickEditDiscardMessage": "You have unsaved changes to cup properties. Do you want to discard them?",
     "heroImageView": "Hero image (public site)",
     "heroImageNone": "No image uploaded — Cupappen uses a default photo for featured cards.",
@@ -3180,6 +3328,12 @@
       "sendToListError": "Could not send to list. Try again.",
       "openTargetList": "Open list",
       "unknownList": "List #{{id}}"
+    },
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "assignees": "Assignees",
+      "files": "Files"
     },
     "settings": {
       "title": "Requests settings",

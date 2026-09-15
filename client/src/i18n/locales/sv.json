@@ -442,6 +442,13 @@
     "dateTimePlaceholder": "Datum och tid",
     "dateTimeClear": "Rensa datum och tid",
     "activity": "Aktivitet",
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "contacts": "Kontakter",
+      "linked": "Länkat",
+      "linkedEmpty": "Inga slots kopplade till den här matchen än."
+    },
     "relatedSlots": "Slots",
     "noRelatedSlots": "Inga slots kopplade till den här matchen än",
     "open": "Öppna",
@@ -564,7 +571,9 @@
     "personEmail": "E-post",
     "personPhone": "Telefon",
     "invoiceReferenceBadge": "Fakturareferens",
-    "contactPersonsInvoiceReferenceHint": "Första personen används som kundreferens på fakturan.",
+    "invoiceReferenceCheckboxLabel": "Använd på fakturor",
+    "invoiceReferenceCheckbox": "Använd {{name}} som kundreferens på faktura",
+    "contactPersonsInvoiceReferenceHint": "Välj vilken person som används som kundreferens på fakturan.",
     "settings": "Inställningar",
     "settingsContacts": "Kontakter – Inställningar",
     "grid": "Rutnät",
@@ -595,6 +604,13 @@
     "activity": "Aktivitet",
     "contactContent": "Kontaktinnehåll",
     "contactProperties": "Kontaktegenskaper",
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "addresses": "Adresser",
+      "persons": "Kontaktpersoner",
+      "linked": "Kopplat"
+    },
     "relatedTeams": "Lag",
     "relatedTasks": "Uppgifter",
     "relatedSlots": "Slots",
@@ -775,6 +791,13 @@
     "exportOptions": "Exportalternativ",
     "activity": "Aktivitet",
     "taskContent": "Uppgiftsinnehåll",
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "assignees": "Ansvariga",
+      "linked": "Kopplat",
+      "linkedEmpty": "Inga nämnda kontakter ännu."
+    },
     "quickEditDiscardMessage": "Du har osparade ändringar i status, prioritet, förfallodatum eller ansvariga. Vill du kasta dem?",
     "assignee": "Ansvarig",
     "noAssigneesYet": "Inga ansvariga ännu.",
@@ -936,6 +959,13 @@
     "subtitleEdit": "Uppdatera fakturainformation",
     "subtitleCreate": "Ange nya fakturauppgifter",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "lines": "Rader",
+      "payments": "Betalningar",
+      "linked": "Länkade",
+      "linkedEmpty": "Ingen länkad kontakt ännu."
+    },
     "quickActions": "Snabbåtgärder",
     "exportOptions": "Exportalternativ",
     "relations": "Relationer",
@@ -1119,6 +1149,12 @@
     "activity": "Aktivitet",
     "pricingSummary": "Prisöversikt",
     "lineItemsCount": "Rader ({{count}})",
+    "tabs": {
+      "properties": "Egenskaper",
+      "lines": "Rader",
+      "notes": "Anteckningar",
+      "notesEmpty": "Inga anteckningar ännu."
+    },
     "quickInfo": {
       "items": "Rader",
       "itemsCount_one": "{{count}} rad",
@@ -1199,6 +1235,12 @@
     "running": "Hämtar…",
     "openUrl": "Öppna URL",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "excerpt": "Utdrag",
+      "runs": "Hämtningshistorik",
+      "excerptEmpty": "Inget utdrag ännu. Kör en hämtning för att se senaste resultatet."
+    },
     "lastFetch": "Senast hämtad",
     "lastStatus": "Senaste status",
     "runsTitle": "Hämtningshistorik",
@@ -1399,6 +1441,10 @@
     "selectClubdesk": "Markera guide",
     "unselectClubdesk": "Avmarkera guide",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "steps": "Steg"
+    },
     "quickActions": "Snabbåtgärder",
     "activity": "Aktivitet",
     "notVisiblePublic": "Syns inte på kiosken",
@@ -1455,6 +1501,11 @@
     },
     "settingsSubtitle": "Hantera listvy och kategorier.",
     "priceList": {
+      "tabs": {
+        "information": "Information",
+        "items": "Artiklar",
+        "currency": "Valuta"
+      },
       "listDescription": "Skapa och hantera prislistor för clubdesk-kiosken.",
       "searchPlaceholder": "Sök bland {{count}} prislistor...",
       "noMatch": "Inga träffar",
@@ -1659,6 +1710,12 @@
     "colUpdated": "Uppdaterad",
     "colCreated": "Skapad",
     "details": "Detaljer",
+    "tabs": {
+      "details": "Detaljer",
+      "presentations": "Presentationer",
+      "review": "Granskning",
+      "reviewEmpty": "Ingen produktionsgranskning pågår."
+    },
     "information": {
       "title": "Information",
       "generatedLanguages": "Genererad på",
@@ -2120,7 +2177,7 @@
     "providerCount": "{{count}} leverantörer · {{status}}",
     "settingsButton": "Inställningar",
     "refresh": "Uppdatera",
-    "historyTitle": "Skickad mail-historik",
+    "historyTitle": "Mail – Skickat",
     "total": "Totalt",
     "emptyHistory": "Inga skickade e-postmeddelanden än. Mail skickas från andra plugins (t.ex. Kontakter eller Slots).",
     "date": "Datum",
@@ -2164,6 +2221,13 @@
     "addProvider": "Lägg till leverantör",
     "backToProviders": "Leverantörer",
     "historyDescription": "Följ e-posttrafik från plugins.",
+    "history": {
+      "categories": {
+        "all": "Alla",
+        "withSource": "Med källa",
+        "today": "Idag"
+      }
+    },
     "showingHistoryCount": "Visar {{visible}} av {{total}} e-postmeddelanden",
     "createSubtitle": "Konfigurera en e-postleverantör",
     "providerType": "Leverantörstyp",
@@ -2183,12 +2247,31 @@
     "quickActions": "Snabbåtgärder",
     "information": "Information",
     "sectionDetails": "Konfiguration",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Konfiguration",
+      "test": "Test",
+      "testEmpty": "Ange en adress för att skicka ett testmejl."
+    },
     "enabled": "Aktiverad",
     "enabledHint": "Inaktiverade leverantörer kan inte väljas i routing.",
     "secretHint": "Lämna oförändrat för att behålla det sparade värdet. Rensa och spara för att ta bort.",
     "searchProviders": "Sök leverantörer ({{count}})",
     "showingCount": "Visar {{visible}} av {{total}} leverantörer",
     "openProvider": "Öppna {{provider}}",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "statistics": {
+      "title": "E-postleverantör — statistik",
+      "description": "Översikt av aktiverade, inaktiverade och konfigurerade leverantörer.",
+      "overview": "Översikt"
+    },
+    "quickContext": {
+      "title": "Leverantörsdetaljer"
+    },
     "columns1": "1 kolumn",
     "columns2": "2 kolumner",
     "columns3": "3 kolumner",
@@ -2208,10 +2291,15 @@
     },
     "routing": {
       "open": "Routing",
-      "title": "Routing för e-postleverantörer",
+      "title": "Mail – Routing",
       "description": "Ange en global standardleverantör och valfria per-plugin-overrides. Bara e-postkapabla leverantörer visas här.",
+      "categories": {
+        "global": "Global standard",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global standard",
       "globalHint": "Används av alla plugins utan egna overrides. Bara konfigurerade och aktiverade e-postleverantörer är tillgängliga.",
+      "pluginsHint": "Valfritt. När det är satt använder pluginet sin tilldelade leverantör i stället för global standard.",
       "provider": "Leverantör",
       "plugin": "Plugin",
       "pluginsTitle": "Per-plugin overrides",
@@ -2233,8 +2321,15 @@
     "notConfigured": "Ej konfigurerad",
     "settingsButton": "Inställningar",
     "refresh": "Uppdatera",
-    "historyTitle": "SMS-historik",
+    "historyTitle": "Pulse – Skickade SMS",
     "historyDescription": "Följ SMS och meddelanden från plugins.",
+    "history": {
+      "categories": {
+        "all": "Alla",
+        "failed": "Misslyckade",
+        "today": "Idag"
+      }
+    },
     "backToProviders": "Leverantörer",
     "total": "Totalt",
     "emptyHistory": "Inga SMS skickade än. SMS kan skickas från andra plugins när Pulse är konfigurerat.",
@@ -2289,6 +2384,12 @@
     "quickActions": "Snabbåtgärder",
     "information": "Information",
     "sectionDetails": "Konfiguration",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Konfiguration",
+      "test": "Test",
+      "testEmpty": "Ange ett nummer för att skicka ett test-SMS."
+    },
     "enabled": "Aktiverad",
     "enabledHint": "Inaktiverade leverantörer kan inte väljas i routing.",
     "secretHint": "Lämna oförändrat för att behålla sparat värde. Rensa och spara för att ta bort det.",
@@ -2296,6 +2397,19 @@
     "searchProviders": "Sök leverantörer ({{count}})",
     "showingCount": "Visar {{visible}} av {{total}} leverantörer",
     "openProvider": "Öppna {{provider}}",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "statistics": {
+      "title": "SMS-leverantör — statistik",
+      "description": "Översikt av aktiverade, inaktiverade och konfigurerade leverantörer.",
+      "overview": "Översikt"
+    },
+    "quickContext": {
+      "title": "Leverantörsdetaljer"
+    },
     "columns1": "1 kolumn",
     "columns2": "2 kolumner",
     "columns3": "3 kolumner",
@@ -2326,10 +2440,15 @@
     },
     "routing": {
       "open": "Routing",
-      "title": "SMS provider routing",
+      "title": "Pulse – Routing",
       "description": "Set a global default SMS provider and optional per-plugin overrides. Only SMS-capable providers appear here.",
+      "categories": {
+        "global": "Global standard",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global default",
-      "globalHint": "Used by any plugin without its own override.",
+      "globalHint": "Used by any plugin without its own override. Only configured and enabled SMS providers are available.",
+      "pluginsHint": "Optional. When set, a plugin uses its assigned provider instead of the global default.",
       "provider": "Provider",
       "plugin": "Plugin",
       "pluginsTitle": "Per-plugin overrides",
@@ -2368,11 +2487,30 @@
     "deleteConfirm": "Ta bort konfigurationen för {{provider}}? Detta kan inte ångras.",
     "deleteError": "Kunde inte ta bort leverantören",
     "filterAll": "Totalt",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "quickContext": {
+      "title": "Leverantörsdetaljer"
+    },
+    "statistics": {
+      "title": "Statistik för AI-leverantörer",
+      "description": "Översikt av aktiverade, inaktiverade och konfigurerade leverantörer.",
+      "overview": "Översikt"
+    },
     "colProvider": "Leverantör",
     "colStatus": "Status",
     "providerKey": "Nyckel",
     "quickActions": "Snabbåtgärder",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Konfiguration",
+      "test": "Testa anslutning",
+      "testEmpty": "Inget testresultat ännu. Använd Testa anslutning i headeråtgärderna."
+    },
     "sectionDetails": "Konfiguration",
     "showingCount": "Visar {{visible}} av {{total}} leverantörer",
     "columns1": "1 kolumn",
@@ -2394,8 +2532,12 @@
     "saveError": "Kunde inte spara inställningar",
     "routing": {
       "open": "Routing",
-      "title": "Provider-routing",
+      "title": "AI-leverantörer – Routing",
       "description": "Ange en global standardleverantör och valfria plugin-överskridanden. Plugins begär AI via routing — aldrig direkt mot en specifik leverantör.",
+      "categories": {
+        "global": "Global standard",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global standard",
       "globalHint": "Används av plugins utan egen överskridning. Endast konfigurerade och aktiverade leverantörer är tillgängliga.",
       "pluginsTitle": "Plugin-överskridanden",
@@ -2539,6 +2681,12 @@
     "propertySanctioned": "Sanktionerad",
     "propertyFeatured": "Utvald",
     "cupProperties": "Egenskaper",
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "ratings": "Betyg",
+      "ingest": "Ingest"
+    },
     "quickEditDiscardMessage": "Du har osparade ändringar i cup-egenskaper. Vill du kasta dem?",
     "heroImageView": "Hjältebild (publik sajt)",
     "heroImageNone": "Ingen bild uppladdad — Cupappen använder standardfoto på utvalda kort.",
@@ -3174,6 +3322,12 @@
       "sendToListError": "Kunde inte skicka till listan. Försök igen.",
       "openTargetList": "Öppna lista",
       "unknownList": "Lista #{{id}}"
+    },
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "assignees": "Tilldelade",
+      "files": "Filer"
     },
     "settings": {
       "title": "Ärendeinställningar",

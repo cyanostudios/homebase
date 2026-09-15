@@ -41,7 +41,6 @@ import { TeamRequestsSection } from '@/plugins/requests/components/TeamRequestsS
 import { useRequests } from '@/plugins/requests/hooks/useRequests';
 import { matchesApi } from '@/plugins/matches/api/matchesApi';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
-import type { Match } from '@/plugins/matches/types/match';
 import { useGarments } from '@/plugins/garments/hooks/useGarments';
 import { TeamGarmentsSection } from '@/plugins/garments/components/TeamGarmentsSection';
 
@@ -103,19 +102,17 @@ export function TeamView({
   team: teamProp,
   item,
   stacked: _stacked = false,
-  nextMatch = null,
 }: {
   team?: Team | null;
   item?: Team | null;
   /** Single-column card stack (e.g. list detail column). */
   stacked?: boolean;
-  nextMatch?: Match | null;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, getSettings, settingsVersion } = useApp();
   const team = teamProp ?? item ?? null;
-  const { saveTeam, openTeamForEdit } = useTeams();
+  const { saveTeam } = useTeams();
   const { contacts } = useContacts();
   const { openRequestForView } = useRequests();
   const { openMatchForView } = useMatches();
@@ -570,9 +567,6 @@ export function TeamView({
         <div className="space-y-3">
           <TeamQuickContextPanel
             team={team}
-            nextMatch={nextMatch}
-            onEdit={() => openTeamForEdit(team)}
-            variant="full"
             headerBelow={
               <div className={LIST_FILTER_CHIP_ROW_CLASS}>
                 {tabs.map((tab) => {

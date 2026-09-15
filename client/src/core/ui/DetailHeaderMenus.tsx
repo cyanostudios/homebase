@@ -48,7 +48,8 @@ export type DetailHeaderMenusProps = {
 };
 
 const DETAIL_HEADER_TRIGGER_ROW_CLASS =
-  'flex shrink-0 items-center gap-2.5 overflow-x-auto no-scrollbar scroll-smooth';
+  // py/pr keep absolute count badges inside the scrollport (overflow-x-auto forces y-clip).
+  'flex shrink-0 items-center gap-2.5 overflow-x-auto py-1.5 pr-1.5 no-scrollbar scroll-smooth';
 
 const DETAIL_HEADER_SUBMENU_CLASS = 'flex min-w-0 flex-wrap items-center justify-end gap-1';
 
@@ -83,7 +84,7 @@ function DetailHeaderExtraMenuTrigger({
   onToggle: () => void;
 }) {
   return (
-    <span className="relative inline-flex shrink-0 overflow-visible">
+    <span className="relative z-10 inline-flex shrink-0 overflow-visible">
       <RoundIconLabelButton
         icon={menu.icon}
         label={menu.label}
@@ -93,7 +94,7 @@ function DetailHeaderExtraMenuTrigger({
       />
       {typeof menu.badgeCount === 'number' && menu.badgeCount > 0 ? (
         <span
-          className="absolute -right-1 -top-1 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-0.5 text-[10px] font-extrabold leading-none text-white shadow-sm ring-2 ring-background"
+          className="absolute -right-1 -top-1 z-20 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-0.5 text-[10px] font-extrabold leading-none text-white shadow-sm ring-2 ring-background"
           aria-label={menu.badgeAriaLabel}
           title={menu.badgeAriaLabel}
         >
@@ -141,6 +142,14 @@ export function DetailHeaderMenus({
         <div className="flex min-w-0 items-center gap-3">
           {leading ? <div className="min-w-0 flex-1">{leading}</div> : null}
           <div className={DETAIL_HEADER_TRIGGER_ROW_CLASS}>
+            {extraMenus.map((menu) => (
+              <DetailHeaderExtraMenuTrigger
+                key={menu.id}
+                menu={menu}
+                isOpen={openMenu === menu.id}
+                onToggle={() => toggleMenu(menu.id)}
+              />
+            ))}
             <span className="inline-flex shrink-0">
               <RoundIconLabelButton
                 icon={Zap}
@@ -162,14 +171,6 @@ export function DetailHeaderMenus({
                 />
               </span>
             ) : null}
-            {extraMenus.map((menu) => (
-              <DetailHeaderExtraMenuTrigger
-                key={menu.id}
-                menu={menu}
-                isOpen={openMenu === menu.id}
-                onToggle={() => toggleMenu(menu.id)}
-              />
-            ))}
           </div>
         </div>
 

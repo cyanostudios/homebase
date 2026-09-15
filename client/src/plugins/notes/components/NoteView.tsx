@@ -38,7 +38,7 @@ export const NoteView = React.memo(function NoteView({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { contacts } = useContacts();
-  const { closeNotePanel, openNoteForEdit } = useNotes();
+  const { closeNotePanel } = useNotes();
   const { user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
 
@@ -132,7 +132,7 @@ export const NoteView = React.memo(function NoteView({
     <>
       <DetailLayout gridClassName="grid-cols-1">
         <div className="min-w-0 space-y-4 overflow-x-hidden">
-          <NoteQuickContextPanel note={note} onEdit={() => openNoteForEdit(note)} variant="full">
+          <NoteQuickContextPanel note={note}>
             <RichTextContent
               content={note.content}
               mentions={note.mentions || []}

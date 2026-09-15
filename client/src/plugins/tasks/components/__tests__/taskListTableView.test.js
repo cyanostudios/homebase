@@ -118,11 +118,8 @@ describe('TaskList table view wiring', () => {
     );
     expect(quickContextSrc).toMatch(/TaskDetailHeaderMenus/);
     expect(quickContextSrc).toMatch(/leading=\{titleLeading\}/);
-    expect(quickContextSrc).toMatch(/children\?: React\.ReactNode/);
-    expect(quickContextSrc).toMatch(/isFullView && children/);
     expect(listSrc).not.toMatch(/TaskDetailHeaderMenus/);
     expect(viewSrc).toMatch(/TaskQuickContextPanel/);
-    expect(viewSrc).toMatch(/variant="full"/);
     expect(viewSrc).toMatch(/RichTextContent/);
     expect(viewSrc).not.toMatch(/tasks\.taskContent/);
   });
@@ -135,7 +132,7 @@ describe('TaskList table view wiring', () => {
     expect(viewSrc).toMatch(/TaskQuickContextPanel/);
     expect(viewSrc).toMatch(/RichTextContent/);
     expect(viewSrc).not.toMatch(/tasks\.taskContent/);
-    expect(quickContextSrc).toMatch(/isFullView && children/);
+    expect(quickContextSrc).toMatch(/TaskDetailHeaderMenus/);
   });
 
   test('full view persists status priority and due date immediately', () => {
@@ -153,7 +150,6 @@ describe('TaskList table view wiring', () => {
       'utf8',
     );
     expect(quickContextSrc).toMatch(/TASK_STATUS_COLORS/);
-    expect(quickContextSrc).toMatch(/isFullView \? \(/);
     expect(quickContextSrc).toMatch(/TASK_PRIORITY_COLORS\[task\.priority\]/);
     expect(quickContextSrc).toMatch(/dueBadge/);
   });

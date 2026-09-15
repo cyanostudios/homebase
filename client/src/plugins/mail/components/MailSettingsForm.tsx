@@ -30,11 +30,12 @@ interface MailSettingsFormProps {
   onSave?: (data: Record<string, unknown>) => Promise<boolean>;
   onCancel?: () => void;
   onSaveSuccess?: () => void;
+  stacked?: boolean;
 }
 
 export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFormProps>(
   function MailSettingsForm(
-    { currentMail: currentMailProp, onSave, onCancel, onSaveSuccess },
+    { currentMail: currentMailProp, onSave, onCancel, onSaveSuccess, stacked = false },
     ref,
   ) {
     const { t } = useTranslation();
@@ -209,7 +210,7 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
 
     return (
       <div className="plugin-mail">
-        <DetailLayout sidebar={formSidebar}>
+        <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
           <div className="space-y-6">
             {error ? (
               <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">

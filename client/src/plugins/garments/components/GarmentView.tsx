@@ -264,13 +264,8 @@ export const GarmentView: React.FC<GarmentViewProps> = ({
   stacked = false,
 }) => {
   const { t } = useTranslation();
-  const {
-    panelKind,
-    currentInventoryItem,
-    openInventoryForEdit,
-    updateInventoryVariantQuantity,
-    isSaving,
-  } = useGarments();
+  const { panelKind, currentInventoryItem, updateInventoryVariantQuantity, isSaving } =
+    useGarments();
   const { teams } = useTeams();
 
   const inv =
@@ -281,8 +276,6 @@ export const GarmentView: React.FC<GarmentViewProps> = ({
       return (
         <InventoryQuickContextPanel
           item={inv}
-          variant="full"
-          onEdit={() => openInventoryForEdit(inv)}
           onVariantQuantityChange={async (variantId, quantity) => {
             await updateInventoryVariantQuantity(inv.id, variantId, quantity);
           }}

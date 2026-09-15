@@ -9,7 +9,14 @@ import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { useClubdesk } from '../hooks/useClubdesk';
 import type { Clubdesk } from '../types/clubdesk';
 
-export function ClubdeskDetailHeaderMenus({ clubdesk }: { clubdesk: Clubdesk }) {
+export function ClubdeskDetailHeaderMenus({
+  clubdesk,
+  leading,
+}: {
+  clubdesk: Clubdesk;
+  /** Optional leading content on the Actions trigger row (e.g. guide title). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openClubdeskForEdit,
@@ -61,7 +68,7 @@ export function ClubdeskDetailHeaderMenus({ clubdesk }: { clubdesk: Clubdesk }) 
   }, [canDuplicate, clubdesk, openClubdeskForEdit, t]);
 
   return (
-    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')}>
+    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')} leading={leading}>
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title={t('dialog.deleteItem', { label: t('nav.clubdesk') })}

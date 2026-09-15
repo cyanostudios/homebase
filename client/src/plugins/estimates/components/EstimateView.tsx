@@ -1,19 +1,25 @@
-import { FileSpreadsheet, SlidersHorizontal, StickyNote } from 'lucide-react';
-import React from 'react';
+import { FileSpreadsheet, List, SlidersHorizontal, StickyNote } from 'lucide-react';
+import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_PROP_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
@@ -31,8 +37,38 @@ interface EstimateViewProps {
   stacked?: boolean;
 }
 
+type EstimateViewTab = 'properties' | 'lines' | 'notes';
+
+const ESTIMATE_VIEW_TABS: EstimateViewTab[] = ['properties', 'lines', 'notes'];
+
+function parseEstimateViewTab(value: string | null): EstimateViewTab {
+  if (value && ESTIMATE_VIEW_TABS.includes(value as EstimateViewTab)) {
+    return value as EstimateViewTab;
+  }
+  return 'properties';
+}
+
 export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseEstimateViewTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: EstimateViewTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'properties') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
   const {
     quickEditDraft,
     setQuickEditField,
@@ -56,6 +92,63 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
     [estimate, quickEditDraft?.status],
   );
 
+  const lineItemCount = estimate?.lineItems?.length ?? 0;
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: 'properties' as const,
+        label: t('estimates.tabs.properties'),
+        icon: SlidersHorizontal,
+        count: null as number | null,
+      },
+      {
+        id: 'lines' as const,
+        label: t('estimates.tabs.lines'),
+        icon: List,
+        count: lineItemCount > 0 ? lineItemCount : null,
+      },
+      {
+        id: 'notes' as const,
+        label: t('estimates.tabs.notes'),
+        icon: StickyNote,
+        count: null as number | null,
+      },
+    ],
+    [lineItemCount, t],
+  );
+
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span>
+              {tab.label}
+              {tab.count != null ? (
+                <>
+                  {' '}
+                  <span className="tabular-nums font-semibold">({tab.count})</span>
+                </>
+              ) : null}
+            </span>
+          </Button>
+        );
+      })}
+    </div>
+  );
+
   if (!estimate) {
     return null;
   }
@@ -76,7 +169,16 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
     </div>
   );
 
-  const content = (
+  const headerCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <div className="px-4 py-5">
+        <EstimateDetailHeaderMenus estimate={estimate} leading={titleLeading} />
+        <div className="mt-4">{tabChips}</div>
+      </div>
+    </Card>
+  );
+
+  const propertiesContent = (
     <div className="space-y-6">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
@@ -140,8 +242,11 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
       </Card>
 
       <EstimateShareBlock estimate={estimate} />
+    </div>
+  );
 
-      {/* Line Items */}
+  const linesContent = (
+    <div className="space-y-6">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('estimates.lineItemsCount', { count: estimate.lineItems.length })}
@@ -190,7 +295,6 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
         </DetailSection>
       </Card>
 
-      {/* Pricing Summary */}
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection title={t('estimates.pricingSummary')} iconPlugin="estimates" className="p-6">
           <div className="space-y-3">
@@ -233,35 +337,43 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
           </div>
         </DetailSection>
       </Card>
+    </div>
+  );
 
-      {estimate.notes?.trim() ? (
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection title={t('estimates.notes')} icon={StickyNote} subtleTitle className="p-6">
-            <div className={DETAIL_NOTE_CALLOUT_CLASS}>
-              <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
-                {estimate.notes}
-              </p>
-            </div>
-          </DetailSection>
-        </Card>
-      ) : null}
+  const notesContent = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={t('estimates.notes')} icon={StickyNote} subtleTitle className="p-6">
+        {estimate.notes?.trim() ? (
+          <div className={DETAIL_NOTE_CALLOUT_CLASS}>
+            <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
+              {estimate.notes}
+            </p>
+          </div>
+        ) : (
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('estimates.tabs.notesEmpty')}</p>
+        )}
+      </DetailSection>
+    </Card>
+  );
+
+  const tabContent = (
+    <>
+      {activeTab === 'properties' ? propertiesContent : null}
+      {activeTab === 'lines' ? linesContent : null}
+      {activeTab === 'notes' ? notesContent : null}
+    </>
+  );
+
+  const body = (
+    <div className="space-y-4">
+      {headerCard}
+      {tabContent}
     </div>
   );
 
   return (
     <>
-      {stacked ? (
-        <div className="space-y-4">
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <div className="border-b border-border/50 px-4 py-5">
-              <EstimateDetailHeaderMenus estimate={estimate} leading={titleLeading} />
-            </div>
-          </Card>
-          {content}
-        </div>
-      ) : (
-        <DetailLayout gridClassName="grid-cols-1">{content}</DetailLayout>
-      )}
+      {stacked ? body : <DetailLayout gridClassName="grid-cols-1">{body}</DetailLayout>}
 
       {/* Status Reason Modal (when applying quick-edit to accepted/rejected) */}
       <StatusReasonModal

@@ -2,14 +2,18 @@ import {
   CalendarDays,
   ClipboardList,
   ExternalLink,
+  FileText,
+  Info,
   Mail,
   Phone,
+  Paperclip,
   SlidersHorizontal,
   User,
+  Users,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,6 +30,9 @@ import {
   DETAIL_PROP_ROW_CLASS,
   DETAIL_SURFACE_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
@@ -71,6 +78,17 @@ interface RequestViewProps {
   stacked?: boolean;
 }
 
+type RequestViewTab = 'information' | 'properties' | 'assignees' | 'files';
+
+const REQUEST_VIEW_TABS: RequestViewTab[] = ['information', 'properties', 'assignees', 'files'];
+
+function parseRequestViewTab(value: string | null): RequestViewTab {
+  if (value && REQUEST_VIEW_TABS.includes(value as RequestViewTab)) {
+    return value as RequestViewTab;
+  }
+  return 'information';
+}
+
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
@@ -81,23 +99,37 @@ export function RequestView({
 }: RequestViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const request = requestProp ?? item ?? null;
   const { user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
   const enabledPlugins = useEnabledPlugins();
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const garmentsEnabled = enabledPlugins.has('garments');
-  const {
-    saveRequest,
-    closeRequestPanel,
-    openRequestForEdit,
-    validationErrors,
-    clearValidationErrors,
-    requestTypes,
-  } = useRequests();
+  const { saveRequest, closeRequestPanel, validationErrors, clearValidationErrors, requestTypes } =
+    useRequests();
   const { contacts } = useContacts();
   const [targetListName, setTargetListName] = useState<string | null>(null);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
+
+  const activeTab = parseRequestViewTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: RequestViewTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'information') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
 
   const linkedContact = useMemo(() => {
     if (!request?.contactId) {
@@ -168,6 +200,13 @@ export function RequestView({
     };
   }, [request?.pluginTargetId, garmentsEnabled]);
 
+  // If files tab is selected but plugin is off, fall back to information.
+  useEffect(() => {
+    if (activeTab === 'files' && !hasFilesPlugin) {
+      setActiveTab('information');
+    }
+  }, [activeTab, hasFilesPlugin, setActiveTab]);
+
   const navigateToContact = (contact: Contact) => {
     closeRequestPanel();
     setViewingContact(null);
@@ -176,6 +215,76 @@ export function RequestView({
 
   const blockingValidationErrors = validationErrors.filter(
     (error) => !String(error.message || '').includes('Warning'),
+  );
+
+  const assigneeCount = Array.isArray(request?.assignedToIds) ? request.assignedToIds.length : 0;
+
+  const tabs = useMemo(() => {
+    const next: Array<{
+      id: RequestViewTab;
+      label: string;
+      icon: typeof Info;
+      count: number | null;
+    }> = [
+      {
+        id: 'information',
+        label: t('requests.tabs.information'),
+        icon: Info,
+        count: null,
+      },
+      {
+        id: 'properties',
+        label: t('requests.tabs.properties'),
+        icon: SlidersHorizontal,
+        count: null,
+      },
+      {
+        id: 'assignees',
+        label: t('requests.tabs.assignees'),
+        icon: Users,
+        count: assigneeCount > 0 ? assigneeCount : null,
+      },
+    ];
+    if (hasFilesPlugin) {
+      next.push({
+        id: 'files',
+        label: t('requests.tabs.files'),
+        icon: Paperclip,
+        count: null,
+      });
+    }
+    return next;
+  }, [assigneeCount, hasFilesPlugin, t]);
+
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span>
+              {tab.label}
+              {tab.count != null ? (
+                <>
+                  {' '}
+                  <span className="tabular-nums font-semibold">({tab.count})</span>
+                </>
+              ) : null}
+            </span>
+          </Button>
+        );
+      })}
+    </div>
   );
 
   if (!request) {
@@ -236,17 +345,21 @@ export function RequestView({
       ? t('requests.view.unknownList', { id: request.pluginTargetId })
       : t('requests.settings.targetListMissing'));
 
-  const contentColumn = (
+  const informationCard = (
     <div className="space-y-4">
-      <RequestQuickContextPanel
-        request={request}
-        onEdit={() => openRequestForEdit(request)}
-        variant="full"
-      >
-        <p className="whitespace-pre-wrap text-sm text-foreground">
-          {request.description?.trim() || '—'}
-        </p>
-      </RequestQuickContextPanel>
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('requests.view.description')}
+          icon={FileText}
+          iconPlugin="requests"
+          subtleTitle
+          className="p-6"
+        >
+          <p className="whitespace-pre-wrap text-sm text-foreground">
+            {request.description?.trim() || '—'}
+          </p>
+        </DetailSection>
+      </Card>
 
       {showSubmittedDetails ? (
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -372,78 +485,91 @@ export function RequestView({
           </div>
         </DetailSection>
       </Card>
-
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('requests.view.properties')}
-          icon={SlidersHorizontal}
-          subtleTitle
-          className="p-6"
-        >
-          <div>
-            <div className={DETAIL_PROP_ROW_CLASS}>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {t('requests.form.requestType')}
-              </span>
-              <RequestTypeSelect
-                request={request}
-                onTypeChange={handleTypeChange}
-                hideInlineLabel
-              />
-            </div>
-            <div className={DETAIL_PROP_ROW_CLASS}>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {t('requests.form.status')}
-              </span>
-              <RequestStatusSelect
-                request={request}
-                onStatusChange={handleStatusChange}
-                hideInlineLabel
-              />
-            </div>
-            <div className={DETAIL_PROP_ROW_CLASS}>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {t('requests.form.priority')}
-              </span>
-              <RequestPrioritySelect
-                request={request}
-                onPriorityChange={handlePriorityChange}
-                hideInlineLabel
-              />
-            </div>
-            <div className={DETAIL_PROP_ROW_CLASS}>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {t('requests.responseDue.label')}
-              </span>
-              <RequestResponseDueControl
-                request={request}
-                onDaysChange={handleResponseDueChange}
-                hideInlineLabel
-              />
-            </div>
-            <div className={DETAIL_PROP_ROW_CLASS}>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {t('requests.view.source')}
-              </span>
-              <Badge
-                variant="outline"
-                className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS[request.source])}
-              >
-                {request.source === 'external'
-                  ? t('requests.sourceExternal')
-                  : t('requests.sourceInternal')}
-              </Badge>
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
     </div>
   );
 
+  const propertiesCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('requests.view.properties')}
+        icon={SlidersHorizontal}
+        subtleTitle
+        className="p-6"
+      >
+        <div>
+          <div className={DETAIL_PROP_ROW_CLASS}>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {t('requests.form.requestType')}
+            </span>
+            <RequestTypeSelect request={request} onTypeChange={handleTypeChange} hideInlineLabel />
+          </div>
+          <div className={DETAIL_PROP_ROW_CLASS}>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {t('requests.form.status')}
+            </span>
+            <RequestStatusSelect
+              request={request}
+              onStatusChange={handleStatusChange}
+              hideInlineLabel
+            />
+          </div>
+          <div className={DETAIL_PROP_ROW_CLASS}>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {t('requests.form.priority')}
+            </span>
+            <RequestPrioritySelect
+              request={request}
+              onPriorityChange={handlePriorityChange}
+              hideInlineLabel
+            />
+          </div>
+          <div className={DETAIL_PROP_ROW_CLASS}>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {t('requests.responseDue.label')}
+            </span>
+            <RequestResponseDueControl
+              request={request}
+              onDaysChange={handleResponseDueChange}
+              hideInlineLabel
+            />
+          </div>
+          <div className={DETAIL_PROP_ROW_CLASS}>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {t('requests.view.source')}
+            </span>
+            <Badge
+              variant="outline"
+              className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS[request.source])}
+            >
+              {request.source === 'external'
+                ? t('requests.sourceExternal')
+                : t('requests.sourceInternal')}
+            </Badge>
+          </div>
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const assigneesCard = (
+    <div className="space-y-4">
+      <RequestAssigneeSelect request={request} onAssigneeChange={handleAssigneeChange} />
+      {hasTeamsPlugin ? (
+        <RequestAssignedTeamSelect request={request} onTeamChange={handleAssignedTeamChange} />
+      ) : null}
+    </div>
+  );
+
+  const filesCard = hasFilesPlugin ? (
+    <FileAttachmentsSection pluginName="requests" entityId={request.id} readOnly />
+  ) : null;
+
   return (
     <>
-      <DetailLayout gridClassName="grid-cols-1" leftSidebar={contentColumn}>
-        <div className="space-y-6">
+      <DetailLayout gridClassName="grid-cols-1">
+        <div className="space-y-4">
+          <RequestQuickContextPanel request={request} headerBelow={tabChips} />
+
           {blockingValidationErrors.length > 0 ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
               <div className="text-sm font-medium text-destructive">{t('common.cannotSave')}</div>
@@ -455,15 +581,10 @@ export function RequestView({
             </Card>
           ) : null}
 
-          {hasFilesPlugin ? (
-            <FileAttachmentsSection pluginName="requests" entityId={request.id} readOnly />
-          ) : null}
-
-          <RequestAssigneeSelect request={request} onAssigneeChange={handleAssigneeChange} />
-
-          {hasTeamsPlugin ? (
-            <RequestAssignedTeamSelect request={request} onTeamChange={handleAssignedTeamChange} />
-          ) : null}
+          {activeTab === 'information' ? informationCard : null}
+          {activeTab === 'properties' ? propertiesCard : null}
+          {activeTab === 'assignees' ? assigneesCard : null}
+          {activeTab === 'files' ? filesCard : null}
         </div>
       </DetailLayout>
 

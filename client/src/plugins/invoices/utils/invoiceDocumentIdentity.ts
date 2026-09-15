@@ -68,10 +68,23 @@ function pickContactAddress(addresses: unknown): {
   };
 }
 
-/** First non-empty contact person name on a contact card. */
-function pickFirstContactPersonName(contactPersons: unknown): string {
+/** Prefer flagged invoice reference person; otherwise first non-empty name (legacy). */
+function pickInvoiceReferencePersonName(contactPersons: unknown): string {
   if (!Array.isArray(contactPersons) || contactPersons.length === 0) {
     return '';
+  }
+  for (const person of contactPersons) {
+    if (!person || typeof person !== 'object') {
+      continue;
+    }
+    const row = person as Record<string, unknown>;
+    if (row.invoiceReference !== true) {
+      continue;
+    }
+    const name = String(row.name || '').trim();
+    if (name) {
+      return name;
+    }
   }
   for (const person of contactPersons) {
     if (!person || typeof person !== 'object') {
@@ -88,7 +101,7 @@ function pickFirstContactPersonName(contactPersons: unknown): string {
 /**
  * Resolve customer name + address for invoice preview/PDF-style HTML.
  * Prefers linked contact addresses (billing → main → first).
- * Kundreferens = first contact person name on the contact card.
+ * Kundreferens = invoice-reference contact person (or first named, legacy).
  */
 export function buildInvoiceCustomerBlock(input: {
   contactName?: string | null;
@@ -115,7 +128,7 @@ export function buildInvoiceCustomerBlock(input: {
     postalCode: addr.postalCode.trim(),
     city: addr.city.trim(),
     country: addr.country.trim(),
-    reference: pickFirstContactPersonName(contact?.contactPersons),
+    reference: pickInvoiceReferencePersonName(contact?.contactPersons),
     customerNumber: String(contact?.contactNumber ?? '').trim(),
   };
 }

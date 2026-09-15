@@ -111,7 +111,6 @@ describe('TeamList table view wiring', () => {
     expect(quickContextSrc).toMatch(/leading=\{titleLeading\}/);
     expect(listSrc).not.toMatch(/TeamDetailHeaderMenus/);
     expect(viewSrc).toMatch(/TeamQuickContextPanel/);
-    expect(viewSrc).toMatch(/variant="full"/);
   });
 
   test('bulk select mode shows BulkActionRoundBar under toolbar and keeps detail column visible', () => {
