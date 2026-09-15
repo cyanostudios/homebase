@@ -26,7 +26,11 @@ import { DatePicker } from '@/core/ui/DatePicker';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_FIELD_LABEL_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_FIELD_LABEL_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import {
   FORM_COMPACT_INPUT_CLASS,
   FORM_COMPACT_SELECT_CLASS,
@@ -513,7 +517,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                   </div>
 
                   {formData.lineItems.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No line items added yet.</p>
+                    <p className={DETAIL_EMPTY_STATE_CLASS}>No line items added yet.</p>
                   ) : (
                     <div className="space-y-3">
                       {formData.lineItems.map((item, index) => (

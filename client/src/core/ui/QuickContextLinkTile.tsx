@@ -4,7 +4,9 @@ import React from 'react';
 import { LINKED_TILE_META_BADGE_CLASS } from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
-const TILE_CLASS = 'min-h-[4.5rem] rounded-xl bg-muted/40 px-3 py-3.5 text-left transition-colors';
+/** Shared shell for linked tiles and attachment rows (Contacts linked look). */
+export const QUICK_CONTEXT_LINK_TILE_CLASS =
+  'min-h-[4.5rem] rounded-xl bg-muted/40 px-3 py-3.5 text-left transition-colors';
 
 const TILE_LABEL_CLASS = 'text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
@@ -56,7 +58,11 @@ export function QuickContextLinkTile({
     return (
       <button
         type="button"
-        className={cn(TILE_CLASS, 'w-full cursor-pointer hover:bg-muted/60', className)}
+        className={cn(
+          QUICK_CONTEXT_LINK_TILE_CLASS,
+          'w-full cursor-pointer hover:bg-muted/60',
+          className,
+        )}
         onClick={onClick}
       >
         {content}
@@ -64,7 +70,7 @@ export function QuickContextLinkTile({
     );
   }
 
-  return <div className={cn(TILE_CLASS, className)}>{content}</div>;
+  return <div className={cn(QUICK_CONTEXT_LINK_TILE_CLASS, className)}>{content}</div>;
 }
 
 export function QuickContextLinkTileGrid({

@@ -30,6 +30,8 @@ describe('TaskList table view wiring', () => {
     expect(listSrc).toMatch(/renderSortDropdown/);
     expect(listSrc).toMatch(/ListFilterChipsToggle/);
     expect(listSrc).toMatch(/filtersVisible/);
+    expect(listSrc).toMatch(/RoundExpandableQuickAdd/);
+    expect(listSrc).toMatch(/icon=\{CheckSquare\}/);
     expect(listSrc).toMatch(/useState<SortField>\('createdAt'\)/);
     expect(listSrc).toMatch(/useState<SortOrder>\('desc'\)/);
     expect(listSrc).toMatch(/DropdownMenuRadioItem/);
@@ -116,9 +118,44 @@ describe('TaskList table view wiring', () => {
     );
     expect(quickContextSrc).toMatch(/TaskDetailHeaderMenus/);
     expect(quickContextSrc).toMatch(/leading=\{titleLeading\}/);
+    expect(quickContextSrc).toMatch(/children\?: React\.ReactNode/);
+    expect(quickContextSrc).toMatch(/isFullView && children/);
     expect(listSrc).not.toMatch(/TaskDetailHeaderMenus/);
     expect(viewSrc).toMatch(/TaskQuickContextPanel/);
     expect(viewSrc).toMatch(/variant="full"/);
+    expect(viewSrc).toMatch(/RichTextContent/);
+    expect(viewSrc).not.toMatch(/tasks\.taskContent/);
+  });
+
+  test('full detail merges title header and content into one card', () => {
+    const quickContextSrc = fs.readFileSync(
+      path.join(__dirname, '../TaskQuickContextPanel.tsx'),
+      'utf8',
+    );
+    expect(viewSrc).toMatch(/TaskQuickContextPanel/);
+    expect(viewSrc).toMatch(/RichTextContent/);
+    expect(viewSrc).not.toMatch(/tasks\.taskContent/);
+    expect(quickContextSrc).toMatch(/isFullView && children/);
+  });
+
+  test('full view persists status priority and due date immediately', () => {
+    expect(viewSrc).toMatch(/buildTaskListQuickFieldsSavePayload\(task, \{ status: newStatus \}/);
+    expect(viewSrc).toMatch(
+      /buildTaskListQuickFieldsSavePayload\(task, \{ priority: newPriority \}/,
+    );
+    expect(viewSrc).toMatch(/buildTaskListQuickFieldsSavePayload\(task, \{ dueDate: newDate \}/);
+    expect(viewSrc).toMatch(/await saveTask\(/);
+  });
+
+  test('full view shows status priority and due badges together', () => {
+    const quickContextSrc = fs.readFileSync(
+      path.join(__dirname, '../TaskQuickContextPanel.tsx'),
+      'utf8',
+    );
+    expect(quickContextSrc).toMatch(/TASK_STATUS_COLORS/);
+    expect(quickContextSrc).toMatch(/isFullView \? \(/);
+    expect(quickContextSrc).toMatch(/TASK_PRIORITY_COLORS\[task\.priority\]/);
+    expect(quickContextSrc).toMatch(/dueBadge/);
   });
 
   test('bulk select mode shows BulkActionRoundBar under toolbar and keeps detail column visible', () => {

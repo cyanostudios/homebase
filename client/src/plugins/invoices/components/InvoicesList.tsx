@@ -196,7 +196,7 @@ export function InvoicesList() {
     resolveVisibleInvoiceTableColumns(null),
   );
   const [activeFilters, setActiveFilters] = useState<InvoiceListFilterSelection>([]);
-  const [settingsCategory, setSettingsCategory] = useState<InvoiceSettingsCategory>('columns');
+  const [settingsCategory, setSettingsCategory] = useState<InvoiceSettingsCategory>('numbering');
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(readInvoicesToolbarCollapsed);
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(

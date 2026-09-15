@@ -40,7 +40,11 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import {
   FORM_INPUT_CLASS,
   FORM_INPUT_ERROR_CLASS,
@@ -780,6 +784,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                   title={t('instructions.stepsCard')}
                   icon={ListOrdered}
                   iconPlugin="instructions"
+                  subtleTitle
                   className="p-6"
                 >
                   {getFieldError('steps') ? (
@@ -789,10 +794,8 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                   ) : null}
 
                   {formData.steps.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border/70 px-4 py-8 text-center">
-                      <p className="text-sm text-muted-foreground">
-                        {t('instructions.noStepsYet')}
-                      </p>
+                    <div className="space-y-3">
+                      <p className={DETAIL_EMPTY_STATE_CLASS}>{t('instructions.noStepsYet')}</p>
                       <RoundIconLabelButton
                         type="button"
                         icon={Plus}
@@ -800,7 +803,6 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                         variant="soft"
                         size="xs"
                         alwaysExpanded
-                        className="mt-3"
                         onClick={addStep}
                       />
                     </div>

@@ -8,6 +8,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  BADGE_CHIP_CLASS,
+  BADGE_CHIP_COMPACT_CLASS,
+  BADGE_SELECT_TRIGGER_CLASS,
+} from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 import { TASK_PRIORITY_COLORS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
@@ -30,16 +35,16 @@ export function TaskPrioritySelect({
     <Select value={task.priority} onValueChange={onPriorityChange}>
       <SelectTrigger
         className={cn(
-          'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50',
-          compact ? 'h-8 min-h-8 w-[130px] sm:h-7' : 'h-9 w-[180px]',
+          BADGE_SELECT_TRIGGER_CLASS,
+          compact ? 'h-7 w-[100px]' : 'h-9 w-full sm:w-[180px]',
         )}
       >
         <SelectValue placeholder="Select priority">
           <Badge
             variant="outline"
             className={cn(
-              'flex items-center border-transparent px-2 font-extrabold',
-              compact ? 'h-5 text-[10px] font-extrabold' : 'h-5 text-xs font-extrabold',
+              'flex items-center',
+              compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
               TASK_PRIORITY_COLORS[task.priority as keyof typeof TASK_PRIORITY_COLORS],
             )}
           >
@@ -47,17 +52,17 @@ export function TaskPrioritySelect({
           </Badge>
         </SelectValue>
       </SelectTrigger>
-      <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[180px]">
+      <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
         {TASK_PRIORITY_OPTIONS.map((priority) => (
           <SelectItem
             key={priority}
             value={priority}
-            className="py-2 focus:bg-accent rounded-md text-xs"
+            className="rounded-md py-2 text-xs focus:bg-accent"
           >
             <Badge
               variant="outline"
               className={cn(
-                'border-transparent font-medium text-xs px-2 h-5',
+                BADGE_CHIP_CLASS,
                 TASK_PRIORITY_COLORS[priority as keyof typeof TASK_PRIORITY_COLORS],
               )}
             >
@@ -75,7 +80,7 @@ export function TaskPrioritySelect({
 
   return (
     <div className="flex items-center justify-between gap-4">
-      <div className="text-sm font-medium text-foreground whitespace-nowrap">Priority</div>
+      <div className="whitespace-nowrap text-sm font-medium text-foreground">Priority</div>
       {selectEl}
     </div>
   );

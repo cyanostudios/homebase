@@ -1,7 +1,7 @@
 import { Circle, CheckCircle2, Clock, Flag, XCircle } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
+import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
@@ -16,6 +16,7 @@ import {
   TASK_STATUS_COLORS,
   TASK_STATUS_OPTIONS,
   formatStatusForDisplay,
+  formatTaskDueDisplay,
 } from '../types/tasks';
 
 type TaskStatus = (typeof TASK_STATUS_OPTIONS)[number];
@@ -178,11 +179,28 @@ export function TaskListTable({
         field: 'dueDate',
         header: t('tasks.propertyDueDate'),
         className: 'hidden sm:table-cell',
-        cell: (task: Task) => (
-          <span className="text-xs text-muted-foreground">
-            {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '—'}
-          </span>
-        ),
+        cell: (task: Task) => {
+          if (!task.dueDate) {
+            return <span className="text-xs text-muted-foreground">—</span>;
+          }
+          const display = formatTaskDueDisplay(task.dueDate, task.status);
+          if (!display) {
+            return (
+              <span className="text-xs text-muted-foreground">
+                {new Date(task.dueDate).toLocaleDateString(undefined, {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </span>
+            );
+          }
+          return (
+            <Badge className={cn(BADGE_CHIP_COMPACT_CLASS, display.badgeClassName)}>
+              {display.text}
+            </Badge>
+          );
+        },
       },
       assignedTo: {
         field: 'assignedTo',

@@ -8,7 +8,14 @@ import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/Detail
 import { useCups } from '../hooks/useCups';
 import type { Cup } from '../types/cups';
 
-export function CupDetailHeaderMenus({ cup }: { cup: Cup }) {
+export function CupDetailHeaderMenus({
+  cup,
+  leading,
+}: {
+  cup: Cup;
+  /** Optional leading content on the Actions trigger row (e.g. cup name). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const { openCupForEdit, deleteCup, getDeleteMessage } = useCups();
 
@@ -36,7 +43,7 @@ export function CupDetailHeaderMenus({ cup }: { cup: Cup }) {
   );
 
   return (
-    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')}>
+    <DetailHeaderMenus leading={leading} actions={actions} actionsLabel={t('common.headerActions')}>
       <ConfirmDialog
         isOpen={showDelete}
         title="Delete cup?"

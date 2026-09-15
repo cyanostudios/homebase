@@ -45,6 +45,8 @@ describe('EstimateList table view wiring', () => {
     expect(tableSrc).toMatch(/visibleColumnIds/);
     expect(tableSrc).toMatch(/headerBarClassName="bg-sky-50/);
     expect(tableSrc).toMatch(/SectionCategoryIcon/);
+    expect(tableSrc).toMatch(/text-slate-400/);
+    expect(tableSrc).toMatch(/formatInvoiceMoney/);
     expect(tableSrc).toMatch(/activeEstimateId/);
     expect(tableSrc).toMatch(/selectionEnabled/);
   });

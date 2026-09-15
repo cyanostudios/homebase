@@ -14,6 +14,7 @@ import {
   QuickContextOpenFullFooter,
 } from '@/core/ui/QuickContextHeaderActions';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -36,6 +37,7 @@ import {
 
 import type { Team, TrainingTime } from '../types/teams';
 import {
+  getDisplaySeriesTeams,
   isTeamOnBreak,
   TEAM_COLOR_GRADIENTS,
   teamColorGradientTextClass,
@@ -82,6 +84,7 @@ export function TeamQuickContextPanel({
   onOpenFullProfile,
   onEdit,
   variant = 'list',
+  headerBelow = null,
 }: {
   team: Team;
   nextMatch?: Match | null;
@@ -90,6 +93,8 @@ export function TeamQuickContextPanel({
   onEdit: () => void;
   /** `list` = small preview beside the list; `full` = first column in full detail view. */
   variant?: 'list' | 'full';
+  /** Optional content under the title/actions row (e.g. detail category tabs in full view). */
+  headerBelow?: React.ReactNode;
 }) {
   const isFullView = variant === 'full';
   const { t, i18n } = useTranslation();
@@ -123,7 +128,7 @@ export function TeamQuickContextPanel({
   useEffect(() => {
     setViewingMatch(null);
     setViewingRequest(null);
-    if (!hasRequestsPlugin || !team?.id) {
+    if (isFullView || !hasRequestsPlugin || !team?.id) {
       setTeamRequests(null);
       return;
     }
@@ -148,7 +153,7 @@ export function TeamQuickContextPanel({
     return () => {
       cancelled = true;
     };
-  }, [hasRequestsPlugin, team?.id]);
+  }, [hasRequestsPlugin, isFullView, team?.id]);
 
   const navigateToRequest = (request: Request) => {
     setViewingRequest(null);
@@ -171,6 +176,27 @@ export function TeamQuickContextPanel({
         .join(' · ') || '—',
     [team.gender, team.name, team.playing_format, t, title],
   );
+
+  /** Full detail: name, age, gender, format under the title (skip parts already used as title). */
+  const fullHeaderMetaLine = useMemo(() => {
+    const name = team.name?.trim() || '';
+    const age = team.age_group?.trim() || '';
+    return (
+      [
+        name && name !== title ? name : null,
+        age && age !== title ? age : null,
+        team.gender ? t(`teams.gender.${team.gender}`) : null,
+        team.playing_format,
+      ]
+        .filter(Boolean)
+        .join(' · ') || '—'
+    );
+  }, [team.age_group, team.gender, team.name, team.playing_format, t, title]);
+
+  const seriesTeamsDisplayCount = getDisplaySeriesTeams(
+    team.series_teams ?? [],
+    team.series_team_count ?? 0,
+  ).length;
 
   const previewRequests = (teamRequests ?? []).slice(0, REQUESTS_PREVIEW_LIMIT);
   const hiddenRequestCount = Math.max(0, (teamRequests?.length ?? 0) - REQUESTS_PREVIEW_LIMIT);
@@ -241,18 +267,33 @@ export function TeamQuickContextPanel({
     </div>
   );
 
+  const fullHeaderMeta = isFullView ? (
+    <div className="mt-2 space-y-2">
+      <p className="text-sm text-muted-foreground">{fullHeaderMetaLine}</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+        <span>{t('teams.playerCount', { count: team.player_count })}</span>
+        <span>{t('teams.seriesTeamCount', { count: seriesTeamsDisplayCount })}</span>
+        {statusBadge}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <>
       <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
-        <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
-
         <div
           className={cn(
-            'min-w-0 overflow-x-hidden px-4 py-4',
-            isFullView ? 'space-y-4' : 'space-y-6',
+            'px-4 py-5',
+            !isFullView || !headerBelow ? 'border-b border-border/50' : null,
           )}
         >
-          {!isFullView ? (
+          {identityHeader}
+          {fullHeaderMeta}
+          {headerBelow ? <div className="mt-4">{headerBelow}</div> : null}
+        </div>
+
+        {!isFullView ? (
+          <div className="min-w-0 space-y-6 overflow-x-hidden px-4 py-4">
             <QuickContextSection title={t('teams.view.information')} icon={Info} iconPlugin="teams">
               {updatedWithBadges}
               <div className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -291,81 +332,87 @@ export function TeamQuickContextPanel({
                 ) : null}
               </div>
             </QuickContextSection>
-          ) : (
-            updatedWithBadges
-          )}
 
-          <QuickContextSection title={t('teams.table.seriesTeams')} icon={Users} iconPlugin="teams">
-            <TeamSeriesTeamBadges
-              team={team}
-              empty={<span className="text-xs text-muted-foreground">—</span>}
-            />
-          </QuickContextSection>
-
-          {!isFullView && nextMatch ? (
             <QuickContextSection
-              title={t('teams.quickContext.nextMatch')}
-              icon={Trophy}
-              iconPlugin="matches"
+              title={t('teams.table.seriesTeams')}
+              icon={Users}
+              iconPlugin="teams"
             >
-              <QuickContextLinkTileGrid>
-                <QuickContextLinkTile
-                  label={formatMatchDateTime(nextMatch.start_time, i18n.language)}
-                  icon={Trophy}
-                  iconClassName="text-amber-600"
-                  onClick={() => setViewingMatch(nextMatch)}
-                >
-                  {formatMatchTeamsLine(nextMatch)}
-                </QuickContextLinkTile>
-              </QuickContextLinkTileGrid>
+              <TeamSeriesTeamBadges
+                team={team}
+                empty={<span className="text-xs text-muted-foreground">—</span>}
+              />
             </QuickContextSection>
-          ) : null}
 
-          {hasRequestsPlugin ? (
-            <QuickContextSection
-              title={t('teams.quickContext.requests')}
-              icon={Inbox}
-              iconPlugin="requests"
-            >
-              {teamRequests === null ? (
-                <p className="text-xs text-muted-foreground">{t('common.loading')}</p>
-              ) : teamRequests.length > 0 ? (
-                <>
-                  <QuickContextLinkTileGrid>
-                    {previewRequests.map((request) => (
-                      <QuickContextLinkTile
-                        key={request.id}
-                        label={formatRequestStatusForDisplay(request.status, t)}
-                        icon={Inbox}
-                        iconClassName="text-purple-600"
-                        onClick={() => setViewingRequest(request)}
-                      >
-                        {request.title || getTypeLabel(request.requestType, t)}
-                      </QuickContextLinkTile>
-                    ))}
-                  </QuickContextLinkTileGrid>
-                  {hiddenRequestCount > 0 ? (
-                    <p className="pt-1.5 text-center text-xs text-muted-foreground">
-                      {t('requests.moreCount', { count: hiddenRequestCount })}
-                    </p>
-                  ) : null}
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">{t('requests.noYetForTeam')}</p>
-              )}
-            </QuickContextSection>
-          ) : null}
+            {nextMatch ? (
+              <QuickContextSection
+                title={t('teams.quickContext.nextMatch')}
+                icon={Trophy}
+                iconPlugin="matches"
+              >
+                <QuickContextLinkTileGrid>
+                  <QuickContextLinkTile
+                    label={formatMatchDateTime(nextMatch.start_time, i18n.language)}
+                    icon={Trophy}
+                    iconClassName="text-amber-600"
+                    onClick={() => setViewingMatch(nextMatch)}
+                  >
+                    {formatMatchTeamsLine(nextMatch)}
+                  </QuickContextLinkTile>
+                </QuickContextLinkTileGrid>
+              </QuickContextSection>
+            ) : null}
 
-          {latestNote ? (
-            <QuickContextSection title={t('teams.tabs.notes')} icon={StickyNote} iconPlugin="notes">
-              <div className={DETAIL_NOTE_CALLOUT_CLASS}>
-                <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
-                  {latestNote}
-                </p>
-              </div>
-            </QuickContextSection>
-          ) : null}
-        </div>
+            {hasRequestsPlugin ? (
+              <QuickContextSection
+                title={t('teams.quickContext.requests')}
+                icon={Inbox}
+                iconPlugin="requests"
+              >
+                {teamRequests === null ? (
+                  <p className="text-xs text-muted-foreground">{t('common.loading')}</p>
+                ) : teamRequests.length > 0 ? (
+                  <>
+                    <QuickContextLinkTileGrid>
+                      {previewRequests.map((request) => (
+                        <QuickContextLinkTile
+                          key={request.id}
+                          label={formatRequestStatusForDisplay(request.status, t)}
+                          icon={Inbox}
+                          iconClassName="text-purple-600"
+                          onClick={() => setViewingRequest(request)}
+                        >
+                          {request.title || getTypeLabel(request.requestType, t)}
+                        </QuickContextLinkTile>
+                      ))}
+                    </QuickContextLinkTileGrid>
+                    {hiddenRequestCount > 0 ? (
+                      <p className="pt-1.5 text-center text-xs text-muted-foreground">
+                        {t('requests.moreCount', { count: hiddenRequestCount })}
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className={DETAIL_EMPTY_STATE_CLASS}>{t('requests.noYetForTeam')}</p>
+                )}
+              </QuickContextSection>
+            ) : null}
+
+            {latestNote ? (
+              <QuickContextSection
+                title={t('teams.tabs.notes')}
+                icon={StickyNote}
+                iconPlugin="notes"
+              >
+                <div className={DETAIL_NOTE_CALLOUT_CLASS}>
+                  <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
+                    {latestNote}
+                  </p>
+                </div>
+              </QuickContextSection>
+            ) : null}
+          </div>
+        ) : null}
 
         {!isFullView && onOpenFullProfile ? (
           <QuickContextOpenFullFooter onOpen={onOpenFullProfile} />

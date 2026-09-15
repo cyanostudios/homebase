@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { DETAIL_EMPTY_STATE_CLASS } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
 import { requestsApi } from '../api/requestsApi';
@@ -117,14 +118,14 @@ export function TeamRequestsSection({
   const displayRequests = compact ? visibleRequests.slice(0, 5) : visibleRequests;
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">{t('common.loading')}</p>;
+    return <p className={DETAIL_EMPTY_STATE_CLASS}>{t('common.loading')}</p>;
   }
 
   if (visibleRequests.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-4 text-center">
         <Inbox className="h-8 w-8 text-muted-foreground/40" />
-        <p className="text-sm text-muted-foreground">{t('requests.noYetForTeam')}</p>
+        <p className={DETAIL_EMPTY_STATE_CLASS}>{t('requests.noYetForTeam')}</p>
         {onCreateRequest && (
           <RoundIconLabelButton
             type="button"

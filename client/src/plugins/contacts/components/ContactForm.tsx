@@ -41,6 +41,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_PROP_ROW_CLASS as PROP_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
@@ -668,7 +669,9 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
               onClick={addAddress}
             />
             {formData.addresses.length === 0 ? (
-              <p className="text-xs italic text-muted-foreground">No addresses added yet.</p>
+              <p className={DETAIL_EMPTY_STATE_CLASS}>
+                {t('contacts.noAddresses', { defaultValue: 'No addresses yet.' })}
+              </p>
             ) : (
               formData.addresses.map((address) => (
                 <div key={address.id} className="space-y-4 rounded-lg border border-border p-4">
@@ -983,7 +986,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       onClick={addContactPerson}
                     />
                     {formData.contactPersons.length === 0 ? (
-                      <p className="text-xs italic text-muted-foreground">
+                      <p className={DETAIL_EMPTY_STATE_CLASS}>
                         {t('contacts.noContactPersons', {
                           defaultValue: 'No contact persons added yet.',
                         })}

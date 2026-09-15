@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableQuickAdd } from '@/components/ui/round-expandable-quick-add';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
@@ -152,6 +153,7 @@ export function RequestList() {
     toggleRequestSelected,
     deleteRequests,
     selectedCount,
+    createRequest,
     saveRequest,
     markRequestViewed,
     setBrowseOrderIds,
@@ -193,6 +195,7 @@ export function RequestList() {
   const [primarySort, setPrimarySort] = useState<SortField>('title');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [previewRequest, setPreviewRequest] = useState<Request | null>(null);
+  const [recentlyQuickAddedId, setRecentlyQuickAddedId] = useState<string | null>(null);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(readRequestsToolbarCollapsed);
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     REQUESTS_FILTERS_VISIBLE_STORAGE_KEY,
@@ -410,6 +413,7 @@ export function RequestList() {
 
   const handleOpenForView = (request: Request) => {
     pendingQuickContextRequestId = String(request.id);
+    setRecentlyQuickAddedId(null);
     attemptNavigation(() => openRequestForView(request));
   };
 
@@ -431,6 +435,7 @@ export function RequestList() {
       toggleRequestSelected(String(request.id));
       return;
     }
+    setRecentlyQuickAddedId(null);
     if (
       isRequestPanelOpen &&
       (panelMode === 'create' || panelMode === 'edit' || panelMode === 'view')
@@ -468,6 +473,14 @@ export function RequestList() {
 
   const inlineFormHasBlockingErrors = validationErrors.some(
     (e) => !String(e?.message || '').includes('Warning'),
+  );
+
+  const handleQuickCreate = useCallback(
+    async (title: string) => {
+      const request = await createRequest({ title });
+      setRecentlyQuickAddedId(String(request.id));
+    },
+    [createRequest],
   );
 
   const isRequestHighlighted = useCallback((request: Request) => isRequestUnopened(request), []);
@@ -743,6 +756,8 @@ export function RequestList() {
         )
       : null;
 
+  const detailColumnOpen = Boolean(detailRequest || inlineForm);
+
   return (
     <>
       {toolbarEdgeToggle}
@@ -795,6 +810,14 @@ export function RequestList() {
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
+                    <RoundExpandableQuickAdd
+                      icon={Inbox}
+                      label={t('requests.quickAdd')}
+                      placeholder={t('requests.quickAddPlaceholder')}
+                      onCreate={handleQuickCreate}
+                      defaultExpanded
+                      variant={detailColumnOpen ? 'soft' : 'primary'}
+                    />
                     <RoundExpandableSearch
                       value={search}
                       onChange={setSearch}
@@ -897,7 +920,7 @@ export function RequestList() {
                     onCheckboxChange={onVisibleRowCheckboxChange}
                     allVisibleSelected={allVisibleSelected}
                     onHeaderCheckboxChange={handleHeaderCheckboxChange}
-                    recentlyQuickAddedId={null}
+                    recentlyQuickAddedId={recentlyQuickAddedId}
                     isRequestHighlighted={isRequestHighlighted}
                     selectionEnabled={selectionMode}
                     activeRequestId={activeListRequestId}

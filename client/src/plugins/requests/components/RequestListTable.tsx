@@ -102,8 +102,9 @@ export function RequestListTable({
 
   const getHighlightClass = (request: Request) => {
     const highlighted =
-      isRequestHighlighted?.(request) ??
-      (isRequestUnopened(request) || recentlyQuickAddedId === String(request.id));
+      isRequestHighlighted != null
+        ? isRequestHighlighted(request) || recentlyQuickAddedId === String(request.id)
+        : isRequestUnopened(request) || recentlyQuickAddedId === String(request.id);
     return highlighted ? 'bg-green-50 dark:bg-green-950/30' : undefined;
   };
 

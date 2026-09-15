@@ -1,62 +1,16 @@
-import { File as FileIcon } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
-import { Badge } from '@/components/ui/badge';
-import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   SortableListTable,
   type SortableListTableColumn,
   type SortableListTableSelection,
 } from '@/core/ui/SortableListTable';
-import { cn } from '@/lib/utils';
 
-import { filesApi } from '../api/filesApi';
 import type { FileItem } from '../types/files';
 import type { FileSortField, FileSortOrder } from '../utils/fileListSort';
-import { getMimeLabel, humanSize } from '../utils/humanSize';
 
-function isRasterImageMime(mimeType: string | null | undefined): boolean {
-  const mt = String(mimeType ?? '').toLowerCase();
-  return mt.startsWith('image/') && mt !== 'image/svg+xml';
-}
-
-function FileNameCell({ file }: { file: FileItem }) {
-  const { t } = useTranslation();
-  const isImage = isRasterImageMime(file.mimeType);
-  const thumbUrl = file.id ? filesApi.getFileDownloadUrl(file.id, { inline: true }) : null;
-
-  return (
-    <span className="flex min-w-0 items-center gap-2.5">
-      {isImage && thumbUrl ? (
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
-          <img
-            src={thumbUrl}
-            alt=""
-            className="h-full w-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-        </span>
-      ) : (
-        <span title={t('nav.file')} className="inline-flex shrink-0">
-          <SectionCategoryIcon
-            icon={FileIcon}
-            className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
-          />
-        </span>
-      )}
-      <span
-        className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
-        title={file.name}
-      >
-        {file.name}
-      </span>
-    </span>
-  );
-}
+import { FileIdentityCell } from './FileIdentityCell';
 
 export type FileListTableProps = {
   files: FileItem[];
@@ -94,29 +48,7 @@ export function FileListTable({
       {
         field: 'name',
         header: t('files.columnName'),
-        cell: (file) => <FileNameCell file={file} />,
-      },
-      {
-        field: 'mimeType',
-        header: t('files.columnType'),
-        cell: (file) => (
-          <Badge
-            className={cn(
-              BADGE_CHIP_CLASS,
-              'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-            )}
-          >
-            {getMimeLabel(file.mimeType) || '—'}
-          </Badge>
-        ),
-      },
-      {
-        field: 'size',
-        header: t('files.columnSize'),
-        className: 'hidden sm:table-cell',
-        cell: (file) => (
-          <span className="text-xs tabular-nums text-muted-foreground">{humanSize(file.size)}</span>
-        ),
+        cell: (file) => <FileIdentityCell file={file} />,
       },
     ],
     [t],

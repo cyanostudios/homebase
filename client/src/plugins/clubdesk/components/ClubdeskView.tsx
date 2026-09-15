@@ -10,7 +10,11 @@ import { pathToNavPage } from '@/core/routing/routeMap';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { RichTextContent } from '@/core/ui/RichTextContent';
-import { DETAIL_NOTE_CALLOUT_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_NOTE_CALLOUT_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
 import { useClubdesk } from '../hooks/useClubdesk';
@@ -21,12 +25,14 @@ import { PriceListView } from './PriceListView';
 interface ClubdeskViewProps {
   clubdesk?: Clubdesk | null;
   item?: Clubdesk | null;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
 }
 
 export const ClubdeskView: React.FC<ClubdeskViewProps> = (props) => {
   const location = useLocation();
   if (pathToNavPage(location.pathname) === 'clubdesk-price-list') {
-    return <PriceListView />;
+    return <PriceListView stacked={props.stacked} />;
   }
   return <ClubdeskGuideView {...props} />;
 };
@@ -105,10 +111,11 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item }) => {
             title={t('clubdesk.stepsCard')}
             icon={ListOrdered}
             iconPlugin="clubdesk"
+            subtleTitle
             className="p-6"
           >
             {steps.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('clubdesk.noStepsYet')}</p>
+              <p className={DETAIL_EMPTY_STATE_CLASS}>{t('clubdesk.noStepsYet')}</p>
             ) : (
               <ol className="space-y-3">
                 {steps.map((step, index) => (

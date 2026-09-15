@@ -12,7 +12,6 @@ import {
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
-import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 import { useCups } from '@/plugins/cups/hooks/useCups';
@@ -20,15 +19,6 @@ import { ingestApi } from '@/plugins/ingest/api/ingestApi';
 import type { IngestSource } from '@/plugins/ingest/types/ingest';
 
 import { CUPS_SETTINGS_KEY } from '../utils/cupColumnCount';
-import {
-  cupTableColumnsEqual,
-  isCupTableColumnId,
-  normalizeCupTableColumns,
-  reorderCupTableColumns,
-  setCupTableColumnHidden,
-  type CupTableColumnId,
-  type CupTableColumnsPref,
-} from '../utils/cupTableColumns';
 
 import {
   CupIngestImportResultDialog,
@@ -36,18 +26,7 @@ import {
 } from './CupIngestImportResultDialog';
 import { CupFallbackPhotosSettings } from './CupFallbackPhotosSettings';
 
-const COLUMN_LABEL_KEYS: Record<CupTableColumnId, string> = {
-  name: 'cups.columnName',
-  ingest: 'cups.columnDistrict',
-  start_date: 'cups.columnStart',
-  location: 'cups.columnLocation',
-  featured: 'cups.columnFeaturedVisible',
-  ratings_count: 'cups.columnRatings',
-  created_at: 'common.created',
-  updated_at: 'common.updated',
-};
-
-export type CupsSettingsCategory = 'columns' | 'appearance' | 'import';
+export type CupsSettingsCategory = 'appearance' | 'import';
 
 export function CupsSettingsView({
   selectedCategory,
@@ -63,7 +42,7 @@ export function CupsSettingsView({
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { importFromIngestSource } = useCups();
-  const [internalCategory, setInternalCategory] = useState<CupsSettingsCategory>('columns');
+  const [internalCategory, setInternalCategory] = useState<CupsSettingsCategory>('appearance');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
@@ -77,12 +56,6 @@ export function CupsSettingsView({
     allowedIngestSourceIds: [] as string[],
     autoRefresh: false,
   });
-  const [tableColumns, setTableColumns] = useState<CupTableColumnsPref>(() =>
-    normalizeCupTableColumns(null),
-  );
-  const [initialTableColumns, setInitialTableColumns] = useState<CupTableColumnsPref>(() =>
-    normalizeCupTableColumns(null),
-  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -105,12 +78,6 @@ export function CupsSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
-      {
-        id: 'columns',
-        label: t('cups.settingsCategories.columns'),
-        description: t('cups.settingsCategories.columnsDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.columns,
-      },
       {
         id: 'appearance',
         label: t('cups.settingsCategories.appearance'),
@@ -149,9 +116,6 @@ export function CupsSettingsView({
           allowedIngestSourceIds: loadedAllowed,
           autoRefresh: loadedAutoRefresh,
         });
-        const loadedColumns = normalizeCupTableColumns(settings?.tableColumns);
-        setTableColumns(loadedColumns);
-        setInitialTableColumns(loadedColumns);
       })
       .catch(() => {})
       .finally(() => {
@@ -189,19 +153,12 @@ export function CupsSettingsView({
     JSON.stringify([...allowedIngestSourceIds].sort()) !==
       JSON.stringify([...initialState.allowedIngestSourceIds].sort()) ||
     autoRefresh !== initialState.autoRefresh;
-  const columnsDirty = !cupTableColumnsEqual(tableColumns, initialTableColumns);
-  const isDirty =
-    (activeCategory === 'columns' && columnsDirty) || (activeCategory === 'import' && importDirty);
+  const isDirty = activeCategory === 'import' && importDirty;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      if (activeCategory === 'columns') {
-        const next = normalizeCupTableColumns(tableColumns);
-        await updateSettings(CUPS_SETTINGS_KEY, { tableColumns: next });
-        setTableColumns(next);
-        setInitialTableColumns(next);
-      } else if (activeCategory === 'import') {
+      if (activeCategory === 'import') {
         const payload = {
           defaultIngestSourceId: defaultIngestSourceId.trim() || '',
           allowedIngestSourceIds,
@@ -217,14 +174,7 @@ export function CupsSettingsView({
     } finally {
       setIsSaving(false);
     }
-  }, [
-    activeCategory,
-    allowedIngestSourceIds,
-    autoRefresh,
-    defaultIngestSourceId,
-    tableColumns,
-    updateSettings,
-  ]);
+  }, [activeCategory, allowedIngestSourceIds, autoRefresh, defaultIngestSourceId, updateSettings]);
 
   const toggleAllowedSource = useCallback((sourceId: string) => {
     setAllowedIngestSourceIds((prev) =>
@@ -325,20 +275,6 @@ export function CupsSettingsView({
           ) : null
         }
       >
-        {activeCategory === 'columns' && (
-          <TableColumnsSettingsSection
-            title={t('cups.settingsCategories.columns')}
-            hint={t('cups.settingsCategories.columnsHint')}
-            pref={tableColumns}
-            requiredColumnId="name"
-            labelFor={(id) => t(COLUMN_LABEL_KEYS[id])}
-            isColumnId={isCupTableColumnId}
-            reorder={reorderCupTableColumns}
-            setHidden={setCupTableColumnHidden}
-            onChange={setTableColumns}
-          />
-        )}
-
         {activeCategory === 'appearance' && (
           <CupFallbackPhotosSettings
             onDirtyChange={setAppearanceDirty}

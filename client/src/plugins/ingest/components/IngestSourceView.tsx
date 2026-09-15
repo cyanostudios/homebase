@@ -17,6 +17,7 @@ import {
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_FIELD_LABEL_CLASS,
   DETAIL_INFO_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -191,9 +192,9 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
             className="p-4 sm:p-6"
           >
             {runsLoading ? (
-              <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+              <p className={DETAIL_EMPTY_STATE_CLASS}>{t('common.loading')}</p>
             ) : ingestRuns.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('ingest.noRuns')}</p>
+              <p className={DETAIL_EMPTY_STATE_CLASS}>{t('ingest.noRuns')}</p>
             ) : (
               <Table>
                 <TableHeader>

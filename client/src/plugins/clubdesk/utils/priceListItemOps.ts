@@ -6,11 +6,17 @@ export type PriceListItemLike = {
   price: number;
   category: string | null;
   sequenceOrder: number;
+  /** Client-only React list key; never persisted (stripped in savePriceList). */
+  clientKey?: string;
 };
 
 function categoryKey(category: string | null | undefined): string {
   const trimmed = (category || '').trim();
   return trimmed ? trimmed.toLowerCase() : '';
+}
+
+function newClientKey(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function renumberWithinCategories<T extends PriceListItemLike>(items: T[]): T[] {
@@ -23,7 +29,7 @@ function renumberWithinCategories<T extends PriceListItemLike>(items: T[]): T[] 
   });
 }
 
-export { renumberWithinCategories };
+export { renumberWithinCategories, newClientKey };
 
 /**
  * Move an item by one position within its category group (by global index).
@@ -59,6 +65,29 @@ export function reorderItems<T extends PriceListItemLike>(
   return renumberWithinCategories(next);
 }
 
+/** Whether move up/down stays within the item's category group. */
+export function canReorderItemWithinCategory<T extends PriceListItemLike>(
+  items: T[],
+  fromIndex: number,
+  direction: -1 | 1,
+): boolean {
+  const source = items[fromIndex];
+  if (!source) {
+    return false;
+  }
+  const key = categoryKey(source.category);
+  const sameCategoryIndexes = items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => categoryKey(item.category) === key)
+    .map(({ index }) => index);
+  const positionInCategory = sameCategoryIndexes.indexOf(fromIndex);
+  if (positionInCategory < 0) {
+    return false;
+  }
+  const targetPosition = positionInCategory + direction;
+  return targetPosition >= 0 && targetPosition < sameCategoryIndexes.length;
+}
+
 /**
  * Insert a copy of the item at index immediately after it.
  * Returns null when the source index is missing.
@@ -75,6 +104,7 @@ export function copyItemAt<T extends PriceListItemLike>(items: T[], index: numbe
     price: source.price,
     category: source.category,
     sequenceOrder: source.sequenceOrder,
+    clientKey: newClientKey('copy'),
   } as T);
   return renumberWithinCategories(next);
 }

@@ -6,6 +6,9 @@ import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import type { Match } from '../types/match';
 import type { MatchSortField, MatchSortOrder } from '../utils/matchListSort';
@@ -38,9 +41,28 @@ export type MatchListTableProps = {
 
 function formatStart(value: string | null | undefined): string {
   if (!value) {
-    return '—';
+    return '';
   }
   return formatDateTimeShort(value);
+}
+
+function matchIdentityMeta(match: Match, teamLabelById: Map<string, string>): string | null {
+  const parts: string[] = [];
+  if (match.team_id != null) {
+    const teamLabel = teamLabelById.get(String(match.team_id))?.trim();
+    if (teamLabel) {
+      parts.push(teamLabel);
+    }
+  }
+  const when = formatStart(match.start_time);
+  if (when) {
+    parts.push(when);
+  }
+  const venue = match.location?.trim();
+  if (venue) {
+    parts.push(venue);
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 export function MatchListTable({
@@ -61,6 +83,20 @@ export function MatchListTable({
 }: MatchListTableProps) {
   useTimeFormat();
   const { t } = useTranslation();
+  const enabledPlugins = useEnabledPlugins();
+  const hasTeamsPlugin = enabledPlugins.has('teams');
+  const { teams } = useTeams();
+
+  const teamLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!hasTeamsPlugin) {
+      return map;
+    }
+    for (const team of teams) {
+      map.set(String(team.id), formatTeamLabel(team) || team.name || '');
+    }
+    return map;
+  }, [hasTeamsPlugin, teams]);
 
   const orderedVisibleIds = useMemo(() => {
     if (visibleColumnIds && visibleColumnIds.length > 0) {
@@ -77,24 +113,32 @@ export function MatchListTable({
       matchup: {
         field: 'matchup',
         header: t('matches.matchupLabel'),
-        className: 'md:hidden',
         sortable: false,
         cell: (match) => {
-          const label = `${match.home_team || '—'} – ${match.away_team || '—'}`;
+          const label =
+            match.name?.trim() || `${match.home_team || '—'} – ${match.away_team || '—'}`;
+          const identityMeta = matchIdentityMeta(match, teamLabelById);
           return (
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span title={t('nav.match')} className="inline-flex shrink-0">
-                <SectionCategoryIcon
-                  icon={Trophy}
-                  className="h-5 w-5 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-3 [&_svg]:w-3"
-                />
-              </span>
-              <span
-                className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
-                title={label}
-              >
-                {label}
-              </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={t('nav.match')} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={Trophy}
+                    className="h-5 w-5 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-3 [&_svg]:w-3"
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={label}
+                >
+                  {label}
+                </span>
+              </div>
+              {identityMeta ? (
+                <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                  {identityMeta}
+                </span>
+              ) : null}
             </div>
           );
         },
@@ -104,7 +148,7 @@ export function MatchListTable({
         header: t('matches.timeLabel'),
         cell: (match) => (
           <span className="tabular-nums text-xs font-medium text-foreground">
-            {formatStart(match.start_time)}
+            {formatStart(match.start_time) || '—'}
           </span>
         ),
       },
@@ -156,7 +200,6 @@ export function MatchListTable({
       location: {
         field: 'location',
         header: t('matches.locationLabel'),
-        className: 'hidden sm:table-cell',
         cell: (match) => (
           <span className="text-xs text-muted-foreground">{match.location || '—'}</span>
         ),
@@ -191,7 +234,7 @@ export function MatchListTable({
       },
     };
     return defs;
-  }, [t]);
+  }, [t, teamLabelById]);
 
   const columns = useMemo(
     () =>

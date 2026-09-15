@@ -19,6 +19,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_FIELD_LABEL_CLASS as FIELD_LABEL_CLASS,
   DETAIL_FIELD_VALUE_CLASS as FIELD_VALUE_CLASS,
   DETAIL_PROP_ROW_CLASS as PROP_ROW_CLASS,
@@ -201,11 +202,9 @@ export const ContactView = React.memo(function ContactView({
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-border p-4">
-                    <p className="text-sm text-muted-foreground">
-                      {t('contacts.noAddresses', { defaultValue: 'No addresses yet.' })}
-                    </p>
-                  </div>
+                  <p className={DETAIL_EMPTY_STATE_CLASS}>
+                    {t('contacts.noAddresses', { defaultValue: 'No addresses yet.' })}
+                  </p>
                 )}
               </DetailSection>
             </Card>
@@ -282,11 +281,7 @@ export const ContactView = React.memo(function ContactView({
                     })}
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-border p-4">
-                    <p className="text-sm text-muted-foreground">
-                      {t('contacts.noContactPersons')}
-                    </p>
-                  </div>
+                  <p className={DETAIL_EMPTY_STATE_CLASS}>{t('contacts.noContactPersons')}</p>
                 )}
               </DetailSection>
             </Card>

@@ -4,15 +4,12 @@ import { useTranslation } from 'react-i18next';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
-import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import {
   PluginSettingsPageShell,
-  SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
-import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
@@ -27,29 +24,7 @@ import {
   intakeFieldLabelKey,
   type RequestTypeConfig,
 } from '../utils/requestTypeConfig';
-import {
-  REQUESTS_SETTINGS_KEY,
-  isRequestTableColumnId,
-  normalizeRequestTableColumns,
-  reorderRequestTableColumns,
-  requestTableColumnsEqual,
-  setRequestTableColumnHidden,
-  type RequestTableColumnId,
-  type RequestTableColumnsPref,
-} from '../utils/requestTableColumns';
-
-const COLUMN_LABEL_KEYS: Record<RequestTableColumnId, string> = {
-  title: 'requests.form.title',
-  status: 'requests.form.status',
-  priority: 'requests.form.priority',
-  type: 'requests.form.requestType',
-  responseDueAt: 'requests.responseDue.label',
-  source: 'requests.view.source',
-  created_at: 'common.created',
-  updated_at: 'common.updated',
-};
-
-export type RequestsSettingsCategory = 'types' | 'columns';
+export type RequestsSettingsCategory = 'types';
 
 interface RequestsSettingsViewProps {
   selectedCategory?: RequestsSettingsCategory;
@@ -63,7 +38,6 @@ export function RequestsSettingsView({
   onClose,
 }: RequestsSettingsViewProps = {}) {
   const { t } = useTranslation();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { requestTypes, saveRequestTypes } = useRequests();
   const enabledPlugins = useEnabledPlugins();
   const garmentsEnabled = enabledPlugins.has('garments');
@@ -71,15 +45,6 @@ export function RequestsSettingsView({
   const [internalCategory, setInternalCategory] = useState<RequestsSettingsCategory>('types');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
-
-  const [tableColumns, setTableColumns] = useState<RequestTableColumnsPref>(() =>
-    normalizeRequestTableColumns(null),
-  );
-  const [initialTableColumns, setInitialTableColumns] = useState<RequestTableColumnsPref>(() =>
-    normalizeRequestTableColumns(null),
-  );
-  const [isColumnsLoading, setIsColumnsLoading] = useState(true);
-  const [isColumnsSaving, setIsColumnsSaving] = useState(false);
 
   const [newTypeLabel, setNewTypeLabel] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -123,28 +88,6 @@ export function RequestsSettingsView({
     };
   }, [garmentsEnabled]);
 
-  useEffect(() => {
-    let cancelled = false;
-    getSettings(REQUESTS_SETTINGS_KEY)
-      .then((settings) => {
-        if (cancelled) {
-          return;
-        }
-        const loaded = normalizeRequestTableColumns(settings?.tableColumns);
-        setTableColumns(loaded);
-        setInitialTableColumns(loaded);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) {
-          setIsColumnsLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [getSettings, settingsVersion]);
-
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
       {
@@ -153,32 +96,9 @@ export function RequestsSettingsView({
         description: t('requests.settingsCategories.typesDescription'),
         icon: SETTINGS_CATEGORY_ICONS.categories,
       },
-      {
-        id: 'columns',
-        label: t('requests.settingsCategories.columns'),
-        description: t('requests.settingsCategories.columnsDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.columns,
-      },
     ],
     [t],
   );
-
-  const columnsDirty =
-    activeCategory === 'columns' && !requestTableColumnsEqual(tableColumns, initialTableColumns);
-
-  const handleSaveColumns = useCallback(async () => {
-    setIsColumnsSaving(true);
-    try {
-      const next = normalizeRequestTableColumns(tableColumns);
-      await updateSettings(REQUESTS_SETTINGS_KEY, { tableColumns: next });
-      setTableColumns(next);
-      setInitialTableColumns(next);
-    } catch (error) {
-      console.error('Failed to save requests table columns:', error);
-    } finally {
-      setIsColumnsSaving(false);
-    }
-  }, [tableColumns, updateSettings]);
 
   const listById = useMemo(() => {
     const map = new Map<string, GarmentList>();
@@ -433,36 +353,7 @@ export function RequestsSettingsView({
       activeCategory={activeCategory}
       onCategoryChange={(id) => setActiveCategory(id as RequestsSettingsCategory)}
       onClose={onClose}
-      onSave={columnsDirty ? () => void handleSaveColumns() : undefined}
-      isSaving={isColumnsSaving}
-      saveAction={
-        columnsDirty ? (
-          <SettingsHeaderSaveButton
-            onClick={() => void handleSaveColumns()}
-            isSaving={isColumnsSaving}
-            label={t('common.save')}
-            savingLabel={t('common.saving')}
-          />
-        ) : null
-      }
     >
-      {activeCategory === 'columns' &&
-        (isColumnsLoading ? (
-          <div className="text-sm text-muted-foreground">{t('common.loading')}</div>
-        ) : (
-          <TableColumnsSettingsSection
-            title={t('requests.settingsCategories.columns')}
-            hint={t('requests.settingsCategories.columnsHint')}
-            pref={tableColumns}
-            requiredColumnId="title"
-            labelFor={(id) => t(COLUMN_LABEL_KEYS[id])}
-            isColumnId={isRequestTableColumnId}
-            reorder={reorderRequestTableColumns}
-            setHidden={setRequestTableColumnHidden}
-            onChange={setTableColumns}
-          />
-        ))}
-
       {activeCategory === 'types' && (
         <DetailSection
           title={t('requests.settings.typesSection')}

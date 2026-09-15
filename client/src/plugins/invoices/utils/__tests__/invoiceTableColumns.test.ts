@@ -49,18 +49,11 @@ describe('normalizeInvoiceTableColumns', () => {
 });
 
 describe('resolveVisibleInvoiceTableColumns', () => {
-  it('defaults to visible columns including invoice type', () => {
-    expect(resolveVisibleInvoiceTableColumns(null)).toEqual([
-      'invoiceNumber',
-      'invoiceType',
-      'contactName',
-      'status',
-      'total',
-      'dueDate',
-    ]);
+  it('defaults to invoiceNumber-only visible columns', () => {
+    expect(resolveVisibleInvoiceTableColumns(null)).toEqual(['invoiceNumber']);
   });
 
-  it('respects custom order and hidden', () => {
+  it('ignores saved table column prefs', () => {
     expect(
       resolveVisibleInvoiceTableColumns({
         tableColumns: {
@@ -77,7 +70,7 @@ describe('resolveVisibleInvoiceTableColumns', () => {
           hidden: ['invoiceType', 'contactName', 'status', 'dueDate', 'createdAt', 'updatedAt'],
         },
       }),
-    ).toEqual(['invoiceNumber', 'total']);
+    ).toEqual(['invoiceNumber']);
   });
 });
 

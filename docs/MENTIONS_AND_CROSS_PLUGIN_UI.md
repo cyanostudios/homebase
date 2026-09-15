@@ -104,7 +104,7 @@ Name click on assignment rows (teams/tasks/slots/notes/estimates) opens `Assignm
 
 **Private contacts (PII):** For `contactType === 'private'`, ContactView/Form show **personal number** (not organization number); F-tax is hidden; tax rate is forced to `0` on save via `applyContactTypeFieldRules`. Personal number is tenant-visible PII by design.
 
-**Notes `NoteView`:** mentioned contacts render under note content (and attachments), not in the sidebar. Name / `@`-mention opens shared `ContactQuickInfoDialog` (copy email/phone + Open contact → `navigate('/contacts/…')`). TeamView’s `ResponsibleContactDialog` wraps the same dialog.
+**Notes `NoteView`:** Full detail merges title/actions + rich content into one QuickContext card (`variant="full"` + children). Mentions render as a separate card under attachments (not in a sidebar). Name / `@`-mention opens shared `ContactQuickInfoDialog` (copy email/phone + Open contact → `navigate('/contacts/…')`). TeamView’s `ResponsibleContactDialog` wraps the same dialog. Attachments use shared `FileAttachmentsSection` when the files plugin is enabled.
 
 `SlotsProvider` syncs its list via `syncSharedSlots` whenever `slots` changes. **MatchView** reads related slots from `useSlotsContext().slots` filtered by `match_id` (no separate `GET /api/slots`).
 

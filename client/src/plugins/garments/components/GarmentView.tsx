@@ -8,6 +8,7 @@ import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_FIELD_LABEL_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
@@ -190,7 +191,7 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
           className="p-4 sm:p-5"
         >
           {variants.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('garments.noVariantsYet')}</p>
+            <p className={DETAIL_EMPTY_STATE_CLASS}>{t('garments.noVariantsYet')}</p>
           ) : (
             <div className="space-y-1">
               {duplicateVariantIndices.identity.size > 0 ? (

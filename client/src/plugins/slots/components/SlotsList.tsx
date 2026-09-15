@@ -155,7 +155,7 @@ export function SlotsList() {
   const [visibleColumnIds, setVisibleColumnIds] = useState<SlotTableColumnId[]>(() =>
     resolveVisibleSlotTableColumns(null),
   );
-  const [settingsCategory, setSettingsCategory] = useState<SlotsSettingsCategory>('columns');
+  const [settingsCategory, setSettingsCategory] = useState<SlotsSettingsCategory>('categories');
 
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);

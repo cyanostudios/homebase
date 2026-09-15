@@ -15,38 +15,16 @@ import {
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
-import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 
 import { matchesApi } from '../api/matchesApi';
 import { MATCHES_SETTINGS_KEY } from '../utils/matchColumnCount';
 import { resolveMatchDefaultHomeTeam } from '../utils/matchDefaultHomeTeam';
-import {
-  isMatchTableColumnId,
-  matchTableColumnsEqual,
-  normalizeMatchTableColumns,
-  reorderMatchTableColumns,
-  setMatchTableColumnHidden,
-  type MatchTableColumnId,
-  type MatchTableColumnsPref,
-} from '../utils/matchTableColumns';
 
 const DEFAULT_API_BASE_URL = 'https://forening-api.svenskfotboll.se';
 const MASKED_API_KEY = '••••••••';
 
-const COLUMN_LABEL_KEYS: Record<MatchTableColumnId, string> = {
-  matchup: 'matches.matchupLabel',
-  start_time: 'matches.timeLabel',
-  home_team: 'matches.homeTeamLabel',
-  away_team: 'matches.awayTeamLabel',
-  team_id: 'matches.team',
-  location: 'matches.locationLabel',
-  competition_name: 'matches.competitionName',
-  created_at: 'common.created',
-  updated_at: 'common.updated',
-};
-
-export type MatchSettingsCategory = 'columns' | 'api';
+export type MatchSettingsCategory = 'api';
 
 interface MatchSettingsViewProps {
   selectedCategory?: MatchSettingsCategory;
@@ -64,7 +42,7 @@ export function MatchSettingsView({
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
 
-  const [internalCategory, setInternalCategory] = useState<MatchSettingsCategory>('columns');
+  const [internalCategory, setInternalCategory] = useState<MatchSettingsCategory>('api');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
@@ -74,12 +52,6 @@ export function MatchSettingsView({
   const [initialApiBaseUrl, setInitialApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
   const [apiKey, setApiKey] = useState('');
   const [hasStoredApiKey, setHasStoredApiKey] = useState(false);
-  const [tableColumns, setTableColumns] = useState<MatchTableColumnsPref>(() =>
-    normalizeMatchTableColumns(null),
-  );
-  const [initialTableColumns, setInitialTableColumns] = useState<MatchTableColumnsPref>(() =>
-    normalizeMatchTableColumns(null),
-  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -88,12 +60,6 @@ export function MatchSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
-      {
-        id: 'columns',
-        label: t('matches.settingsCategories.columns'),
-        description: t('matches.settingsCategories.columnsDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.columns,
-      },
       {
         id: 'api',
         label: t('matches.apiSettings'),
@@ -123,9 +89,6 @@ export function MatchSettingsView({
         setInitialApiBaseUrl(loadedBaseUrl);
         setHasStoredApiKey(Boolean(storedKey));
         setApiKey(storedKey ? MASKED_API_KEY : '');
-        const loadedColumns = normalizeMatchTableColumns(settings?.tableColumns);
-        setTableColumns(loadedColumns);
-        setInitialTableColumns(loadedColumns);
       })
       .catch(() => {})
       .finally(() => {
@@ -138,24 +101,17 @@ export function MatchSettingsView({
     };
   }, [getSettings, settingsVersion]);
 
-  const isApiDirty =
-    apiBaseUrl.trim() !== initialApiBaseUrl.trim() ||
-    (apiKey.trim() !== '' && !apiKey.startsWith('••••')) ||
-    defaultHomeTeam.trim() !== initialDefaultHomeTeam.trim();
   const isDirty =
-    (activeCategory === 'api' && isApiDirty) ||
-    (activeCategory === 'columns' && !matchTableColumnsEqual(tableColumns, initialTableColumns));
+    activeCategory === 'api' &&
+    (apiBaseUrl.trim() !== initialApiBaseUrl.trim() ||
+      (apiKey.trim() !== '' && !apiKey.startsWith('••••')) ||
+      defaultHomeTeam.trim() !== initialDefaultHomeTeam.trim());
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     setImportError(null);
     try {
-      if (activeCategory === 'columns') {
-        const next = normalizeMatchTableColumns(tableColumns);
-        await updateSettings(MATCHES_SETTINGS_KEY, { tableColumns: next });
-        setTableColumns(next);
-        setInitialTableColumns(next);
-      } else if (activeCategory === 'api') {
+      if (activeCategory === 'api') {
         const payload: Record<string, string> = {
           apiBaseUrl: apiBaseUrl.trim() || DEFAULT_API_BASE_URL,
           defaultHomeTeam: defaultHomeTeam.trim(),
@@ -176,7 +132,7 @@ export function MatchSettingsView({
     } finally {
       setIsSaving(false);
     }
-  }, [activeCategory, apiBaseUrl, apiKey, defaultHomeTeam, tableColumns, updateSettings]);
+  }, [activeCategory, apiBaseUrl, apiKey, defaultHomeTeam, updateSettings]);
 
   const handleImport = useCallback(async () => {
     setIsImporting(true);
@@ -225,20 +181,6 @@ export function MatchSettingsView({
         ) : null
       }
     >
-      {activeCategory === 'columns' && (
-        <TableColumnsSettingsSection
-          title={t('matches.settingsCategories.columns')}
-          hint={t('matches.settingsCategories.columnsHint')}
-          pref={tableColumns}
-          requiredColumnId="matchup"
-          labelFor={(id) => t(COLUMN_LABEL_KEYS[id])}
-          isColumnId={isMatchTableColumnId}
-          reorder={reorderMatchTableColumns}
-          setHidden={setMatchTableColumnHidden}
-          onChange={setTableColumns}
-        />
-      )}
-
       {activeCategory === 'api' && (
         <DetailSection title={t('matches.apiSettings')} className="pt-0">
           <div className="space-y-4">

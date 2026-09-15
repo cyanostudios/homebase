@@ -184,7 +184,7 @@ export const NoteList: React.FC = () => {
     resolveVisibleNoteTableColumns(null),
   );
   const [activeFilters, setActiveFilters] = useState<NoteListFilterSelection>([]);
-  const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('columns');
+  const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('import');
   const [previewNote, setPreviewNote] = useState<Note | null>(null);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(readNotesToolbarCollapsed);
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(

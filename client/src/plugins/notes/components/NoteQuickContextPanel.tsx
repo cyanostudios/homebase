@@ -133,6 +133,9 @@ export function NoteQuickContextPanel({
   onOpenFullProfile,
   onEdit,
   variant = 'list',
+  afterHeaderActions = null,
+  children = null,
+  cardClassName,
 }: {
   note: Note;
   onClose?: () => void;
@@ -140,6 +143,12 @@ export function NoteQuickContextPanel({
   onEdit: () => void;
   /** `list` = small preview beside the list; `full` = first column in full detail view. */
   variant?: 'list' | 'full';
+  /** Full detail only: controls after Actions in the header row (e.g. focus mode). */
+  afterHeaderActions?: React.ReactNode;
+  /** Full detail body under the header (e.g. note content in the same card). */
+  children?: React.ReactNode;
+  /** Optional class on the outer card (e.g. focus-mode elevation). */
+  cardClassName?: string;
 }) {
   const isFullView = variant === 'full';
   const { t } = useTranslation();
@@ -239,7 +248,7 @@ export function NoteQuickContextPanel({
   );
 
   const identityHeader = isFullView ? (
-    <NoteDetailHeaderMenus note={note} leading={titleLeading} />
+    <NoteDetailHeaderMenus note={note} leading={titleLeading} afterActions={afterHeaderActions} />
   ) : (
     <div className="flex min-w-0 items-center gap-3">
       <div
@@ -260,7 +269,10 @@ export function NoteQuickContextPanel({
   );
   return (
     <>
-      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
+      <Card
+        padding="none"
+        className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col', cardClassName)}
+      >
         <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
 
         <div
@@ -273,6 +285,12 @@ export function NoteQuickContextPanel({
             <p className="text-xs text-muted-foreground">
               {t('common.updated')} {updatedLabel}
             </p>
+          ) : null}
+
+          {isFullView && children ? (
+            <div className="min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [&_.rich-text-content]:break-words [&_.rich-text-content]:[overflow-wrap:anywhere] [&_.rich-text-content_pre]:whitespace-pre-wrap [&_.rich-text-content_pre]:break-words [&_.rich-text-content_pre]:overflow-x-hidden">
+              {children}
+            </div>
           ) : null}
 
           {!isFullView && displayedContentHtml ? (

@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { Task } from '../types/tasks';
-import { TASK_PRIORITY_COLORS } from '../types/tasks';
+import { TASK_PRIORITY_COLORS, formatTaskDueDisplay } from '../types/tasks';
 import type { TaskColumnCount } from '../utils/taskColumnCount';
 
 import { TaskStatusSelect } from './TaskStatusSelect';
@@ -26,42 +26,6 @@ function truncateContent(content: string, maxLength = 150): string {
     return plain;
   }
   return `${plain.substring(0, maxLength)}…`;
-}
-
-function formatDueDate(dueDate: Date | null) {
-  if (!dueDate) {
-    return null;
-  }
-  const today = new Date();
-  const due = new Date(dueDate);
-  const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) {
-    return {
-      text: `${Math.abs(diffDays)} days overdue`,
-      className: 'text-destructive font-medium',
-      badgeClassName: 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
-    };
-  }
-  if (diffDays === 0) {
-    return {
-      text: 'Due today',
-      className: 'text-orange-600 dark:text-orange-400 font-medium',
-      badgeClassName: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-    };
-  }
-  if (diffDays === 1) {
-    return {
-      text: 'Due tomorrow',
-      className: 'text-yellow-600 dark:text-yellow-400',
-      badgeClassName: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
-    };
-  }
-  return {
-    text: due.toLocaleDateString(),
-    className: 'text-muted-foreground',
-    badgeClassName: 'bg-muted text-muted-foreground',
-  };
 }
 
 export function TaskListItem({
@@ -90,8 +54,16 @@ export function TaskListItem({
   columnCount?: TaskColumnCount;
 }) {
   const { t } = useTranslation();
-  const showDue = Boolean(task.dueDate) && task.status !== 'completed';
-  const dueDate = showDue && task.dueDate ? formatDueDate(new Date(task.dueDate)) : null;
+  const showDue =
+    Boolean(task.dueDate) && task.status !== 'completed' && task.status !== 'cancelled';
+  const dueDisplay = showDue ? formatTaskDueDisplay(task.dueDate, task.status) : null;
+  const dueDate = dueDisplay
+    ? {
+        text: dueDisplay.text,
+        className: dueDisplay.textClassName,
+        badgeClassName: dueDisplay.badgeClassName,
+      }
+    : null;
   const excerpt = task.content ? truncateContent(task.content) : '';
   const updatedLabel = task.updatedAt ? new Date(task.updatedAt).toLocaleDateString() : null;
   const metaOnTop = columnCount === 1;

@@ -37,20 +37,40 @@ describe('FileList table view wiring', () => {
     expect(listSrc).toMatch(/useRegisterMobileSearch/);
   });
 
-  test('table uses SortableListTable with sortable columns and selection', () => {
+  test('table uses SortableListTable with name + type/size meta and selection', () => {
     expect(tableSrc).toMatch(/SortableListTable/);
     expect(tableSrc).toMatch(/onSort=\{onSort\}/);
     expect(tableSrc).toMatch(/selection=\{/);
     expect(tableSrc).toMatch(/field: 'name'/);
-    expect(tableSrc).toMatch(/field: 'mimeType'/);
-    expect(tableSrc).toMatch(/field: 'size'/);
+    expect(tableSrc).not.toMatch(/field: 'mimeType'/);
+    expect(tableSrc).not.toMatch(/field: 'size'/);
+    expect(tableSrc).toMatch(/FileIdentityCell/);
     expect(tableSrc).toMatch(/headerBarClassName="bg-sky-50 dark:bg-sky-950\/40"/);
     expect(tableSrc).toMatch(
       /headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100\/80 dark:hover:bg-sky-900\/40"/,
     );
     expect(tableSrc).toMatch(/activeFileId/);
     expect(tableSrc).toMatch(/selectionEnabled/);
-    expect(tableSrc).toMatch(/SectionCategoryIcon/);
+  });
+
+  test('attachments list reuses Files list identity cell', () => {
+    const attachmentsSrc = fs.readFileSync(
+      path.join(__dirname, '../FileAttachmentsSection.tsx'),
+      'utf8',
+    );
+    const identitySrc = fs.readFileSync(path.join(__dirname, '../FileIdentityCell.tsx'), 'utf8');
+    expect(attachmentsSrc).toMatch(/FileIdentityCell/);
+    expect(attachmentsSrc).toMatch(/QuickContextLinkTileGrid/);
+    expect(attachmentsSrc).toMatch(/QUICK_CONTEXT_LINK_TILE_CLASS/);
+    expect(attachmentsSrc).toMatch(/DetailSection/);
+    expect(attachmentsSrc).toMatch(/subtleTitle/);
+    expect(attachmentsSrc).toMatch(/Paperclip/);
+    expect(attachmentsSrc).not.toMatch(/SlidersHorizontal/);
+    expect(identitySrc).toMatch(/fileIdentityMeta/);
+    expect(identitySrc).toMatch(/getMimeLabel/);
+    expect(identitySrc).toMatch(/humanSize/);
+    expect(identitySrc).toMatch(/SectionCategoryIcon/);
+    expect(identitySrc).toMatch(/getFileDownloadUrl/);
   });
 
   test('list split view previews files on wide screens without opening the global panel', () => {

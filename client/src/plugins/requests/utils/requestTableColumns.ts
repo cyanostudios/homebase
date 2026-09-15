@@ -16,13 +16,25 @@ export type RequestTableColumnId = (typeof REQUEST_TABLE_COLUMN_IDS)[number];
 const helpers = createTableColumnsHelpers({
   columnIds: REQUEST_TABLE_COLUMN_IDS,
   requiredColumnId: 'title',
-  defaultHidden: ['source', 'created_at', 'updated_at'],
+  /** Name-only list default; per-plugin metadata columns come later in code. */
+  defaultHidden: [
+    'status',
+    'priority',
+    'type',
+    'responseDueAt',
+    'source',
+    'created_at',
+    'updated_at',
+  ],
 });
 
 export const DEFAULT_REQUEST_TABLE_COLUMNS = helpers.DEFAULT;
 export const isRequestTableColumnId = helpers.isColumnId;
 export const normalizeRequestTableColumns = helpers.normalize;
-export const resolveVisibleRequestTableColumns = helpers.resolveVisible;
+/** Always code defaults — table column prefs were removed from settings. */
+export const resolveVisibleRequestTableColumns = (
+  _settings?: { tableColumns?: unknown } | null,
+): RequestTableColumnId[] => helpers.resolveVisible(null);
 export const requestTableColumnsEqual = helpers.equal;
 export const reorderRequestTableColumns = helpers.reorder;
 export const setRequestTableColumnHidden = helpers.setHidden;

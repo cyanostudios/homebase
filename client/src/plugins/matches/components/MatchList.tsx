@@ -186,7 +186,7 @@ export function MatchList() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<MatchListFilterSelection>([]);
   const [defaultHomeTeam, setDefaultHomeTeam] = useState('');
-  const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('columns');
+  const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('api');
   const [visibleColumnIds, setVisibleColumnIds] = useState<MatchTableColumnId[]>(() =>
     resolveVisibleMatchTableColumns(null),
   );

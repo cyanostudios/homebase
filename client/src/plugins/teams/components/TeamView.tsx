@@ -24,6 +24,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_INFO_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -50,23 +51,16 @@ import { normalizeCardOrder, type OverviewCardId } from '../types/teamOverviewCa
 import {
   buildResponsiblesGroupMailto,
   createTeamNoteId,
-  formatSeriesTeamLabel,
   getDisplaySeriesTeams,
-  getOngoingSeasonBreaks,
   getSeriesTeamColorForName,
   getSeriesTeamDisplayLabel,
-  getSeriesTeamKey,
   getSeriesTeamOptions,
   responsibleKey,
-  isLightTeamColor,
-  SEASON_BREAK_HEADER_BADGE_CLASS,
-  TEAM_COLOR_GRADIENTS,
-  TEAM_HEADER_BADGE_CLASS,
 } from '../types/teams';
 import { formatTeamLabel } from '../utils/formatTeamLabel';
 
 import { ResponsibleContactDialog } from './ResponsibleContactDialog';
-import { ResponsibleRow, SeriesTeamBadge } from './ResponsibleRow';
+import { ResponsibleRow } from './ResponsibleRow';
 import { SeasonCalendar } from './SeasonCalendar';
 import { SeriesTeamsSection } from './SeriesTeamsSection';
 import { TeamMatchesSection } from './TeamMatchesSection';
@@ -240,10 +234,6 @@ export function TeamView({
   const hasSeriesTeams = seriesTeamOptions.length > 0;
   const headerSeriesTeams = useMemo(
     () => (team ? getDisplaySeriesTeams(team.series_teams ?? [], team.series_team_count) : []),
-    [team],
-  );
-  const ongoingSeasonBreaks = useMemo(
-    () => (team ? getOngoingSeasonBreaks(team.season_breaks ?? []) : []),
     [team],
   );
   const responsiblesEmailRecipients = useMemo((): BulkEmailRecipient[] => {
@@ -482,7 +472,7 @@ export function TeamView({
   const responsiblesSection = (allowRemove: boolean) => (
     <div className="space-y-2">
       {team.responsibles.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('teams.view.noResponsibles')}</p>
+        <p className={DETAIL_EMPTY_STATE_CLASS}>{t('teams.view.noResponsibles')}</p>
       ) : (
         <div className="space-y-1.5">
           {team.responsibles.map((responsible) => {
@@ -583,130 +573,39 @@ export function TeamView({
             nextMatch={nextMatch}
             onEdit={() => openTeamForEdit(team)}
             variant="full"
+            headerBelow={
+              <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+                {tabs.map((tab) => {
+                  const TabIcon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <Button
+                      key={tab.id}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-pressed={isActive}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                      )}
+                    >
+                      <TabIcon className="h-3.5 w-3.5" />
+                      <span>
+                        {tab.label}
+                        {tab.count != null ? (
+                          <>
+                            {' '}
+                            <span className="tabular-nums font-semibold">({tab.count})</span>
+                          </>
+                        ) : null}
+                      </span>
+                    </Button>
+                  );
+                })}
+              </div>
+            }
           />
-          <Card
-            padding="none"
-            className={cn(
-              'overflow-hidden rounded-xl bg-gradient-to-br p-5 shadow-sm',
-              isLightTeamColor(team.color) ? 'text-foreground' : 'border-0 text-white',
-              TEAM_COLOR_GRADIENTS[team.color],
-            )}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="truncate text-2xl font-bold tracking-tight">{teamLabel}</h2>
-                <p
-                  className={cn(
-                    'mt-0.5 text-sm font-semibold',
-                    isLightTeamColor(team.color) ? 'text-muted-foreground' : 'text-white/70',
-                  )}
-                >
-                  {[
-                    team.name?.trim() && team.name.trim() !== teamLabel ? team.name.trim() : null,
-                    team.gender ? t(`teams.gender.${team.gender}`) : null,
-                    team.playing_format,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || '—'}
-                </p>
-              </div>
-              <div className="flex min-w-0 flex-shrink-0 flex-wrap items-center justify-end gap-1.5">
-                {headerSeriesTeams.map((seriesTeam, index) => (
-                  <SeriesTeamBadge
-                    key={`${getSeriesTeamKey(seriesTeam)}-${index}`}
-                    label={formatSeriesTeamLabel(seriesTeam)}
-                    color={getSeriesTeamColorForName(team, getSeriesTeamKey(seriesTeam))}
-                    size="header"
-                  />
-                ))}
-                <span
-                  className={cn(
-                    'inline-flex flex-shrink-0 items-center rounded-full',
-                    TEAM_HEADER_BADGE_CLASS,
-                    isLightTeamColor(team.color)
-                      ? 'bg-foreground/10 text-foreground'
-                      : 'bg-white/20 text-white',
-                  )}
-                >
-                  {t(`teams.status.${team.status}`)}
-                </span>
-                {team.status === 'active'
-                  ? ongoingSeasonBreaks.map((seasonBreak, index) => {
-                      const label = seasonBreak.name || t('teams.view.seasonBreakActive');
-                      return (
-                        <span
-                          key={`${seasonBreak.startDate}-${seasonBreak.endDate}-${index}`}
-                          className={cn(SEASON_BREAK_HEADER_BADGE_CLASS, TEAM_HEADER_BADGE_CLASS)}
-                          title={label}
-                        >
-                          {label}
-                        </span>
-                      );
-                    })
-                  : null}
-              </div>
-            </div>
-            <div
-              className={cn(
-                'mt-5 flex flex-wrap items-center divide-x',
-                isLightTeamColor(team.color) ? 'divide-border/60' : 'divide-white/20',
-              )}
-            >
-              {[
-                { value: team.player_count, label: t('teams.view.statPlayers') },
-                { value: team.series_team_count, label: t('teams.view.statSeriesTeams') },
-                { value: team.training_times.length, label: t('teams.view.statTrainingsPerWeek') },
-                { value: team.responsibles.length, label: t('teams.view.statResponsibles') },
-              ].map((stat, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    'min-w-[calc(50%-1px)] flex-1 basis-[calc(50%-1px)] text-center sm:min-w-0 sm:basis-0',
-                    index === 0 && 'pl-0',
-                  )}
-                >
-                  <p className="text-xl font-bold leading-none">{stat.value}</p>
-                  <p
-                    className={cn(
-                      'mt-1 text-[11px]',
-                      isLightTeamColor(team.color) ? 'text-muted-foreground' : 'text-white/70',
-                    )}
-                  >
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <div className={LIST_FILTER_CHIP_ROW_CLASS}>
-            {tabs.map((tab) => {
-              const TabIcon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <Button
-                  key={tab.id}
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-pressed={isActive}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
-                >
-                  <TabIcon className="h-3.5 w-3.5" />
-                  <span>
-                    {tab.label}
-                    {tab.count != null ? (
-                      <>
-                        {' '}
-                        <span className="tabular-nums font-semibold">({tab.count})</span>
-                      </>
-                    ) : null}
-                  </span>
-                </Button>
-              );
-            })}
-          </div>
 
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 gap-3">

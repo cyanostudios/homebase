@@ -10,7 +10,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
@@ -37,8 +37,10 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import {
   PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
@@ -49,6 +51,7 @@ import {
 } from '@/core/ui/pluginPageStyles';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useClubdesk } from '../hooks/useClubdesk';
@@ -68,8 +71,10 @@ import {
 import { getClubdeskListStatusErrorMessage } from '../utils/clubdeskListStatusError';
 import { sortCategoryNames } from '../utils/sortCategoryNames';
 
+import { ClubdeskForm } from './ClubdeskForm';
 import { ClubdeskInfoView } from './ClubdeskInfoView';
 import { ClubdeskListTable } from './ClubdeskListTable';
+import { ClubdeskView } from './ClubdeskView';
 import { PriceListList } from './PriceListList';
 
 const UNCATEGORIZED_FILTER = '__uncategorized__';
@@ -116,8 +121,20 @@ const ClubdeskGuidesList: React.FC = () => {
     recentlyDuplicatedClubdeskId,
     openClubdeskPanel,
     validationErrors,
+    isClubdeskPanelOpen,
+    panelMode,
+    currentClubdesk,
+    closeClubdeskPanel,
+    saveClubdesk,
+    activeDomain,
   } = useClubdesk();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const isCompactViewport = useMediaQuery('(max-width: 1023px)');
+  const showDesktopSplit = !isCompactViewport;
+  const showGuideInlinePanel = showDesktopSplit && isClubdeskPanelOpen && activeDomain === 'guides';
+  const inlineGuideForm = showGuideInlinePanel && (panelMode === 'create' || panelMode === 'edit');
+  const inlineGuideView = showGuideInlinePanel && panelMode === 'view' && currentClubdesk != null;
+  const inlineFormRef = useRef<PanelFormHandle | null>(null);
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openClubdeskPanel(null)),
@@ -297,261 +314,322 @@ const ClubdeskGuidesList: React.FC = () => {
 
   const listStatusError = getClubdeskListStatusErrorMessage(validationErrors);
 
-  return (
-    <div className={cn('plugin-clubdesk', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
-      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
-        <div className="hidden md:block">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex min-w-0 flex-1 flex-col gap-5">
-              <div className="min-w-0">
-                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
-                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.clubdesk')}</h2>
-                  {sortedClubdesks.length > 0 ? (
-                    selectionMode ? (
-                      <ExpandableIconButton
-                        icon={XCircle}
-                        label={t('common.clear')}
-                        variant="danger"
-                        alwaysExpanded
-                        onClick={handleExitSelectionMode}
-                      />
-                    ) : (
-                      <ExpandableIconButton
-                        icon={CheckSquare}
-                        label={t('common.select')}
-                        variant="soft"
-                        alwaysExpanded
-                        onClick={handleEnterSelectionMode}
-                      />
-                    )
-                  ) : null}
-                </div>
-              </div>
-              {selectionMode ? (
-                <BulkActionRoundBar
-                  selectedCount={selectedCount}
-                  actions={bulkRoundActions}
-                  className="gap-2"
-                />
-              ) : null}
-            </div>
-            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
-              <RoundExpandableSearch
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('clubdesk.searchPlaceholder', {
-                  count: clubdesk.length,
-                })}
-              />
-              <ExpandableIconButton
-                icon={Plus}
-                label={t('clubdesk.addClubdesk')}
-                variant="soft"
-                alwaysExpanded
-                onClick={() => attemptNavigation(() => openClubdeskPanel(null))}
-              />
-            </div>
-          </div>
-        </div>
+  const inlineFormHasBlockingErrors = validationErrors.some(
+    (e) => !String(e?.message || '').includes('Warning'),
+  );
 
-        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
-          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveFilters([])}
-              className={cn(
-                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>
-                {t('clubdesk.filter.all')}{' '}
-                <span className="tabular-nums font-semibold">({stats.total})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('draft')}
-              className={cn(
-                isFilterActive('draft') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              <span>
-                {t('clubdesk.filter.draft')}{' '}
-                <span className="tabular-nums font-semibold">({stats.draft})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('published')}
-              className={cn(
-                isFilterActive('published')
-                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
-                  : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>
-                {t('clubdesk.filter.published')}{' '}
-                <span className="tabular-nums font-semibold">({stats.published})</span>
-              </span>
-            </Button>
-            {categoryOptions.length > 0 ? (
-              <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setCategoryFilter('all')}
-                  className={cn(
-                    categoryFilter === 'all'
-                      ? LIST_FILTER_CHIP_ACTIVE_CLASS
-                      : LIST_FILTER_CHIP_CLASS,
-                  )}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                  <span>
-                    {t('clubdesk.filter.all')}{' '}
-                    <span className="tabular-nums font-semibold">({stats.total})</span>
-                  </span>
-                </Button>
-                {categoryOptions.map((option) => {
-                  const isActive = categoryFilter === option.key;
-                  const label =
-                    option.key === UNCATEGORIZED_FILTER ? t('clubdesk.uncategorized') : option.key;
-                  return (
-                    <Button
-                      key={option.key}
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setCategoryFilter(isActive ? 'all' : option.key)}
-                      className={cn(
-                        isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-                      )}
-                    >
-                      <Tag className="h-3.5 w-3.5" />
-                      <span>
-                        {label} <span className="tabular-nums font-semibold">({option.count})</span>
-                      </span>
-                    </Button>
-                  );
-                })}
-              </>
+  const handleInlineFormSave = useCallback(async () => {
+    await inlineFormRef.current?.submit();
+  }, []);
+
+  const handleInlineFormClose = useCallback(() => {
+    if (inlineFormRef.current) {
+      inlineFormRef.current.cancel();
+      return;
+    }
+    closeClubdeskPanel();
+  }, [closeClubdeskPanel]);
+
+  const listBody = (
+    <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+      <div className="hidden md:block">
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex min-w-0 flex-1 flex-col gap-5">
+            <div className="min-w-0">
+              <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+                <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.clubdesk')}</h2>
+                {sortedClubdesks.length > 0 ? (
+                  selectionMode ? (
+                    <ExpandableIconButton
+                      icon={XCircle}
+                      label={t('common.clear')}
+                      variant="danger"
+                      alwaysExpanded
+                      onClick={handleExitSelectionMode}
+                    />
+                  ) : (
+                    <ExpandableIconButton
+                      icon={CheckSquare}
+                      label={t('common.select')}
+                      variant="soft"
+                      alwaysExpanded
+                      onClick={handleEnterSelectionMode}
+                    />
+                  )
+                ) : null}
+              </div>
+            </div>
+            {selectionMode ? (
+              <BulkActionRoundBar
+                selectedCount={selectedCount}
+                actions={bulkRoundActions}
+                className="gap-2"
+              />
             ) : null}
           </div>
-          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-            <Select
-              value={primarySort}
-              onValueChange={(value) => handlePrimarySortChange(value as ClubdeskSortField)}
-            >
-              <SelectTrigger
-                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                aria-label={t('clubdesk.sortBy')}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="item-aligned"
-                className="rounded-xl border-border/50 shadow-xl"
-              >
-                {SORT_FIELD_OPTIONS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="rounded-md text-xs"
-                  >
-                    {t(option.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 px-0 text-xs"
-              onClick={toggleSortOrder}
-              aria-label={sortOrder === 'asc' ? t('clubdesk.sortDesc') : t('clubdesk.sortAsc')}
-            >
-              {sortOrder === 'asc' ? (
-                <ArrowUp className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowDown className="h-3.5 w-3.5" />
-              )}
-            </Button>
+          <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+            <RoundExpandableSearch
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder={t('clubdesk.searchPlaceholder', {
+                count: clubdesk.length,
+              })}
+            />
+            <ExpandableIconButton
+              icon={Plus}
+              label={t('clubdesk.addClubdesk')}
+              variant="soft"
+              alwaysExpanded
+              onClick={() => attemptNavigation(() => openClubdeskPanel(null))}
+            />
           </div>
         </div>
+      </div>
 
-        {listStatusError ? (
-          <p className="text-sm text-destructive" role="alert">
-            {listStatusError}
-          </p>
-        ) : null}
+      <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
+        <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setActiveFilters([])}
+            className={cn(
+              activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            )}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            <span>
+              {t('clubdesk.filter.all')}{' '}
+              <span className="tabular-nums font-semibold">({stats.total})</span>
+            </span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => toggleFilter('draft')}
+            className={cn(
+              isFilterActive('draft') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            )}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            <span>
+              {t('clubdesk.filter.draft')}{' '}
+              <span className="tabular-nums font-semibold">({stats.draft})</span>
+            </span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => toggleFilter('published')}
+            className={cn(
+              isFilterActive('published') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            )}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span>
+              {t('clubdesk.filter.published')}{' '}
+              <span className="tabular-nums font-semibold">({stats.published})</span>
+            </span>
+          </Button>
+          {categoryOptions.length > 0 ? (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setCategoryFilter('all')}
+                className={cn(
+                  categoryFilter === 'all' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                )}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>
+                  {t('clubdesk.filter.all')}{' '}
+                  <span className="tabular-nums font-semibold">({stats.total})</span>
+                </span>
+              </Button>
+              {categoryOptions.map((option) => {
+                const isActive = categoryFilter === option.key;
+                const label =
+                  option.key === UNCATEGORIZED_FILTER ? t('clubdesk.uncategorized') : option.key;
+                return (
+                  <Button
+                    key={option.key}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCategoryFilter(isActive ? 'all' : option.key)}
+                    className={cn(
+                      isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                    )}
+                  >
+                    <Tag className="h-3.5 w-3.5" />
+                    <span>
+                      {label} <span className="tabular-nums font-semibold">({option.count})</span>
+                    </span>
+                  </Button>
+                );
+              })}
+            </>
+          ) : null}
+        </div>
+        <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+          <Select
+            value={primarySort}
+            onValueChange={(value) => handlePrimarySortChange(value as ClubdeskSortField)}
+          >
+            <SelectTrigger
+              className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+              aria-label={t('clubdesk.sortBy')}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent
+              position="item-aligned"
+              className="rounded-xl border-border/50 shadow-xl"
+            >
+              {SORT_FIELD_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="rounded-md text-xs">
+                  {t(option.labelKey)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 px-0 text-xs"
+            onClick={toggleSortOrder}
+            aria-label={sortOrder === 'asc' ? t('clubdesk.sortDesc') : t('clubdesk.sortAsc')}
+          >
+            {sortOrder === 'asc' ? (
+              <ArrowUp className="h-3.5 w-3.5" />
+            ) : (
+              <ArrowDown className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        </div>
+      </div>
 
-        <BulkDeleteModal
-          isOpen={showBulkDeleteModal}
-          onClose={() => setShowBulkDeleteModal(false)}
-          onConfirm={handleBulkDelete}
-          itemCount={selectedCount}
-          itemLabel="clubdesk"
-          isLoading={deleting}
-        />
+      {listStatusError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {listStatusError}
+        </p>
+      ) : null}
 
-        <div className="flex flex-col gap-3">
-          {sortedClubdesks.length === 0 ? (
-            <ListEmptyState
-              message={
-                searchTerm || activeFilters.length > 0 || categoryFilter !== 'all'
-                  ? t('clubdesk.noMatch')
-                  : t('clubdesk.noYet')
-              }
-              createLabel={
-                !searchTerm && activeFilters.length === 0 && categoryFilter === 'all'
-                  ? t('clubdesk.addClubdesk')
-                  : undefined
-              }
-              onCreate={
-                !searchTerm && activeFilters.length === 0 && categoryFilter === 'all'
-                  ? () => attemptNavigation(() => openClubdeskPanel(null))
-                  : undefined
-              }
-            />
-          ) : (
-            <ClubdeskListTable
-              clubdesks={sortedClubdesks}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              isSelected={isSelected}
-              onRowClick={handleRowActivate}
-              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-              onCheckboxChange={onVisibleRowCheckboxChange}
-              allVisibleSelected={allVisibleSelected}
-              onHeaderCheckboxChange={onToggleAllVisible}
-              recentlyDuplicatedClubdeskId={recentlyDuplicatedClubdeskId}
-              selectionEnabled={selectionMode}
-            />
-          )}
+      <BulkDeleteModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={handleBulkDelete}
+        itemCount={selectedCount}
+        itemLabel="clubdesk"
+        isLoading={deleting}
+      />
 
-          <ListFooterBar
-            meta={
-              <>
-                {t('clubdesk.showingCount', {
-                  shown: sortedClubdesks.length,
-                  total: clubdesk.length,
-                })}
-              </>
+      <div className="flex flex-col gap-3">
+        {sortedClubdesks.length === 0 ? (
+          <ListEmptyState
+            message={
+              searchTerm || activeFilters.length > 0 || categoryFilter !== 'all'
+                ? t('clubdesk.noMatch')
+                : t('clubdesk.noYet')
+            }
+            createLabel={
+              !searchTerm && activeFilters.length === 0 && categoryFilter === 'all'
+                ? t('clubdesk.addClubdesk')
+                : undefined
+            }
+            onCreate={
+              !searchTerm && activeFilters.length === 0 && categoryFilter === 'all'
+                ? () => attemptNavigation(() => openClubdeskPanel(null))
+                : undefined
             }
           />
+        ) : (
+          <ClubdeskListTable
+            clubdesks={sortedClubdesks}
+            primarySort={primarySort}
+            sortOrder={sortOrder}
+            onSort={handleTableSort}
+            isSelected={isSelected}
+            onRowClick={handleRowActivate}
+            onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+            onCheckboxChange={onVisibleRowCheckboxChange}
+            allVisibleSelected={allVisibleSelected}
+            onHeaderCheckboxChange={onToggleAllVisible}
+            recentlyDuplicatedClubdeskId={recentlyDuplicatedClubdeskId}
+            selectionEnabled={selectionMode}
+          />
+        )}
+
+        <ListFooterBar
+          meta={
+            <>
+              {t('clubdesk.showingCount', {
+                shown: sortedClubdesks.length,
+                total: clubdesk.length,
+              })}
+            </>
+          }
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      className={cn(
+        'plugin-clubdesk flex min-h-0 flex-1 flex-col',
+        PLUGIN_PAGE_LIST_SHELL_CLASS,
+        showGuideInlinePanel && 'overflow-hidden',
+      )}
+    >
+      <div
+        className={cn(
+          'min-h-0 min-w-0 flex-1',
+          showGuideInlinePanel &&
+            'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-2 overflow-hidden',
+        )}
+      >
+        <div className={cn(showGuideInlinePanel && 'min-h-0 overflow-y-auto overscroll-contain')}>
+          {listBody}
         </div>
+        {showGuideInlinePanel ? (
+          <aside
+            className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain"
+            role="region"
+            aria-label={t('nav.clubdesk-guides')}
+            aria-live="polite"
+          >
+            {inlineGuideForm ? (
+              <div className="flex min-h-0 flex-col gap-3">
+                <div className="flex shrink-0 justify-end">
+                  <InlinePanelFormActions
+                    mode={panelMode === 'edit' ? 'edit' : 'create'}
+                    hasBlockingErrors={inlineFormHasBlockingErrors}
+                    onClose={handleInlineFormClose}
+                    onSave={() => {
+                      void handleInlineFormSave();
+                    }}
+                    t={t}
+                  />
+                </div>
+                <ClubdeskForm
+                  ref={inlineFormRef}
+                  currentClubdesk={currentClubdesk}
+                  onSave={saveClubdesk}
+                  onCancel={closeClubdeskPanel}
+                  stacked
+                />
+              </div>
+            ) : inlineGuideView ? (
+              <ClubdeskView clubdesk={currentClubdesk} stacked />
+            ) : null}
+          </aside>
+        ) : null}
       </div>
     </div>
   );

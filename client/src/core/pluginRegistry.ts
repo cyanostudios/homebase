@@ -871,6 +871,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: CupsDashboardWidget,
     displayPrefix: 'CUP',
     contentFlush: true,
+    contentOwnsScroll: true,
     noPrimaryAction: true,
   },
   {
@@ -965,6 +966,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     navigation: clubdeskNavigation,
     displayPrefix: 'CDK',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'slug',
     noPrimaryAction: true,
   },

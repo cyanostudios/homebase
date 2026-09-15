@@ -42,7 +42,11 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import {
   FORM_INPUT_CLASS,
   FORM_INPUT_ERROR_CLASS,
@@ -78,6 +82,8 @@ interface ClubdeskFormProps {
   onSave: (data: ClubdeskPayload) => Promise<boolean> | boolean;
   onCancel: () => void;
   isSubmitting?: boolean;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
 }
 
 function emptyStep(order: number): ClubdeskStepPayload {
@@ -93,7 +99,7 @@ export const ClubdeskForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>
   function ClubdeskForm(props, ref) {
     const location = useLocation();
     if (pathToNavPage(location.pathname) === 'clubdesk-price-list') {
-      return <PriceListForm ref={ref} />;
+      return <PriceListForm ref={ref} stacked={props.stacked} />;
     }
     return <ClubdeskGuideForm ref={ref} {...props} />;
   },
@@ -101,7 +107,14 @@ export const ClubdeskForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>
 
 const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
   function ClubdeskGuideForm(
-    { currentClubdesk, currentItem, onSave, onCancel, isSubmitting: externalIsSubmitting = false },
+    {
+      currentClubdesk,
+      currentItem,
+      onSave,
+      onCancel,
+      isSubmitting: externalIsSubmitting = false,
+      stacked = false,
+    },
     ref,
   ) {
     const clubdesk = currentClubdesk ?? currentItem ?? null;
@@ -490,52 +503,53 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
       }
     };
 
-    const formSidebar = clubdesk ? (
-      <div className="space-y-4">
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection
-            title={t('clubdesk.information')}
-            icon={Info}
-            iconPlugin="clubdesk"
-            subtleTitle
-            className="p-4"
-            collapsible
-          >
-            <div>
-              <div className={DETAIL_INFO_ROW_CLASS}>
-                <span className="text-slate-500 dark:text-slate-400">ID</span>
-                <span className="font-mono font-extrabold text-foreground">
-                  {formatDisplayNumber('clubdesk', clubdesk.id)}
-                </span>
+    const formSidebar =
+      clubdesk && !stacked ? (
+        <div className="space-y-4">
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection
+              title={t('clubdesk.information')}
+              icon={Info}
+              iconPlugin="clubdesk"
+              subtleTitle
+              className="p-4"
+              collapsible
+            >
+              <div>
+                <div className={DETAIL_INFO_ROW_CLASS}>
+                  <span className="text-slate-500 dark:text-slate-400">ID</span>
+                  <span className="font-mono font-extrabold text-foreground">
+                    {formatDisplayNumber('clubdesk', clubdesk.id)}
+                  </span>
+                </div>
+                <div className={DETAIL_INFO_ROW_CLASS}>
+                  <span className="text-slate-500 dark:text-slate-400">{t('common.created')}</span>
+                  <span className="font-mono font-extrabold text-foreground">
+                    {clubdesk.createdAt ? new Date(clubdesk.createdAt).toLocaleDateString() : '—'}
+                  </span>
+                </div>
+                <div className={DETAIL_INFO_ROW_CLASS}>
+                  <span className="text-slate-500 dark:text-slate-400">{t('common.updated')}</span>
+                  <span className="font-mono font-extrabold text-foreground">
+                    {clubdesk.updatedAt ? new Date(clubdesk.updatedAt).toLocaleDateString() : '—'}
+                  </span>
+                </div>
               </div>
-              <div className={DETAIL_INFO_ROW_CLASS}>
-                <span className="text-slate-500 dark:text-slate-400">{t('common.created')}</span>
-                <span className="font-mono font-extrabold text-foreground">
-                  {clubdesk.createdAt ? new Date(clubdesk.createdAt).toLocaleDateString() : '—'}
-                </span>
-              </div>
-              <div className={DETAIL_INFO_ROW_CLASS}>
-                <span className="text-slate-500 dark:text-slate-400">{t('common.updated')}</span>
-                <span className="font-mono font-extrabold text-foreground">
-                  {clubdesk.updatedAt ? new Date(clubdesk.updatedAt).toLocaleDateString() : '—'}
-                </span>
-              </div>
-            </div>
-          </DetailSection>
-        </Card>
-        <DetailActivityLog
-          entityType="clubdesk"
-          entityId={clubdesk.id}
-          title={t('clubdesk.activity')}
-          refreshKey={clubdesk.updatedAt}
-        />
-      </div>
-    ) : undefined;
+            </DetailSection>
+          </Card>
+          <DetailActivityLog
+            entityType="clubdesk"
+            entityId={clubdesk.id}
+            title={t('clubdesk.activity')}
+            refreshKey={clubdesk.updatedAt}
+          />
+        </div>
+      ) : undefined;
 
     return (
       <>
         <div className="plugin-clubdesk">
-          <DetailLayout sidebar={formSidebar}>
+          <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
             <form
               className="space-y-4"
               onSubmit={(e) => {
@@ -796,6 +810,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                   title={t('clubdesk.stepsCard')}
                   icon={ListOrdered}
                   iconPlugin="clubdesk"
+                  subtleTitle
                   className="p-6"
                 >
                   {getFieldError('steps') ? (
@@ -805,8 +820,8 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                   ) : null}
 
                   {formData.steps.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border/70 px-4 py-8 text-center">
-                      <p className="text-sm text-muted-foreground">{t('clubdesk.noStepsYet')}</p>
+                    <div className="space-y-3">
+                      <p className={DETAIL_EMPTY_STATE_CLASS}>{t('clubdesk.noStepsYet')}</p>
                       <RoundIconLabelButton
                         type="button"
                         icon={Plus}
@@ -814,7 +829,6 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                         variant="soft"
                         size="xs"
                         alwaysExpanded
-                        className="mt-3"
                         onClick={addStep}
                       />
                     </div>

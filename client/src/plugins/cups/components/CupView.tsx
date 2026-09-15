@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
 import type { IngestSource } from '@/plugins/ingest/types/ingest';
@@ -15,10 +16,20 @@ import type { IngestSource } from '@/plugins/ingest/types/ingest';
 import { useCups } from '../hooks/useCups';
 import type { Cup } from '../types/cups';
 
+import { CupDetailHeaderMenus } from './CupDetailHeaderMenus';
 import { CupPropertiesFields } from './CupPropertiesFields';
 import { CupRatings } from './CupRatings';
 
-export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) {
+export function CupView({
+  cup,
+  item,
+  stacked = false,
+}: {
+  cup?: Cup | null;
+  item?: Cup | null;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
+}) {
   const { t } = useTranslation();
   const current = cup ?? item ?? null;
   const {
@@ -85,38 +96,58 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
 
   const heroImageUrl = (current.featured_image_url || '').trim();
 
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={t('nav.cups')} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={Trophy}
+          className="h-9 w-9 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-4 [&_svg]:w-4"
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>{current.name}</h3>
+    </div>
+  );
+
+  const ingestSidebar = (
+    <div className="space-y-3">
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection title={t('cups.columnIngest')} subtleTitle className="p-4" collapsible>
+          <div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">Source URL</span>
+              <span className="max-w-[170px] truncate font-extrabold text-foreground">
+                {current.source_url || '—'}
+              </span>
+            </div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">Ingest source</span>
+              <span className="font-extrabold text-foreground">
+                {ingestSourceName(current.ingest_source_id)}
+              </span>
+            </div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">Ingest run</span>
+              <span className="font-extrabold text-foreground">{current.ingest_run_id || '—'}</span>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+    </div>
+  );
+
   return (
     <>
       <DetailLayout
-        sidebar={
-          <div className="space-y-3">
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection title={t('cups.columnIngest')} subtleTitle className="p-4" collapsible>
-                <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Source URL</span>
-                    <span className="max-w-[170px] truncate font-extrabold text-foreground">
-                      {current.source_url || '—'}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Ingest source</span>
-                    <span className="font-extrabold text-foreground">
-                      {ingestSourceName(current.ingest_source_id)}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Ingest run</span>
-                    <span className="font-extrabold text-foreground">
-                      {current.ingest_run_id || '—'}
-                    </span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-          </div>
-        }
+        gridClassName={stacked ? 'grid-cols-1' : undefined}
+        sidebar={stacked ? undefined : ingestSidebar}
       >
+        {stacked ? (
+          <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+            <div className="border-b border-border/50 px-4 py-5">
+              <CupDetailHeaderMenus cup={current} leading={titleLeading} />
+            </div>
+          </Card>
+        ) : null}
         {current.deleted_at !== null && current.deleted_at !== undefined && (
           <Card
             padding="none"
@@ -255,6 +286,7 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
           </DetailSection>
         </Card>
         <CupRatings cupId={current.id} />
+        {stacked ? ingestSidebar : null}
       </DetailLayout>
       <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}

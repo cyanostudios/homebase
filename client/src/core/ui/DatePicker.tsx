@@ -106,7 +106,7 @@ export function DatePicker({
             variant === 'default' && 'border border-border/50 bg-background hover:bg-accent/50',
             variant === 'filled' && FORM_FIELD_FILLED_CHROME,
             variant === 'filled' && 'hover:bg-muted/80',
-            compact ? 'h-8 min-h-8 sm:h-7' : variant === 'filled' ? 'h-7' : 'h-9',
+            compact ? 'h-7' : variant === 'filled' ? 'h-7' : 'h-9',
             usePropWidth && !fullWidth && (compact ? 'w-[130px]' : 'w-[180px] max-w-[180px]'),
             fullWidth && 'w-full',
             hasError &&

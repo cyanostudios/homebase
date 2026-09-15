@@ -19,6 +19,7 @@ import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
@@ -229,16 +230,6 @@ export function RequestView({
     await saveRequest(buildRequestTeamSavePayload(request, teamId), request.id);
   };
 
-  const updatedLabel = request.updated_at
-    ? new Date(request.updated_at).toLocaleString(undefined, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
-
   const listDisplayName =
     targetListName ||
     (request.pluginTargetId
@@ -251,20 +242,11 @@ export function RequestView({
         request={request}
         onEdit={() => openRequestForEdit(request)}
         variant="full"
-      />
-
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title={t('requests.form.description')} className="p-6" subtleTitle>
-          {updatedLabel ? (
-            <p className="mb-3 text-xs text-muted-foreground">
-              {t('common.updated')} {updatedLabel}
-            </p>
-          ) : null}
-          <p className="whitespace-pre-wrap text-sm text-foreground">
-            {request.description?.trim() || '—'}
-          </p>
-        </DetailSection>
-      </Card>
+      >
+        <p className="whitespace-pre-wrap text-sm text-foreground">
+          {request.description?.trim() || '—'}
+        </p>
+      </RequestQuickContextPanel>
 
       {showSubmittedDetails ? (
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -285,9 +267,7 @@ export function RequestView({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                {t('requests.view.noSubmittedDetails')}
-              </p>
+              <p className={DETAIL_EMPTY_STATE_CLASS}>{t('requests.view.noSubmittedDetails')}</p>
             )}
             {request.pluginRoutedAt && listDisplayName ? (
               <p className="mt-3 text-xs text-muted-foreground">
@@ -393,9 +373,70 @@ export function RequestView({
         </DetailSection>
       </Card>
 
-      {hasFilesPlugin ? (
-        <FileAttachmentsSection pluginName="requests" entityId={request.id} readOnly />
-      ) : null}
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('requests.view.properties')}
+          icon={SlidersHorizontal}
+          subtleTitle
+          className="p-6"
+        >
+          <div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.form.requestType')}
+              </span>
+              <RequestTypeSelect
+                request={request}
+                onTypeChange={handleTypeChange}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.form.status')}
+              </span>
+              <RequestStatusSelect
+                request={request}
+                onStatusChange={handleStatusChange}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.form.priority')}
+              </span>
+              <RequestPrioritySelect
+                request={request}
+                onPriorityChange={handlePriorityChange}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.responseDue.label')}
+              </span>
+              <RequestResponseDueControl
+                request={request}
+                onDaysChange={handleResponseDueChange}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.view.source')}
+              </span>
+              <Badge
+                variant="outline"
+                className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS[request.source])}
+              >
+                {request.source === 'external'
+                  ? t('requests.sourceExternal')
+                  : t('requests.sourceInternal')}
+              </Badge>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
     </div>
   );
 
@@ -414,70 +455,9 @@ export function RequestView({
             </Card>
           ) : null}
 
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('requests.view.properties')}
-              icon={SlidersHorizontal}
-              subtleTitle
-              className="p-6"
-            >
-              <div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.form.requestType')}
-                  </span>
-                  <RequestTypeSelect
-                    request={request}
-                    onTypeChange={handleTypeChange}
-                    hideInlineLabel
-                  />
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.form.status')}
-                  </span>
-                  <RequestStatusSelect
-                    request={request}
-                    onStatusChange={handleStatusChange}
-                    hideInlineLabel
-                  />
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.form.priority')}
-                  </span>
-                  <RequestPrioritySelect
-                    request={request}
-                    onPriorityChange={handlePriorityChange}
-                    hideInlineLabel
-                  />
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.responseDue.label')}
-                  </span>
-                  <RequestResponseDueControl
-                    request={request}
-                    onDaysChange={handleResponseDueChange}
-                    hideInlineLabel
-                  />
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.view.source')}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS[request.source])}
-                  >
-                    {request.source === 'external'
-                      ? t('requests.sourceExternal')
-                      : t('requests.sourceInternal')}
-                  </Badge>
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
+          {hasFilesPlugin ? (
+            <FileAttachmentsSection pluginName="requests" entityId={request.id} readOnly />
+          ) : null}
 
           <RequestAssigneeSelect request={request} onAssigneeChange={handleAssigneeChange} />
 

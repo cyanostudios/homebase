@@ -50,17 +50,11 @@ describe('normalizeContactTableColumns', () => {
 });
 
 describe('resolveVisibleContactTableColumns', () => {
-  it('defaults to name type tags assignable time', () => {
-    expect(resolveVisibleContactTableColumns(null)).toEqual([
-      'name',
-      'type',
-      'tags',
-      'assignable',
-      'time',
-    ]);
+  it('defaults to name-only visible columns', () => {
+    expect(resolveVisibleContactTableColumns(null)).toEqual(['name']);
   });
 
-  it('respects custom order and hidden', () => {
+  it('ignores saved table column prefs', () => {
     expect(
       resolveVisibleContactTableColumns({
         tableColumns: {
@@ -78,7 +72,7 @@ describe('resolveVisibleContactTableColumns', () => {
           hidden: ['type', 'tags', 'assignable', 'time', 'phone', 'createdAt', 'updatedAt'],
         },
       }),
-    ).toEqual(['name', 'email']);
+    ).toEqual(['name']);
   });
 });
 

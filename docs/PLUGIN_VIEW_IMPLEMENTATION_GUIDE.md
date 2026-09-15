@@ -282,14 +282,23 @@ Do **not** put primary content properties only in the right sidebar — see §6 
 ### Cards and sections
 
 - Outer cards: `<Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>`
-- Sections: `<DetailSection title={…} icon={…} subtleTitle className="p-4">`
+- Sections: `<DetailSection title={…} icon={…} subtleTitle className="p-4">` (or `p-6` where the plugin already uses denser padding)
 - Field values: `DETAIL_FIELD_VALUE_CLASS`
 - Property rows: `DETAIL_PROP_ROW_CLASS`
 - Notes/comments: `DETAIL_NOTE_CALLOUT_CLASS`
 - Info rows: `DETAIL_INFO_ROW_CLASS`
 - Quick action rows: `DETAIL_QUICK_ACTION_ROW_CLASS`
+- **Empty messages inside a detail card:** `DETAIL_EMPTY_STATE_CLASS` (`text-xs text-muted-foreground`) — same as Contacts linked when empty. Do **not** wrap empties in bordered/dashed boxes.
 
-**Contacts full view (canonical):** Always render **Addresses** and **Contact Persons** cards (column 1, after Quick Context). When empty, show a bordered muted empty state (`contacts.noAddresses` / `contacts.noContactPersons`) — do not omit the cards.
+**Contacts full view (canonical):** Always render **Addresses** and **Contact Persons** cards (column 1, after Quick Context). When empty, show the shared muted empty message (`DETAIL_EMPTY_STATE_CLASS` / `contacts.noAddresses` / `contacts.noContactPersons`) — do not omit the cards.
+
+**Notes / Tasks / Requests full detail (one-card header):** Merge title/actions + primary body into one QuickContext card (`variant="full"` + `children`). List-side QC preview stays compact (no body children). Separate cards remain for properties, assignees, attachments, etc.
+
+**Attachments (shared):** Use `FileAttachmentsSection` (`DetailSection` + `subtleTitle` + Paperclip, `iconPlugin="files"`). Attachment rows use `FileIdentityCell` (same identity as Files list name column). Empty/loading: `DETAIL_EMPTY_STATE_CLASS`.
+
+**Tasks / Requests status · priority · due chips:** Select triggers share `BADGE_SELECT_TRIGGER_CLASS` + `BADGE_CHIP_*` fills. Tasks due labels/colors go through `formatTaskDueDisplay` / `DUE_DATE_*` in `badgeStyles` + `tasks.ts`. Requests **response-due** urgency stays on `RESPONSE_DUE_URGENCY_COLORS` (SLA days control), not `DUE_DATE_*`.
+
+**Requests column order (verified):** Left (`leftSidebar`) = QC/header+description → submitted details (if any) → submitter → **Properties**. Right (main) = **Attachments** → assignee → team. View and form match.
 
 ### Identity block (left column header)
 
@@ -379,7 +388,8 @@ Same tokens apply to plugin **settings** forms/views with text fields.
 - Date+time fields: use shared `DateTimePicker` (same calendar chrome + time input; `variant="filled"` in plugin forms).
 - In plugin forms/settings with filled chrome: `variant="filled"` (and `propWidth` / `fullWidth` as needed).
 - String `YYYY-MM-DD` values: `parseDateInputValue` / `formatDateInputValue` from the same module (local calendar — avoid `toISOString().split('T')[0]`).
-- Tasks list/QC due date: thin wrapper `TaskDueDatePicker` → `DatePicker`.
+- Tasks list/QC/form due date: thin wrapper `TaskDueDatePicker` → `DatePicker` (`propWidth`, compact `h-7` aligned with status/priority selects).
+- Tasks due **display** (list/table/QC/header/public): shared `formatTaskDueDisplay` / `getTaskDueUrgency` / `getTaskDueDiffDays` in `plugins/tasks/types/tasks.ts` (injectable `nowMs` for tests). Do not re-implement overdue/today/tomorrow strings per surface.
 
 **Known limitation:** Some required dates (e.g. invoice issue date, estimate valid-to) keep the Clear control but ignore `null` (`date ?? previousValue`). Prefer hiding Clear or validating null when product allows empty.
 
@@ -486,9 +496,9 @@ flex items-start justify-between gap-6
 
 **List layout:** **Table-only** (`*ListTable` / `SortableListTable`). Do not add a cards/column layout toggle. Do not add a settings **View** tab for list layout.
 
-**Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only).
+**Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only). When `categories.length === 0` (temporary empty shell, e.g. Estimates after Columns removal), still pass required `children` and empty-state copy — do not omit `children` (TypeScript requires it).
 
-**Table column visibility:** optional per-user `tableColumns: { order, hidden }` on the plugin settings category (Contacts, Notes, Tasks, Requests, Teams, Matches, Garments inventory, Estimates, Invoices, Slots, Cups). Persist the **full** object via `updateSettings` (JSONB shallow merge). Normalize unknown/missing prefs to defaults; keep a required identity column always visible (`name` / `title` / `age_group` / `matchup` / `articleName` / `estimateNumber` / `invoiceNumber`). Settings UI: shared `TableColumnsSettingsSection` (HTML5 drag-and-drop + toggles) or plugin-local equivalent. Apply order/visibility in `*ListTable` only. Do not put column pickers on the list toolbar in this pattern. Shared helpers: `client/src/core/list/tableColumnsPref.ts`. Garments **list** person-matrix column settings (identity + Paid/custom checkboxes) are separate — see [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (Person rows).
+**List table columns:** **not** user-configurable in settings. Default visible columns are **name/title only** (required identity: `name` / `title` / `matchup` / `articleName` / `estimateNumber` / `invoiceNumber`, etc.). Extra metadata columns are decided **per plugin in code** later — keep column defs in `*ListTable` + helpers in `*TableColumns.ts` / `client/src/core/list/tableColumnsPref.ts`, and have `resolveVisible*` return code defaults (ignore any legacy `user_settings.tableColumns`). Do not add column pickers on the list toolbar or a settings **Columns** category. Garments list **checkbox** custom columns remain list-entity settings — see [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (Person rows).
 
 ### Panel / page titles
 

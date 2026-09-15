@@ -50,6 +50,9 @@ describe('MatchList table view wiring', () => {
     expect(tableSrc).toMatch(/competition_name/);
     expect(tableSrc).toMatch(/team_id/);
     expect(tableSrc).toMatch(/MatchTeamBadge/);
+    expect(tableSrc).toMatch(/matchIdentityMeta/);
+    expect(tableSrc).toMatch(/text-slate-400/);
+    expect(tableSrc).toMatch(/pl-6 text-\[10px\]/);
     expect(tableSrc).toMatch(/created_at/);
     expect(tableSrc).toMatch(/updated_at/);
     expect(tableSrc).toMatch(/visibleColumnIds/);
@@ -67,11 +70,11 @@ describe('MatchList table view wiring', () => {
     expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });
 
-  test('settings do not expose list view mode toggle', () => {
+  test('settings do not expose table columns UI or list view mode toggle', () => {
     expect(settingsSrc).not.toMatch(/SettingsListViewModeToggle/);
     expect(settingsSrc).not.toMatch(/common\.defaultListView/);
     expect(settingsSrc).not.toMatch(/MatchViewMode/);
-    expect(settingsSrc).toMatch(/TableColumnsSettingsSection/);
+    expect(settingsSrc).not.toMatch(/TableColumnsSettingsSection/);
   });
 
   test('list split view previews matches on wide screens without opening the global panel', () => {

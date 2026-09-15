@@ -34,23 +34,24 @@ describe('ClubdeskList table view wiring', () => {
 });
 
 describe('PriceListList table view wiring', () => {
-  test('list is table-only with always-visible sort row', () => {
+  test('list uses mail split layout with collapsible toolbar', () => {
     expect(priceListSrc).toMatch(/PriceListListTable/);
     expect(priceListSrc).not.toMatch(/ListColumnLayoutToggle/);
     expect(priceListSrc).not.toMatch(/PriceListListItem/);
-    expect(priceListSrc).not.toMatch(/setListViewMode/);
-    expect(priceListSrc).not.toMatch(/isTableView/);
-    expect(priceListSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
-    expect(priceListSrc).toMatch(/clubdesk\.sortBy/);
-    expect(priceListSrc).not.toMatch(/!isTableView/);
+    expect(priceListSrc).toMatch(/renderFilterChips/);
+    expect(priceListSrc).toMatch(/renderSortDropdown/);
+    expect(priceListSrc).toMatch(/showDesktopSplit/);
+    expect(priceListSrc).toMatch(/toolbarCollapsed/);
   });
 
-  test('table columns include currency and item count', () => {
+  test('table uses title column with currency and item count in meta', () => {
     expect(priceTableSrc).toMatch(/SortableListTable/);
     expect(priceTableSrc).toMatch(/field: 'title'/);
-    expect(priceTableSrc).toMatch(/field: 'publicationStatus'/);
-    expect(priceTableSrc).toMatch(/field: 'currency'/);
-    expect(priceTableSrc).toMatch(/field: 'itemCount'/);
-    expect(priceTableSrc).not.toMatch(/field: 'updatedAt'/);
+    expect(priceTableSrc).toMatch(/priceListIdentityMeta/);
+    expect(priceTableSrc).not.toMatch(/field: 'publicationStatus'/);
+    expect(priceTableSrc).not.toMatch(/field: 'currency'/);
+    expect(priceTableSrc).not.toMatch(/field: 'itemCount'/);
+    expect(priceTableSrc).toMatch(/itemCount/);
+    expect(priceTableSrc).toMatch(/currency/);
   });
 });

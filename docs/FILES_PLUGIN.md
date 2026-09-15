@@ -18,6 +18,15 @@ Plugin id: **`files`**. Hybrid: **file library UI** (CRUD metadata + preview) an
 | Attachments API     | `/api/files/attachments`                                                       | Link owned files to plugin entities (`file_attachments`)                                           |
 | Consumers           | Notes / requests `FileAttachmentsSection`; cups/profile `filesApi.uploadFiles` | Cross-plugin                                                                                       |
 
+### Attachments UI (consumers)
+
+Shared component: `client/src/plugins/files/components/FileAttachmentsSection.tsx`.
+
+- Header: `DetailSection` + `subtleTitle` + Paperclip (`iconPlugin="files"`).
+- Rows: `FileIdentityCell` (same identity chrome as Files list name column) inside linked-tile shell.
+- Empty / loading: `DETAIL_EMPTY_STATE_CLASS` (plain muted text).
+- Download / open / remove: existing `filesApi.getFileDownloadUrl` (same-origin); open uses `target="_blank"` + `rel="noreferrer"`.
+
 ---
 
 ## Storage resolution (upload)

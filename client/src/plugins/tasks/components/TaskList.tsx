@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
+import { RoundExpandableQuickAdd } from '@/components/ui/round-expandable-quick-add';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
@@ -153,6 +154,8 @@ export function TaskList() {
     selectedCount,
     isSelected,
     recentlyDuplicatedTaskId,
+    setRecentlyDuplicatedTaskId,
+    createTask,
     setBrowseOrderIds,
     isTaskPanelOpen,
     panelMode,
@@ -193,7 +196,7 @@ export function TaskList() {
   );
   const [activeFilters, setActiveFilters] =
     useState<TaskListFilterSelection>(TASK_LIST_FILTER_INITIAL);
-  const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('columns');
+  const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('import');
   const [previewTask, setPreviewTask] = useState<Task | null>(null);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(readTasksToolbarCollapsed);
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
@@ -556,6 +559,14 @@ export function TaskList() {
     (e) => !String(e?.message || '').includes('Warning'),
   );
 
+  const handleQuickCreate = useCallback(
+    async (title: string) => {
+      const task = await createTask({ title, content: '' });
+      setRecentlyDuplicatedTaskId(String(task.id));
+    },
+    [createTask, setRecentlyDuplicatedTaskId],
+  );
+
   const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
     const disabled = selectedCount === 0;
     return [
@@ -832,6 +843,8 @@ export function TaskList() {
         )
       : null;
 
+  const detailColumnOpen = Boolean(detailTask || inlineForm);
+
   return (
     <>
       {toolbarEdgeToggle}
@@ -884,6 +897,14 @@ export function TaskList() {
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
+                    <RoundExpandableQuickAdd
+                      icon={CheckSquare}
+                      label={t('tasks.quickAdd')}
+                      placeholder={t('tasks.quickAddPlaceholder')}
+                      onCreate={handleQuickCreate}
+                      defaultExpanded
+                      variant={detailColumnOpen ? 'soft' : 'primary'}
+                    />
                     <RoundExpandableSearch
                       value={searchTerm}
                       onChange={setSearchTerm}

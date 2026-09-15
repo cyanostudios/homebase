@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -412,7 +413,7 @@ export function InventoryQuickContextPanel({
             </span>
           </div>
           {variants.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('garments.noVariantsYet')}</p>
+            <p className={DETAIL_EMPTY_STATE_CLASS}>{t('garments.noVariantsYet')}</p>
           ) : (
             <div className="space-y-1">
               {duplicateVariantIndices.identity.size > 0 ? (

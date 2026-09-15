@@ -1,4 +1,8 @@
-import { isClubdeskSubRoute, resolveClubdeskPanelClosePath } from '@/core/routing/clubdeskRoutes';
+import {
+  isClubdeskSubRoute,
+  resolveClubdeskPanelClosePath,
+  shouldKeepPendingPriceListItemPath,
+} from '@/core/routing/clubdeskRoutes';
 
 describe('isClubdeskSubRoute', () => {
   it('recognizes named clubdesk sub-routes', () => {
@@ -10,6 +14,33 @@ describe('isClubdeskSubRoute', () => {
     expect(isClubdeskSubRoute('clubdesk', 'opening-checklist')).toBe(false);
     expect(isClubdeskSubRoute('clubdesk', undefined)).toBe(false);
     expect(isClubdeskSubRoute('garments', 'price-list')).toBe(false);
+  });
+});
+
+describe('shouldKeepPendingPriceListItemPath', () => {
+  it('keeps a pending item URL while still on the price-list index', () => {
+    expect(
+      shouldKeepPendingPriceListItemPath(
+        '/clubdesk/price-list',
+        '/clubdesk/price-list/kioskprislista',
+      ),
+    ).toBe(true);
+  });
+
+  it('does not keep a pending path on the item URL itself', () => {
+    expect(
+      shouldKeepPendingPriceListItemPath(
+        '/clubdesk/price-list/kioskprislista',
+        '/clubdesk/price-list/kioskprislista',
+      ),
+    ).toBe(false);
+  });
+
+  it('does not keep when nothing is pending', () => {
+    expect(shouldKeepPendingPriceListItemPath('/clubdesk/price-list', null)).toBe(false);
+    expect(shouldKeepPendingPriceListItemPath('/clubdesk/price-list', '/clubdesk/price-list')).toBe(
+      false,
+    );
   });
 });
 

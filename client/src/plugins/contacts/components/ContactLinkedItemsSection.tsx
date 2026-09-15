@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/core/api/AppContext';
 import { LINKED_SECTION_BADGE_CLASS } from '@/core/ui/badgeStyles';
+import { DETAIL_EMPTY_STATE_CLASS } from '@/core/ui/detailViewCardStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { formatDateTime } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -726,7 +727,7 @@ export function ContactLinkedItemsSection({
           </div>
         ) : null}
         {isLinkedLoading ? (
-          <p className="text-xs text-muted-foreground">{t('common.loading')}</p>
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('common.loading')}</p>
         ) : linkedItems.length > 0 ? (
           <>
             <QuickContextLinkTileGrid>
@@ -751,7 +752,7 @@ export function ContactLinkedItemsSection({
             ) : null}
           </>
         ) : (
-          <p className="text-xs text-muted-foreground">{t('contacts.quickContext.noLinked')}</p>
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('contacts.quickContext.noLinked')}</p>
         )}
       </div>
 

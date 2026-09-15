@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
-import { BADGE_CHIP_CLASS, QC_TASK_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { QuickContextActiveShareLink } from '@/core/ui/QuickContextActiveShareLink';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import {
@@ -47,7 +47,12 @@ import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { taskShareApi } from '../api/tasksApi';
 import type { Task } from '../types/tasks';
-import { TASK_PRIORITY_COLORS, formatStatusForDisplay } from '../types/tasks';
+import {
+  TASK_PRIORITY_COLORS,
+  TASK_STATUS_COLORS,
+  formatStatusForDisplay,
+  formatTaskDueDisplay,
+} from '../types/tasks';
 
 import { TaskDetailHeaderMenus } from './TaskDetailHeaderMenus';
 import { TaskDueDatePicker } from './TaskDueDatePicker';
@@ -175,6 +180,7 @@ export function TaskQuickContextPanel({
   onDueDateChange,
   variant = 'list',
   selectionMode = false,
+  children = null,
 }: {
   task: Task;
   onClose?: () => void;
@@ -187,6 +193,8 @@ export function TaskQuickContextPanel({
   variant?: 'list' | 'full';
   /** When true, header Open uses soft primary (bulk select active). */
   selectionMode?: boolean;
+  /** Full detail body under the header (e.g. task content in the same card). */
+  children?: React.ReactNode;
 }) {
   const isFullView = variant === 'full';
   const canQuickEdit =
@@ -308,6 +316,13 @@ export function TaskQuickContextPanel({
   };
 
   const dueLabel = task.dueDate ? new Date(task.dueDate).toLocaleDateString() : null;
+  const dueBadge = useMemo(() => {
+    const display = formatTaskDueDisplay(task.dueDate, task.status);
+    if (!display) {
+      return null;
+    }
+    return { text: display.text, className: display.badgeClassName };
+  }, [task.dueDate, task.status]);
 
   const updatedLabel = task.updatedAt
     ? new Date(task.updatedAt).toLocaleString(undefined, {
@@ -382,12 +397,27 @@ export function TaskQuickContextPanel({
                 className={cn(
                   'shrink-0',
                   BADGE_CHIP_CLASS,
-                  QC_TASK_STATUS_BADGE_COLORS[task.status] ??
-                    QC_TASK_STATUS_BADGE_COLORS['not started'],
+                  TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS] ??
+                    TASK_STATUS_COLORS['not started'],
                 )}
               >
                 {formatStatusForDisplay(task.status)}
               </Badge>
+              {isFullView ? (
+                <>
+                  <Badge
+                    variant="outline"
+                    className={cn(BADGE_CHIP_CLASS, TASK_PRIORITY_COLORS[task.priority])}
+                  >
+                    {task.priority}
+                  </Badge>
+                  {dueBadge ? (
+                    <Badge variant="outline" className={cn(BADGE_CHIP_CLASS, dueBadge.className)}>
+                      {dueBadge.text}
+                    </Badge>
+                  ) : null}
+                </>
+              ) : null}
             </div>
           </div>
 
@@ -414,6 +444,12 @@ export function TaskQuickContextPanel({
                     : t('tasks.quickContext.readMore')}
                 </button>
               ) : null}
+            </div>
+          ) : null}
+
+          {isFullView && children ? (
+            <div className="min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [&_.rich-text-content]:break-words [&_.rich-text-content]:[overflow-wrap:anywhere] [&_.rich-text-content_pre]:whitespace-pre-wrap [&_.rich-text-content_pre]:break-words [&_.rich-text-content_pre]:overflow-x-hidden">
+              {children}
             </div>
           ) : null}
 
@@ -455,7 +491,7 @@ export function TaskQuickContextPanel({
                 </div>
               ) : null}
             </div>
-          ) : (
+          ) : !isFullView ? (
             <QuickContextLinkTileGrid>
               <QuickContextLinkTile label={t('tasks.propertyPriority')} icon={Flag}>
                 <Badge className={cn(BADGE_CHIP_CLASS, TASK_PRIORITY_COLORS[task.priority])}>
@@ -466,7 +502,7 @@ export function TaskQuickContextPanel({
                 {dueLabel || '—'}
               </QuickContextLinkTile>
             </QuickContextLinkTileGrid>
-          )}
+          ) : null}
 
           {!isFullView && (assignedContacts.length > 0 || teamName) ? (
             <QuickContextLinkTileGrid>

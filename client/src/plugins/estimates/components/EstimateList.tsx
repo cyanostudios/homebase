@@ -85,7 +85,7 @@ import {
 
 import { EstimateForm } from './EstimateForm';
 import { EstimateListTable } from './EstimateListTable';
-import { EstimateSettingsView, type EstimateSettingsCategory } from './EstimateSettingsView';
+import { EstimateSettingsView } from './EstimateSettingsView';
 import { EstimatesStatisticsView } from './EstimatesStatisticsView';
 import { EstimateView } from './EstimateView';
 
@@ -180,7 +180,6 @@ export function EstimateList() {
     resolveVisibleEstimateTableColumns(null),
   );
   const [activeFilters, setActiveFilters] = useState<EstimateListFilterSelection>([]);
-  const [settingsCategory, setSettingsCategory] = useState<EstimateSettingsCategory>('columns');
   const [previewEstimate, setPreviewEstimate] = useState<Estimate | null>(null);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(readEstimatesToolbarCollapsed);
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
@@ -723,12 +722,7 @@ export function EstimateList() {
     return (
       <div className="plugin-estimates min-h-full bg-background">
         <div className="px-6 py-4">
-          <EstimateSettingsView
-            selectedCategory={settingsCategory}
-            onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
-            onClose={closeEstimateSettingsView}
-          />
+          <EstimateSettingsView onClose={closeEstimateSettingsView} />
         </div>
       </div>
     );

@@ -32,8 +32,11 @@ export const DETAIL_PROP_ROW_CLASS =
 
 export const DETAIL_NOTE_CALLOUT_CLASS = 'rounded-md bg-amber-50/70 p-3.5 dark:bg-amber-950/20';
 
-export const DETAIL_EMPTY_STATE_CLASS =
-  'text-center border border-dashed border-border rounded-lg p-8 bg-muted/30 mt-3';
+/**
+ * Empty message inside a detail card section — same as Contacts linked when empty.
+ * Plain muted text; no dashed/bordered box.
+ */
+export const DETAIL_EMPTY_STATE_CLASS = 'text-xs text-muted-foreground';
 
 export const DETAIL_INFO_ROW_CLASS =
   'flex items-center justify-between py-2 border-b border-border/50 last:border-0 text-xs';

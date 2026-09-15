@@ -5,15 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/select';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DatePicker } from '@/core/ui/DatePicker';
-import {
-  FORM_INPUT_CLASS,
-  FORM_INPUT_ERROR_CLASS,
-  FORM_PROP_CONTROL_CLASS,
-} from '@/core/ui/formFieldStyles';
+import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
@@ -27,7 +21,10 @@ import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
 
 import { TaskAssignedTeamSelect } from './TaskAssignedTeamSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
+import { TaskDueDatePicker } from './TaskDueDatePicker';
+import { TaskPrioritySelect } from './TaskPrioritySelect';
 import { TaskSettingsForm } from './TaskSettingsForm';
+import { TaskStatusSelect } from './TaskStatusSelect';
 
 const RichTextEditor = React.lazy(() =>
   import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
@@ -314,48 +311,32 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
                     <span className="text-sm text-slate-500 dark:text-slate-400">
                       {t('tasks.propertyStatus')}
                     </span>
-                    <NativeSelect
-                      id="task-status"
-                      className={FORM_PROP_CONTROL_CLASS}
-                      value={formData.status}
-                      onChange={(e) => updateField('status', e.target.value as TaskStatus)}
-                    >
-                      {TASK_STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </NativeSelect>
+                    <TaskStatusSelect
+                      task={{ status: formData.status }}
+                      onStatusChange={(status) => updateField('status', status as TaskStatus)}
+                      hideInlineLabel
+                    />
                   </div>
                   <div className={DETAIL_PROP_ROW_CLASS}>
                     <span className="text-sm text-slate-500 dark:text-slate-400">
                       {t('tasks.propertyPriority')}
                     </span>
-                    <NativeSelect
-                      id="task-priority"
-                      className={FORM_PROP_CONTROL_CLASS}
-                      value={formData.priority}
-                      onChange={(e) => updateField('priority', e.target.value as TaskPriority)}
-                    >
-                      {TASK_PRIORITY_OPTIONS.map((priority) => (
-                        <option key={priority} value={priority}>
-                          {priority}
-                        </option>
-                      ))}
-                    </NativeSelect>
+                    <TaskPrioritySelect
+                      task={{ priority: formData.priority }}
+                      onPriorityChange={(priority) =>
+                        updateField('priority', priority as TaskPriority)
+                      }
+                      hideInlineLabel
+                    />
                   </div>
                   <div className={DETAIL_PROP_ROW_CLASS}>
                     <span className="text-sm text-slate-500 dark:text-slate-400">
                       {t('tasks.propertyDueDate')}
                     </span>
-                    <DatePicker
-                      id="task-due-date"
-                      value={formData.dueDate}
-                      onChange={(date) => updateField('dueDate', date)}
-                      placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
-                      clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
-                      variant="filled"
-                      propWidth
+                    <TaskDueDatePicker
+                      task={{ dueDate: formData.dueDate }}
+                      onDueDateChange={(date) => updateField('dueDate', date)}
+                      hideInlineLabel
                     />
                   </div>
                 </div>

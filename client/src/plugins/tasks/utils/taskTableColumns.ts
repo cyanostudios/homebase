@@ -16,13 +16,25 @@ export type TaskTableColumnId = (typeof TASK_TABLE_COLUMN_IDS)[number];
 const helpers = createTableColumnsHelpers({
   columnIds: TASK_TABLE_COLUMN_IDS,
   requiredColumnId: 'title',
-  defaultHidden: ['assignedTo', 'assignedTeam', 'createdAt', 'updatedAt'],
+  /** Name-only list default; per-plugin metadata columns come later in code. */
+  defaultHidden: [
+    'status',
+    'priority',
+    'dueDate',
+    'assignedTo',
+    'assignedTeam',
+    'createdAt',
+    'updatedAt',
+  ],
 });
 
 export const DEFAULT_TASK_TABLE_COLUMNS = helpers.DEFAULT;
 export const isTaskTableColumnId = helpers.isColumnId;
 export const normalizeTaskTableColumns = helpers.normalize;
-export const resolveVisibleTaskTableColumns = helpers.resolveVisible;
+/** Always code defaults — table column prefs were removed from settings. */
+export const resolveVisibleTaskTableColumns = (
+  _settings?: { tableColumns?: unknown } | null,
+): TaskTableColumnId[] => helpers.resolveVisible(null);
 export const taskTableColumnsEqual = helpers.equal;
 export const reorderTaskTableColumns = helpers.reorder;
 export const setTaskTableColumnHidden = helpers.setHidden;

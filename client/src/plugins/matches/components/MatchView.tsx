@@ -22,6 +22,7 @@ import {
   type DetailSectionIconPlugin,
 } from '@/core/ui/DetailSection';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_FIELD_LABEL_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
@@ -385,9 +386,10 @@ export function MatchView({ match: matchProp, item, stacked: _stacked = false }:
                     title={t('matches.relatedSlots')}
                     icon={Info}
                     iconPlugin="slots"
+                    subtleTitle
                     className="p-4"
                   >
-                    <p className="text-sm text-muted-foreground">{t('matches.noRelatedSlots')}</p>
+                    <p className={DETAIL_EMPTY_STATE_CLASS}>{t('matches.noRelatedSlots')}</p>
                   </DetailSection>
                 </Card>
               ) : (

@@ -1084,7 +1084,8 @@
   "estimates": {
     "listDescription": "Skapa, skicka och följ offerter till godkännande.",
     "settingsTitle": "Offerter – Inställningar",
-    "settingsSubtitle": "Hantera tabellkolumner för offertlistan.",
+    "settingsSubtitle": "Offertinställningar visas här när de finns.",
+    "settingsEmpty": "Inga inställningskategorier ännu. Listkolumner är fasta i kod (endast offertnummer).",
     "settingsCategories": {
       "columns": "Tabellkolumner",
       "columnsDescription": "Välj vilka kolumner som visas i offerttabellen och i vilken ordning.",
@@ -1502,6 +1503,7 @@
       "moveItemDown": "Flytta artikel ner",
       "copyItem": "Kopiera artikel",
       "removeItem": "Ta bort artikel",
+      "removeItemConfirm": "Ta bort den här artikeln från prislistan?",
       "itemTitleRequired": "Artikel {{number}} behöver en titel",
       "publishNeedsItems": "Lägg till minst en artikel innan publicering.",
       "itemCount_one": "{{count}} artikel",
@@ -1515,7 +1517,17 @@
       "deleteFailed": "Kunde inte ta bort prislistan.",
       "deleteConfirmThis": "Är du säker på att du vill ta bort den här prislistan?",
       "deleteConfirmNamed": "Är du säker på att du vill ta bort \"{{name}}\"?",
-      "showingCount": "Visar {{shown}} av {{total}} prislistor"
+      "showingCount": "Visar {{shown}} av {{total}} prislistor",
+      "sort": "Sortera",
+      "sortAsc": "Sortera stigande",
+      "sortDesc": "Sortera fallande",
+      "collapseToolbar": "Dölj verktygsfält",
+      "expandToolbar": "Visa verktygsfält",
+      "quickContext": {
+        "title": "Snabbkontext",
+        "emptyTitle": "Ingen prislista vald",
+        "emptyHint": "Välj en prislista i listan för att se detaljer här."
+      }
     },
     "siteContent": {
       "subtitle": "Texter och kort för den publika Clubdesk-appen.",
@@ -2495,8 +2507,23 @@
     "addCup": "Lägg till cup",
     "importFromIngest": "Importera från Ingest",
     "searchPlaceholder": "Sök cuper ({{count}})",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "noMatch": "Inga cuper matchar din sökning.",
     "noYet": "Inga cuper ännu",
+    "stats": {
+      "total": "Totalt",
+      "visible": "Synliga",
+      "featured": "Utvalda",
+      "upcoming": "Kommande",
+      "removed": "Borttagna"
+    },
+    "quickContext": {
+      "title": "Snabbkontext"
+    },
     "columnName": "Namn",
     "columnOrganizer": "Arrangör",
     "columnVisible": "Synlig",
@@ -2551,6 +2578,9 @@
     },
     "statistics": {
       "title": "Cupappen-statistik",
+      "overview": "Översikt",
+      "embeddedDescription": "Översikt av cuper efter synlighet, utvald status och kommande datum.",
+      "openFull": "Öppna Cupappen-statistik",
       "description": "Första-parts sidvisningar från Cupappen (cup-detalj och distriktssidor). Riktningsgivande — inte Google Analytics.",
       "loading": "Laddar statistik…",
       "loadError": "Kunde inte ladda statistik.",

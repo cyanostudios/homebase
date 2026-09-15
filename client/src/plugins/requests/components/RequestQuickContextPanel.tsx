@@ -63,8 +63,11 @@ import {
   REQUEST_STATUS_COLORS,
   REQUEST_STATUS_ICON_SHELL_CLASS,
   REQUEST_TYPE_ICON_SHELL_CLASS,
+  RESPONSE_DUE_URGENCY_COLORS,
   formatRequestStatusForDisplay,
   formatSubmittedDateWithAge,
+  getDaysUntilResponseDue,
+  getResponseDueUrgency,
   getTypeLabel,
 } from '../types/requests';
 
@@ -120,6 +123,7 @@ export function RequestQuickContextPanel({
   onTypeChange,
   onResponseDueChange,
   variant = 'list',
+  children = null,
 }: {
   request: Request;
   onClose?: () => void;
@@ -131,6 +135,8 @@ export function RequestQuickContextPanel({
   onResponseDueChange?: (days: number, responseDueAt: string) => void;
   /** `list` = small preview beside the list; `full` = first column in full detail view. */
   variant?: 'list' | 'full';
+  /** Full detail body under the header (e.g. description in the same card). */
+  children?: React.ReactNode;
 }) {
   const isFullView = variant === 'full';
   const canQuickEdit =
@@ -247,6 +253,40 @@ export function RequestQuickContextPanel({
     : contentPreview.text;
   const showReadMoreToggle = contentPreview.truncated && !isFullView;
 
+  const responseDueBadge = useMemo(() => {
+    if (request.status === 'completed' || request.status === 'cancelled') {
+      return null;
+    }
+    const daysLeft = getDaysUntilResponseDue(request.responseDueAt);
+    if (daysLeft === null) {
+      return null;
+    }
+    const urgency = getResponseDueUrgency(daysLeft);
+    const className = RESPONSE_DUE_URGENCY_COLORS[urgency];
+    if (daysLeft < 0) {
+      return {
+        text: t('requests.responseDue.overdue', { count: Math.abs(daysLeft) }),
+        className,
+      };
+    }
+    if (daysLeft === 0) {
+      return {
+        text: t('requests.responseDue.today'),
+        className,
+      };
+    }
+    if (daysLeft === 1) {
+      return {
+        text: t('requests.responseDue.oneDay'),
+        className,
+      };
+    }
+    return {
+      text: t('requests.responseDue.daysLeft', { count: daysLeft }),
+      className,
+    };
+  }, [request.responseDueAt, request.status, t]);
+
   const typeLabel = getTypeLabel(request.requestType, t);
   const statusLabel = formatRequestStatusForDisplay(request.status, t);
   const StatusIcon = requestStatusIcon(request.status);
@@ -298,15 +338,32 @@ export function RequestQuickContextPanel({
 
   const statusBadges = (
     <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-      <Badge
-        variant="outline"
-        className={cn('shrink-0', BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS.muted)}
-      >
-        {getTypeLabel(request.requestType, t)}
-      </Badge>
+      {!isFullView ? (
+        <Badge
+          variant="outline"
+          className={cn('shrink-0', BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS.muted)}
+        >
+          {getTypeLabel(request.requestType, t)}
+        </Badge>
+      ) : null}
       <Badge className={cn('shrink-0', BADGE_CHIP_CLASS, REQUEST_STATUS_COLORS[request.status])}>
         {formatRequestStatusForDisplay(request.status, t)}
       </Badge>
+      {isFullView ? (
+        <>
+          <Badge
+            variant="outline"
+            className={cn(BADGE_CHIP_CLASS, REQUEST_PRIORITY_COLORS[request.priority])}
+          >
+            {request.priority}
+          </Badge>
+          {responseDueBadge ? (
+            <Badge variant="outline" className={cn(BADGE_CHIP_CLASS, responseDueBadge.className)}>
+              {responseDueBadge.text}
+            </Badge>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 
@@ -346,6 +403,12 @@ export function RequestQuickContextPanel({
                     : t('requests.quickContext.readMore')}
                 </button>
               ) : null}
+            </div>
+          ) : null}
+
+          {isFullView && children ? (
+            <div className="min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere]">
+              {children}
             </div>
           ) : null}
 
@@ -389,7 +452,7 @@ export function RequestQuickContextPanel({
             </div>
           ) : null}
 
-          {request.internalNotes?.trim() ? (
+          {request.internalNotes?.trim() && !isFullView ? (
             <div>
               <div className="mb-1.5">
                 <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
@@ -451,7 +514,7 @@ export function RequestQuickContextPanel({
                 />
               </div>
             </div>
-          ) : (
+          ) : !isFullView ? (
             <QuickContextLinkTileGrid>
               <QuickContextLinkTile label={t('requests.form.requestType')} icon={Tag}>
                 <Badge
@@ -467,7 +530,7 @@ export function RequestQuickContextPanel({
                 </Badge>
               </QuickContextLinkTile>
             </QuickContextLinkTileGrid>
-          )}
+          ) : null}
 
           {!isFullView && (assignedContacts.length > 0 || teamName) ? (
             <QuickContextLinkTileGrid>

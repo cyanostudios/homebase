@@ -107,10 +107,31 @@ describe('NoteList table view wiring', () => {
       path.join(__dirname, '../NoteQuickContextPanel.tsx'),
       'utf8',
     );
+    const viewSrc = fs.readFileSync(path.join(__dirname, '../NoteView.tsx'), 'utf8');
     expect(quickContextSrc).toMatch(/NoteDetailHeaderMenus/);
     expect(quickContextSrc).toMatch(/leading=\{titleLeading\}/);
+    expect(quickContextSrc).toMatch(/afterActions=\{afterHeaderActions\}/);
+    expect(quickContextSrc).toMatch(/children/);
+    expect(viewSrc).toMatch(/NoteQuickContextPanel/);
+    expect(viewSrc).toMatch(/variant="full"/);
+    expect(viewSrc).not.toMatch(/leftSidebar=/);
+    expect(viewSrc).not.toMatch(/focusMode/);
     expect(listSrc).not.toMatch(/NoteDetailHeaderMenus/);
     expect(listSrc).toMatch(/stacked/);
+  });
+
+  test('full detail merges title header and content into one card', () => {
+    const viewSrc = fs.readFileSync(path.join(__dirname, '../NoteView.tsx'), 'utf8');
+    const quickContextSrc = fs.readFileSync(
+      path.join(__dirname, '../NoteQuickContextPanel.tsx'),
+      'utf8',
+    );
+    expect(viewSrc).toMatch(/NoteQuickContextPanel/);
+    expect(viewSrc).toMatch(/RichTextContent/);
+    expect(viewSrc).not.toMatch(/contentColumn/);
+    expect(viewSrc).not.toMatch(/showTitleInContent/);
+    expect(viewSrc).not.toMatch(/focusMode/);
+    expect(quickContextSrc).toMatch(/isFullView && children/);
   });
 
   test('bulk select mode shows BulkActionRoundBar under toolbar and keeps detail column visible', () => {

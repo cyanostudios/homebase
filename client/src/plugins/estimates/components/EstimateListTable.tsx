@@ -1,14 +1,17 @@
-import { FileSpreadsheet } from 'lucide-react';
+import { User, Users } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
+import { useApp } from '@/core/api/AppContext';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
+import { CONTACT_TYPE_ICON_SHELL_CLASS } from '@/plugins/contacts/types/contacts';
+import { formatInvoiceMoney } from '@/plugins/invoices/utils/formatInvoiceAmount';
 
 import {
   ESTIMATE_STATUS_COLORS,
@@ -63,6 +66,18 @@ export function EstimateListTable({
   visibleColumnIds,
 }: EstimateListTableProps) {
   const { t } = useTranslation();
+  const { contacts } = useApp();
+
+  const contactTypeById = useMemo(() => {
+    const map = new Map<string, 'company' | 'private'>();
+    for (const contact of contacts ?? []) {
+      if (contact?.id == null || !contact.contactType) {
+        continue;
+      }
+      map.set(String(contact.id), contact.contactType === 'private' ? 'private' : 'company');
+    }
+    return map;
+  }, [contacts]);
 
   const orderedVisibleIds = useMemo(() => {
     if (visibleColumnIds && visibleColumnIds.length > 0) {
@@ -81,20 +96,72 @@ export function EstimateListTable({
         header: t('estimates.table.number'),
         cell: (estimate) => {
           const number = formatDisplayNumber('estimates', estimate.estimateNumber);
-          return (
+          const contactName = estimate.contactName?.trim() || '';
+          const contactType =
+            estimate.contactId != null
+              ? contactTypeById.get(String(estimate.contactId))
+              : undefined;
+          const typeLabel = contactType
+            ? t(`contacts.type.${contactType}`, {
+                defaultValue: contactType === 'private' ? 'Private' : 'Company',
+              })
+            : null;
+          const status = estimate.status || 'draft';
+          const totalLabel = formatInvoiceMoney(estimate.total, estimate.currency || 'SEK');
+          const TypeIcon =
+            contactType === 'private' ? User : contactType === 'company' ? Users : null;
+          const hasSubtitle = Boolean(contactName || TypeIcon || totalLabel);
+
+          const numberRow = (
             <div className="flex min-w-0 items-center gap-1.5">
-              <span title={t('nav.estimate')} className="inline-flex shrink-0">
-                <SectionCategoryIcon
-                  icon={FileSpreadsheet}
-                  className="h-6 w-6 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 [&_svg]:h-3 [&_svg]:w-3"
-                />
-              </span>
               <span
-                className="block min-w-0 truncate font-mono text-xs font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                className="min-w-0 truncate font-mono text-xs font-extrabold text-foreground transition-colors group-hover:text-primary"
                 title={number}
               >
                 {number}
               </span>
+              <Badge
+                className={cn(
+                  BADGE_CHIP_CLASS,
+                  ESTIMATE_STATUS_COLORS[status as keyof typeof ESTIMATE_STATUS_COLORS],
+                  'h-4 shrink-0 px-1 py-0 text-[10px] font-normal leading-none',
+                )}
+              >
+                {formatEstimateStatusForDisplay(status)}
+              </Badge>
+            </div>
+          );
+
+          if (!hasSubtitle) {
+            return numberRow;
+          }
+
+          return (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              {numberRow}
+              <div className="flex min-w-0 items-center gap-1.5">
+                {TypeIcon ? (
+                  <span title={typeLabel ?? undefined} className="inline-flex shrink-0">
+                    <SectionCategoryIcon
+                      icon={TypeIcon}
+                      className={cn(
+                        'h-5 w-5 [&_svg]:h-3 [&_svg]:w-3',
+                        contactType ? CONTACT_TYPE_ICON_SHELL_CLASS[contactType] : undefined,
+                      )}
+                    />
+                  </span>
+                ) : null}
+                {contactName ? (
+                  <span className="min-w-0 truncate text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                    {contactName}
+                  </span>
+                ) : null}
+                {totalLabel ? (
+                  <span className="shrink-0 tabular-nums text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                    {totalLabel}
+                  </span>
+                ) : null}
+              </div>
             </div>
           );
         },
@@ -131,8 +198,7 @@ export function EstimateListTable({
         className: 'hidden sm:table-cell',
         cell: (estimate) => (
           <span className="tabular-nums text-xs text-foreground">
-            {typeof estimate.total === 'number' ? estimate.total.toFixed(2) : estimate.total}{' '}
-            {estimate.currency}
+            {formatInvoiceMoney(estimate.total, estimate.currency || 'SEK')}
           </span>
         ),
       },
@@ -166,7 +232,7 @@ export function EstimateListTable({
       },
     };
     return defs;
-  }, [t]);
+  }, [contactTypeById, t]);
 
   const columns = useMemo(
     () =>

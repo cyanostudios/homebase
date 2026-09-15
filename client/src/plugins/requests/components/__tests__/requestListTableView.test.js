@@ -32,6 +32,13 @@ describe('RequestList table view wiring', () => {
     expect(listSrc).toMatch(/renderSortDropdown/);
     expect(listSrc).toMatch(/ListFilterChipsToggle/);
     expect(listSrc).toMatch(/filtersVisible/);
+    expect(listSrc).toMatch(/RoundExpandableQuickAdd/);
+    expect(listSrc).toMatch(/icon=\{Inbox\}/);
+    expect(listSrc).toMatch(/setRecentlyQuickAddedId\(String\(request\.id\)\)/);
+    expect(listSrc).toMatch(/setRecentlyQuickAddedId\(null\)/);
+    expect(tableSrc).toMatch(
+      /isRequestHighlighted\(request\) \|\| recentlyQuickAddedId === String\(request\.id\)/,
+    );
     expect(listSrc).toMatch(/DropdownMenuRadioItem/);
     expect(listSrc).toMatch(/handlePrimarySortChange/);
     expect(listSrc).not.toMatch(/aria-label="Sort by"/);
@@ -109,9 +116,23 @@ describe('RequestList table view wiring', () => {
     );
     expect(quickContextSrc).toMatch(/RequestDetailHeaderMenus/);
     expect(quickContextSrc).toMatch(/leading=\{titleLeading\}/);
+    expect(quickContextSrc).toMatch(/children\?: React\.ReactNode/);
+    expect(quickContextSrc).toMatch(/isFullView && children/);
     expect(listSrc).not.toMatch(/RequestDetailHeaderMenus/);
     expect(viewSrc).toMatch(/RequestQuickContextPanel/);
     expect(viewSrc).toMatch(/variant="full"/);
+  });
+
+  test('full detail merges title header and description into one card', () => {
+    const quickContextSrc = fs.readFileSync(
+      path.join(__dirname, '../RequestQuickContextPanel.tsx'),
+      'utf8',
+    );
+    expect(viewSrc).toMatch(/RequestQuickContextPanel/);
+    expect(viewSrc).not.toMatch(/requests\.form\.description/);
+    expect(quickContextSrc).toMatch(/isFullView && children/);
+    expect(quickContextSrc).toMatch(/responseDueBadge/);
+    expect(quickContextSrc).toMatch(/REQUEST_PRIORITY_COLORS\[request\.priority\]/);
   });
 
   test('bulk select mode shows BulkActionRoundBar under toolbar and keeps detail column visible', () => {

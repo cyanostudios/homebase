@@ -80,11 +80,18 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
     setViewingContact(contact);
   };
 
-  const handleStatusChange = (newStatus: string) => {
+  const handleStatusChange = async (newStatus: string) => {
+    if (!task?.id) {
+      return;
+    }
     setQuickEditField('status', newStatus);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
+    await saveTask(
+      buildTaskListQuickFieldsSavePayload(task, { status: newStatus }, quickEditDraft),
+      task.id,
+    );
   };
 
   // Display task merges saved task with quick-edit draft (status, priority, dueDate, assignee)
@@ -93,18 +100,32 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
     [task, quickEditDraft],
   );
 
-  const handlePriorityChange = (newPriority: string) => {
+  const handlePriorityChange = async (newPriority: string) => {
+    if (!task?.id) {
+      return;
+    }
     setQuickEditField('priority', newPriority);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
+    await saveTask(
+      buildTaskListQuickFieldsSavePayload(task, { priority: newPriority }, quickEditDraft),
+      task.id,
+    );
   };
 
-  const handleDueDateChange = (newDate: Date | null) => {
+  const handleDueDateChange = async (newDate: Date | null) => {
+    if (!task?.id) {
+      return;
+    }
     setQuickEditField('dueDate', newDate);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
+    await saveTask(
+      buildTaskListQuickFieldsSavePayload(task, { dueDate: newDate }, quickEditDraft),
+      task.id,
+    );
   };
 
   const handleAssigneeChange = async (newAssigneeIds: string[]) => {
@@ -146,47 +167,22 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
     return Array.from(new Map(raw.map((m) => [m.contactId, m])).values());
   }, [task?.mentions]);
 
-  const updatedLabel = task?.updatedAt
-    ? new Date(task.updatedAt).toLocaleString(undefined, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
-
   if (!task) {
     return null;
   }
 
   const contentColumn = (
-    <div className="space-y-4">
-      <TaskQuickContextPanel
-        task={displayTask ?? task}
-        onEdit={() => openTaskForEdit(task)}
-        variant="full"
+    <TaskQuickContextPanel
+      task={displayTask ?? task}
+      onEdit={() => openTaskForEdit(task)}
+      variant="full"
+    >
+      <RichTextContent
+        content={task.content}
+        mentions={task.mentions}
+        onMentionClick={handleContactClick}
       />
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('tasks.taskContent')}
-          iconPlugin="tasks"
-          className="p-6"
-          subtleTitle
-        >
-          {updatedLabel ? (
-            <p className="mb-3 text-xs text-muted-foreground">
-              {t('common.updated')} {updatedLabel}
-            </p>
-          ) : null}
-          <RichTextContent
-            content={task.content}
-            mentions={task.mentions}
-            onMentionClick={handleContactClick}
-          />
-        </DetailSection>
-      </Card>
-    </div>
+    </TaskQuickContextPanel>
   );
 
   return (

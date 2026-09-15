@@ -9,6 +9,224 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - **Why:** Choosing **—** (or emptying free text) for size/audience in the person matrix did not persist — the client omitted the key, and the server’s partial merge kept the old value. Soft-preview also failed to show any size/audience change because hydrate never wrote persons into `garmentLists`.
 - **What:** Send `""` for cleared keys (`ctFieldPatch`); hydrate soft-selected lists via `refreshGarmentList`; optimistic `patchPersonLocal` on size/audience save.
 
+## 2026-09-15 – Docs: detail empty, attachments UI, N/T/R one-card, due chips
+
+**Typ:** Docs  
+**Scope:** `PLUGIN_VIEW_IMPLEMENTATION_GUIDE`, `UI_AND_UX_STANDARDS_V3`, `FILES_PLUGIN`, `REQUESTS_PLUGIN`, `MENTIONS_AND_CROSS_PLUGIN_UI`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Standards/guides aligned to verified UI: `DETAIL_EMPTY_STATE_CLASS`, shared `FileAttachmentsSection` chrome, Notes/Tasks/Requests one-card full QC, Tasks `formatTaskDueDisplay` / `DUE_DATE_*` vs Requests `RESPONSE_DUE_URGENCY_COLORS`, Requests Properties↔Attachments column order.
+
+## 2026-09-15 – Task due display helper + unit tests
+
+**Typ:** Fix / test  
+**Scope:** `formatTaskDueDisplay`, `getTaskDueUrgency` / `getTaskDueDiffDays`, Tasks list/table/QC/provider/public  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Shared due-label helper removes duplicated overdue/today/tomorrow formatting (single short-locale date). Unit tests cover calendar buckets with injectable `nowMs`. Compact DatePicker/select triggers use `h-7` (chip parity). Requests response-due chips stay on `RESPONSE_DUE_URGENCY_COLORS` (not `DUE_DATE_*`).
+
+## 2026-09-14 – Tasks/Requests status, priority & due chip parity
+
+**Typ:** UI  
+**Scope:** `badgeStyles`, Tasks + Requests status/priority selects, due badges, TaskForm  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Tasks status/priority use the same solid chip fills and `BADGE_CHIP_*` / `BADGE_SELECT_TRIGGER_CLASS` as Requests. Tasks due urgency uses shared `DUE_DATE_*` tokens; Requests response-due keeps `RESPONSE_DUE_URGENCY_COLORS`. TaskForm uses the same select/date controls as detail/QC.
+
+## 2026-09-14 – Requests detail: Properties and Attachments swapped
+
+**Typ:** UI  
+**Scope:** `RequestView`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Properties moves to the main (left) column after Submitter; Attachments moves to the right column above Assignee. Same order in view and form.
+
+## 2026-09-14 – Detail card empty states match Contacts linked
+
+**Typ:** UI  
+**Scope:** `DETAIL_EMPTY_STATE_CLASS`, detail cards across Contacts/Files attachments + Teams/Requests/Garments/Matches/Instructions/Clubdesk/Estimates  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Empty messages inside detail cards (e.g. “No contact persons…”, attachments empty) use the same plain muted text as Contacts linked when empty — no bordered/dashed empty boxes. Attachments already share `FileAttachmentsSection` with `DetailSection` + `subtleTitle`.
+
+## 2026-09-14 – Attachments section uses DetailSection subtleTitle
+
+**Typ:** UI  
+**Scope:** `FileAttachmentsSection`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Attachments card header matches Notes/Requests section chrome (`DetailSection` + `subtleTitle` + Paperclip icon) instead of a custom semibold title with properties (`SlidersHorizontal`) icon.
+
+## 2026-09-14 – Requests detail: one card for header + description
+
+**Typ:** UI  
+**Scope:** `RequestView`, `RequestQuickContextPanel`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full request detail merges title/actions and description into a single QuickContext card (`variant="full"` + children), same pattern as Notes/Tasks. Full view badge row shows status + priority + response-due (type stays under the title). Submitter, submitted details, and attachments remain separate cards. List-side QuickContext preview unchanged.
+
+## 2026-09-14 – Tasks full view: status + priority + due badges
+
+**Typ:** UI  
+**Scope:** `TaskQuickContextPanel`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full detail shows priority and due-date badges beside the status badge under the title (same chip language as list cards). Due uses overdue/today/tomorrow styling; hidden when completed or missing.
+
+## 2026-09-14 – Tasks full view: persist status/priority/due immediately
+
+**Typ:** bugfix / UI  
+**Scope:** `TaskView`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full view status, priority, and due date now save immediately via `saveTask` + `buildTaskListQuickFieldsSavePayload` (same as assignee/team). They previously only updated the quick-edit draft, which required the global panel header **Update** button — missing in mail-layout detail.
+
+## 2026-09-14 – Tasks detail: one card for header + content
+
+**Typ:** UI  
+**Scope:** `TaskView`, `TaskQuickContextPanel`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full task detail merges title/actions and body into a single QuickContext card (`variant="full"` + children), same pattern as Notes. Properties, assignees, mentions, and share stay as separate cards. List-side QuickContext preview unchanged.
+
+## 2026-09-14 – Attachments list matches Files list identity row
+
+**Typ:** UI  
+**Scope:** `FileAttachmentsSection`, `FileIdentityCell`, `FileListTable`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Note/entity attachments reuse the same file identity row as the Files list name column (thumb or type icon, bold name, type · size · created meta) via shared `FileIdentityCell`, and the same tile shell/grid as Contacts linked (`bg-muted/40`, `QuickContextLinkTileGrid`). Download/open/remove actions unchanged.
+
+## 2026-09-14 – Notes detail: one card for header + content
+
+**Typ:** UI  
+**Scope:** `NoteView`, `NoteQuickContextPanel`, `NoteDetailHeaderMenus`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full note detail merges title/actions and body into a single QuickContext card (`variant="full"` + children). Focus mode is removed from detail view for now (still available in edit/`NoteForm`). Mentions, files, and share stay as separate cards below. List-side QuickContext preview unchanged. `showTitleInContent` no longer drives a second title in view (title lives in the header).
+
+## 2026-09-14 – Teams detail: tabs in first header card
+
+**Typ:** UI  
+**Scope:** `TeamView`, `TeamQuickContextPanel`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full detail first card is QuickContext (`variant="full"`): title, header actions, identity meta under the title (name, age group, gender, playing format, player count, series-team count, status), and category tabs underneath. The second identity/stats card is removed. Stats placement deferred. List-side QuickContext preview unchanged.
+
+## 2026-09-14 – Teams detail: neutral header, tabs under title
+
+**Typ:** UI  
+**Scope:** `TeamView`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Detail identity card no longer uses the team color gradient. Category tabs (overview, schedule, series teams, responsibles, …) sit under the title in that first card header; stats stay below the tabs on a neutral card. _(Superseded by “tabs in first header card” above.)_
+
+## 2026-09-13 – Price-list edit no longer bounced by index deep-link
+
+**Typ:** bugfix / UI  
+**Scope:** `ClubdeskProvider` deep-link sync, `clubdeskRoutes`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** After preview hydrate, `ensureFullPriceList` is already resolved. Updating `priceLists` re-ran deep-link on `/clubdesk/price-list` (no slug), overwrote the pending item URL, then treated navigate as a fresh view deep-link. Index sync now keeps a pending `/clubdesk/price-list/:slug` and does not open view while already editing that list. Form first paint uses current list items instead of an empty default.
+
+## 2026-09-13 – Soft-preview hydrate price-list items
+
+**Typ:** bugfix / UI  
+**Scope:** `PriceListList`, `ClubdeskProvider.ensureFullPriceList`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Soft-select hydrates via `getPriceList` when `items` missing **or** empty while `itemCount > 0` (index stub / stale empty array). Sync preserves hydrated `items`. Fixes empty items after edit deep-link bounce fix.
+
+## 2026-09-13 – Fix price-list edit bounce from soft preview
+
+**Typ:** bugfix / UI  
+**Scope:** `ClubdeskProvider` deep-link sync  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Edit from mail soft-preview no longer jumps back to view. Navigating to `/clubdesk/price-list/:slug` was re-running deep-link sync → `openPriceListForView`. Edit/create now marks `deepLinkPathSyncedRef` before navigate (same for guides).
+
+## 2026-09-13 – QA rework: Estimates settings, Request highlight, price-list editor
+
+**Typ:** fix / UI  
+**Scope:** `EstimateSettingsView`, `RequestList`/`RequestListTable`, `PriceListForm`/`PriceListItemsEditor`, `priceListItemOps`  
+**QA:** Approved (2026-09-13, rework after B1–B4). **Security:** Approved (2026-09-13). UI-only (`client/` + `docs/`). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Estimates empty settings shell passes required `children` + empty-state copy. Request quick-add highlight combines unopened **or** `recentlyQuickAddedId` (cleared on navigate). Price-list `copyItem` highlight set outside React updater; row `clientKey` (FE-only; stripped in `savePriceList` mapping); remove renumber tests.
+
+**Begränsningar:** Teams list primary column is **name** (raw); richer `formatTeamLabel` still lives on the hidden `age_group` column. Estimates Settings remains reachable as an empty shell. Legacy `user_settings.tableColumns` rows may remain in DB but are ignored. Price-list item descriptions may still store markup; admin view uses `RichTextContent` + DOMPurify (Security residual **Low**).
+
+## 2026-09-13 – Price list items editor like invoices
+
+**Typ:** enhancement / UI  
+**Scope:** `PriceListItemsEditor`, `PriceListForm`, `priceListItemOps`  
+**QA:** Approved (2026-09-13, after rework). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Price list items use a compact invoice-style editor (`RoundIconLabelButton` actions, delete confirm, duplicate highlight). Move up/down disabled at category edges; remove renumbers within categories. Row layout: stacked title/price/category · description · actions.
+
+## 2026-09-13 – Clubdesk price list mail-layout
+
+**Typ:** enhancement / UI  
+**Scope:** `PriceListList`, `PriceListListTable`, `PriceListView`, `PriceListForm`, `ClubdeskList` (guides inline safety), `pluginRegistry`  
+**QA:** Approved (2026-09-13, with consolidating WT + rework). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Clubdesk **Price list** aligned to Contacts/Cups mail split: collapsible toolbar, filter-chips toggle, sort dropdown, desktop preview with stacked Form/View, soft-sky empty aside, `contentOwnsScroll: true`. Guides list keeps classic layout but mounts inline Form/View on desktop when panel open so create/edit still works.
+
+## 2026-09-13 – Cups mail-layout (Contacts reference)
+
+**Typ:** enhancement / UI  
+**Scope:** `CupsList`, `CupListTable`, `CupView`, `CupForm`, `CupDetailHeaderMenus`, `CupsStatisticsView`, `pluginRegistry`  
+**QA:** Approved (2026-09-13, with consolidating WT + rework). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Cups aligned to Contacts **mail split list + detail**: collapsible toolbar, filter-chips toggle, sort dropdown, desktop preview with stacked `CupView`/`CupForm`, soft-sky empty statistics pane, `contentOwnsScroll: true`. Ingest import flows unchanged.
+
+## 2026-09-13 – Cups list meta like other plugins
+
+**Typ:** enhancement / UI  
+**Scope:** `CupListTable`  
+**QA:** Approved (2026-09-13). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Cups list matches other plugins: **Trophy + name**; meta under shows **location · start date · district**. Soft sky table header.
+
+## 2026-09-13 – Files list: thumb + name with type/size meta
+
+**Typ:** enhancement / UI  
+**Scope:** `FileListTable`  
+**QA:** Approved (2026-09-13). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Files list shows **thumbnail/icon + name**; meta under the name is **type · size · created**.
+
+## 2026-09-13 – Estimates list meta like Invoices
+
+**Typ:** enhancement / UI  
+**Scope:** `EstimateListTable`  
+**QA:** Approved (2026-09-13). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Estimates list matches Invoices: **number + status** on the primary row; meta under shows **contact type icon · contact · total**.
+
+## 2026-09-13 – Matches list: matchup + location + time
+
+**Typ:** enhancement / UI  
+**Scope:** `matchTableColumns`, `MatchListTable`  
+**QA:** Approved (2026-09-13). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Matches list uses Contacts/Invoices pattern: **matchup** as the only column; meta under the name shows **linked team · time · venue**.
+
+## 2026-09-13 – Remove table-column settings; name-only list defaults
+
+**Typ:** enhancement / UI  
+**Scope:** All list plugins with `tableColumns` settings + garments person-matrix identity prefs; `*TableColumns` helpers; settings views; docs  
+**QA:** Approved (2026-09-13, after rework). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Removed **Table columns** from plugin settings (and garments identity-column settings). Lists default to the **name/title** column only; legacy `user_settings.tableColumns` / `personMatrixIdentityByList` are ignored. Extra metadata columns will be added per plugin in code later. Teams primary list column is **name** (always visible on mobile). Estimates settings is an empty shell until other categories exist. Garments list settings keep **checkbox** custom columns only.
+
+## 2026-09-13 – Tasks / Requests quick-add like Notes
+
+**Typ:** enhancement / UI  
+**Scope:** `TaskList`, `RequestList` mail toolbar quick-add  
+**QA:** Approved (2026-09-13, after Request highlight rework). **Security:** Approved (2026-09-13). Uses existing authenticated create APIs (no new routes). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Quick task and Quick request sit **left of search** (same as Notes). Domain icons: **CheckSquare** (tasks), **Inbox** (requests). Quick-created rows keep highlight via `recentlyDuplicatedTaskId` / `recentlyQuickAddedId`.
+
 ## 2026-09-13 – Garments list hydrate + Tasks/Notes list UX
 
 **Typ:** fix / enhancement / UI  
@@ -1430,6 +1648,8 @@ Internal notes följer Contacts-mönstret: **vänster identitets-/fakta-stack** 
 **Status:** Implementerat lokalt. **Ej prod-release.**
 
 `RequestForm` (2 kolumner) speglar nu samma kortplacering och chrome som `RequestView` / `TaskForm`: **vänster** = details (titel + beskrivning, `p-6`/`prominentTitle`) + submitter (`subtleTitle`) + Information (vid edit); **main** = properties med `DETAIL_PROP_ROW_CLASS` (type/status/priority/response due/source) → assignees → team → notes → files. Validation = destructive Card. Tidigare låg properties till vänster och submitter i main med `p-4`.
+
+**Superseded 2026-09-14:** Properties moved to the **left** column (after submitter); **Attachments** moved to the **right** (above assignee). See CHANGELOG 2026-09-14 swap entry and `REQUESTS_PLUGIN.md` staff detail layout.
 
 ---
 

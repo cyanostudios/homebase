@@ -97,15 +97,25 @@ export function TeamListTable({
       name: {
         field: 'name',
         header: t('teams.table.name'),
-        className: 'hidden sm:table-cell',
-        cell: (team) => (
-          <span
-            className="block min-w-0 truncate text-xs text-muted-foreground"
-            title={team.name || undefined}
-          >
-            {team.name || '—'}
-          </span>
-        ),
+        cell: (team) => {
+          const label = team.name?.trim() || '—';
+          return (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span title={t('nav.team')} className="inline-flex shrink-0">
+                <SectionCategoryIcon
+                  icon={Users}
+                  className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
+                />
+              </span>
+              <span
+                className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+                title={label !== '—' ? label : undefined}
+              >
+                {label}
+              </span>
+            </div>
+          );
+        },
       },
       gender: {
         field: 'gender',
