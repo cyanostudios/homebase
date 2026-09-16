@@ -4,6 +4,14 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-16 – Garments person matrix: show jersey name, initials, number
+
+**Typ:** enhancement / UI  
+**Scope:** `personMatrixIdentityColumns`, tests, `GARMENTS_PLUGIN.md`  
+**QA:** Pending. **Security:** N/A (client column visibility only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Person-matrix identity defaults again include **jersey name**, **initials**, and **jersey number** alongside **name**. **Team** stays hidden by default. Still code-driven (no settings picker); legacy per-list prefs remain ignored.
+
 ## 2026-09-16 – Collapsed sidebar category flyout + global list toolbar
 
 **Typ:** enhancement / UI  
