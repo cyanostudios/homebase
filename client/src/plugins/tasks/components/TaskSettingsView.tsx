@@ -38,8 +38,6 @@ export type TaskSettingsCategory = 'import';
 interface TaskSettingsViewProps {
   selectedCategory?: TaskSettingsCategory;
   onSelectedCategoryChange?: (category: TaskSettingsCategory) => void;
-  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
 

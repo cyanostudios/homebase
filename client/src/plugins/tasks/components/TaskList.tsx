@@ -802,7 +802,6 @@ export function TaskList() {
           <TaskSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
             onClose={closeTaskSettingsView}
           />
         </div>

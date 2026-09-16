@@ -92,6 +92,14 @@ describe('TaskList table view wiring', () => {
     expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
   });
 
+  test('create/edit form is not legacy panel settings', () => {
+    const formSrc = fs.readFileSync(path.join(__dirname, '../TaskForm.tsx'), 'utf8');
+    expect(formSrc).not.toMatch(/TaskSettingsForm/);
+    expect(formSrc).not.toMatch(/panelMode === 'settings'/);
+    expect(listSrc).toMatch(/TaskSettingsView/);
+    expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
+  });
+
   test('desktop create/edit renders TaskForm in the detail column', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/TaskForm/);

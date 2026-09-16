@@ -58,7 +58,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<ValidationError>();
 
@@ -729,9 +729,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const getPanelSubtitle = useCallback(
     (mode: string, item: Task | null) => {
-      if (mode === 'settings') {
-        return null;
-      }
       if (mode === 'view' && item) {
         const badges = [
           {

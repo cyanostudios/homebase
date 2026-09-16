@@ -7,7 +7,7 @@ import type { Task, TaskShare, ValidationError } from '../types/tasks';
 export interface TaskContextType {
   isTaskPanelOpen: boolean;
   currentTask: Task | null;
-  panelMode: 'create' | 'edit' | 'view' | 'settings';
+  panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   tasks: Task[];
   openTaskPanel: (task: Task | null) => void;

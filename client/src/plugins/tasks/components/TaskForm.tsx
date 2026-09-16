@@ -23,7 +23,6 @@ import { TaskAssignedTeamSelect } from './TaskAssignedTeamSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { TaskDueDatePicker } from './TaskDueDatePicker';
 import { TaskPrioritySelect } from './TaskPrioritySelect';
-import { TaskSettingsForm } from './TaskSettingsForm';
 import { TaskStatusSelect } from './TaskStatusSelect';
 
 const RichTextEditor = React.lazy(() =>
@@ -64,7 +63,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
   ref,
 ) {
   const { t } = useTranslation();
-  const { validationErrors, clearValidationErrors, panelMode } = useTasks();
+  const { validationErrors, clearValidationErrors } = useTasks();
   const enabledPlugins = useEnabledPlugins();
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const {
@@ -212,10 +211,6 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
   };
 
   const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
-
-  if (panelMode === 'settings') {
-    return <TaskSettingsForm onCancel={onCancel} />;
-  }
 
   const formLeftSidebar = (
     <div className="space-y-4">
