@@ -26,7 +26,11 @@ import { DatePicker } from '@/core/ui/DatePicker';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_FIELD_LABEL_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_FIELD_LABEL_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import {
   FORM_COMPACT_INPUT_CLASS,
   FORM_COMPACT_SELECT_CLASS,
@@ -46,10 +50,12 @@ interface EstimateFormProps {
   currentEstimate?: Estimate;
   onSave: (data: any) => Promise<{ success: boolean; message?: string }>;
   onCancel: () => void;
+  /** Single-column layout for mail detail column. */
+  stacked?: boolean;
 }
 
 export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>(
-  function EstimateForm({ currentEstimate, onSave, onCancel }, ref) {
+  function EstimateForm({ currentEstimate, onSave, onCancel, stacked = false }, ref) {
     const { t } = useTranslation();
     const { validationErrors, clearValidationErrors } = useEstimates();
     const { contacts } = useApp(); // Cross-plugin data access
@@ -348,7 +354,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
     return (
       <>
         <div className="plugin-estimates">
-          <DetailLayout sidebar={formSidebar}>
+          <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
             <form
               className="space-y-6"
               onSubmit={(e) => {
@@ -402,7 +408,12 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                   subtleTitle
                   className="p-6"
                 >
-                  <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+                  <div
+                    className={cn(
+                      'space-y-3',
+                      !stacked && 'md:space-y-0 md:grid md:grid-cols-2 md:gap-3',
+                    )}
+                  >
                     <div>
                       <Label htmlFor="estimate-contact" className={DETAIL_FIELD_LABEL_CLASS}>
                         {t('estimates.fieldContact')}
@@ -506,7 +517,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                   </div>
 
                   {formData.lineItems.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No line items added yet.</p>
+                    <p className={DETAIL_EMPTY_STATE_CLASS}>No line items added yet.</p>
                   ) : (
                     <div className="space-y-3">
                       {formData.lineItems.map((item, index) => (

@@ -9,7 +9,14 @@ import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { useClubdesk } from '../hooks/useClubdesk';
 import type { ClubdeskPriceList } from '../types/priceList';
 
-export function PriceListDetailHeaderMenus({ priceList }: { priceList: ClubdeskPriceList }) {
+export function PriceListDetailHeaderMenus({
+  priceList,
+  leading,
+}: {
+  priceList: ClubdeskPriceList;
+  /** Optional leading content on the Actions trigger row (e.g. price list title). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openPriceListForEdit,
@@ -61,7 +68,7 @@ export function PriceListDetailHeaderMenus({ priceList }: { priceList: ClubdeskP
   }, [canDuplicate, openPriceListForEdit, priceList, t]);
 
   return (
-    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')}>
+    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')} leading={leading}>
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title={t('dialog.deleteItem', { label: t('nav.clubdesk-price-list') })}

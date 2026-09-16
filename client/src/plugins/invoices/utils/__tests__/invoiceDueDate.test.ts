@@ -4,7 +4,6 @@ import {
   parsePaymentTermsDays,
 } from '../invoiceDueDate';
 import { compareInvoicesByField } from '../invoiceListSort';
-import { resolveInvoiceColumnCount } from '../invoiceColumnCount';
 
 describe('parsePaymentTermsDays', () => {
   it('parses contact-style day counts', () => {
@@ -82,13 +81,5 @@ describe('compareInvoicesByField', () => {
     const a = { total: 100 } as any;
     const b = { total: 200 } as any;
     expect(compareInvoicesByField(a, b, 'total', 'desc')).toBeGreaterThan(0);
-  });
-});
-
-describe('resolveInvoiceColumnCount', () => {
-  it('reads columnCount and migrates legacy viewMode', () => {
-    expect(resolveInvoiceColumnCount({ columnCount: 2 })).toBe(2);
-    expect(resolveInvoiceColumnCount({ viewMode: 'grid' })).toBe(3);
-    expect(resolveInvoiceColumnCount({})).toBe(1);
   });
 });

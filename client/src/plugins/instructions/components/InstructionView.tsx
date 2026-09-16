@@ -7,7 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_NOTE_CALLOUT_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_NOTE_CALLOUT_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { cn } from '@/lib/utils';
 
@@ -93,10 +97,11 @@ export const InstructionView: React.FC<InstructionViewProps> = ({ instruction, i
             title={t('instructions.stepsCard')}
             icon={ListOrdered}
             iconPlugin="instructions"
+            subtleTitle
             className="p-6"
           >
             {steps.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('instructions.noStepsYet')}</p>
+              <p className={DETAIL_EMPTY_STATE_CLASS}>{t('instructions.noStepsYet')}</p>
             ) : (
               <ol className="space-y-3">
                 {steps.map((step, index) => (

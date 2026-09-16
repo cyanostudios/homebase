@@ -2,10 +2,13 @@ import {
   CheckSquare,
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
   Building2,
+  ChevronDown,
   Clock,
   LayoutGrid,
   Mail,
+  Menu,
   MessageSquare,
   Trash2,
   FileSpreadsheet,
@@ -17,33 +20,34 @@ import {
   UserCheck,
   XCircle,
 } from 'lucide-react';
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
 import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import {
+  DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
@@ -51,18 +55,16 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
+import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
-import {
-  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
-  PLUGIN_PAGE_LIST_SHELL_CLASS,
-  PLUGIN_PAGE_SECTION_GAP_CLASS,
-  PLUGIN_PAGE_TITLE_CLASS,
-  PLUGIN_PAGE_TITLE_ROW_CLASS,
-} from '@/core/ui/pluginPageStyles';
+import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
+import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -71,13 +73,7 @@ import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
-import {
-  CONTACTS_COLUMN_COUNT_STORAGE_KEY,
-  CONTACTS_SETTINGS_KEY,
-  getInitialContactColumnCount,
-  resolveContactColumnCount,
-  type ContactColumnCount,
-} from '../utils/contactColumnCount';
+import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
 import { contactExportConfig } from '../utils/contactExportConfig';
 import {
   contactMatchesListFilters,
@@ -92,25 +88,22 @@ import {
   type ContactSortOrder,
 } from '../utils/contactListSort';
 import {
-  getInitialContactListViewMode,
-  persistContactListViewModeSession,
-  resolveContactListViewMode,
-  type ContactListViewMode,
-} from '../utils/contactListViewMode';
-import {
   resolveVisibleContactTableColumns,
   type ContactTableColumnId,
 } from '../utils/contactTableColumns';
 
 import { ContactBulkAssignableDialog } from './ContactBulkAssignableDialog';
 import { ContactBulkTagsDialog } from './ContactBulkTagsDialog';
-import { ContactListItem } from './ContactListItem';
+import { ContactForm } from './ContactForm';
 import { ContactListTable } from './ContactListTable';
-import { ContactQuickContextPanel } from './ContactQuickContextPanel';
 import { ContactSettingsView, type ContactSettingsCategory } from './ContactSettingsView';
+import { ContactsStatisticsView } from './ContactsStatisticsView';
+import { ContactView } from './ContactView';
 
 type SortField = ContactSortField;
 type SortOrder = ContactSortOrder;
+
+const CONTACTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.contacts.toolbar.filtersVisible';
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'name', labelKey: 'contacts.table.name' },
@@ -134,7 +127,6 @@ export const ContactList: React.FC = () => {
     contactsContentView,
     openContactForView,
     openContactPanel,
-    openContactForEdit,
     openContactSettings,
     closeContactSettingsView,
     deleteContacts,
@@ -151,8 +143,14 @@ export const ContactList: React.FC = () => {
     recentlyDuplicatedContactId,
     contactIdsWithTimeEntries,
     setBrowseOrderIds,
+    isContactPanelOpen,
+    panelMode,
+    currentContact,
+    saveContact,
+    closeContactPanel,
+    validationErrors,
   } = useContacts();
-  const { getSettings, updateSettings, settingsVersion, user } = useApp();
+  const { getSettings, settingsVersion, user } = useApp();
   const activeTimeTrackingContactId = useOptionalActiveTimeTrackingContactId();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
@@ -162,6 +160,7 @@ export const ContactList: React.FC = () => {
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
+  const showDesktopSplit = !isCompactViewport;
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
   const canSendEmail =
@@ -184,12 +183,6 @@ export const ContactList: React.FC = () => {
 
   const [primarySort, setPrimarySort] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<ContactColumnCount>(
-    getInitialContactColumnCount,
-  );
-  const [listViewMode, setListViewModeState] = useState<ContactListViewMode>(
-    getInitialContactListViewMode,
-  );
   const [visibleColumnIds, setVisibleColumnIds] = useState<ContactTableColumnId[]>(() =>
     resolveVisibleContactTableColumns(null),
   );
@@ -197,7 +190,60 @@ export const ContactList: React.FC = () => {
   const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('tags');
   const [selectionMode, setSelectionMode] = useState(false);
   const [previewContact, setPreviewContact] = useState<Contact | null>(null);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
+  const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
+    CONTACTS_FILTERS_VISIBLE_STORAGE_KEY,
+  );
   const restoredPendingContactRef = useRef(false);
+  const pageShellRef = useRef<HTMLDivElement>(null);
+  const inlineFormRef = useRef<PanelFormHandle | null>(null);
+  const [toolbarToggleBox, setToolbarToggleBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const inlineForm =
+    showDesktopSplit && isContactPanelOpen && (panelMode === 'create' || panelMode === 'edit');
+  const inlinePanelView =
+    showDesktopSplit && isContactPanelOpen && panelMode === 'view' && currentContact != null;
+  const detailContact = inlinePanelView ? currentContact : previewContact;
+  const activeListContactId =
+    (inlineForm || inlinePanelView) && currentContact != null
+      ? currentContact.id
+      : (previewContact?.id ?? null);
+
+  const updateToolbarToggleBox = useCallback(() => {
+    const el = pageShellRef.current;
+    if (!el) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const sidebarToggle = document.querySelector<HTMLElement>('[aria-controls="left-sidebar-nav"]');
+    const sidebarTop = sidebarToggle?.getBoundingClientRect().top;
+    setToolbarToggleBox({
+      top: typeof sidebarTop === 'number' ? sidebarTop : rect.top + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    updateToolbarToggleBox();
+    window.addEventListener('resize', updateToolbarToggleBox);
+    const scrollParent = pageShellRef.current?.closest('.overflow-y-auto, .overflow-auto');
+    scrollParent?.addEventListener('scroll', updateToolbarToggleBox, { passive: true });
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateToolbarToggleBox) : null;
+    if (pageShellRef.current && ro) {
+      ro.observe(pageShellRef.current);
+    }
+    return () => {
+      window.removeEventListener('resize', updateToolbarToggleBox);
+      scrollParent?.removeEventListener('scroll', updateToolbarToggleBox);
+      ro?.disconnect();
+    };
+  }, [updateToolbarToggleBox]);
 
   useEffect(() => {
     if (restoredPendingContactRef.current || !pendingQuickContextContactId) {
@@ -226,14 +272,6 @@ export const ContactList: React.FC = () => {
             )
           : [];
         setAvailableTags(tags);
-        const next = resolveContactColumnCount(settings);
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        const nextView = resolveContactListViewMode(settings);
-        setListViewModeState(nextView);
-        persistContactListViewModeSession(nextView);
         setVisibleColumnIds(resolveVisibleContactTableColumns(settings));
       })
       .catch(() => {});
@@ -242,43 +280,9 @@ export const ContactList: React.FC = () => {
     };
   }, [getSettings, settingsVersion]);
 
-  const setColumnCount = useCallback(
-    (count: ContactColumnCount) => {
-      setColumnCountState(count);
-      setListViewModeState('cards');
-      persistContactListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY, String(count));
-      }
-      updateSettings(CONTACTS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
-
-  const setListViewMode = useCallback(
-    (mode: ContactListViewMode) => {
-      setListViewModeState(mode);
-      persistContactListViewModeSession(mode);
-      updateSettings(CONTACTS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
-
-  const showQuickContext = Boolean(previewContact) && !isCompactViewport;
-  const quickContextOpen = Boolean(showQuickContext && previewContact);
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
-
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
     setSortOrder(isContactAscDefaultField(field) ? 'asc' : 'desc');
-  };
-
-  const toggleSortOrder = () => {
-    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
 
   const handleTableSort = useCallback(
@@ -345,6 +349,16 @@ export const ContactList: React.FC = () => {
     }
   }, [contacts, previewContact]);
 
+  // Keep preview in sync when opening edit/view from the detail column actions.
+  useEffect(() => {
+    if (!showDesktopSplit || !isContactPanelOpen) {
+      return;
+    }
+    if ((panelMode === 'edit' || panelMode === 'view') && currentContact) {
+      setPreviewContact(currentContact);
+    }
+  }, [showDesktopSplit, isContactPanelOpen, panelMode, currentContact]);
+
   const visibleContactIds = useMemo(
     () => sortedContacts.map((contact) => String(contact.id)),
     [sortedContacts],
@@ -390,14 +404,14 @@ export const ContactList: React.FC = () => {
     try {
       await deleteContacts(selectedContactIds);
       setShowBulkDeleteModal(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Bulk delete failed:', err);
     } finally {
       setDeleting(false);
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     if (selectedContactIds.length === 0) {
       alert('Please select contacts to export');
       return;
@@ -413,9 +427,9 @@ export const ContactList: React.FC = () => {
       filename,
       title: 'Contacts Export',
     });
-  };
+  }, [contacts, selectedContactIds]);
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = useCallback(async () => {
     if (selectedContactIds.length === 0) {
       alert('Please select contacts to export');
       return;
@@ -437,7 +451,7 @@ export const ContactList: React.FC = () => {
         alert('Export failed. Please try again.');
       });
     }
-  };
+  }, [contacts, selectedContactIds]);
 
   const handleOpenForView = (contact: Contact) => {
     // Remember the contact so closing the full profile restores its quick context card.
@@ -454,10 +468,44 @@ export const ContactList: React.FC = () => {
       toggleContactSelected(String(contact.id));
       return;
     }
+    if (
+      isContactPanelOpen &&
+      (panelMode === 'create' || panelMode === 'edit' || panelMode === 'view')
+    ) {
+      attemptNavigation(() => {
+        closeContactPanel();
+        setPreviewContact(contact);
+      });
+      return;
+    }
     setPreviewContact((current) =>
       current && String(current.id) === String(contact.id) ? null : contact,
     );
   };
+
+  const handleInlineFormSave = useCallback(async () => {
+    await inlineFormRef.current?.submit();
+  }, []);
+
+  const handleInlineFormClose = useCallback(() => {
+    if (inlineFormRef.current) {
+      inlineFormRef.current.cancel();
+      return;
+    }
+    closeContactPanel();
+  }, [closeContactPanel]);
+
+  const handleInlineFormOnSave = useCallback(
+    async (data: any) => {
+      const ok = await saveContact(data);
+      return ok;
+    },
+    [saveContact],
+  );
+
+  const inlineFormHasBlockingErrors = validationErrors.some(
+    (e) => !String(e?.message || '').includes('Warning'),
+  );
 
   const bulkMessageRecipients = useMemo(
     () =>
@@ -506,6 +554,157 @@ export const ContactList: React.FC = () => {
   const toggleFilter = (filter: ContactListFilter) => {
     setActiveFilters((prev) => toggleContactListFilter(prev, filter));
   };
+
+  const headerDropdownTriggerClass =
+    'gap-1.5 border-0 bg-primary/10 px-3.5 text-sm font-extrabold text-primary shadow-none hover:bg-primary hover:text-primary-foreground';
+
+  const headerDropdownTriggerDangerClass =
+    'gap-1.5 border-0 bg-red-600/10 px-3.5 text-sm font-extrabold text-red-700 shadow-none hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white';
+
+  const renderFilterChips = () => {
+    const chips: Array<{
+      key: string;
+      active: boolean;
+      icon: typeof LayoutGrid;
+      label: string;
+      count: number;
+      onClick: () => void;
+    }> = [
+      {
+        key: 'all',
+        active: activeFilters.length === 0,
+        icon: LayoutGrid,
+        label: t('contacts.stats.total'),
+        count: stats.total,
+        onClick: () => setActiveFilters([]),
+      },
+      {
+        key: 'company',
+        active: isFilterActive('company'),
+        icon: Building2,
+        label: t('contacts.stats.companies'),
+        count: stats.companies,
+        onClick: () => toggleFilter('company'),
+      },
+      {
+        key: 'private',
+        active: isFilterActive('private'),
+        icon: User,
+        label: t('contacts.stats.private'),
+        count: stats.private,
+        onClick: () => toggleFilter('private'),
+      },
+      {
+        key: 'withTags',
+        active: isFilterActive('withTags'),
+        icon: Tag,
+        label: t('contacts.stats.withTags'),
+        count: stats.withTags,
+        onClick: () => toggleFilter('withTags'),
+      },
+      {
+        key: 'timeLogged',
+        active: isFilterActive('timeLogged'),
+        icon: Clock,
+        label: t('contacts.stats.timeLogged'),
+        count: stats.timeLogged,
+        onClick: () => toggleFilter('timeLogged'),
+      },
+    ];
+
+    return (
+      <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+        {chips.map((chip) => {
+          const Icon = chip.icon;
+          return (
+            <Button
+              key={chip.key}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={chip.onClick}
+              className={cn(chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span>
+                {chip.label} <span className="tabular-nums font-semibold">({chip.count})</span>
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const primarySortLabel =
+    SORT_FIELD_OPTIONS.find((option) => option.value === primarySort)?.labelKey ??
+    SORT_FIELD_OPTIONS[0].labelKey;
+
+  const renderSortDropdown = (triggerClassName: string) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('contacts.sort')}
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          <span>{t('contacts.sort')}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[14rem] rounded-xl border-border/50 shadow-xl"
+      >
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {t(primarySortLabel)}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={primarySort}
+          onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+        >
+          {SORT_FIELD_OPTIONS.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              className="rounded-md text-xs"
+              onSelect={(event) => event.preventDefault()}
+            >
+              {t(option.labelKey)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {sortOrder === 'asc' ? t('contacts.sortAsc') : t('contacts.sortDesc')}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={sortOrder}
+          onValueChange={(value) => setSortOrder(value as SortOrder)}
+        >
+          <DropdownMenuRadioItem
+            value="asc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowUp className="mr-2 h-3.5 w-3.5" />
+            {t('contacts.sortAsc')}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="desc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowDown className="mr-2 h-3.5 w-3.5" />
+            {t('contacts.sortDesc')}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
     const disabled = selectedCount === 0;
@@ -572,6 +771,54 @@ export const ContactList: React.FC = () => {
     return actions;
   }, [selectedCount, canSendMessages, canSendEmail, t, handleExportCSV, handleExportPDF]);
 
+  const renderBulkActionBar = (className?: string) =>
+    selectionMode ? (
+      <BulkActionRoundBar
+        selectedCount={selectedCount}
+        actions={bulkRoundActions}
+        size="xs"
+        className={cn('gap-1.5', className)}
+      />
+    ) : null;
+
+  const renderSelectControls = (triggerClassName: string) => {
+    if (sortedContacts.length === 0) {
+      return null;
+    }
+
+    if (!selectionMode) {
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('common.select')}
+          aria-pressed={false}
+          onClick={handleEnterSelectionMode}
+        >
+          <CheckSquare className="h-3.5 w-3.5" />
+          <span>{t('common.select')}</span>
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn(headerDropdownTriggerDangerClass, triggerClassName)}
+        aria-label={t('common.clear')}
+        aria-pressed={true}
+        onClick={handleExitSelectionMode}
+      >
+        <XCircle className="h-3.5 w-3.5" />
+        <span>{t('common.clear')}</span>
+      </Button>
+    );
+  };
+
   if (contactsContentView === 'settings') {
     return (
       <div className="plugin-contacts min-h-full bg-background">
@@ -587,347 +834,274 @@ export const ContactList: React.FC = () => {
     );
   }
 
-  return (
-    <div className={cn('plugin-contacts', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
-      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
-        <div className="hidden md:block">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex min-w-0 flex-1 flex-col gap-5">
-              <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
-                <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.contacts')}</h2>
-                <ExpandableIconButton
-                  icon={Settings}
-                  label={t('contacts.settings')}
-                  variant="soft"
-                  onClick={() => openContactSettings()}
-                />
-                {sortedContacts.length > 0 ? (
-                  selectionMode ? (
-                    <ExpandableIconButton
-                      icon={XCircle}
-                      label={t('common.clear')}
-                      variant="danger"
-                      alwaysExpanded
-                      onClick={handleExitSelectionMode}
-                    />
-                  ) : (
-                    <ExpandableIconButton
-                      icon={CheckSquare}
-                      label={t('common.select')}
-                      variant="soft"
-                      alwaysExpanded
-                      onClick={handleEnterSelectionMode}
-                    />
-                  )
-                ) : null}
-              </div>
-              {selectionMode ? (
-                <BulkActionRoundBar
-                  selectedCount={selectedCount}
-                  actions={bulkRoundActions}
-                  className="gap-2"
-                />
-              ) : null}
-            </div>
-            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
-              <RoundExpandableSearch
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('contacts.searchPlaceholder', { count: contacts.length })}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) => t(`contacts.columns${count}`)}
-                tableAriaLabel={t('common.tableView')}
-              />
-              <ExpandableIconButton
-                icon={Plus}
-                label={t('contacts.addContact')}
-                variant="soft"
-                alwaysExpanded
-                onClick={() => attemptNavigation(() => openContactPanel(null))}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
-          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveFilters([])}
-              className={cn(
-                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>
-                {t('contacts.stats.total')}{' '}
-                <span className="tabular-nums font-semibold">({stats.total})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('company')}
-              className={cn(
-                isFilterActive('company') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <Building2 className="h-3.5 w-3.5" />
-              <span>
-                {t('contacts.stats.companies')}{' '}
-                <span className="tabular-nums font-semibold">({stats.companies})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('private')}
-              className={cn(
-                isFilterActive('private') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <User className="h-3.5 w-3.5" />
-              <span>
-                {t('contacts.stats.private')}{' '}
-                <span className="tabular-nums font-semibold">({stats.private})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('withTags')}
-              className={cn(
-                isFilterActive('withTags') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <Tag className="h-3.5 w-3.5" />
-              <span>
-                {t('contacts.stats.withTags')}{' '}
-                <span className="tabular-nums font-semibold">({stats.withTags})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('timeLogged')}
-              className={cn(
-                isFilterActive('timeLogged')
-                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
-                  : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <Clock className="h-3.5 w-3.5" />
-              <span>
-                {t('contacts.stats.timeLogged')}{' '}
-                <span className="tabular-nums font-semibold">({stats.timeLogged})</span>
-              </span>
-            </Button>
-          </div>
-          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-            <Select
-              value={primarySort}
-              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-            >
-              <SelectTrigger
-                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                aria-label="Sort by"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="item-aligned"
-                className="rounded-xl border-border/50 shadow-xl"
-              >
-                {SORT_FIELD_OPTIONS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="rounded-md text-xs"
-                  >
-                    {t(option.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 px-0 text-xs"
-              onClick={toggleSortOrder}
-              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-            >
-              {sortOrder === 'asc' ? (
-                <ArrowUp className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowDown className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        <BulkMessageDialog
-          isOpen={showBulkMessageDialog}
-          onClose={() => setShowBulkMessageDialog(false)}
-          recipients={bulkMessageRecipients}
-          pluginSource="contacts"
-        />
-        <BulkEmailDialog
-          isOpen={showBulkEmailDialog}
-          onClose={() => setShowBulkEmailDialog(false)}
-          recipients={bulkEmailRecipients}
-          pluginSource="contacts"
-        />
-
-        <BulkDeleteModal
-          isOpen={showBulkDeleteModal}
-          onClose={() => setShowBulkDeleteModal(false)}
-          onConfirm={handleBulkDelete}
-          itemCount={selectedCount}
-          itemLabel="contacts"
-          isLoading={deleting}
-        />
-
-        <ContactBulkTagsDialog
-          isOpen={showBulkTagsDialog}
-          onClose={() => setShowBulkTagsDialog(false)}
-          selectedContacts={selectedContacts}
-          availableTags={availableTags}
-          applyTagToContact={applyTagToContact}
-          clearTagsFromContact={clearTagsFromContact}
-          onSuccess={clearContactSelection}
-        />
-
-        <ContactBulkAssignableDialog
-          isOpen={showBulkAssignableDialog}
-          onClose={() => setShowBulkAssignableDialog(false)}
-          selectedContacts={selectedContacts}
-          setContactAssignable={setContactAssignable}
-          onSuccess={clearContactSelection}
-        />
-
-        <div className="flex flex-col gap-3">
+  const toolbarEdgeToggle =
+    typeof document !== 'undefined' && toolbarToggleBox
+      ? createPortal(
           <div
-            className={cn(
-              'grid items-start gap-4',
-              showQuickContext && previewContact ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
-            )}
+            className="pointer-events-none fixed z-40 hidden justify-center md:flex"
+            style={{
+              top: toolbarToggleBox.top,
+              left: toolbarToggleBox.left,
+              width: toolbarToggleBox.width,
+            }}
           >
-            {showQuickContext && previewContact ? (
-              <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
-                <ContactQuickContextPanel
-                  contact={previewContact}
-                  availableTags={availableTags}
-                  selectionMode={selectionMode}
-                  onClose={() => setPreviewContact(null)}
-                  onOpenFullProfile={() => handleOpenForView(previewContact)}
-                  onEdit={() => {
-                    pendingQuickContextContactId = String(previewContact.id);
-                    attemptNavigation(() => openContactForEdit(previewContact));
-                  }}
-                />
-              </aside>
-            ) : null}
-            <div className="flex min-w-0 flex-col gap-3">
-              {sortedContacts.length === 0 ? (
-                <ListEmptyState
-                  message={searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}
-                  createLabel={!searchTerm ? t('contacts.addContact') : undefined}
-                  onCreate={
-                    !searchTerm ? () => attemptNavigation(() => openContactPanel(null)) : undefined
-                  }
-                />
-              ) : isTableView ? (
-                <ContactListTable
-                  contacts={sortedContacts}
-                  primarySort={primarySort}
-                  sortOrder={sortOrder}
-                  onSort={handleTableSort}
-                  isSelected={isSelected}
-                  onRowClick={handleRowActivate}
-                  onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                  onCheckboxChange={onVisibleRowCheckboxChange}
-                  allVisibleSelected={allVisibleSelected}
-                  onHeaderCheckboxChange={handleHeaderCheckboxChange}
-                  selectionEnabled={selectionMode}
-                  activeTimeTrackingContactId={activeTimeTrackingContactId}
-                  contactIdsWithTimeEntries={contactIdsWithTimeEntries}
-                  recentlyDuplicatedContactId={recentlyDuplicatedContactId}
-                  activeContactId={previewContact?.id ?? null}
-                  visibleColumnIds={visibleColumnIds}
-                />
-              ) : (
+            <div className="pointer-events-auto">
+              <RoundIconLabelButton
+                icon={Menu}
+                label={
+                  toolbarCollapsed ? t('contacts.expandToolbar') : t('contacts.collapseToolbar')
+                }
+                variant={toolbarCollapsed ? 'primary' : 'secondary'}
+                size="xs"
+                expandOnHover={false}
+                className={
+                  toolbarCollapsed
+                    ? undefined
+                    : 'bg-white text-primary shadow-sm hover:bg-primary hover:text-primary-foreground dark:bg-white dark:text-primary dark:hover:bg-primary dark:hover:text-primary-foreground'
+                }
+                aria-expanded={!toolbarCollapsed}
+                aria-controls="contacts-mail-toolbar"
+                onClick={toggleToolbarCollapsed}
+              />
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <>
+      {toolbarEdgeToggle}
+      <div
+        ref={pageShellRef}
+        className={cn(
+          'plugin-contacts flex min-h-0 flex-1 flex-col',
+          PLUGIN_PAGE_LIST_SHELL_CLASS,
+          showDesktopSplit
+            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+            : 'overflow-y-auto md:pt-3',
+        )}
+      >
+        <div
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 flex-col',
+            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+          )}
+        >
+          <div className="relative hidden shrink-0 md:block">
+            <div
+              className={cn(
+                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
+              )}
+              aria-hidden={toolbarCollapsed}
+            >
+              <div className="min-h-0 overflow-hidden">
                 <div
+                  id="contacts-mail-toolbar"
                   className={cn(
-                    'grid gap-3',
-                    effectiveColumnCount === 1 && 'grid-cols-1',
-                    effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                    effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                    'flex flex-wrap items-center justify-between gap-3',
+                    toolbarCollapsed && 'pointer-events-none',
                   )}
                 >
-                  {sortedContacts.map((contact, index) => {
-                    const contactIsSelected = isSelected(contact.id);
-                    const timeTrackingActive =
-                      activeTimeTrackingContactId !== null &&
-                      String(contact.id) === activeTimeTrackingContactId;
-                    const hasTimeLogged =
-                      contactIdsWithTimeEntries.has(contact.id) ||
-                      contactIdsWithTimeEntries.has(String(contact.id));
-                    return (
-                      <ContactListItem
-                        key={contact.id}
-                        contact={contact}
-                        selected={contactIsSelected}
-                        highlighted={recentlyDuplicatedContactId === String(contact.id)}
-                        active={
-                          previewContact != null && String(previewContact.id) === String(contact.id)
-                        }
-                        onClick={() => handleRowActivate(contact)}
-                        hasTimeLogged={hasTimeLogged}
-                        timeTrackingActive={timeTrackingActive}
-                        columnCount={effectiveCardColumnCount}
-                        checkbox={
-                          selectionMode ? (
-                            <input
-                              type="checkbox"
-                              checked={contactIsSelected}
-                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                              onChange={() => onVisibleRowCheckboxChange(contact.id)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="h-4 w-4 cursor-pointer"
-                              aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
-                            />
-                          ) : undefined
-                        }
-                      />
-                    );
-                  })}
+                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.contacts')}</h2>
+                    <ExpandableIconButton
+                      icon={Settings}
+                      label={t('contacts.settings')}
+                      variant="soft"
+                      onClick={() => openContactSettings()}
+                    />
+                    {renderSortDropdown('h-11 rounded-full')}
+                    <ListFilterChipsToggle
+                      visible={filtersVisible}
+                      onVisibleChange={setFiltersVisible}
+                      className="h-11 rounded-full"
+                    />
+                    {renderSelectControls('h-11 rounded-full')}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <RoundExpandableSearch
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                      placeholder={t('contacts.searchPlaceholder', { count: contacts.length })}
+                    />
+                    <ExpandableIconButton
+                      icon={Plus}
+                      label={t('contacts.addContact')}
+                      variant="soft"
+                      onClick={() => attemptNavigation(() => openContactPanel(null))}
+                    />
+                  </div>
                 </div>
-              )}
-
-              <ListFooterBar
-                meta={
-                  <>
-                    Showing {sortedContacts.length} of {contacts.length} Contacts
-                  </>
-                }
-              />
+                {filtersVisible ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {renderFilterChips()}
+                  </div>
+                ) : null}
+                {renderBulkActionBar('py-3')}
+              </div>
             </div>
+          </div>
+
+          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+            {filtersVisible ? renderFilterChips() : null}
+            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+              <ListFilterChipsToggle
+                visible={filtersVisible}
+                onVisibleChange={setFiltersVisible}
+                className="h-7 rounded-md"
+              />
+              {renderSortDropdown('h-7 rounded-md')}
+            </div>
+          </div>
+
+          {selectionMode ? (
+            <div className="shrink-0 py-3 md:hidden">{renderBulkActionBar()}</div>
+          ) : null}
+
+          <BulkMessageDialog
+            isOpen={showBulkMessageDialog}
+            onClose={() => setShowBulkMessageDialog(false)}
+            recipients={bulkMessageRecipients}
+            pluginSource="contacts"
+          />
+          <BulkEmailDialog
+            isOpen={showBulkEmailDialog}
+            onClose={() => setShowBulkEmailDialog(false)}
+            recipients={bulkEmailRecipients}
+            pluginSource="contacts"
+          />
+
+          <BulkDeleteModal
+            isOpen={showBulkDeleteModal}
+            onClose={() => setShowBulkDeleteModal(false)}
+            onConfirm={handleBulkDelete}
+            itemCount={selectedCount}
+            itemLabel="contacts"
+            isLoading={deleting}
+          />
+
+          <ContactBulkTagsDialog
+            isOpen={showBulkTagsDialog}
+            onClose={() => setShowBulkTagsDialog(false)}
+            selectedContacts={selectedContacts}
+            availableTags={availableTags}
+            applyTagToContact={applyTagToContact}
+            clearTagsFromContact={clearTagsFromContact}
+            onSuccess={clearContactSelection}
+          />
+
+          <ContactBulkAssignableDialog
+            isOpen={showBulkAssignableDialog}
+            onClose={() => setShowBulkAssignableDialog(false)}
+            selectedContacts={selectedContacts}
+            setContactAssignable={setContactAssignable}
+            onSuccess={clearContactSelection}
+          />
+
+          <div
+            className={cn(
+              'grid min-h-0 min-w-0 gap-2',
+              showDesktopSplit
+                ? 'flex-1 grid-cols-[minmax(220px,20%)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-stretch'
+                : 'grid-cols-1 items-start',
+            )}
+          >
+            <div
+              className={cn(
+                'min-w-0',
+                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+              )}
+            >
+              <div className="flex min-w-0 flex-col gap-3">
+                {sortedContacts.length === 0 ? (
+                  <ListEmptyState
+                    message={searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}
+                    createLabel={!searchTerm ? t('contacts.addContact') : undefined}
+                    onCreate={
+                      !searchTerm
+                        ? () => attemptNavigation(() => openContactPanel(null))
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <ContactListTable
+                    contacts={sortedContacts}
+                    primarySort={primarySort}
+                    sortOrder={sortOrder}
+                    onSort={handleTableSort}
+                    isSelected={isSelected}
+                    onRowClick={handleRowActivate}
+                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                    onCheckboxChange={onVisibleRowCheckboxChange}
+                    allVisibleSelected={allVisibleSelected}
+                    onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                    selectionEnabled={selectionMode}
+                    activeTimeTrackingContactId={activeTimeTrackingContactId}
+                    contactIdsWithTimeEntries={contactIdsWithTimeEntries}
+                    recentlyDuplicatedContactId={recentlyDuplicatedContactId}
+                    activeContactId={activeListContactId}
+                    visibleColumnIds={visibleColumnIds}
+                  />
+                )}
+
+                <ListFooterBar
+                  meta={
+                    <>
+                      Showing {sortedContacts.length} of {contacts.length} Contacts
+                    </>
+                  }
+                />
+              </div>
+            </div>
+
+            {showDesktopSplit ? (
+              <aside
+                className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain"
+                role="region"
+                aria-label={t('contacts.quickContext.title')}
+                aria-live="polite"
+              >
+                {inlineForm ? (
+                  <div className="flex min-h-0 flex-col gap-3">
+                    <div className="flex shrink-0 justify-end">
+                      <InlinePanelFormActions
+                        mode={panelMode === 'edit' ? 'edit' : 'create'}
+                        hasBlockingErrors={inlineFormHasBlockingErrors}
+                        onClose={handleInlineFormClose}
+                        onSave={() => {
+                          void handleInlineFormSave();
+                        }}
+                        t={t}
+                      />
+                    </div>
+                    <ContactForm
+                      ref={inlineFormRef}
+                      currentContact={currentContact}
+                      onSave={handleInlineFormOnSave}
+                      onCancel={closeContactPanel}
+                      stacked
+                    />
+                  </div>
+                ) : detailContact ? (
+                  <ContactView contact={detailContact} stacked />
+                ) : (
+                  <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
+                    <ContactsStatisticsView />
+                  </Card>
+                )}
+              </aside>
+            ) : null}
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

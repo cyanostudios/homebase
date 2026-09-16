@@ -49,7 +49,10 @@ export function GuideListTable({
         field: 'displayName',
         header: t('guides.colName'),
         cell: (guide) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
+          <span
+            className="block min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+            title={guide.displayName}
+          >
             {guide.displayName}
           </span>
         ),

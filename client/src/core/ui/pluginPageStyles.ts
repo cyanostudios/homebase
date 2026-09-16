@@ -26,12 +26,6 @@ export const PLUGIN_PAGE_TITLE_ROW_CLASS = 'flex min-w-0 flex-1 flex-wrap items-
 /** Trailing header actions (search, add, edit, close). */
 export const PLUGIN_PAGE_HEADER_ACTIONS_CLASS = 'flex shrink-0 items-center gap-2 pt-0.5';
 
-/** Cards | table split pill (`ListColumnLayoutToggle`, settings default list view). */
-export const LIST_LAYOUT_TOGGLE_SHELL_CLASS =
-  'inline-flex h-11 shrink-0 overflow-hidden rounded-full bg-white shadow-sm dark:bg-slate-950';
-
-export const LIST_LAYOUT_TOGGLE_DIVIDER_CLASS = 'w-px self-stretch bg-border/40';
-
 /** Slightly smaller title on phone detail headers. */
 export const PLUGIN_PAGE_TITLE_MOBILE_CLASS = 'text-xl';
 
@@ -68,8 +62,9 @@ export const MOBILE_FLOATING_CHROME_CLASS =
 export const MOBILE_SHELL_TOP_INSET_CLASS = 'pt-14';
 
 /**
- * Small vertical gutter around the main content shell so `rounded-xl` reads against workspace.
- * Desktop uses full `py-4`; phone/pad keep `MOBILE_SHELL_TOP_INSET_CLASS` for top and use bottom only.
+ * Workspace gutter around the main content shell so `rounded-xl` reads against workspace.
+ * Tighter on the sides; keep vertical inset so the top edge stays readable.
  */
+export const CONTENT_SHELL_GUTTER_CLASS = 'px-1 py-4';
 export const CONTENT_SHELL_Y_GUTTER_CLASS = 'py-4';
 export const CONTENT_SHELL_BOTTOM_GUTTER_CLASS = 'pb-4';

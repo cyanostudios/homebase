@@ -218,7 +218,9 @@ export function InvoiceDocumentPreview({
 
   // Fit to available width; frame height matches the scaled invoice content.
   const scale = contain && width > 0 ? Math.min(width / PREVIEW_DOC_WIDTH, 1) : 1;
+  const scaledWidth = PREVIEW_DOC_WIDTH * scale;
   const scaledHeight = docHeight * scale;
+  const offsetX = contain && width > 0 ? Math.max(0, (width - scaledWidth) / 2) : 0;
 
   return (
     <div className={cn('min-w-0', className)}>
@@ -252,7 +254,7 @@ export function InvoiceDocumentPreview({
             style={{
               width: PREVIEW_DOC_WIDTH,
               height: docHeight,
-              transform: `scale(${scale})`,
+              transform: `translateX(${offsetX}px) scale(${scale})`,
               overflow: 'hidden',
             }}
             title={t('invoices.previewTitle', { defaultValue: 'Invoice preview' })}

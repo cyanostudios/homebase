@@ -45,10 +45,18 @@ interface NoteFormProps {
   onSave: (data: NoteFormState) => Promise<boolean>;
   onCancel: () => void;
   isSubmitting?: boolean;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
 }
 
 export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(function NoteForm(
-  { currentNote, onSave, onCancel, isSubmitting: externalIsSubmitting = false },
+  {
+    currentNote,
+    onSave,
+    onCancel,
+    isSubmitting: externalIsSubmitting = false,
+    stacked: _stacked = false,
+  },
   ref,
 ) {
   const { t } = useTranslation();
@@ -349,7 +357,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
             handleSubmit();
           }}
         >
-          <DetailLayout sidebar={focusMode ? undefined : metaSection}>
+          <DetailLayout gridClassName="grid-cols-1" sidebar={focusMode ? undefined : metaSection}>
             <div className="space-y-4">
               {contentColumn}
               {!focusMode ? attachmentsSection : null}

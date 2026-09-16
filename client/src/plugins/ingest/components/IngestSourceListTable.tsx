@@ -1,8 +1,10 @@
+import { Globe } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   SortableListTable,
   type SortableListTableColumn,
@@ -13,6 +15,11 @@ import { cn } from '@/lib/utils';
 
 import type { IngestSource } from '../types/ingest';
 import type { IngestSortField, IngestSortOrder } from '../utils/ingestListSort';
+import {
+  DEFAULT_INGEST_TABLE_COLUMNS,
+  type IngestTableColumnId,
+  resolveVisibleIngestTableColumns,
+} from '../utils/ingestTableColumns';
 
 function statusBadgeClass(status: string) {
   if (status === 'success') {
@@ -27,6 +34,23 @@ function statusBadgeClass(status: string) {
   return 'bg-muted text-muted-foreground';
 }
 
+function ingestIdentityMeta(source: IngestSource, t: (key: string) => string): string | null {
+  const parts: string[] = [];
+  const type = source.sourceType?.trim();
+  if (type) {
+    parts.push(type);
+  }
+  parts.push(source.isActive ? t('ingest.active') : t('ingest.inactive'));
+  const status = source.lastFetchStatus?.trim();
+  if (status) {
+    parts.push(status);
+  }
+  if (source.lastFetchedAt) {
+    parts.push(formatDateTimeShort(source.lastFetchedAt));
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 export type IngestSourceListTableProps = {
   sources: IngestSource[];
   primarySort: IngestSortField;
@@ -39,6 +63,8 @@ export type IngestSourceListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   selectionEnabled?: boolean;
+  activeSourceId?: string | number | null;
+  visibleColumnIds?: IngestTableColumnId[];
 };
 
 export function IngestSourceListTable({
@@ -53,28 +79,66 @@ export function IngestSourceListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   selectionEnabled = true,
+  activeSourceId = null,
+  visibleColumnIds,
 }: IngestSourceListTableProps) {
   const { t } = useTranslation();
 
-  const columns = useMemo(
-    (): SortableListTableColumn<IngestSource, IngestSortField>[] => [
-      {
+  const orderedVisibleIds = useMemo(() => {
+    if (visibleColumnIds && visibleColumnIds.length > 0) {
+      return visibleColumnIds;
+    }
+    return resolveVisibleIngestTableColumns({ tableColumns: DEFAULT_INGEST_TABLE_COLUMNS });
+  }, [visibleColumnIds]);
+
+  const columnDefs = useMemo(() => {
+    const defs: Record<
+      IngestTableColumnId,
+      SortableListTableColumn<IngestSource, IngestSortField>
+    > = {
+      name: {
         field: 'name',
         header: t('ingest.colName'),
-        cell: (source) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {source.name}
-          </span>
-        ),
+        cell: (source) => {
+          const identityMeta = ingestIdentityMeta(source, t);
+          return (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={t('nav.ingest')} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={Globe}
+                    className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={source.name}
+                >
+                  {source.name}
+                </span>
+              </div>
+              {identityMeta ? (
+                <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                  {identityMeta}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
       },
-      {
+      sourceType: {
         field: 'sourceType',
         header: t('ingest.colType'),
         cell: (source) => (
-          <span className="text-xs text-muted-foreground">{source.sourceType || '—'}</span>
+          <span
+            className="block min-w-0 truncate text-xs text-muted-foreground"
+            title={source.sourceType || undefined}
+          >
+            {source.sourceType || '—'}
+          </span>
         ),
       },
-      {
+      isActive: {
         field: 'isActive',
         header: t('ingest.active'),
         cell: (source) => (
@@ -88,7 +152,7 @@ export function IngestSourceListTable({
           />
         ),
       },
-      {
+      lastFetchStatus: {
         field: 'lastFetchStatus',
         header: t('ingest.colStatus'),
         cell: (source) => (
@@ -97,7 +161,7 @@ export function IngestSourceListTable({
           </Badge>
         ),
       },
-      {
+      lastFetchedAt: {
         field: 'lastFetchedAt',
         header: t('ingest.colLastFetched'),
         className: 'hidden md:table-cell',
@@ -107,8 +171,17 @@ export function IngestSourceListTable({
           </span>
         ),
       },
-    ],
-    [t],
+    };
+    return defs;
+  }, [t]);
+
+  const columns = useMemo(
+    () =>
+      orderedVisibleIds.map((id) => columnDefs[id]).filter(Boolean) as SortableListTableColumn<
+        IngestSource,
+        IngestSortField
+      >[],
+    [columnDefs, orderedVisibleIds],
   );
 
   const selection: SortableListTableSelection | undefined = selectionEnabled
@@ -137,6 +210,12 @@ export function IngestSourceListTable({
       selection={selection}
       pluginName="ingest"
       dataListItem={(source) => source}
+      isRowActive={(source) =>
+        activeSourceId != null && String(source.id) === String(activeSourceId)
+      }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
     />
   );
 }

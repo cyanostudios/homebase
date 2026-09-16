@@ -10,7 +10,14 @@ import { garmentsApi } from '@/plugins/garments/api/garmentsApi';
 import { useRequests } from '../hooks/useRequests';
 import type { Request } from '../types/requests';
 
-export function RequestDetailHeaderMenus({ request }: { request: Request }) {
+export function RequestDetailHeaderMenus({
+  request,
+  leading,
+}: {
+  request: Request;
+  /** Optional leading content on the Actions trigger row (e.g. request title). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openRequestForEdit,
@@ -114,7 +121,7 @@ export function RequestDetailHeaderMenus({ request }: { request: Request }) {
   }, [canSendToList, openRequestForEdit, request, t]);
 
   return (
-    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')}>
+    <DetailHeaderMenus leading={leading} actions={actions} actionsLabel={t('common.headerActions')}>
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title={t('requests.view.deleteRequest')}

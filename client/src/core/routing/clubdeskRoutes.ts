@@ -13,6 +13,47 @@ export function isClubdeskSubRoute(
 }
 
 /**
+ * Edit from the price-list index sets `deepLinkPathSyncedRef` to the item URL
+ * before `navigate()`. If `priceLists` updates first (ensureFull is already
+ * resolved after preview hydrate), the deep-link effect re-runs on the index
+ * path and must not clobber that pending item URL — otherwise navigate looks
+ * like a fresh deep link and `openPriceListForView` bounces edit back to view.
+ */
+export function shouldKeepPendingPriceListItemPath(
+  currentPathname: string,
+  pendingPath: string | null,
+): boolean {
+  const current = currentPathname.replace(/\/+$/, '') || '/';
+  if (current !== '/clubdesk/price-list') {
+    return false;
+  }
+  return Boolean(pendingPath && pendingPath.startsWith('/clubdesk/price-list/'));
+}
+
+/**
+ * Same race as price lists for Guides soft-preview → edit: pending
+ * `/clubdesk/:slug` must survive an index re-sync while still on `/clubdesk`.
+ */
+export function shouldKeepPendingGuideItemPath(
+  currentPathname: string,
+  pendingPath: string | null,
+): boolean {
+  const current = currentPathname.replace(/\/+$/, '') || '/';
+  if (current !== '/clubdesk') {
+    return false;
+  }
+  if (!pendingPath) {
+    return false;
+  }
+  const pending = pendingPath.replace(/\/+$/, '') || '/';
+  if (!pending.startsWith('/clubdesk/')) {
+    return false;
+  }
+  const segment = pending.slice('/clubdesk/'.length).split('/')[0] ?? '';
+  return Boolean(segment) && !CLUBDESK_SUBPAGE_SET.has(segment);
+}
+
+/**
  * Where to send the user after closing a clubdesk panel.
  *
  * Returns a path only when the URL is still an item deep-link

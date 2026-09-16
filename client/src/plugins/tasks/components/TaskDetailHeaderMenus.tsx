@@ -20,7 +20,14 @@ function getShareIconColorClass(actionId: string): string {
   return '';
 }
 
-export function TaskDetailHeaderMenus({ task }: { task: Task }) {
+export function TaskDetailHeaderMenus({
+  task,
+  leading,
+}: {
+  task: Task;
+  /** Optional leading content on the Actions/Export trigger row (e.g. task title). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openTaskForEdit,
@@ -107,6 +114,7 @@ export function TaskDetailHeaderMenus({ task }: { task: Task }) {
 
   return (
     <DetailHeaderMenus
+      leading={leading}
       actions={actions}
       exportActions={exportActions}
       actionsLabel={t('common.headerActions')}

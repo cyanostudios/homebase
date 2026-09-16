@@ -1,4 +1,10 @@
-import { copyItemAt, groupItemsByCategory, reorderItems } from '../priceListItemOps';
+import {
+  canReorderItemWithinCategory,
+  copyItemAt,
+  groupItemsByCategory,
+  renumberWithinCategories,
+  reorderItems,
+} from '../priceListItemOps';
 
 function items(...rows: Array<{ title: string; category?: string | null; price?: number }>) {
   return rows.map((row, i) => ({
@@ -7,8 +13,37 @@ function items(...rows: Array<{ title: string; category?: string | null; price?:
     price: row.price ?? 10,
     category: row.category === undefined ? null : row.category,
     sequenceOrder: i + 1,
+    clientKey: `k-${i}`,
   }));
 }
+
+describe('renumberWithinCategories', () => {
+  it('renumbers per category after remove (global filter)', () => {
+    const list = items(
+      { title: 'A', category: 'Drinks' },
+      { title: 'B', category: 'Drinks' },
+      { title: 'C', category: 'Food' },
+      { title: 'D', category: 'Drinks' },
+    );
+    list[0].sequenceOrder = 1;
+    list[1].sequenceOrder = 2;
+    list[2].sequenceOrder = 1;
+    list[3].sequenceOrder = 3;
+
+    const withoutB = renumberWithinCategories(list.filter((_, i) => i !== 1));
+    expect(withoutB.map((s) => s.title)).toEqual(['A', 'C', 'D']);
+    expect(withoutB.find((s) => s.title === 'A')?.sequenceOrder).toBe(1);
+    expect(withoutB.find((s) => s.title === 'D')?.sequenceOrder).toBe(2);
+    expect(withoutB.find((s) => s.title === 'C')?.sequenceOrder).toBe(1);
+  });
+
+  it('treats category keys case-insensitively', () => {
+    const list = items({ title: 'A', category: 'Drinks' }, { title: 'B', category: 'drinks' });
+    const next = renumberWithinCategories(list);
+    expect(next[0].sequenceOrder).toBe(1);
+    expect(next[1].sequenceOrder).toBe(2);
+  });
+});
 
 describe('reorderItems', () => {
   it('moves an item down within the same category and renumbers', () => {
@@ -29,12 +64,41 @@ describe('reorderItems', () => {
     expect(result?.find((s) => s.title === 'C')?.sequenceOrder).toBe(1);
   });
 
+  it('reorders within interleaved same-category indexes', () => {
+    const list = items(
+      { title: 'Cola', category: 'Drinks' },
+      { title: 'Soup', category: 'Food' },
+      { title: 'Water', category: 'Drinks' },
+    );
+    list[0].sequenceOrder = 1;
+    list[1].sequenceOrder = 1;
+    list[2].sequenceOrder = 2;
+
+    expect(canReorderItemWithinCategory(list, 0, 1)).toBe(true);
+    const result = reorderItems(list, 0, 1);
+    expect(result?.map((s) => s.title)).toEqual(['Water', 'Soup', 'Cola']);
+    expect(result?.find((s) => s.title === 'Water')?.sequenceOrder).toBe(1);
+    expect(result?.find((s) => s.title === 'Cola')?.sequenceOrder).toBe(2);
+    expect(result?.find((s) => s.title === 'Soup')?.sequenceOrder).toBe(1);
+  });
+
   it('returns null when moving past category bounds', () => {
     const list = items({ title: 'A', category: 'Drinks' }, { title: 'B', category: 'Food' });
     list[0].sequenceOrder = 1;
     list[1].sequenceOrder = 1;
     expect(reorderItems(list, 0, -1)).toBeNull();
     expect(reorderItems(list, 0, 1)).toBeNull();
+    expect(canReorderItemWithinCategory(list, 0, -1)).toBe(false);
+    expect(canReorderItemWithinCategory(list, 0, 1)).toBe(false);
+    expect(canReorderItemWithinCategory(list, 1, -1)).toBe(false);
+  });
+
+  it('allows move within same category', () => {
+    const list = items({ title: 'A', category: 'Drinks' }, { title: 'B', category: 'Drinks' });
+    list[0].sequenceOrder = 1;
+    list[1].sequenceOrder = 2;
+    expect(canReorderItemWithinCategory(list, 0, 1)).toBe(true);
+    expect(canReorderItemWithinCategory(list, 1, -1)).toBe(true);
   });
 });
 
@@ -56,6 +120,8 @@ describe('copyItemAt', () => {
       category: 'Drinks',
       sequenceOrder: 2,
     });
+    expect(result?.[1].clientKey).toBeTruthy();
+    expect(result?.[1].clientKey).not.toBe(source[0].clientKey);
     expect(result?.[2]).toMatchObject({ title: 'B', sequenceOrder: 1 });
   });
 

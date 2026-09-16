@@ -1,7 +1,8 @@
-import { Star } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -37,13 +38,36 @@ export type CupListTableProps = {
   onHeaderCheckboxChange: () => void;
   selectionEnabled?: boolean;
   visibleColumnIds?: CupTableColumnId[];
+  activeCupId?: string | null;
 };
 
-function formatDate(value: string | null | undefined): string {
+function formatStartDate(value: string | null | undefined): string {
   if (!value) {
-    return '—';
+    return '';
   }
   return new Date(value).toLocaleDateString();
+}
+
+function cupIdentityMeta(
+  cup: Cup,
+  ingestTitleForCup: (id: string | null | undefined) => string,
+): string | null {
+  const parts: string[] = [];
+  const location = cup.location?.trim();
+  if (location) {
+    parts.push(location);
+  }
+  const start = formatStartDate(cup.start_date);
+  if (start) {
+    parts.push(start);
+  }
+  const ingestTitle = ingestTitleForCup(cup.ingest_source_id).trim();
+  if (ingestTitle) {
+    parts.push(ingestTitle);
+  } else if (cup.ingest_source_id) {
+    parts.push(String(cup.ingest_source_id));
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 export function CupListTable({
@@ -60,6 +84,7 @@ export function CupListTable({
   onHeaderCheckboxChange,
   selectionEnabled = true,
   visibleColumnIds,
+  activeCupId = null,
 }: CupListTableProps) {
   const { t } = useTranslation();
 
@@ -75,11 +100,33 @@ export function CupListTable({
       name: {
         field: 'name',
         header: t('cups.columnName'),
-        cell: (cup) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {cup.name || '—'}
-          </span>
-        ),
+        cell: (cup) => {
+          const label = cup.name?.trim() || '—';
+          const identityMeta = cupIdentityMeta(cup, ingestTitleForCup);
+          return (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={t('nav.cups')} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={Trophy}
+                    className="h-5 w-5 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-3 [&_svg]:w-3"
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={label !== '—' ? label : undefined}
+                >
+                  {label}
+                </span>
+              </div>
+              {identityMeta ? (
+                <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                  {identityMeta}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
       },
       ingest: {
         field: 'ingest',
@@ -87,9 +134,13 @@ export function CupListTable({
         className: 'hidden md:table-cell',
         cell: (cup) => {
           const title = ingestTitleForCup(cup.ingest_source_id).trim();
+          const label = title || (cup.ingest_source_id ? String(cup.ingest_source_id) : '—');
           return (
-            <span className="text-xs text-muted-foreground">
-              {title || (cup.ingest_source_id ? String(cup.ingest_source_id) : '—')}
+            <span
+              className="block min-w-0 truncate text-xs text-muted-foreground"
+              title={label !== '—' ? label : undefined}
+            >
+              {label}
             </span>
           );
         },
@@ -99,7 +150,7 @@ export function CupListTable({
         header: t('cups.columnStart'),
         cell: (cup) => (
           <span className="tabular-nums text-xs text-muted-foreground">
-            {formatDate(cup.start_date)}
+            {formatStartDate(cup.start_date) || '—'}
           </span>
         ),
       },
@@ -107,7 +158,14 @@ export function CupListTable({
         field: 'location',
         header: t('cups.columnLocation'),
         className: 'hidden md:table-cell',
-        cell: (cup) => <span className="text-xs text-muted-foreground">{cup.location || '—'}</span>,
+        cell: (cup) => (
+          <span
+            className="block min-w-0 truncate text-xs text-muted-foreground"
+            title={cup.location || undefined}
+          >
+            {cup.location || '—'}
+          </span>
+        ),
       },
       featured: {
         field: 'featured',
@@ -129,7 +187,6 @@ export function CupListTable({
         cell: (cup) =>
           cup.ratings_count > 0 ? (
             <span className="inline-flex items-center gap-1 tabular-nums text-xs text-foreground">
-              <Star className="h-3 w-3 text-amber-500" aria-hidden />
               {cup.ratings_count}
             </span>
           ) : (
@@ -184,6 +241,7 @@ export function CupListTable({
         onSort(field);
       }}
       onRowClick={onRowClick}
+      isRowActive={(cup) => activeCupId != null && String(cup.id) === String(activeCupId)}
       rowAriaLabel={(cup) => `Open cup ${cup.name}`}
       rowClassName={(cup) =>
         cup.deleted_at !== null && cup.deleted_at !== undefined ? 'opacity-60' : undefined
@@ -202,6 +260,9 @@ export function CupListTable({
             }
           : undefined
       }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       pluginName="cups"
       dataListItem={(cup) => cup}
     />

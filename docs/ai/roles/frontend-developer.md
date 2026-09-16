@@ -67,6 +67,7 @@ Efter att ha implementerat en uppgift ska rollen alltid lämna vidare till teame
 - **Lösningsarkitekt:** följer teknisk lösning; eskalerar arkitekturproblem och begär godkännande för nya beroenden.
 - **UI/UX-designer:** implementerar enligt design; för dialog vid tekniska begränsningar istället för att avvika på eget initiativ.
 - **Backendutvecklare:** samarbetar kring API-kontrakt och integration; föreslår ändringar istället för att ändra kontraktet ensidigt.
+- **UI Hygiene:** overlay på städuppdrag — raderar död/inaktuell UI enligt tre fack; Frontend äger övrig UI-implementation. Se [ui-hygiene.md](ui-hygiene.md).
 - **QA/Code Reviewer:** lämnar kod för granskning; adresserar feedback utan att hoppa över verifiering.
 - **Säkerhetsexpert:** följer säkerhetsriktlinjer för frontend (t.ex. XSS, säker hantering av känslig data i UI); lämnar säkerhetsgodkännande till Säkerhetsexperten.
 - **Dokumentationsspecialist:** förser med underlag om implementationsbeslut som bör dokumenteras.

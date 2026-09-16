@@ -40,15 +40,31 @@ export function StatKpiTile({
   label,
   value,
   className,
+  labelClassName,
+  valueClassName,
 }: {
   label: string;
   value: number;
   className?: string;
+  labelClassName?: string;
+  valueClassName?: string;
 }) {
   return (
     <div className={cn(CHART_SHELL, className)}>
-      <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400">{label}</p>
-      <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-foreground sm:text-3xl">
+      <p
+        className={cn(
+          'text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400',
+          labelClassName,
+        )}
+      >
+        {label}
+      </p>
+      <p
+        className={cn(
+          'mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-foreground sm:text-3xl',
+          valueClassName,
+        )}
+      >
         {value}
       </p>
     </div>

@@ -3,10 +3,13 @@ import {
   CheckSquare,
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
   Eye,
   FileSpreadsheet,
   LayoutGrid,
   Mail,
+  Menu,
   MessageSquare,
   Plus,
   Settings,
@@ -15,32 +18,32 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
-import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import {
+  DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
@@ -48,26 +51,27 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { formatDateTime, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { exportItems } from '@/core/utils/exportUtils';
+import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
+import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 
 import { slotsApi } from '../api/slotsApi';
 import { useSlotsContext as useSlots } from '../context/SlotsContext';
 import type { Slot } from '../types/slots';
-import {
-  getInitialSlotColumnCount,
-  resolveSlotColumnCount,
-  SLOTS_COLUMN_COUNT_STORAGE_KEY,
-  SLOTS_SETTINGS_KEY,
-  type SlotColumnCount,
-} from '../utils/slotColumnCount';
+import { SLOTS_SETTINGS_KEY } from '../utils/slotColumnCount';
 import {
   appendPublicBookingsToEmailRecipients,
   appendPublicBookingsToMessageRecipients,
@@ -92,40 +96,28 @@ import {
   type SlotSortField,
   type SlotSortOrder,
 } from '../utils/slotListSort';
-import {
-  getInitialSlotListViewMode,
-  persistSlotListViewModeSession,
-  resolveSlotListViewMode,
-  type SlotListViewMode,
-} from '../utils/slotListViewMode';
 import { resolveVisibleSlotTableColumns, type SlotTableColumnId } from '../utils/slotTableColumns';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
-import { SlotListItem } from './SlotListItem';
+import { SlotForm } from './SlotForm';
 import { SlotListTable } from './SlotListTable';
-import { SlotQuickContextPanel } from './SlotQuickContextPanel';
+import { SlotView } from './SlotView';
 import { SlotsSettingsView, type SlotsSettingsCategory } from './SlotsSettingsView';
-
-import {
-  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
-  PLUGIN_PAGE_LIST_SHELL_CLASS,
-  PLUGIN_PAGE_SECTION_GAP_CLASS,
-  PLUGIN_PAGE_TITLE_CLASS,
-  PLUGIN_PAGE_TITLE_ROW_CLASS,
-} from '@/core/ui/pluginPageStyles';
-import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { SlotsStatisticsView } from './SlotsStatisticsView';
 
 type SortField = SlotSortField;
 type SortOrder = SlotSortOrder;
 
-const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
-  { value: 'slot_time', label: 'Time' },
-  { value: 'name', label: 'Name' },
-  { value: 'location', label: 'Location' },
-  { value: 'category', label: 'Category' },
-  { value: 'updatedAt', label: 'Updated' },
-  { value: 'visible', label: 'Visible' },
-  { value: 'booked_count', label: 'Bookings' },
+const SLOTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.slots.toolbar.filtersVisible';
+
+const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
+  { value: 'slot_time', labelKey: 'slots.timeLabel' },
+  { value: 'name', labelKey: 'slots.nameLabel' },
+  { value: 'location', labelKey: 'slots.locationLabel' },
+  { value: 'category', labelKey: 'slots.categoryLabel' },
+  { value: 'updatedAt', labelKey: 'common.updated' },
+  { value: 'visible', labelKey: 'common.visible' },
+  { value: 'booked_count', labelKey: 'slots.publicBookings' },
 ];
 
 export function SlotsList() {
@@ -134,7 +126,6 @@ export function SlotsList() {
     slots,
     slotsContentView,
     openSlotForView,
-    openSlotForEdit,
     openSlotSettings,
     closeSlotSettingsView,
     deleteSlots,
@@ -150,8 +141,14 @@ export function SlotsList() {
     canSendMessages,
     canSendEmail,
     openSlotPanel,
+    isSlotsPanelOpen,
+    panelMode,
+    currentSlot,
+    closeSlotPanel,
+    saveSlot,
+    validationErrors,
   } = useSlots();
-  const { getSettings, updateSettings, settingsVersion, contacts: appContacts } = useApp();
+  const { getSettings, settingsVersion, contacts: appContacts } = useApp();
   const { contacts: hookContacts } = useContacts();
   const contacts = useMemo(() => appContacts ?? hookContacts ?? [], [appContacts, hookContacts]);
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -161,24 +158,36 @@ export function SlotsList() {
     onSettings: () => openSlotSettings(),
   });
 
+  const isCompactViewport = useMediaQuery('(max-width: 1023px)');
+  const showDesktopSplit = !isCompactViewport;
+
   const { searchTerm, setSearchTerm } = usePersistedListSearch('slots');
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,
     placeholder: t('slots.searchPlaceholder', { count: slots.length }),
   });
+
   const [selectionMode, setSelectionMode] = useState(false);
   const [primarySort, setPrimarySort] = useState<SortField>('slot_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<SlotListFilterSelection>([]);
-  const [columnCount, setColumnCountState] = useState<SlotColumnCount>(getInitialSlotColumnCount);
-  const [listViewMode, setListViewModeState] = useState<SlotListViewMode>(
-    getInitialSlotListViewMode,
-  );
   const [visibleColumnIds, setVisibleColumnIds] = useState<SlotTableColumnId[]>(() =>
     resolveVisibleSlotTableColumns(null),
   );
-  const [settingsCategory, setSettingsCategory] = useState<SlotsSettingsCategory>('columns');
+  const [settingsCategory, setSettingsCategory] = useState<SlotsSettingsCategory>('categories');
+  const [previewSlot, setPreviewSlot] = useState<Slot | null>(null);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
+  const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
+    SLOTS_FILTERS_VISIBLE_STORAGE_KEY,
+  );
+  const pageShellRef = useRef<HTMLDivElement>(null);
+  const inlineFormRef = useRef<PanelFormHandle | null>(null);
+  const [toolbarToggleBox, setToolbarToggleBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
@@ -188,6 +197,16 @@ export function SlotsList() {
   const [bulkMessageRecipients, setBulkMessageRecipients] = useState<BulkMessageRecipient[]>([]);
   const [bulkEmailRecipients, setBulkEmailRecipients] = useState<BulkEmailRecipient[]>([]);
   const [bulkEmailContextSlots, setBulkEmailContextSlots] = useState<Slot[]>([]);
+
+  const inlineForm =
+    showDesktopSplit && isSlotsPanelOpen && (panelMode === 'create' || panelMode === 'edit');
+  const inlinePanelView =
+    showDesktopSplit && isSlotsPanelOpen && panelMode === 'view' && currentSlot != null;
+  const detailSlot = inlinePanelView ? currentSlot : previewSlot;
+  const activeSlotId =
+    (inlineForm || inlinePanelView) && currentSlot != null
+      ? currentSlot.id
+      : (previewSlot?.id ?? null);
 
   const selectedSlots = useMemo(
     () => slots.filter((s) => selectedSlotIds.includes(s.id)),
@@ -201,18 +220,6 @@ export function SlotsList() {
         if (cancelled) {
           return;
         }
-        const resolved = resolveSlotColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as SlotColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(SLOTS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolveSlotListViewMode(settings);
-        setListViewModeState(nextView);
-        persistSlotListViewModeSession(nextView);
         setVisibleColumnIds(resolveVisibleSlotTableColumns(settings));
       })
       .catch(() => {});
@@ -221,30 +228,60 @@ export function SlotsList() {
     };
   }, [getSettings, settingsVersion]);
 
-  const setColumnCount = useCallback(
-    (_count: SlotColumnCount) => {
-      const next = 3 as SlotColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistSlotListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(SLOTS_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
+  useEffect(() => {
+    if (!previewSlot) {
+      return;
+    }
+    const next = slots.find((slot) => String(slot.id) === String(previewSlot.id));
+    if (!next) {
+      setPreviewSlot(null);
+      return;
+    }
+    if (next !== previewSlot) {
+      setPreviewSlot(next);
+    }
+  }, [slots, previewSlot]);
 
-  const setListViewMode = useCallback(
-    (mode: SlotListViewMode) => {
-      setListViewModeState(mode);
-      persistSlotListViewModeSession(mode);
-      updateSettings(SLOTS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
+  useEffect(() => {
+    if (!showDesktopSplit || !isSlotsPanelOpen) {
+      return;
+    }
+    if ((panelMode === 'edit' || panelMode === 'view') && currentSlot) {
+      setPreviewSlot(currentSlot);
+    }
+  }, [showDesktopSplit, isSlotsPanelOpen, panelMode, currentSlot]);
+
+  const updateToolbarToggleBox = useCallback(() => {
+    const el = pageShellRef.current;
+    if (!el) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const sidebarToggle = document.querySelector<HTMLElement>('[aria-controls="left-sidebar-nav"]');
+    const sidebarTop = sidebarToggle?.getBoundingClientRect().top;
+    setToolbarToggleBox({
+      top: typeof sidebarTop === 'number' ? sidebarTop : rect.top + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    updateToolbarToggleBox();
+    window.addEventListener('resize', updateToolbarToggleBox);
+    const scrollParent = pageShellRef.current?.closest('.overflow-y-auto, .overflow-auto');
+    scrollParent?.addEventListener('scroll', updateToolbarToggleBox, { passive: true });
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateToolbarToggleBox) : null;
+    if (pageShellRef.current && ro) {
+      ro.observe(pageShellRef.current);
+    }
+    return () => {
+      window.removeEventListener('resize', updateToolbarToggleBox);
+      scrollParent?.removeEventListener('scroll', updateToolbarToggleBox);
+      ro?.disconnect();
+    };
+  }, [updateToolbarToggleBox]);
 
   const formatDateTimeForFilter = useCallback(
     (s: string | null) => (s ? formatDateTimeShort(s) : ''),
@@ -315,10 +352,6 @@ export function SlotsList() {
     setSortOrder(isSlotAscDefaultField(field) ? 'asc' : 'desc');
   };
 
-  const toggleSortOrder = () => {
-    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-  };
-
   const handleTableSort = useCallback(
     (field: SortField) => {
       const next = nextSlotTableSort(primarySort, sortOrder, field);
@@ -327,28 +360,6 @@ export function SlotsList() {
     },
     [primarySort, sortOrder],
   );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
-
-  const {
-    previewItem: previewSlot,
-    setPreviewItem: setPreviewSlot,
-    showQuickContext,
-    markPendingAndOpen,
-    activateRow,
-  } = useQuickContextPreview({
-    storeKey: 'slots',
-    items: slots,
-    getItemId: (slot) => String(slot.id),
-  });
-
-  const quickContextOpen = Boolean(showQuickContext && previewSlot);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
-
-  const handleOpenForView = (slot: Slot) => {
-    markPendingAndOpen(slot, () => attemptNavigation(() => openSlotForView(slot)));
-  };
 
   const handleEnterSelectionMode = () => {
     setSelectionMode(true);
@@ -360,12 +371,50 @@ export function SlotsList() {
   };
 
   const handleRowActivate = (slot: Slot) => {
+    if (isCompactViewport) {
+      attemptNavigation(() => openSlotForView(slot));
+      return;
+    }
     if (selectionMode) {
       toggleSlotSelected(String(slot.id));
       return;
     }
-    activateRow(slot, (item) => attemptNavigation(() => openSlotForView(item)));
+    if (
+      isSlotsPanelOpen &&
+      (panelMode === 'create' || panelMode === 'edit' || panelMode === 'view')
+    ) {
+      attemptNavigation(() => {
+        closeSlotPanel();
+        setPreviewSlot(slot);
+      });
+      return;
+    }
+    setPreviewSlot((current) => (current && String(current.id) === String(slot.id) ? null : slot));
   };
+
+  const handleInlineFormSave = useCallback(async () => {
+    await inlineFormRef.current?.submit();
+  }, []);
+
+  const handleInlineFormClose = useCallback(() => {
+    if (inlineFormRef.current) {
+      inlineFormRef.current.cancel();
+      return;
+    }
+    closeSlotPanel();
+  }, [closeSlotPanel]);
+
+  const handleInlineFormOnSave = useCallback(
+    async (data: Record<string, unknown>) => {
+      const ok = await saveSlot(data, currentSlot?.id);
+      return ok;
+    },
+    [saveSlot, currentSlot?.id],
+  );
+
+  const inlineFormHasBlockingErrors = validationErrors.some(
+    (e) => !String(e?.message || '').includes('Warning'),
+  );
 
   const handleBulkDelete = useCallback(async () => {
     setDeleting(true);
@@ -524,10 +573,199 @@ export function SlotsList() {
     handleBulkExportCSV,
   ]);
 
+  const headerDropdownTriggerClass =
+    'gap-1.5 border-0 bg-primary/10 px-3.5 text-sm font-extrabold text-primary shadow-none hover:bg-primary hover:text-primary-foreground';
+
+  const headerDropdownTriggerDangerClass =
+    'gap-1.5 border-0 bg-red-600/10 px-3.5 text-sm font-extrabold text-red-700 shadow-none hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white';
+
+  const renderFilterChips = () => (
+    <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => setActiveFilters([])}
+        className={cn(
+          activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+        )}
+      >
+        <LayoutGrid className="h-3.5 w-3.5" />
+        <span>
+          {t('slots.stats.total', { defaultValue: 'Total' })}{' '}
+          <span className="tabular-nums font-semibold">({stats.total})</span>
+        </span>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => toggleFilter('visible')}
+        className={cn(
+          isFilterActive('visible') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+        )}
+      >
+        <Eye className="h-3.5 w-3.5" />
+        <span>
+          {t('slots.stats.visible', { defaultValue: 'Visible' })}{' '}
+          <span className="tabular-nums font-semibold">({stats.visible})</span>
+        </span>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => toggleFilter('upcoming')}
+        className={cn(
+          isFilterActive('upcoming') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+        )}
+      >
+        <Calendar className="h-3.5 w-3.5" />
+        <span>
+          {t('slots.stats.upcoming', { defaultValue: 'Upcoming' })}{' '}
+          <span className="tabular-nums font-semibold">({stats.upcoming})</span>
+        </span>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => toggleFilter('withCategory')}
+        className={cn(
+          isFilterActive('withCategory') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+        )}
+      >
+        <Tag className="h-3.5 w-3.5" />
+        <span>
+          {t('slots.stats.withCategory', { defaultValue: 'With category' })}{' '}
+          <span className="tabular-nums font-semibold">({stats.withCategory})</span>
+        </span>
+      </Button>
+    </div>
+  );
+
+  const primarySortLabel =
+    SORT_FIELD_OPTIONS.find((option) => option.value === primarySort)?.labelKey ??
+    SORT_FIELD_OPTIONS[0].labelKey;
+
+  const renderSortDropdown = (triggerClassName: string) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('slots.sort')}
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          <span>{t('slots.sort')}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[14rem] rounded-xl border-border/50 shadow-xl"
+      >
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {t(primarySortLabel)}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={primarySort}
+          onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+        >
+          {SORT_FIELD_OPTIONS.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              className="rounded-md text-xs"
+              onSelect={(event) => event.preventDefault()}
+            >
+              {t(option.labelKey)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {sortOrder === 'asc' ? t('slots.sortAsc') : t('slots.sortDesc')}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={sortOrder}
+          onValueChange={(value) => setSortOrder(value as SortOrder)}
+        >
+          <DropdownMenuRadioItem
+            value="asc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowUp className="mr-2 h-3.5 w-3.5" />
+            {t('slots.sortAsc')}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="desc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowDown className="mr-2 h-3.5 w-3.5" />
+            {t('slots.sortDesc')}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const renderBulkActionBar = (className?: string) =>
+    selectionMode ? (
+      <BulkActionRoundBar
+        selectedCount={selectedCount}
+        actions={bulkRoundActions}
+        size="xs"
+        className={cn('gap-1.5', className)}
+      />
+    ) : null;
+
+  const renderSelectControls = (triggerClassName: string) => {
+    if (filteredAndSorted.length === 0) {
+      return null;
+    }
+
+    if (!selectionMode) {
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('common.select')}
+          aria-pressed={false}
+          onClick={handleEnterSelectionMode}
+        >
+          <CheckSquare className="h-3.5 w-3.5" />
+          <span>{t('common.select')}</span>
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn(headerDropdownTriggerDangerClass, triggerClassName)}
+        aria-label={t('common.clear')}
+        aria-pressed={true}
+        onClick={handleExitSelectionMode}
+      >
+        <XCircle className="h-3.5 w-3.5" />
+        <span>{t('common.clear')}</span>
+      </Button>
+    );
+  };
+
   if (slotsContentView === 'settings') {
     return (
       <div className="plugin-slots min-h-full bg-background">
-        <div className="px-6 py-4">
+        <div className="px-4 py-4 md:px-6">
           <SlotsSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
@@ -539,320 +777,272 @@ export function SlotsList() {
     );
   }
 
+  const toolbarEdgeToggle =
+    typeof document !== 'undefined' && toolbarToggleBox
+      ? createPortal(
+          <div
+            className="pointer-events-none fixed z-40 hidden justify-center md:flex"
+            style={{
+              top: toolbarToggleBox.top,
+              left: toolbarToggleBox.left,
+              width: toolbarToggleBox.width,
+            }}
+          >
+            <div className="pointer-events-auto">
+              <RoundIconLabelButton
+                icon={Menu}
+                label={toolbarCollapsed ? t('slots.expandToolbar') : t('slots.collapseToolbar')}
+                variant={toolbarCollapsed ? 'primary' : 'secondary'}
+                size="xs"
+                expandOnHover={false}
+                className={
+                  toolbarCollapsed
+                    ? undefined
+                    : 'bg-white text-primary shadow-sm hover:bg-primary hover:text-primary-foreground dark:bg-white dark:text-primary dark:hover:bg-primary dark:hover:text-primary-foreground'
+                }
+                aria-expanded={!toolbarCollapsed}
+                aria-controls="slots-mail-toolbar"
+                onClick={toggleToolbarCollapsed}
+              />
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div className={cn('plugin-slots', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
-      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
-        <div className="hidden md:block">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex min-w-0 flex-1 flex-col gap-5">
-              <div className="min-w-0">
-                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
-                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.slots')}</h2>
-                  <ExpandableIconButton
-                    icon={Settings}
-                    label={t('slots.settings')}
-                    variant="soft"
-                    onClick={() => openSlotSettings()}
-                  />
-                  {filteredAndSorted.length > 0 ? (
-                    selectionMode ? (
-                      <ExpandableIconButton
-                        icon={XCircle}
-                        label={t('common.clear')}
-                        variant="danger"
-                        alwaysExpanded
-                        onClick={handleExitSelectionMode}
-                      />
-                    ) : (
-                      <ExpandableIconButton
-                        icon={CheckSquare}
-                        label={t('common.select')}
-                        variant="soft"
-                        alwaysExpanded
-                        onClick={handleEnterSelectionMode}
-                      />
-                    )
-                  ) : null}
-                </div>
-              </div>
-              {selectionMode ? (
-                <BulkActionRoundBar
-                  selectedCount={selectedCount}
-                  actions={bulkRoundActions}
-                  className="gap-2"
-                />
-              ) : null}
-            </div>
-            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
-              <RoundExpandableSearch
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('slots.searchPlaceholder', { count: slots.length })}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) => t(`slots.columns${count}`)}
-                tableAriaLabel={t('common.tableView')}
-              />
-              <ExpandableIconButton
-                icon={Plus}
-                label={t('slots.addSlot')}
-                variant="soft"
-                alwaysExpanded
-                onClick={() => attemptNavigation(() => openSlotPanel(null))}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
-          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveFilters([])}
-              className={cn(
-                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>
-                Total <span className="tabular-nums font-semibold">({stats.total})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('visible')}
-              className={cn(
-                isFilterActive('visible') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <Eye className="h-3.5 w-3.5" />
-              <span>
-                Visible <span className="tabular-nums font-semibold">({stats.visible})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('upcoming')}
-              className={cn(
-                isFilterActive('upcoming') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <Calendar className="h-3.5 w-3.5" />
-              <span>
-                Upcoming <span className="tabular-nums font-semibold">({stats.upcoming})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('withCategory')}
-              className={cn(
-                isFilterActive('withCategory')
-                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
-                  : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <Tag className="h-3.5 w-3.5" />
-              <span>
-                With Category{' '}
-                <span className="tabular-nums font-semibold">({stats.withCategory})</span>
-              </span>
-            </Button>
-          </div>
-          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-            <Select
-              value={primarySort}
-              onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-            >
-              <SelectTrigger
-                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                aria-label="Sort by"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="item-aligned"
-                className="rounded-xl border-border/50 shadow-xl"
-              >
-                {SORT_FIELD_OPTIONS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="rounded-md text-xs"
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 px-0 text-xs"
-              onClick={toggleSortOrder}
-              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-            >
-              {sortOrder === 'asc' ? (
-                <ArrowUp className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowDown className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        <BulkMessageDialog
-          isOpen={showBulkMessageDialog}
-          onClose={closeBulkMessageDialog}
-          recipients={bulkMessageRecipients}
-          pluginSource="slots"
-          showRecipientSelection
-        />
-        <BulkEmailDialog
-          isOpen={showBulkEmailDialog}
-          onClose={closeBulkEmailDialog}
-          recipients={bulkEmailRecipients}
-          pluginSource="slots"
-          showRecipientSelection
-          additionalText={
-            bulkEmailContextSlots.length > 0
-              ? bulkEmailContextSlots.map((s) => formatSlotInfoText(s)).join('\n\n')
-              : undefined
-          }
-          additionalHtml={
-            bulkEmailContextSlots.length > 0
-              ? bulkEmailContextSlots.map((s) => formatSlotInfoHtml(s)).join('')
-              : undefined
-          }
-        />
-
-        <BulkPropertiesDialog
-          isOpen={showBulkPropertiesDialog}
-          onClose={() => setShowBulkPropertiesDialog(false)}
-          selectedSlots={selectedSlots}
-          onSuccess={async () => {
-            await refreshSlots();
-            clearSlotSelection();
-          }}
-        />
-
-        <BulkDeleteModal
-          isOpen={showBulkDeleteModal}
-          onClose={() => setShowBulkDeleteModal(false)}
-          onConfirm={handleBulkDelete}
-          itemCount={selectedCount}
-          itemLabel="slots"
-          isLoading={deleting}
-        />
-
+    <>
+      {toolbarEdgeToggle}
+      <div
+        ref={pageShellRef}
+        className={cn(
+          'plugin-slots flex min-h-0 flex-1 flex-col',
+          PLUGIN_PAGE_LIST_SHELL_CLASS,
+          showDesktopSplit
+            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+            : 'overflow-y-auto md:pt-3',
+        )}
+      >
         <div
           className={cn(
-            'grid items-start gap-4',
-            showQuickContext && previewSlot ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+            'flex min-h-0 min-w-0 flex-1 flex-col',
+            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
           )}
         >
-          {showQuickContext && previewSlot ? (
-            <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
-              <SlotQuickContextPanel
-                slot={previewSlot}
-                onClose={() => setPreviewSlot(null)}
-                onOpenFullProfile={() => handleOpenForView(previewSlot)}
-                onEdit={() => {
-                  markPendingAndOpen(previewSlot, () =>
-                    attemptNavigation(() => openSlotForEdit(previewSlot)),
-                  );
-                }}
-              />
-            </aside>
-          ) : null}
-          <div className="flex min-w-0 flex-col gap-3">
-            {filteredAndSorted.length === 0 ? (
-              <ListEmptyState
-                message={searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
-                createLabel={!searchTerm ? t('slots.addSlot') : undefined}
-                onCreate={
-                  !searchTerm ? () => attemptNavigation(() => openSlotPanel(null)) : undefined
-                }
-              />
-            ) : isTableView ? (
-              <SlotListTable
-                slots={filteredAndSorted}
-                primarySort={primarySort}
-                sortOrder={sortOrder}
-                onSort={handleTableSort}
-                isSelected={isSelected}
-                onRowClick={handleRowActivate}
-                activeSlotId={previewSlot?.id ?? null}
-                onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                onCheckboxChange={onVisibleRowCheckboxChange}
-                allVisibleSelected={allVisibleSelected}
-                onHeaderCheckboxChange={onToggleAllVisible}
-                recentlyDuplicatedSlotId={recentlyDuplicatedSlotId}
-                selectionEnabled={selectionMode}
-                visibleColumnIds={visibleColumnIds}
-              />
-            ) : (
-              <div
-                className={cn(
-                  'grid gap-3',
-                  effectiveColumnCount === 1 && 'grid-cols-1',
-                  effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                  effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-                )}
-              >
-                {filteredAndSorted.map((slot, index) => {
-                  const selected = isSelected(slot.id);
-                  return (
-                    <SlotListItem
-                      key={slot.id}
-                      slot={slot}
-                      selected={selected}
-                      highlighted={recentlyDuplicatedSlotId === String(slot.id)}
-                      active={previewSlot !== null && String(previewSlot.id) === String(slot.id)}
-                      onClick={() => handleRowActivate(slot)}
-                      columnCount={effectiveCardColumnCount}
-                      checkbox={
-                        selectionMode ? (
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onChange={() => onVisibleRowCheckboxChange(slot.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-4 w-4 cursor-pointer"
-                            aria-label={selected ? t('common.deselect') : t('common.select')}
-                          />
-                        ) : undefined
-                      }
+          <div className="relative hidden shrink-0 md:block">
+            <div
+              className={cn(
+                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
+              )}
+              aria-hidden={toolbarCollapsed}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div
+                  id="slots-mail-toolbar"
+                  className={cn(
+                    'flex flex-wrap items-center justify-between gap-3',
+                    toolbarCollapsed && 'pointer-events-none',
+                  )}
+                >
+                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.slots')}</h2>
+                    <ExpandableIconButton
+                      icon={Settings}
+                      label={t('slots.settings')}
+                      variant="soft"
+                      onClick={() => openSlotSettings()}
                     />
-                  );
-                })}
+                    {renderSortDropdown('h-11 rounded-full')}
+                    <ListFilterChipsToggle
+                      visible={filtersVisible}
+                      onVisibleChange={setFiltersVisible}
+                      className="h-11 rounded-full"
+                    />
+                    {renderSelectControls('h-11 rounded-full')}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <RoundExpandableSearch
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                      placeholder={t('slots.searchPlaceholder', { count: slots.length })}
+                    />
+                    <ExpandableIconButton
+                      icon={Plus}
+                      label={t('slots.addSlot')}
+                      variant="soft"
+                      onClick={() => attemptNavigation(() => openSlotPanel(null))}
+                    />
+                  </div>
+                </div>
+                {filtersVisible ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {renderFilterChips()}
+                  </div>
+                ) : null}
+                {renderBulkActionBar('py-3')}
               </div>
-            )}
+            </div>
+          </div>
 
-            <ListFooterBar
-              meta={
-                <>
-                  Showing {filteredAndSorted.length} of {slots.length} Slots
-                </>
-              }
-            />
+          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+            {filtersVisible ? renderFilterChips() : null}
+            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+              <ListFilterChipsToggle
+                visible={filtersVisible}
+                onVisibleChange={setFiltersVisible}
+                className="h-7 rounded-md"
+              />
+              {renderSortDropdown('h-7 rounded-md')}
+            </div>
+          </div>
+
+          {selectionMode ? (
+            <div className="shrink-0 py-3 md:hidden">{renderBulkActionBar()}</div>
+          ) : null}
+
+          <BulkMessageDialog
+            isOpen={showBulkMessageDialog}
+            onClose={closeBulkMessageDialog}
+            recipients={bulkMessageRecipients}
+            pluginSource="slots"
+            showRecipientSelection
+          />
+          <BulkEmailDialog
+            isOpen={showBulkEmailDialog}
+            onClose={closeBulkEmailDialog}
+            recipients={bulkEmailRecipients}
+            pluginSource="slots"
+            showRecipientSelection
+            additionalText={
+              bulkEmailContextSlots.length > 0
+                ? bulkEmailContextSlots.map((s) => formatSlotInfoText(s)).join('\n\n')
+                : undefined
+            }
+            additionalHtml={
+              bulkEmailContextSlots.length > 0
+                ? bulkEmailContextSlots.map((s) => formatSlotInfoHtml(s)).join('')
+                : undefined
+            }
+          />
+
+          <BulkPropertiesDialog
+            isOpen={showBulkPropertiesDialog}
+            onClose={() => setShowBulkPropertiesDialog(false)}
+            selectedSlots={selectedSlots}
+            onSuccess={async () => {
+              await refreshSlots();
+              clearSlotSelection();
+            }}
+          />
+
+          <BulkDeleteModal
+            isOpen={showBulkDeleteModal}
+            onClose={() => setShowBulkDeleteModal(false)}
+            onConfirm={handleBulkDelete}
+            itemCount={selectedCount}
+            itemLabel="slots"
+            isLoading={deleting}
+          />
+
+          <div
+            className={cn(
+              'grid min-h-0 min-w-0 gap-2',
+              showDesktopSplit
+                ? 'flex-1 grid-cols-[minmax(220px,20%)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-stretch'
+                : 'grid-cols-1 items-start',
+            )}
+          >
+            <div
+              className={cn(
+                'min-w-0',
+                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+              )}
+            >
+              <div className="flex min-w-0 flex-col gap-3">
+                {filteredAndSorted.length === 0 ? (
+                  <ListEmptyState
+                    message={searchTerm ? t('slots.noMatch') : t('slots.noYet')}
+                    createLabel={!searchTerm ? t('slots.addSlot') : undefined}
+                    onCreate={
+                      !searchTerm ? () => attemptNavigation(() => openSlotPanel(null)) : undefined
+                    }
+                  />
+                ) : (
+                  <SlotListTable
+                    slots={filteredAndSorted}
+                    primarySort={primarySort}
+                    sortOrder={sortOrder}
+                    onSort={handleTableSort}
+                    isSelected={isSelected}
+                    onRowClick={handleRowActivate}
+                    activeSlotId={activeSlotId}
+                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                    onCheckboxChange={onVisibleRowCheckboxChange}
+                    allVisibleSelected={allVisibleSelected}
+                    onHeaderCheckboxChange={onToggleAllVisible}
+                    recentlyDuplicatedSlotId={recentlyDuplicatedSlotId}
+                    selectionEnabled={selectionMode}
+                    visibleColumnIds={visibleColumnIds}
+                  />
+                )}
+
+                <ListFooterBar
+                  meta={
+                    <>
+                      Showing {filteredAndSorted.length} of {slots.length} Slots
+                    </>
+                  }
+                />
+              </div>
+            </div>
+
+            {showDesktopSplit ? (
+              <aside
+                className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain"
+                role="region"
+                aria-label={t('slots.quickContext.title')}
+                aria-live="polite"
+              >
+                {inlineForm ? (
+                  <div className="flex min-h-0 flex-col gap-3">
+                    <div className="flex shrink-0 justify-end">
+                      <InlinePanelFormActions
+                        mode={panelMode === 'edit' ? 'edit' : 'create'}
+                        hasBlockingErrors={inlineFormHasBlockingErrors}
+                        onClose={handleInlineFormClose}
+                        onSave={() => {
+                          void handleInlineFormSave();
+                        }}
+                        t={t}
+                      />
+                    </div>
+                    <SlotForm
+                      ref={inlineFormRef}
+                      currentSlot={currentSlot}
+                      onSave={handleInlineFormOnSave}
+                      onCancel={closeSlotPanel}
+                      stacked
+                    />
+                  </div>
+                ) : detailSlot ? (
+                  <SlotView slot={detailSlot} stacked />
+                ) : (
+                  <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
+                    <SlotsStatisticsView />
+                  </Card>
+                )}
+              </aside>
+            ) : null}
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

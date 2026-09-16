@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useActionRegistry } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
@@ -26,6 +27,7 @@ import {
   TaskShare,
   ValidationError,
   formatStatusForDisplay,
+  formatTaskDueDisplay,
 } from '../types/tasks';
 import { getTaskExportBaseFilename, getTasksExportConfig } from '../utils/taskExportConfig';
 import { shouldApplyOpenTaskSaveEffects } from '../utils/taskListSave';
@@ -56,7 +58,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<ValidationError>();
 
@@ -727,9 +729,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const getPanelSubtitle = useCallback(
     (mode: string, item: Task | null) => {
-      if (mode === 'settings') {
-        return null;
-      }
       if (mode === 'view' && item) {
         const badges = [
           {
@@ -742,40 +741,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           },
         ];
 
-        const formatDueDateForHeader = (due: Date | string | null) => {
-          if (!due) {
-            return null;
-          }
-          const today = new Date();
-          const dueDate = new Date(due);
-          const diffTime = dueDate.getTime() - today.getTime();
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          if (diffDays < 0) {
-            return {
-              text: `${Math.abs(diffDays)} days overdue`,
-              className: 'text-destructive font-medium',
-            };
-          }
-          if (diffDays === 0) {
-            return {
-              text: 'Due today',
-              className: 'text-orange-600 dark:text-orange-400 font-medium',
-            };
-          }
-          if (diffDays === 1) {
-            return { text: 'Due tomorrow', className: 'text-yellow-600 dark:text-yellow-400' };
-          }
-          return {
-            text: dueDate.toLocaleDateString(undefined, {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            }),
-            className: 'text-muted-foreground',
-          };
-        };
-        const dueDateInfo =
-          item.status === 'completed' ? null : formatDueDateForHeader(item.dueDate);
+        const dueDateInfo = formatTaskDueDisplay(item.dueDate, item.status);
+        const dueDateHeader = dueDateInfo
+          ? { text: dueDateInfo.text, className: dueDateInfo.textClassName }
+          : null;
 
         const assignedToIds =
           item.assignedToIds ?? (item.assignedTo ? [String(item.assignedTo)] : []);
@@ -786,16 +755,18 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         return (
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
-              {dueDateInfo && (
-                <span className={cn('text-[10px] font-extrabold shrink-0', dueDateInfo.className)}>
-                  {dueDateInfo.text}
+              {dueDateHeader && (
+                <span
+                  className={cn('text-[10px] font-extrabold shrink-0', dueDateHeader.className)}
+                >
+                  {dueDateHeader.text}
                 </span>
               )}
               {badges.map((badge) => (
                 <Badge
                   key={`${badge.text}-${badge.color}`}
                   variant="outline"
-                  className={cn('text-[12px] px-1.5 h-5 shrink-0 font-extrabold', badge.color)}
+                  className={cn(BADGE_CHIP_CLASS, 'shrink-0', badge.color)}
                 >
                   {badge.text === item.status ? formatStatusForDisplay(badge.text) : badge.text}
                 </Badge>

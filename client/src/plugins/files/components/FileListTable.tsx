@@ -1,52 +1,16 @@
-import { File as FileIcon } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
-import { Badge } from '@/components/ui/badge';
 import {
   SortableListTable,
   type SortableListTableColumn,
   type SortableListTableSelection,
 } from '@/core/ui/SortableListTable';
-import { cn } from '@/lib/utils';
 
-import { filesApi } from '../api/filesApi';
 import type { FileItem } from '../types/files';
 import type { FileSortField, FileSortOrder } from '../utils/fileListSort';
-import { getMimeLabel, humanSize } from '../utils/humanSize';
 
-function isRasterImageMime(mimeType: string | null | undefined): boolean {
-  const mt = String(mimeType ?? '').toLowerCase();
-  return mt.startsWith('image/') && mt !== 'image/svg+xml';
-}
-
-function FileNameCell({ file }: { file: FileItem }) {
-  const isImage = isRasterImageMime(file.mimeType);
-  const thumbUrl = file.id ? filesApi.getFileDownloadUrl(file.id, { inline: true }) : null;
-
-  return (
-    <span className="flex min-w-0 items-center gap-2.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
-        {isImage && thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt=""
-            className="h-full w-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-        ) : (
-          <FileIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
-        )}
-      </span>
-      <span className="truncate font-extrabold text-foreground transition-colors group-hover:text-primary">
-        {file.name}
-      </span>
-    </span>
-  );
-}
+import { FileIdentityCell } from './FileIdentityCell';
 
 export type FileListTableProps = {
   files: FileItem[];
@@ -84,29 +48,7 @@ export function FileListTable({
       {
         field: 'name',
         header: t('files.columnName'),
-        cell: (file) => <FileNameCell file={file} />,
-      },
-      {
-        field: 'mimeType',
-        header: t('files.columnType'),
-        cell: (file) => (
-          <Badge
-            className={cn(
-              BADGE_CHIP_CLASS,
-              'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-            )}
-          >
-            {getMimeLabel(file.mimeType) || '—'}
-          </Badge>
-        ),
-      },
-      {
-        field: 'size',
-        header: t('files.columnSize'),
-        className: 'hidden sm:table-cell',
-        cell: (file) => (
-          <span className="text-xs tabular-nums text-muted-foreground">{humanSize(file.size)}</span>
-        ),
+        cell: (file) => <FileIdentityCell file={file} />,
       },
     ],
     [t],
@@ -139,6 +81,9 @@ export function FileListTable({
       pluginName="files"
       dataListItem={(file) => file}
       isRowActive={(file) => activeFileId != null && String(file.id) === String(activeFileId)}
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
     />
   );
 }

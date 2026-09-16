@@ -38,7 +38,7 @@ export function Sidebar({
   const { navBadges } = useApp();
   const { t, i18n } = useTranslation();
   const isDesktopLayout = useIsDesktopLayout();
-  const { collapsed, widthPx, toggleCollapsed, setCollapsed } = useLeftSidebar();
+  const { collapsed, widthPx, toggleCollapsed } = useLeftSidebar();
   const [userOpenSubmenus, setUserOpenSubmenus] = useState<Set<NavPage>>(() => new Set());
   const [userClosedSubmenus, setUserClosedSubmenus] = useState<Set<NavPage>>(() => new Set());
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set());
@@ -110,18 +110,6 @@ export function Sidebar({
     setOpenCategories((prev) => toggleSetItem(prev, categoryId, open));
   }, []);
 
-  const handleCollapsedCategorySelect = useCallback(
-    (categoryId: string) => {
-      setCollapsed(false);
-      setOpenCategories((prev) => {
-        const next = new Set(prev);
-        next.add(categoryId);
-        return next;
-      });
-    },
-    [setCollapsed],
-  );
-
   const navContentProps: SidebarNavContentProps = {
     navCategories,
     currentPage,
@@ -133,7 +121,6 @@ export function Sidebar({
     onCategoryOpenChange: handleCategoryOpenChange,
     collapsed: isDesktopLayout ? collapsed : false,
     activeCategoryId,
-    onCollapsedCategorySelect: handleCollapsedCategorySelect,
   };
 
   return (

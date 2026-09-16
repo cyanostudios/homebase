@@ -62,10 +62,12 @@ const sizeExpandedPadClasses: Record<RoundIconLabelButtonSize, string> = {
   md: 'gap-2 px-3.5 pr-4',
 };
 
+/** Left pad centers the icon in the circular min-width; right pad appears on hover with the label. */
 const sizeHoverExpandClasses: Record<RoundIconLabelButtonSize, string> = {
-  xs: 'hover:pl-2.5 hover:pr-3',
-  sm: 'hover:pl-3.5 hover:pr-4',
-  md: 'hover:pl-3.5 hover:pr-4',
+  // (minSize - iconSize) / 2 → xs: (33-15)/2 ≈ 9px ≈ pl-2.5; sm/md: (44-20)/2 = 12px = pl-3
+  xs: 'pl-2.5 gap-0 hover:gap-1.5 hover:pr-3',
+  sm: 'pl-3 gap-0 hover:gap-2 hover:pr-4',
+  md: 'pl-3.5 gap-0 hover:gap-2 hover:pr-4',
 };
 
 export const RoundIconLabelButton = React.forwardRef<HTMLButtonElement, RoundIconLabelButtonProps>(
@@ -95,8 +97,9 @@ export const RoundIconLabelButton = React.forwardRef<HTMLButtonElement, RoundIco
         title={label}
         className={cn(
           'group inline-flex items-center overflow-hidden rounded-full',
-          'transition-[width,padding,filter,background-color,color] ease-out',
-          '[transition-duration:320ms,320ms,320ms,450ms,450ms]',
+          // Expand/collapse stays slow; color eases briefly so the snap isn’t harsh.
+          'transition-[padding,gap,filter,background-color,color] ease-in-out',
+          '[transition-duration:560ms,560ms,560ms,450ms,450ms]',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           'disabled:pointer-events-none disabled:opacity-50',
           variantClasses[variant],
@@ -104,22 +107,13 @@ export const RoundIconLabelButton = React.forwardRef<HTMLButtonElement, RoundIco
           alwaysExpanded
             ? cn('justify-start', expandedPad)
             : expandOnHover
-              ? cn('justify-center hover:w-auto hover:justify-start', hoverPad)
+              ? cn('justify-start', hoverPad)
               : 'justify-center',
           className,
         )}
         {...props}
       >
-        <Icon
-          className={cn(
-            'shrink-0',
-            contentClassName,
-            !alwaysExpanded &&
-              expandOnHover &&
-              'transition-transform duration-[320ms] ease-out group-hover:-translate-x-0.5',
-          )}
-          aria-hidden
-        />
+        <Icon className={cn('shrink-0', contentClassName)} aria-hidden />
         <span
           className={cn(
             'whitespace-nowrap font-extrabold',
@@ -129,10 +123,9 @@ export const RoundIconLabelButton = React.forwardRef<HTMLButtonElement, RoundIco
               : expandOnHover
                 ? cn(
                     'max-w-0 overflow-hidden opacity-0',
-                    'transition-[max-width,opacity,margin] duration-[320ms] ease-out',
-                    size === 'xs'
-                      ? 'group-hover:ml-1.5 group-hover:max-w-[12rem] group-hover:opacity-100'
-                      : 'group-hover:ml-2 group-hover:max-w-[12rem] group-hover:opacity-100',
+                    'transition-[max-width,opacity] ease-in-out',
+                    '[transition-duration:560ms,450ms]',
+                    'group-hover:max-w-[12rem] group-hover:opacity-100',
                   )
                 : 'sr-only',
           )}

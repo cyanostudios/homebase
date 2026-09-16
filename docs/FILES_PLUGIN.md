@@ -18,6 +18,15 @@ Plugin id: **`files`**. Hybrid: **file library UI** (CRUD metadata + preview) an
 | Attachments API     | `/api/files/attachments`                                                       | Link owned files to plugin entities (`file_attachments`)                                           |
 | Consumers           | Notes / requests `FileAttachmentsSection`; cups/profile `filesApi.uploadFiles` | Cross-plugin                                                                                       |
 
+### Attachments UI (consumers)
+
+Shared component: `client/src/plugins/files/components/FileAttachmentsSection.tsx`.
+
+- Header: `DetailSection` + `subtleTitle` + Paperclip (`iconPlugin="files"`).
+- Rows: `FileIdentityCell` (same identity chrome as Files list name column) inside linked-tile shell.
+- Empty / loading: `DETAIL_EMPTY_STATE_CLASS` (plain muted text).
+- Download / open / remove: existing `filesApi.getFileDownloadUrl` (same-origin); open uses `target="_blank"` + `rel="noreferrer"`.
+
 ---
 
 ## Storage resolution (upload)
@@ -65,9 +74,8 @@ Diagnostic routes **`/storage/objects`** and **`/storage/google-drive/health`** 
 
 - Deep-link / panel sync: notes-style `filesDeepLinkPathSyncedRef` + `useLocation` in `FilesProvider`.
 - Edit cancel closes the panel directly (`FileForm` → `closeFilePanel`); core cancel-from-edit would call `openFileForView`, which for files opens edit again.
-- **List browse:** sticky **quick context** (`FileQuickContextPanel`) — preview scaled to QC column (`max-h-56` / `object-contain`); footer Delete (left) + Download/Open; no full view for row click. Compact → edit panel.
-- **Cards density:** display columns via `getEffectiveFileGridColumns` — phone **2**, pad **4**, desktop **6** (clamped to **2** while QC is open). Persisted cards pref normalizes to **6**.
-- **Exception — Delete in Quick Context:** `PLUGIN_VIEW_IMPLEMENTATION_GUIDE` anti-pattern “Delete inside QuickContextPanel” is **intentionally waived** for files. Files has **no full view**; `FileDetailHeaderMenus` only mounts when `panelMode === 'view'`, which browse/deep-link no longer use. QC is therefore the single-item delete surface for list browse. Same chain as other plugins: `ConfirmDialog` (`variant="danger"`) → `getDeleteMessage` → `deleteFile` → close QC. Bulk delete remains on the list `BulkDeleteModal`.
+- **List browse:** table-only mail-layout (`FileList` / `FileListTable`). Row click shows stacked `FileView` in the detail column (`FileQuickContextPanel` is the view header card). There is **no** sticky list-side QC. Compact viewport uses panel flow.
+- **Exception — Files delete surface:** Delete is on `FileDetailHeaderMenus` (`ConfirmDialog` → `getDeleteMessage` → `deleteFile`), not in the QC body. Bulk delete remains on the list `BulkDeleteModal`. The earlier “Delete inside list QC” waiver does **not** apply — list QC is gone.
 - Form: create keeps inline Save/Cancel; edit uses shell header Close/Update. i18n `en`/`sv`.
 - Cloud settings: Drive-only + ConfirmDialog.
 - Card/table thumbs: images (non-SVG) via download URL (`?inline=1`); SVG excluded client-side and refused inline server-side (**F-SVG-1**).
@@ -101,11 +109,11 @@ Closed in this epic: tenant SELECT isolation fix; Drive-only cloud surface; F-SV
 
 ## Related code
 
-| Area             | Path                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------- |
-| Routes / upload  | `plugins/files/routes.js`                                                             |
-| Controllers      | `plugins/files/controller.js`, `cloudStorageController.js`                            |
-| Models / service | `model.js`, `attachmentModel.js`, `filesService.js`                                   |
-| Client           | `client/src/plugins/files/` (incl. `FileQuickContextPanel.tsx`, `fileColumnCount.ts`) |
-| Migration        | `server/migrations/160-file-attachments-unique.sql`                                   |
-| Storage registry | `server/core/storage/StorageProviderRegistry.js`                                      |
+| Area             | Path                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| Routes / upload  | `plugins/files/routes.js`                                                                |
+| Controllers      | `plugins/files/controller.js`, `cloudStorageController.js`                               |
+| Models / service | `model.js`, `attachmentModel.js`, `filesService.js`                                      |
+| Client           | `client/src/plugins/files/` (incl. `FileQuickContextPanel.tsx`; no `fileColumnCount.ts`) |
+| Migration        | `server/migrations/160-file-attachments-unique.sql`                                      |
+| Storage registry | `server/core/storage/StorageProviderRegistry.js`                                         |

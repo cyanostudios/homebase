@@ -9,7 +9,12 @@ import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
-import { CLUBDESK_SUBPAGE_SET, resolveClubdeskPanelClosePath } from '@/core/routing/clubdeskRoutes';
+import {
+  CLUBDESK_SUBPAGE_SET,
+  resolveClubdeskPanelClosePath,
+  shouldKeepPendingGuideItemPath,
+  shouldKeepPendingPriceListItemPath,
+} from '@/core/routing/clubdeskRoutes';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { buildSlug, resolveSlug, slugify } from '@/core/utils/slugUtils';
 
@@ -142,6 +147,8 @@ export function ClubdeskProvider({
   const [recentlyDuplicatedPriceListId, setRecentlyDuplicatedPriceListId] = useState<string | null>(
     null,
   );
+  /** Suppresses deep-link → view when edit/create already navigated to the item URL. */
+  const deepLinkPathSyncedRef = useRef<string | null>(null);
 
   const {
     selectedIds: selectedClubdeskIds,
@@ -327,7 +334,11 @@ export function ClubdeskProvider({
 
   const ensureFullPriceList = useCallback(
     async (item: ClubdeskPriceList): Promise<ClubdeskPriceList> => {
-      if (Array.isArray(item.items)) {
+      // Index rows omit `items`. Treat empty `items` with itemCount > 0 as incomplete
+      // so soft-preview / edit cannot short-circuit and leave the UI empty.
+      const loaded = Array.isArray(item.items);
+      const count = item.itemCount ?? 0;
+      if (loaded && (item.items!.length > 0 || count === 0)) {
         return item;
       }
       return clubdeskApi.getPriceList(item.id);
@@ -349,6 +360,7 @@ export function ClubdeskProvider({
       setValidationErrors([]);
       onCloseOtherPanels();
       if (item) {
+        deepLinkPathSyncedRef.current = `/clubdesk/${buildSlug(item, clubdesk, 'slug')}`;
         navigateToItem(item, clubdesk, 'slug');
         void ensureFullClubdesk(item).then((full) => {
           setCurrentClubdesk(full);
@@ -381,6 +393,9 @@ export function ClubdeskProvider({
       setIsClubdeskPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      // Soft-preview often has no item slug in the URL; navigating would otherwise re-trigger
+      // deep-link sync → openClubdeskForView and bounce edit back to view.
+      deepLinkPathSyncedRef.current = `/clubdesk/${buildSlug(item, clubdesk, 'slug')}`;
       navigateToItem(item, clubdesk, 'slug');
       void ensureFullClubdesk(item).then((full) => {
         setCurrentClubdesk(full);
@@ -450,6 +465,8 @@ export function ClubdeskProvider({
       setValidationErrors([]);
       onCloseOtherPanels();
       if (priceList) {
+        // Mark destination URL synced before navigate so deep-link effect does not reset to view.
+        deepLinkPathSyncedRef.current = `/clubdesk/price-list/${buildSlug(priceList, priceLists, 'slug')}`;
         navigateToPriceListItem(priceList, priceLists, 'slug');
         void ensureFullPriceList(priceList).then(async (full) => {
           setCurrentPriceList(full);
@@ -489,6 +506,9 @@ export function ClubdeskProvider({
       setIsClubdeskPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      // Soft-preview often has no item slug in the URL; navigating would otherwise re-trigger
+      // deep-link sync → openPriceListForView and bounce edit back to view.
+      deepLinkPathSyncedRef.current = `/clubdesk/price-list/${buildSlug(priceList, priceLists, 'slug')}`;
       navigateToPriceListItem(priceList, priceLists, 'slug');
       void ensureFullPriceList(priceList).then(async (full) => {
         setCurrentPriceList(full);
@@ -556,7 +576,20 @@ export function ClubdeskProvider({
     openPriceListForViewRef.current = openPriceListForView;
   }, [openPriceListForView]);
 
-  const deepLinkPathSyncedRef = useRef<string | null>(null);
+  const priceListPanelModeRef = useRef(panelMode);
+  const currentPriceListIdRef = useRef<string | null>(
+    currentPriceList ? String(currentPriceList.id) : null,
+  );
+  priceListPanelModeRef.current = panelMode;
+  currentPriceListIdRef.current = currentPriceList ? String(currentPriceList.id) : null;
+
+  const guidePanelModeRef = useRef(panelMode);
+  const currentClubdeskIdRef = useRef<string | null>(
+    currentClubdesk ? String(currentClubdesk.id) : null,
+  );
+  guidePanelModeRef.current = panelMode;
+  currentClubdeskIdRef.current = currentClubdesk ? String(currentClubdesk.id) : null;
+
   useEffect(() => {
     const segments = location.pathname.split('/').filter(Boolean);
     if (segments[0] !== 'clubdesk') {
@@ -574,14 +607,24 @@ export function ClubdeskProvider({
         return;
       }
       const slug = segments[2] ?? '';
-      deepLinkPathSyncedRef.current = pathKey;
       if (!slug) {
+        if (shouldKeepPendingPriceListItemPath(pathKey, deepLinkPathSyncedRef.current)) {
+          return;
+        }
+        deepLinkPathSyncedRef.current = pathKey;
         return;
       }
+      deepLinkPathSyncedRef.current = pathKey;
       const item = resolveSlug(slug, priceLists, 'slug');
-      if (item) {
-        openPriceListForViewRef.current(item as ClubdeskPriceList);
+      if (!item) {
+        return;
       }
+      const mode = priceListPanelModeRef.current;
+      const currentId = currentPriceListIdRef.current;
+      if ((mode === 'edit' || mode === 'create') && currentId && String(item.id) === currentId) {
+        return;
+      }
+      openPriceListForViewRef.current(item as ClubdeskPriceList);
       return;
     }
 
@@ -591,14 +634,23 @@ export function ClubdeskProvider({
     }
     const slug = segments[1] ?? '';
     if (!slug || CLUBDESK_SUBPAGE_SET.has(slug)) {
+      if (shouldKeepPendingGuideItemPath(pathKey, deepLinkPathSyncedRef.current)) {
+        return;
+      }
       deepLinkPathSyncedRef.current = pathKey;
       return;
     }
     const item = resolveSlug(slug, clubdesk, 'slug');
     deepLinkPathSyncedRef.current = pathKey;
-    if (item) {
-      openClubdeskForViewRef.current(item as Clubdesk);
+    if (!item) {
+      return;
     }
+    const mode = guidePanelModeRef.current;
+    const currentId = currentClubdeskIdRef.current;
+    if ((mode === 'edit' || mode === 'create') && currentId && String(item.id) === currentId) {
+      return;
+    }
+    openClubdeskForViewRef.current(item as Clubdesk);
   }, [location.pathname, clubdesk, priceLists]);
 
   const guideNav = usePluginNavigation(clubdesk, currentClubdesk, openClubdeskForView);

@@ -45,6 +45,8 @@ export interface ClubdeskPriceListItemPayload {
   price: number;
   category: string | null;
   sequenceOrder: number;
+  /** Client-only React list key; stripped before API save. */
+  clientKey?: string;
 }
 
 export interface ClubdeskPriceListPayload {

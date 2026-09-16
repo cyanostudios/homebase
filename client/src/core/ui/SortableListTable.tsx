@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
+import { ListTableSortIcon } from '@/core/ui/ListTableSortIcon';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
@@ -46,6 +46,12 @@ export type SortableListTableProps<TRow, TField extends string> = {
   pluginName?: string;
   /** When set, serializes row into data-list-item (existing list pattern). */
   dataListItem?: (row: TRow) => unknown;
+  /** Very subtle bottom border between body rows (Mail-style). */
+  subtleRowDividers?: boolean;
+  /** Optional thead background (e.g. KPI soft sky). Default `bg-primary/5`. */
+  headerBarClassName?: string;
+  /** Optional TableHead text/hover classes. Default slate muted + primary hover. */
+  headerCellClassName?: string;
 };
 
 export function SortableListTable<TRow, TField extends string>({
@@ -62,14 +68,24 @@ export function SortableListTable<TRow, TField extends string>({
   selection,
   pluginName,
   dataListItem,
+  subtleRowDividers = false,
+  headerBarClassName,
+  headerCellClassName,
 }: SortableListTableProps<TRow, TField>) {
   const isMobile = useIsMobile();
   const effectiveSelection = isMobile ? undefined : selection;
 
   return (
     <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
-      <Table rowBorders={false}>
-        <TableHeader className="bg-primary/5">
+      <Table
+        rowBorders={subtleRowDividers}
+        containerClassName="overflow-x-hidden"
+        className={cn(
+          'table-fixed',
+          subtleRowDividers && '[&_tbody>tr]:border-border/10 dark:[&_tbody>tr]:border-white/5',
+        )}
+      >
+        <TableHeader className={cn('bg-primary/5', headerBarClassName)}>
           <TableRow>
             {effectiveSelection ? (
               <TableHead className="w-8 px-3 pr-1">
@@ -88,8 +104,9 @@ export function SortableListTable<TRow, TField extends string>({
                 <TableHead
                   key={col.field}
                   className={cn(
-                    'text-xs font-black text-slate-400 dark:text-slate-500',
+                    'min-w-0 overflow-hidden text-xs font-black text-slate-400 dark:text-slate-500',
                     sortable && 'cursor-pointer select-none hover:bg-primary/10',
+                    headerCellClassName,
                     col.className,
                   )}
                   onClick={sortable ? () => onSort(col.field) : undefined}
@@ -103,8 +120,8 @@ export function SortableListTable<TRow, TField extends string>({
                         : undefined
                   }
                 >
-                  <div className="flex items-center gap-2 leading-4">
-                    <span>{col.header}</span>
+                  <div className="flex min-w-0 items-center gap-2 leading-4">
+                    <span className="min-w-0 truncate">{col.header}</span>
                     {sortable ? (
                       <ListTableSortIcon active={primarySort === col.field} order={sortOrder} />
                     ) : null}
@@ -156,9 +173,15 @@ export function SortableListTable<TRow, TField extends string>({
                   return (
                     <TableCell
                       key={col.field}
-                      className={cn(isFirstDataCol && 'pl-2', col.className)}
+                      className={cn(
+                        'min-w-0 overflow-hidden',
+                        isFirstDataCol && 'pl-2',
+                        col.className,
+                      )}
                     >
-                      {col.cell(row, index)}
+                      <div className="min-w-0 max-w-full overflow-hidden">
+                        {col.cell(row, index)}
+                      </div>
                     </TableCell>
                   );
                 })}

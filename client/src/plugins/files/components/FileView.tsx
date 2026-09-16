@@ -11,12 +11,16 @@ import { filesApi } from '../api/filesApi';
 import type { FileItem } from '../types/files';
 import { humanSize } from '../utils/humanSize';
 
+import { FileQuickContextPanel } from './FileQuickContextPanel';
+
 type Props = {
   file?: FileItem;
   item?: FileItem;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
 };
 
-export const FileView: React.FC<Props> = ({ file, item }) => {
+export const FileView: React.FC<Props> = ({ file, item, stacked = false }) => {
   const { t } = useTranslation();
   const f = (file ?? item) as FileItem | undefined;
 
@@ -54,6 +58,69 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
         <File className="mb-4 h-12 w-12" />
         <p className="text-sm font-medium">{t('files.viewNoSelection')}</p>
       </div>
+    );
+  }
+
+  const previewSection = (
+    <div className="space-y-4">
+      {previewUrl ? (
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={
+              isImage
+                ? t('files.previewImage')
+                : isPdf
+                  ? t('files.previewPdf')
+                  : t('files.previewContent')
+            }
+            iconPlugin="files"
+            subtleTitle
+            className="p-6"
+          >
+            {isImage ? (
+              <div className="flex min-h-[200px] items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
+                <img src={previewUrl} alt={f.name || 'image'} className="h-auto max-w-full" />
+              </div>
+            ) : isPdf ? (
+              <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
+                <iframe
+                  src={previewUrl}
+                  title={f.name || 'pdf'}
+                  className="w-full"
+                  style={{ minHeight: 600 }}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">
+                <FileText className="mb-4 h-12 w-12" />
+                <p className="text-sm">{t('files.previewNoInline')}</p>
+              </div>
+            )}
+          </DetailSection>
+        </Card>
+      ) : (
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('files.previewUnavailableTitle')}
+            iconPlugin="files"
+            subtleTitle
+            className="p-6"
+          >
+            <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">
+              <ImageIcon className="mb-4 h-12 w-12" />
+              <p className="text-sm">{t('files.previewNoUrl')}</p>
+            </div>
+          </DetailSection>
+        </Card>
+      )}
+    </div>
+  );
+
+  if (stacked) {
+    return (
+      <DetailLayout gridClassName="grid-cols-1" leftSidebar={<FileQuickContextPanel file={f} />}>
+        {previewSection}
+      </DetailLayout>
     );
   }
 
@@ -100,58 +167,7 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
         </div>
       }
     >
-      <div className="space-y-4">
-        {previewUrl ? (
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={
-                isImage
-                  ? t('files.previewImage')
-                  : isPdf
-                    ? t('files.previewPdf')
-                    : t('files.previewContent')
-              }
-              iconPlugin="files"
-              subtleTitle
-              className="p-6"
-            >
-              {isImage ? (
-                <div className="flex min-h-[200px] items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
-                  <img src={previewUrl} alt={f.name || 'image'} className="h-auto max-w-full" />
-                </div>
-              ) : isPdf ? (
-                <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
-                  <iframe
-                    src={previewUrl}
-                    title={f.name || 'pdf'}
-                    className="w-full"
-                    style={{ minHeight: 600 }}
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">
-                  <FileText className="mb-4 h-12 w-12" />
-                  <p className="text-sm">{t('files.previewNoInline')}</p>
-                </div>
-              )}
-            </DetailSection>
-          </Card>
-        ) : (
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('files.previewUnavailableTitle')}
-              iconPlugin="files"
-              subtleTitle
-              className="p-6"
-            >
-              <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">
-                <ImageIcon className="mb-4 h-12 w-12" />
-                <p className="text-sm">{t('files.previewNoUrl')}</p>
-              </div>
-            </DetailSection>
-          </Card>
-        )}
-      </div>
+      {previewSection}
     </DetailLayout>
   );
 };

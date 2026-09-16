@@ -1,17 +1,13 @@
-import { Link2, Maximize2, Minimize2, Users } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import { Link2, Users } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import {
-  DETAIL_ENTITY_LINK_TRIGGER_CLASS,
-  DETAIL_VIEW_CARD_CLASS,
-} from '@/core/ui/detailViewCardStyles';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -26,13 +22,19 @@ import {
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
+import { NoteQuickContextPanel } from './NoteQuickContextPanel';
 import { NoteShareBlock } from './NoteShareBlock';
 
 interface NoteViewProps {
   note: any;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
 }
 
-export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
+export const NoteView = React.memo(function NoteView({
+  note,
+  stacked: _stacked = false,
+}: NoteViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { contacts } = useContacts();
@@ -41,25 +43,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
 
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
-  const [focusMode, setFocusMode] = useState(false);
-
-  useEffect(() => {
-    setFocusMode(false);
-  }, [note?.id]);
-
-  useEffect(() => {
-    if (!focusMode) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setFocusMode(false);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [focusMode]);
 
   const contactById = useMemo(() => {
     const map = new Map<string, Contact>();
@@ -91,99 +74,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   if (!note) {
     return null;
   }
-
-  const focusModeToggle = (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      icon={focusMode ? Minimize2 : Maximize2}
-      className={DETAIL_ENTITY_LINK_TRIGGER_CLASS}
-      aria-pressed={focusMode}
-      title={t('notes.focusModeHint')}
-      onClick={() => setFocusMode((open) => !open)}
-    >
-      {focusMode ? t('notes.exitFocusMode') : t('notes.focusMode')}
-    </Button>
-  );
-
-  const contentHeaderActions = (
-    <div className="flex shrink-0 items-center gap-1">{focusModeToggle}</div>
-  );
-
-  const noteContent = (
-    <RichTextContent
-      content={note.content}
-      mentions={note.mentions || []}
-      onMentionClick={handleContactClick}
-    />
-  );
-
-  const updatedLabel = note.updatedAt
-    ? new Date(note.updatedAt).toLocaleString(undefined, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
-
-  const contentColumn = (
-    <Card
-      padding="none"
-      className={cn(
-        DETAIL_VIEW_CARD_CLASS,
-        'min-w-0 overflow-x-hidden',
-        focusMode && 'relative z-50 mx-auto w-full max-w-[1080px] shadow-lg',
-      )}
-    >
-      {note.showTitleInContent !== false ? (
-        <DetailSection
-          title={(note.title || '').trim() || '—'}
-          iconPlugin="notes"
-          className="min-w-0 overflow-x-hidden p-6"
-          prominentTitle
-          action={contentHeaderActions}
-        >
-          {updatedLabel ? (
-            <p className="mb-3 text-xs text-muted-foreground">
-              {t('common.updated')} {updatedLabel}
-            </p>
-          ) : null}
-          <div
-            className={cn(
-              'min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [&_.rich-text-content]:break-words [&_.rich-text-content]:[overflow-wrap:anywhere] [&_.rich-text-content_pre]:whitespace-pre-wrap [&_.rich-text-content_pre]:break-words [&_.rich-text-content_pre]:overflow-x-hidden',
-              focusMode && 'min-h-[min(70vh,560px)]',
-            )}
-          >
-            {noteContent}
-          </div>
-        </DetailSection>
-      ) : (
-        <div className="min-w-0 overflow-x-hidden p-6">
-          <div className="mb-3 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              {updatedLabel ? (
-                <p className="text-xs text-muted-foreground">
-                  {t('common.updated')} {updatedLabel}
-                </p>
-              ) : null}
-            </div>
-            {contentHeaderActions}
-          </div>
-          <div
-            className={cn(
-              'min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [&_.rich-text-content]:break-words [&_.rich-text-content]:[overflow-wrap:anywhere] [&_.rich-text-content_pre]:whitespace-pre-wrap [&_.rich-text-content_pre]:break-words [&_.rich-text-content_pre]:overflow-x-hidden',
-              focusMode && 'min-h-[min(70vh,560px)]',
-            )}
-          >
-            {noteContent}
-          </div>
-        </div>
-      )}
-    </Card>
-  );
 
   const mentionsCard =
     uniqueMentions.length > 0 ? (
@@ -240,27 +130,21 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
   return (
     <>
-      {focusMode ? (
-        <button
-          type="button"
-          aria-label={t('notes.exitFocusMode')}
-          className="fixed inset-0 z-40 cursor-default border-0 bg-slate-950/55 p-0"
-          onClick={() => setFocusMode(false)}
-        />
-      ) : null}
-
-      <DetailLayout>
+      <DetailLayout gridClassName="grid-cols-1">
         <div className="min-w-0 space-y-4 overflow-x-hidden">
-          {contentColumn}
-          {!focusMode ? (
-            <>
-              {hasFilesPlugin ? (
-                <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
-              ) : null}
-              {mentionsCard}
-              <NoteShareBlock note={note} />
-            </>
+          <NoteQuickContextPanel note={note}>
+            <RichTextContent
+              content={note.content}
+              mentions={note.mentions || []}
+              onMentionClick={handleContactClick}
+            />
+          </NoteQuickContextPanel>
+
+          {hasFilesPlugin ? (
+            <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
           ) : null}
+          {mentionsCard}
+          <NoteShareBlock note={note} />
         </div>
       </DetailLayout>
 
@@ -288,4 +172,4 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       />
     </>
   );
-};
+});

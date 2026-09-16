@@ -16,7 +16,7 @@ import { useApp } from '@/core/api/AppContext';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
+import { ListTableSortIcon } from '@/core/ui/ListTableSortIcon';
 import { FORM_COMPACT_INPUT_CLASS, FORM_COMPACT_SELECT_CLASS } from '@/core/ui/formFieldStyles';
 import { createSerialLatestQueue } from '@/core/utils/serialLatestQueue';
 import type { SerialLatestSettle } from '@/core/utils/serialLatestQueue';

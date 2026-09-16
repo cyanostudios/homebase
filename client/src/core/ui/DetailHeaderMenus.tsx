@@ -35,20 +35,23 @@ export type DetailHeaderMenusProps = {
   extraMenus?: DetailHeaderExtraMenu[];
   /** Rendered in the trigger row immediately after the Actions control (e.g. quick-add). */
   afterActions?: React.ReactNode;
+  /**
+   * Optional leading content on the same row as Actions/Export triggers
+   * (e.g. contact name). Submenus always open on the row below.
+   */
+  leading?: React.ReactNode;
   actionsLabel?: string;
   exportLabel?: string;
   /** Dialogs / portals owned by the caller (delete confirm, duplicate, …). */
   children?: React.ReactNode;
+  className?: string;
 };
 
-/** Phone: triggers + open submenu inline with horizontal scroll. Desktop: wrap triggers only. */
 const DETAIL_HEADER_TRIGGER_ROW_CLASS =
-  'flex min-w-0 items-center gap-2.5 overflow-x-auto no-scrollbar scroll-smooth md:flex-wrap md:overflow-visible';
+  // py/pr keep absolute count badges inside the scrollport (overflow-x-auto forces y-clip).
+  'flex shrink-0 items-center gap-2.5 overflow-x-auto py-1.5 pr-1.5 no-scrollbar scroll-smooth';
 
-/** Phone: submenu pills beside the trigger; desktop: full row below triggers. */
-const DETAIL_HEADER_SUBMENU_INLINE_CLASS = 'flex shrink-0 items-center gap-1 md:hidden';
-
-const DETAIL_HEADER_SUBMENU_DESKTOP_CLASS = 'hidden flex-wrap items-center gap-1 md:flex';
+const DETAIL_HEADER_SUBMENU_CLASS = 'flex min-w-0 flex-wrap items-center justify-end gap-1';
 
 function DetailHeaderActionPills({ actions }: { actions: DetailHeaderMenuAction[] }) {
   return (
@@ -59,10 +62,11 @@ function DetailHeaderActionPills({ actions }: { actions: DetailHeaderMenuAction[
           icon={action.icon}
           label={action.label}
           variant={action.variant ?? 'secondary'}
+          size="xs"
           alwaysExpanded
           disabled={action.disabled}
           contentClassName={action.contentClassName}
-          className="shrink-0"
+          className="shrink-0 text-xs"
           onClick={action.onClick}
         />
       ))}
@@ -80,7 +84,7 @@ function DetailHeaderExtraMenuTrigger({
   onToggle: () => void;
 }) {
   return (
-    <span className="relative inline-flex shrink-0 overflow-visible">
+    <span className="relative z-10 inline-flex shrink-0 overflow-visible">
       <RoundIconLabelButton
         icon={menu.icon}
         label={menu.label}
@@ -90,7 +94,7 @@ function DetailHeaderExtraMenuTrigger({
       />
       {typeof menu.badgeCount === 'number' && menu.badgeCount > 0 ? (
         <span
-          className="absolute -right-1 -top-1 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-0.5 text-[10px] font-extrabold leading-none text-white shadow-sm ring-2 ring-background"
+          className="absolute -right-1 -top-1 z-20 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-0.5 text-[10px] font-extrabold leading-none text-white shadow-sm ring-2 ring-background"
           aria-label={menu.badgeAriaLabel}
           title={menu.badgeAriaLabel}
         >
@@ -103,16 +107,18 @@ function DetailHeaderExtraMenuTrigger({
 
 /**
  * Shared detail-panel header toggle menus (Actions / Export / extras).
- * Phone: open submenu scrolls horizontally beside its trigger; desktop: submenu wraps on a second row.
+ * Trigger buttons stay put; open submenu always renders on the row below.
  */
 export function DetailHeaderMenus({
   actions,
   exportActions = [],
   extraMenus = [],
   afterActions,
+  leading,
   actionsLabel,
   exportLabel,
   children,
+  className,
 }: DetailHeaderMenusProps) {
   const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -128,28 +134,33 @@ export function DetailHeaderMenus({
 
   const actionsOpen = openMenu === 'actions';
   const exportOpen = openMenu === 'export' && hasExport;
+  const openExtra = extraMenus.find((menu) => openMenu === menu.id) ?? null;
 
   return (
     <>
-      <div className="flex min-w-0 flex-1 flex-col md:gap-5">
-        <div className={DETAIL_HEADER_TRIGGER_ROW_CLASS}>
-          <span className="inline-flex shrink-0">
-            <RoundIconLabelButton
-              icon={Zap}
-              label={resolvedActionsLabel}
-              variant={actionsOpen ? 'primary' : 'soft'}
-              alwaysExpanded
-              onClick={() => toggleMenu('actions')}
-            />
-          </span>
-          {afterActions ? <span className="inline-flex shrink-0">{afterActions}</span> : null}
-          {actionsOpen ? (
-            <div className={DETAIL_HEADER_SUBMENU_INLINE_CLASS}>
-              <DetailHeaderActionPills actions={actions} />
-            </div>
-          ) : null}
-          {hasExport ? (
-            <>
+      <div className={cn('flex min-w-0 flex-col gap-3 md:gap-5', className)}>
+        <div className="flex min-w-0 items-center gap-3">
+          {leading ? <div className="min-w-0 flex-1">{leading}</div> : null}
+          <div className={DETAIL_HEADER_TRIGGER_ROW_CLASS}>
+            {extraMenus.map((menu) => (
+              <DetailHeaderExtraMenuTrigger
+                key={menu.id}
+                menu={menu}
+                isOpen={openMenu === menu.id}
+                onToggle={() => toggleMenu(menu.id)}
+              />
+            ))}
+            <span className="inline-flex shrink-0">
+              <RoundIconLabelButton
+                icon={Zap}
+                label={resolvedActionsLabel}
+                variant={actionsOpen ? 'primary' : 'soft'}
+                alwaysExpanded
+                onClick={() => toggleMenu('actions')}
+              />
+            </span>
+            {afterActions ? <span className="inline-flex shrink-0">{afterActions}</span> : null}
+            {hasExport ? (
               <span className="inline-flex shrink-0">
                 <RoundIconLabelButton
                   icon={Download}
@@ -159,49 +170,25 @@ export function DetailHeaderMenus({
                   onClick={() => toggleMenu('export')}
                 />
               </span>
-              {exportOpen ? (
-                <div className={DETAIL_HEADER_SUBMENU_INLINE_CLASS}>
-                  <DetailHeaderActionPills actions={exportActions} />
-                </div>
-              ) : null}
-            </>
-          ) : null}
-          {extraMenus.map((menu) => {
-            const isOpen = openMenu === menu.id;
-            return (
-              <React.Fragment key={menu.id}>
-                <DetailHeaderExtraMenuTrigger
-                  menu={menu}
-                  isOpen={isOpen}
-                  onToggle={() => toggleMenu(menu.id)}
-                />
-                {isOpen ? (
-                  <div className={cn(DETAIL_HEADER_SUBMENU_INLINE_CLASS, 'items-stretch')}>
-                    {menu.content}
-                  </div>
-                ) : null}
-              </React.Fragment>
-            );
-          })}
+            ) : null}
+          </div>
         </div>
 
         {actionsOpen ? (
-          <div className={DETAIL_HEADER_SUBMENU_DESKTOP_CLASS}>
+          <div className={DETAIL_HEADER_SUBMENU_CLASS}>
             <DetailHeaderActionPills actions={actions} />
           </div>
         ) : null}
         {exportOpen ? (
-          <div className={DETAIL_HEADER_SUBMENU_DESKTOP_CLASS}>
+          <div className={DETAIL_HEADER_SUBMENU_CLASS}>
             <DetailHeaderActionPills actions={exportActions} />
           </div>
         ) : null}
-        {extraMenus.map((menu) =>
-          openMenu === menu.id ? (
-            <div key={`content-${menu.id}`} className={DETAIL_HEADER_SUBMENU_DESKTOP_CLASS}>
-              {menu.content}
-            </div>
-          ) : null,
-        )}
+        {openExtra ? (
+          <div className={cn(DETAIL_HEADER_SUBMENU_CLASS, 'items-stretch')}>
+            {openExtra.content}
+          </div>
+        ) : null}
       </div>
       {children}
     </>

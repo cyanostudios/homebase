@@ -1,4 +1,4 @@
-import { Download, ExternalLink, Search, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
+import { Download, ExternalLink, Paperclip, Search, Trash2, Upload } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,12 +9,18 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { SectionCategoryIcon } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS, DETAIL_EMPTY_STATE_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  QUICK_CONTEXT_LINK_TILE_CLASS,
+  QuickContextLinkTileGrid,
+} from '@/core/ui/QuickContextLinkTile';
 import { cn } from '@/lib/utils';
 import { filesApi } from '@/plugins/files/api/filesApi';
 import { useFileAttachments } from '@/plugins/files/hooks/useFileAttachments';
 import type { FileItem } from '@/plugins/files/types/files';
+
+import { FileIdentityCell } from './FileIdentityCell';
 
 function formatSize(bytes: number | null | undefined): string {
   if (bytes === null || bytes === undefined || Number.isNaN(bytes)) {
@@ -54,7 +60,7 @@ export interface FileAttachmentsSectionProps {
 }
 
 /**
- * Attachments block: section header like Contacts/Slots properties.
+ * Attachments block: DetailSection chrome (subtleTitle) matching Notes/Requests cards.
  * Upload and From library each get a full-width row (stacked).
  */
 export function FileAttachmentsSection({
@@ -162,14 +168,13 @@ export function FileAttachmentsSection({
 
   return (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, cardClassName, className)}>
-      <div className="space-y-2 p-6">
-        <div className="mb-1 flex min-w-0 items-center gap-2">
-          <SectionCategoryIcon icon={SlidersHorizontal} />
-          <span className="truncate text-sm font-semibold text-foreground">
-            {t('files.attachmentsTitle')}
-          </span>
-        </div>
-
+      <DetailSection
+        title={t('files.attachmentsTitle')}
+        icon={Paperclip}
+        iconPlugin="files"
+        subtleTitle
+        className="space-y-2 p-6"
+      >
         {!readOnly ? (
           <input
             ref={inputRef}
@@ -315,33 +320,26 @@ export function FileAttachmentsSection({
         ) : null}
 
         {loading ? (
-          <div className="rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          </div>
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('common.loading')}</p>
         ) : attachments.length === 0 ? (
-          <div className="rounded-lg border border-border p-4">
-            <p className="text-sm text-muted-foreground">{t('files.attachmentsEmpty')}</p>
-          </div>
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('files.attachmentsEmpty')}</p>
         ) : (
-          <ul className="space-y-2">
+          <QuickContextLinkTileGrid>
             {attachments.map((row) => {
               const file = row.file;
               if (!file?.id) {
                 return null;
               }
               const displayName = file.name?.trim() ? file.name : file.id;
-              const meta = [formatSize(file.size ?? undefined), file.mimeType]
-                .filter(Boolean)
-                .join(' · ');
               return (
-                <li
+                <div
                   key={row.attachmentId}
-                  className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-border p-4"
+                  className={cn(
+                    QUICK_CONTEXT_LINK_TILE_CLASS,
+                    'group flex min-w-0 items-center justify-between gap-3',
+                  )}
                 >
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="truncate text-sm font-medium">{displayName}</div>
-                    {meta ? <p className="text-[11px] text-muted-foreground">{meta}</p> : null}
-                  </div>
+                  <FileIdentityCell file={file} className="min-w-0 flex-1" />
                   <div className="flex shrink-0 gap-1">
                     <a
                       href={filesApi.getFileDownloadUrl(file.id)}
@@ -386,12 +384,12 @@ export function FileAttachmentsSection({
                       />
                     ) : null}
                   </div>
-                </li>
+                </div>
               );
             })}
-          </ul>
+          </QuickContextLinkTileGrid>
         )}
-      </div>
+      </DetailSection>
 
       <ConfirmDialog
         isOpen={removeTarget !== null}

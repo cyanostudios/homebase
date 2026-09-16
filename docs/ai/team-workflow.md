@@ -113,6 +113,14 @@ Vid underkännande i steg 6–8 går leveransen tillbaka till den roll som produ
 
 **Lämnar vidare:** Implementerat användargränssnitt, tester, dokumentation av implementationsbeslut.
 
+### Overlay: UI Hygiene (inte en grind)
+
+**När:** När uppgiften är att städa död eller inaktuell UI (gammal design, orphan-komponenter, duplicerad chrome). TPM avgränsar yta. **Inte** en nionde grind och **inte** ett Workflow Runner-steg.
+
+**Gör:** Klassificerar Radera / Leva / Residual kärna. Raderar bara död/inaktuell UI. Gömmer aldrig. Rör inte delad shell som kräver refaktor.
+
+**Lämnar vidare:** Klassificering + raderad kod till QA, eller residual-lista till TPM. Se [roles/ui-hygiene.md](roles/ui-hygiene.md).
+
 ### 6. QA / Code Reviewer
 
 **När:** När implementation är klar (backend och/eller frontend).
@@ -168,7 +176,7 @@ När en roll underkänner en leverans:
 
 1. **Underkännande med motivering** – rollen lämnar konkret, motiverad feedback (inte vag kritik).
 2. **Återgång till rätt roll** – leveransen skickas tillbaka till den roll som producerade den:
-   - QA underkänner kod → tillbaka till Backend- eller Frontendutvecklare.
+   - QA underkänner kod → tillbaka till Backend- eller Frontendutvecklare (UI Hygiene-städpass → UI Hygiene).
    - Säkerhet underkänner → tillbaka till Backend- eller Frontendutvecklare (eller Arkitekt om det är ett arkitekturproblem).
    - Dokumentation underkänner → tillbaka till den roll vars implementation dokumentationen avser.
    - Arkitekturrelaterat problem upptäckt sent → tillbaka till Lösningsarkitekt (och vidare till utvecklare efter omarbetning).

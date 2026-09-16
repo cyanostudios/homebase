@@ -1,5 +1,4 @@
 export const SLOTS_SETTINGS_KEY = 'slots' as const;
-export type SlotsViewMode = 'grid' | 'list';
 
 export interface SlotMention {
   contactId: string;

@@ -26,11 +26,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
@@ -42,7 +37,6 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -60,11 +54,6 @@ import { cn } from '@/lib/utils';
 import { useGuides } from '../hooks/useGuides';
 import { type Guide } from '../types/guides';
 import {
-  getInitialGuideColumnCount,
-  GUIDES_COLUMN_COUNT_STORAGE_KEY,
-  type GuideColumnCount,
-} from '../utils/guideColumnCount';
-import {
   guideMatchesListFilters,
   toggleGuideListFilter,
   type GuideListFilter,
@@ -76,14 +65,7 @@ import {
   type GuideSortField,
   type GuideSortOrder,
 } from '../utils/guideListSort';
-import {
-  getInitialGuideListViewMode,
-  persistGuideListViewModeSession,
-  type GuideListViewMode,
-} from '../utils/guideListViewMode';
-
 import { BulkStatusDialog } from './BulkStatusDialog';
-import { GuideListItem } from './GuideListItem';
 import { GuideListTable } from './GuideListTable';
 import { GuideSettingsView, type GuideSettingsCategory } from './GuideSettingsView';
 
@@ -127,33 +109,11 @@ export const GuideList: React.FC = () => {
 
   const [primarySort, setPrimarySort] = useState<SortField>('displayName');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<GuideColumnCount>(() => {
-    const initial = getInitialGuideColumnCount();
-    return (initial === 1 || initial === 2 ? 3 : initial) as GuideColumnCount;
-  });
-  const [listViewMode, setListViewModeState] = useState<GuideListViewMode>(
-    getInitialGuideListViewMode,
-  );
   const [activeFilters, setActiveFilters] = useState<GuideListFilterSelection>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [settingsCategory, setSettingsCategory] = useState<GuideSettingsCategory>('production');
-
-  const setColumnCount = useCallback((_count: GuideColumnCount) => {
-    const next = 3 as GuideColumnCount;
-    setColumnCountState(next);
-    setListViewModeState('cards');
-    persistGuideListViewModeSession('cards');
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(GUIDES_COLUMN_COUNT_STORAGE_KEY, String(next));
-    }
-  }, []);
-
-  const setListViewMode = useCallback((mode: GuideListViewMode) => {
-    setListViewModeState(mode);
-    persistGuideListViewModeSession(mode);
-  }, []);
 
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
@@ -172,10 +132,6 @@ export const GuideList: React.FC = () => {
     },
     [primarySort, sortOrder],
   );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const sortFieldOptions = useMemo(
     (): { value: SortField; label: string }[] => [
@@ -378,14 +334,6 @@ export const GuideList: React.FC = () => {
                 onChange={setSearchTerm}
                 placeholder={t('guides.searchPlaceholder', { count: guides.length })}
               />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) => t(`guides.columns${count}`)}
-                tableAriaLabel={t('common.tableView')}
-              />
               <ExpandableIconButton
                 icon={Plus}
                 label={t('guides.addPlace')}
@@ -539,7 +487,7 @@ export const GuideList: React.FC = () => {
                   : undefined
               }
             />
-          ) : isTableView ? (
+          ) : (
             <GuideListTable
               guides={filteredAndSorted}
               primarySort={primarySort}
@@ -553,43 +501,6 @@ export const GuideList: React.FC = () => {
               onHeaderCheckboxChange={onToggleAllVisible}
               selectionEnabled={selectionMode}
             />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((guide, index) => {
-                const guideIsSelected = isSelected(guide.id);
-                return (
-                  <GuideListItem
-                    key={guide.id}
-                    guide={guide}
-                    selected={guideIsSelected}
-                    columnCount={effectiveCardColumnCount}
-                    onClick={() => handleRowActivate(guide)}
-                    checkbox={
-                      selectionMode ? (
-                        <input
-                          type="checkbox"
-                          checked={guideIsSelected}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(guide.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={
-                            guideIsSelected ? t('guides.unselectPlace') : t('guides.selectPlace')
-                          }
-                        />
-                      ) : undefined
-                    }
-                  />
-                );
-              })}
-            </div>
           )}
 
           <ListFooterBar

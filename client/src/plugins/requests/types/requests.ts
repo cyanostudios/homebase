@@ -104,6 +104,17 @@ export const REQUEST_STATUS_COLORS: Record<RequestStatus, string> = {
   cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
 };
 
+/** Icon shell tones for list/detail headers (SectionCategoryIcon). */
+export const REQUEST_STATUS_ICON_SHELL_CLASS: Record<RequestStatus, string> = {
+  'not started': 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+  'in progress': 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400',
+  completed: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400',
+  cancelled: 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400',
+};
+
+export const REQUEST_TYPE_ICON_SHELL_CLASS =
+  'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300';
+
 export const REQUEST_PRIORITY_COLORS: Record<RequestPriority, string> = {
   Low: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
   Medium: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',

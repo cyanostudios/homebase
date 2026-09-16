@@ -16,13 +16,25 @@ export type SlotTableColumnId = (typeof SLOT_TABLE_COLUMN_IDS)[number];
 const helpers = createTableColumnsHelpers({
   columnIds: SLOT_TABLE_COLUMN_IDS,
   requiredColumnId: 'name',
-  defaultHidden: ['created_at', 'updated_at'],
+  /** Name-only list default; per-plugin metadata columns come later in code. */
+  defaultHidden: [
+    'category',
+    'location',
+    'slot_time',
+    'visible',
+    'booked_count',
+    'created_at',
+    'updated_at',
+  ],
 });
 
 export const DEFAULT_SLOT_TABLE_COLUMNS = helpers.DEFAULT;
 export const isSlotTableColumnId = helpers.isColumnId;
 export const normalizeSlotTableColumns = helpers.normalize;
-export const resolveVisibleSlotTableColumns = helpers.resolveVisible;
+/** Always code defaults — table column prefs were removed from settings. */
+export const resolveVisibleSlotTableColumns = (
+  _settings?: { tableColumns?: unknown } | null,
+): SlotTableColumnId[] => helpers.resolveVisible(null);
 export const slotTableColumnsEqual = helpers.equal;
 export const reorderSlotTableColumns = helpers.reorder;
 export const setSlotTableColumnHidden = helpers.setHidden;

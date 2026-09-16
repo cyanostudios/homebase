@@ -30,11 +30,12 @@ interface PulseSettingsFormProps {
   onSave?: (data: Record<string, unknown>) => Promise<boolean>;
   onCancel?: () => void;
   onSaveSuccess?: () => void;
+  stacked?: boolean;
 }
 
 export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettingsFormProps>(
   function PulseSettingsForm(
-    { currentPulse: currentPulseProp, onSave, onCancel, onSaveSuccess },
+    { currentPulse: currentPulseProp, onSave, onCancel, onSaveSuccess, stacked = false },
     ref,
   ) {
     const { t } = useTranslation();
@@ -209,7 +210,7 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
 
     return (
       <div className="plugin-pulses">
-        <DetailLayout sidebar={formSidebar}>
+        <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
           <div className="space-y-6">
             {error ? (
               <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">

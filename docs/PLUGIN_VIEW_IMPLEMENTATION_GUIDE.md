@@ -6,17 +6,18 @@
 
 **Canonical references (copy, do not invent):**
 
-| Area                          | Primary reference                                                                                                                                                               |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **List header (canonical)**   | `client/src/plugins/contacts/components/ContactList.tsx` — Select/Clear, `BulkActionRoundBar`, `RoundExpandableSearch`                                                          |
-| Quick context panel           | `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx`                                                                                                         |
-| List wiring (split + preview) | `client/src/plugins/contacts/components/ContactList.tsx`, `client/src/plugins/garments/components/GarmentList.tsx`                                                              |
-| **Full detail (canonical)**   | `client/src/plugins/contacts/components/ContactView.tsx` — 2-col layout, header menus, always-visible Addresses + Contact Persons (empty states), no Information/Activity cards |
-| Detail header menus           | `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx` (thin wrapper) + `client/src/core/ui/DetailHeaderMenus.tsx`                                               |
-| List page shell               | `PLUGIN_PAGE_LIST_SHELL_CLASS` in `client/src/core/ui/pluginPageStyles.ts` (`overflow-x-clip`, not `hidden`)                                                                    |
-| Provider list (search-only)   | `client/src/plugins/ai-providers/components/AIProvidersList.tsx` — `RoundExpandableSearch` in header, no Select                                                                 |
-| Shared tokens                 | `client/src/core/ui/detailViewCardStyles.ts`                                                                                                                                    |
-| Preview hook                  | `client/src/core/hooks/useQuickContextPreview.ts`                                                                                                                               |
+| Area                        | Primary reference                                                                                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **List header (canonical)** | `client/src/plugins/contacts/components/ContactList.tsx` — Select/Clear, `BulkActionRoundBar`, `RoundExpandableSearch`                                                          |
+| Quick context (mail-layout) | `client/src/plugins/contacts/components/ContactQuickContextPanel.tsx` — full-only header card in `*View`                                                                        |
+| Full QC with domain facts   | `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx` — used from `GarmentView`, not a list aside                                                             |
+| List wiring (mail-layout)   | `client/src/plugins/contacts/components/ContactList.tsx` (also Cups / Slots for table chrome)                                                                                   |
+| **Full detail (canonical)** | `client/src/plugins/contacts/components/ContactView.tsx` — 2-col layout, header menus, always-visible Addresses + Contact Persons (empty states), no Information/Activity cards |
+| Detail header menus         | `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx` (thin wrapper) + `client/src/core/ui/DetailHeaderMenus.tsx`                                               |
+| List page shell             | `PLUGIN_PAGE_LIST_SHELL_CLASS` in `client/src/core/ui/pluginPageStyles.ts` (`overflow-x-clip`, not `hidden`)                                                                    |
+| Provider list (search-only) | `client/src/plugins/ai-providers/components/AIProvidersList.tsx` — `RoundExpandableSearch` in header, no Select                                                                 |
+| Shared tokens               | `client/src/core/ui/detailViewCardStyles.ts`                                                                                                                                    |
+| Preview hook (legacy)       | `client/src/core/hooks/useQuickContextPreview.ts` — **do not use for new mail-layout lists**                                                                                    |
 
 **Read alongside:**
 
@@ -27,102 +28,78 @@
 
 **Principle:** Kopiera exakt från referensfilerna. Ändra bara plugin-namn och domänfält. Gissa aldrig layout, knappar eller dialoger.
 
+**New CRUD scaffolds (default):** copy **`templates/plugin-frontend-template/`** or **`ContactList.tsx`** — **Contacts-class mail-layout** (table-only, 20/80 desktop split, detail column shows stacked `*View`, inline create/edit, or `*StatisticsView` when empty). Register `contentFlush: true` and `contentOwnsScroll: true` in `pluginRegistry.ts`. See ADR [`ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md`](ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md).
+
+**Legacy/alternate:** a **50/50 sticky aside** with a separate `*QuickContextPanel` (`variant="list"`) beside the list — **removed from production** (Slots migrated to mail-layout 2026-09-16). Do **not** reintroduce.
+
 ---
 
 ## Mental model
 
 ```
+Mail-layout (default — Contacts-class):
+List (*List.tsx)  →  detail column *View (full *QuickContextPanel as first card)
+                  →  inline *Form on create/edit
+                  →  *StatisticsView when empty
+
+Legacy list-side QC (Slots only):
 List (*List.tsx)
   │  row click (desktop)
   ▼
-Quick Context Panel (*QuickContextPanel)     ← sticky aside, preview + light edit
+Quick Context Panel (*QuickContextPanel variant="list")  ← sticky aside
   │  Open full profile / Edit
   ▼
-DetailPanel (core shell)
-  ├─ panelMode === 'view'  → *View.tsx   (DetailLayout + DetailHeaderMenus in panel title)
-  └─ panelMode === 'edit'|'create' → *Form.tsx  (same DetailLayout chrome)
+DetailPanel / *View (variant="full")
 ```
 
 Delete, Duplicate, and Export belong in the **full view header menus** (`DetailHeaderMenus`), not in the quick context panel or sidebar cards. Full views do **not** render the system Information card (ID/Created/Updated) or `DetailActivityLog` in the layout (canonical Contacts pattern).
 
 ---
 
-## 1. Quick Context Panel (list-side preview)
+## 1. Quick Context Panel
 
 ### When to add one
 
-Add a `*QuickContextPanel` when the entity has enough fields that a sticky preview + light inline edit is useful without opening the full detail panel. Existing implementations: contacts, notes, tasks, requests, teams, matches, slots, garments inventory.
+Add a `*QuickContextPanel` as the **first card of `*View`** (mail-layout full-only header: title + `*DetailHeaderMenus`, optional `headerBelow`), **or** mount `*DetailHeaderMenus` with `leading` in the view header card (Cups / Slots). Do **not** add a sticky list-side preview.
 
-Do **not** put Delete / Duplicate / Export in the quick context panel.
+**Existing production (verified 2026-09-16):**
+
+| Pattern                                          | Plugins                                                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Full-only QC in `*View` (no `variant`)           | contacts, notes, tasks, requests, teams, matches, invoices, files, garments inventory, cups |
+| Mail-layout detail column (stacked `*View`)      | slots, cups, contacts, clubdesk guides/price lists, and other mail-layout lists             |
+| List-side sticky QC (`variant="list" \| "full"`) | **none** (removed; do not reintroduce)                                                      |
+
+Do **not** put Delete / Duplicate / Export in the quick context **body**. Mail-layout QC mounts `*DetailHeaderMenus` in the header (Actions / Export / Delete live there).
 
 ### Props contract
+
+**Mail-layout (copy Contacts):**
 
 ```tsx
 {
   item: T;
-  onClose?: () => void;
-  onOpenFullProfile?: () => void;
-  onEdit: () => void;
-  variant?: 'list' | 'full'; // default 'list'
-  // domain-specific optional callbacks, e.g.:
-  // onVariantQuantityChange?: (variantId, quantity) => void | Promise<void>;
-  // quantitySaving?: boolean;
+  headerBelow?: React.ReactNode; // optional row under the title (e.g. view chips)
 }
 ```
 
-| `variant`          | Behavior                                                                                                            |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `'list'` (default) | Show ExternalLink, Close (X), and footer “Open full profile” CTA                                                    |
-| `'full'`           | Hide ExternalLink, Close, and footer CTA — used when the same component is embedded as the left column of full view |
+Header actions come from `*DetailHeaderMenus` (`leading={titleLeading}`). There is no `variant`, `onClose`, `onOpenFullProfile`, or list footer.
 
 ### Layout structure
 
+**Mail-layout (Contacts — copy this):**
+
 ```
 Card (DETAIL_VIEW_CARD_CLASS, flex-col; natural height — no max-h / no internal scroll)
-├── Header row (border-b, px-4 py-2.5)
-│     initials avatar | title | QuickContextHeaderActions (Open / Edit / Close)
-├── Body (px-4 py-4) — grows with content; list scrollport sticks the aside (`lg:sticky lg:top-4 self-start`)
-│     updated timestamp
-│     2×2 fact grid (uppercase labels)
-│     domain list / inline editors
-│     truncated description + read more
-│     amber comment callout
-└── Footer (list only): `QuickContextOpenFullFooter` — right-aligned round “Open full profile”
+└── Header (px-4 py-5)
+      *DetailHeaderMenus (leading = icon + title)
+      optional updated + badges row
+      optional headerBelow
 ```
 
 ### Header (exact pattern)
 
-Use **`QuickContextHeaderActions`** — do not copy ghost `Button` icons.
-
-```tsx
-import { QuickContextHeaderActions } from '@/core/ui/QuickContextHeaderActions';
-
-<QuickContextHeaderActions
-  onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
-  onEdit={onEdit}
-  onClose={!isFullView && onClose ? onClose : undefined}
-  editLabel={t('common.edit')}
-  closeLabel={t('common.close')}
-/>;
-```
-
-| Control   | Expansion                                     |
-| --------- | --------------------------------------------- |
-| **Open**  | `alwaysExpanded` (`common.open`)              |
-| **Edit**  | Collapsed; label on hover                     |
-| **Close** | Collapsed icon-only (`expandOnHover={false}`) |
-
-Footer (list variant only):
-
-```tsx
-import { QuickContextOpenFullFooter } from '@/core/ui/QuickContextHeaderActions';
-
-{
-  !isFullView && onOpenFullProfile ? (
-    <QuickContextOpenFullFooter onOpen={onOpenFullProfile} />
-  ) : null;
-}
-```
+**Mail-layout:** mount the plugin’s `*DetailHeaderMenus` with `leading={titleLeading}`. Do not copy ghost `Button` icons.
 
 ### Fact grid labels
 
@@ -138,8 +115,7 @@ Fact grid: `grid grid-cols-2 gap-x-4 gap-y-3`.
 ### Description truncation
 
 - Preview budget: `LIST_CONTENT_PREVIEW_CHARS = 1200` (same as notes/tasks).
-- In `'list'` mode, show “Read more” / “Show less” toggle when truncated.
-- In `'full'` mode, show full text (no toggle).
+- Full view: show full text (no list-side “Read more” toggle — that pattern belonged to removed sticky QC).
 
 ### Comment callout
 
@@ -151,11 +127,9 @@ Fact grid: `grid grid-cols-2 gap-x-4 gap-y-3`.
 </div>
 ```
 
-### Footer CTA (list mode only)
-
-Use **`QuickContextOpenFullFooter`** (see Header section above) — right-aligned round button, `alwaysExpanded`, label `common.openFullProfile`. Do not use full-width primary `Button` rows.
-
 ### Hook: `useQuickContextPreview`
+
+**Legacy only — no production list uses this for sticky QC anymore.** Mail-layout lists select a row into the detail column without this hook (local preview state). Do not add it to new CRUD plugins.
 
 ```tsx
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
@@ -187,63 +161,59 @@ Global handler: `client/src/core/keyboard/keyboardHandlers.ts`, registered **cap
 
 Do **not** call `open*ForView` from the global Space handler. Full profile stays on Open full / `markPendingAndOpen`.
 
-**Required row attributes:** `data-list-item`, `data-plugin-name`, `tabIndex={0}` when the row is clickable, `role="button"`. Shared table: `SortableListTable` sets `tabIndex={0}` when `onRowClick` is set. Cards already use `tabIndex={0}` on `*ListItem`.
+**Required row attributes:** `data-list-item`, `data-plugin-name`, `tabIndex={0}` when the row is clickable, `role="button"`. Shared table: `SortableListTable` sets `tabIndex={0}` when `onRowClick` is set. Do not add `*ListItem` card rows.
 
 ### Wiring in `*List.tsx`
 
 Use the **Contacts list header** (§4) — not `ListToolbar` — above the split. Outer page shell must use `PLUGIN_PAGE_LIST_SHELL_CLASS` (`overflow-x-clip` — `overflow-x-hidden` breaks sticky). Do **not** nest the header row inside a shrinking flex child.
 
-Canonical quick-context split (Contacts / Tasks / Notes / …): **50/50 grid**, sticky only in **list** view.
+**Default (mail-layout):** **20/80** list|detail columns on desktop (`≥1024px` / `showDesktopSplit`). Left: table only. Right: stacked `*View`, inline `*Form` + `InlinePanelFormActions`, or `*StatisticsView` when nothing selected. Copy `ContactList.tsx` / `YourItemList.tsx`:
 
 ```tsx
 <div
   className={cn(
-    'grid items-start gap-4',
-    showQuickContext && previewItem ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+    'grid min-h-0 min-w-0 gap-2',
+    showDesktopSplit
+      ? 'flex-1 grid-cols-[minmax(220px,20%)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-stretch'
+      : 'grid-cols-1 items-start',
   )}
 >
-  {showQuickContext && previewItem ? (
-    <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
-      <MyPluginQuickContextPanel
-        item={previewItem}
-        onClose={() => setPreviewItem(null)}
-        onOpenFullProfile={() =>
-          markPendingAndOpen(previewItem, () =>
-            attemptNavigation(() => openMyPluginForView(previewItem)),
-          )
-        }
-        onEdit={() =>
-          markPendingAndOpen(previewItem, () =>
-            attemptNavigation(() => openMyPluginForEdit(previewItem)),
-          )
-        }
-      />
+  <div
+    className={cn(
+      'min-w-0',
+      showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+    )}
+  >
+    {/* *ListTable only; pass activeItemId */}
+  </div>
+  {showDesktopSplit ? (
+    <aside
+      className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain"
+      role="region"
+      aria-label="Item preview"
+    >
+      {/* inlineForm ? InlinePanelFormActions + *Form : detailItem ? *View stacked : *StatisticsView */}
     </aside>
   ) : null}
-  <div className="flex min-w-0 flex-col gap-3">
-    {/* table or card grid only; pass activeId = previewItem?.id */}
-  </div>
 </div>
 ```
 
-Do **not** sticky the quick-context panel in full detail view — sticky is list-only.
+**Legacy sticky list-side QC (50/50):** Removed. Do **not** reintroduce sticky list-side QC; use mail-layout detail column instead.
 
 ### Active row highlight
 
-Pass `active*Id={previewItem?.id ?? null}` into `*ListItem` / `*ListTable` so the selected row shows an active ring while the quick context is open. Keep bulk selection available while the panel is open.
+Pass `active*Id={previewItem?.id ?? selectedId}` into `*ListTable` so the selected row shows an active ring. Keep bulk selection available while the detail column / list-side QC is open. Do **not** add `*ListItem` card rows.
 
 ### Checklist — Quick Context
 
-- [ ] Component lives at `plugins/<name>/components/*QuickContextPanel.tsx`
-- [ ] Props include `item`, `onEdit`, optional `onClose` / `onOpenFullProfile`, `variant?: 'list' | 'full'`
+- [ ] Component lives at `plugins/<name>/components/*QuickContextPanel.tsx` **or** detail header menus live in `*View` (Cups/Slots pattern)
+- [ ] Mail-layout: full-only props (`item` + optional `headerBelow`); header is `*DetailHeaderMenus` with `leading`
 - [ ] Uses `DETAIL_VIEW_CARD_CLASS` on the outer `Card`
-- [ ] Header uses `QuickContextHeaderActions` (Open expanded; Edit hover-expand; Close icon-only)
-- [ ] Footer uses `QuickContextOpenFullFooter` when `variant !== 'full'`
-- [ ] No Delete / Duplicate / Export in the panel
-- [ ] List uses `useQuickContextPreview` + 50/50 `lg:grid-cols-2` with sticky `<aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">`
+- [ ] No Delete / Duplicate / Export in the panel **body** (header menus are OK)
+- [ ] Mail-layout list uses 20/80 split + detail column (`ContactList.tsx` / template `YourItemList.tsx`); do **not** add 50/50 sticky list-side QC
 - [ ] Outer list shell uses `PLUGIN_PAGE_LIST_SHELL_CLASS` (not hardcoded `overflow-x-hidden`)
-- [ ] Active row id synced to preview; bulk selection may run while panel is open
-- [ ] i18n: `common.open`, `common.openFullProfile`, `common.edit`, `common.close`, `common.select`, `common.clear`; plugin keys for readMore / showLess in **en** and **sv**
+- [ ] Active row id synced to the open detail / preview; bulk selection may run while the panel is open
+- [ ] i18n: `common.open`, `common.edit`, `common.close`, `common.select`, `common.clear`; `*.quickContext.title` / empty pane keys as needed (**en** and **sv**)
 - [ ] List header follows §4 (Select/Clear + BulkActionRoundBar + RoundExpandableSearch) — not `ListToolbar`
 
 ---
@@ -256,7 +226,7 @@ Full view renders inside core `DetailPanel` (wired by `AppContent` + `pluginRegi
 
 ```tsx
 <DetailLayout
-  leftSidebar={/* identity + properties + description (quick context variant="full") */}
+  leftSidebar={/* identity + properties + description (full *QuickContextPanel) */}
   sidebar={/* optional: related entities / domain cards only — no QuickActions, Export, Information, Activity */}
 >
   {/* optional main column: primary working content (e.g. variants, linked items) */}
@@ -282,14 +252,23 @@ Do **not** put primary content properties only in the right sidebar — see §6 
 ### Cards and sections
 
 - Outer cards: `<Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>`
-- Sections: `<DetailSection title={…} icon={…} subtleTitle className="p-4">`
+- Sections: `<DetailSection title={…} icon={…} subtleTitle className="p-4">` (or `p-6` where the plugin already uses denser padding)
 - Field values: `DETAIL_FIELD_VALUE_CLASS`
 - Property rows: `DETAIL_PROP_ROW_CLASS`
 - Notes/comments: `DETAIL_NOTE_CALLOUT_CLASS`
 - Info rows: `DETAIL_INFO_ROW_CLASS`
 - Quick action rows: `DETAIL_QUICK_ACTION_ROW_CLASS`
+- **Empty messages inside a detail card:** `DETAIL_EMPTY_STATE_CLASS` (`text-xs text-muted-foreground`) — same as Contacts linked when empty. Do **not** wrap empties in bordered/dashed boxes.
 
-**Contacts full view (canonical):** Always render **Addresses** and **Contact Persons** cards (column 1, after Quick Context). When empty, show a bordered muted empty state (`contacts.noAddresses` / `contacts.noContactPersons`) — do not omit the cards.
+**Contacts full view (canonical):** Always render **Addresses** and **Contact Persons** cards (column 1, after Quick Context). When empty, show the shared muted empty message (`DETAIL_EMPTY_STATE_CLASS` / `contacts.noAddresses` / `contacts.noContactPersons`) — do not omit the cards.
+
+**Notes / Tasks / Requests full detail (header card):** Title/actions live in the QuickContext card (`*DetailHeaderMenus` + optional `headerBelow`). There is **no** list-side QC for these plugins. Primary body (content, properties, assignees, attachments) lives in `*View`, not as QC `children` on a list preview.
+
+**Attachments (shared):** Use `FileAttachmentsSection` (`DetailSection` + `subtleTitle` + Paperclip, `iconPlugin="files"`). Attachment rows use `FileIdentityCell` (same identity as Files list name column). Empty/loading: `DETAIL_EMPTY_STATE_CLASS`.
+
+**Tasks / Requests status · priority · due chips:** Select triggers share `BADGE_SELECT_TRIGGER_CLASS` + `BADGE_CHIP_*` fills. Tasks due labels/colors go through `formatTaskDueDisplay` / `DUE_DATE_*` in `badgeStyles` + `tasks.ts`. Requests **response-due** urgency stays on `RESPONSE_DUE_URGENCY_COLORS` (SLA days control), not `DUE_DATE_*`.
+
+**Requests column order (verified):** Left (`leftSidebar`) = QC/header+description → submitted details (if any) → submitter → **Properties**. Right (main) = **Attachments** → assignee → team. View and form match.
 
 ### Identity block (left column header)
 
@@ -379,7 +358,8 @@ Same tokens apply to plugin **settings** forms/views with text fields.
 - Date+time fields: use shared `DateTimePicker` (same calendar chrome + time input; `variant="filled"` in plugin forms).
 - In plugin forms/settings with filled chrome: `variant="filled"` (and `propWidth` / `fullWidth` as needed).
 - String `YYYY-MM-DD` values: `parseDateInputValue` / `formatDateInputValue` from the same module (local calendar — avoid `toISOString().split('T')[0]`).
-- Tasks list/QC due date: thin wrapper `TaskDueDatePicker` → `DatePicker`.
+- Tasks list/QC/form due date: thin wrapper `TaskDueDatePicker` → `DatePicker` (`propWidth`, compact `h-7` aligned with status/priority selects).
+- Tasks due **display** (list/table/QC/header/public): shared `formatTaskDueDisplay` / `getTaskDueUrgency` / `getTaskDueDiffDays` in `plugins/tasks/types/tasks.ts` (injectable `nowMs` for tests). Do not re-implement overdue/today/tomorrow strings per surface.
 
 **Known limitation:** Some required dates (e.g. invoice issue date, estimate valid-to) keep the Clear control but ignore `null` (`date ?? previousValue`). Prefer hiding Clear or validating null when product allows empty.
 
@@ -439,7 +419,7 @@ Same tokens apply to plugin **settings** forms/views with text fields.
 
 ### List page header (canonical — CRUD lists)
 
-**Reference:** `ContactList.tsx`. Do **not** use `ListToolbar` as the default list header (`ListToolbar` is **legacy / exception only**, e.g. plugin template).
+**Reference:** `ContactList.tsx` and `templates/plugin-frontend-template` (`YourItemList.tsx`). Do **not** use `ListToolbar` as the default list header — new CRUD scaffolds and the golden template use the Contacts-class header below. (`ListToolbar` is **legacy / exception only** for older live plugins that have not migrated yet.)
 
 Layout (desktop, `hidden md:block`):
 
@@ -479,26 +459,16 @@ flex items-start justify-between gap-6
 {/* … */}
 <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
   <RoundExpandableSearch value={searchTerm} onChange={setSearchTerm} placeholder={…} />
-  {/* optional sort controls */}
-  <ListColumnLayoutToggle
-    columnCount={columnCount}
-    listViewMode={listViewMode}
-    onSelectColumns={setColumnCount}
-    onSelectTable={() => setListViewMode('table')}
-    columnAriaLabel={(count) => t(`myPlugin.columns${count}`)}
-    tableAriaLabel={t('common.tableView')}
-  />
+  {/* optional toolbar sort controls — table headers also sort via SortableListTable */}
   <ExpandableIconButton icon={Plus} label={t('myPlugin.add')} variant="soft" alwaysExpanded onClick={…} />
 </div>
 ```
 
-**Layout toggle:** desktop only **3 | table** (`ListColumnLayoutToggle`). Persisted cards preference is always `columnCount: 3`. Pass `{ quickContextOpen }` into `useEffectiveColumnCount` / `useEffectiveCardColumnCount` so the card grid shows **2** columns while quick context is open (preference unchanged). Hidden on pad/phone (effective clamps apply).
+**List layout:** **Table-only** (`*ListTable` / `SortableListTable`). Do not add a cards/column layout toggle. Do not add a settings **View** tab for list layout.
 
-**Chrome:** shared shell tokens `LIST_LAYOUT_TOGGLE_SHELL_CLASS` / `LIST_LAYOUT_TOGGLE_DIVIDER_CLASS` in `pluginPageStyles.ts` — white pill (`bg-white` / `dark:bg-slate-950`), selected half uses `bg-primary/10 text-primary`.
+**Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only). When `categories.length === 0` (temporary empty shell, e.g. Estimates after Columns removal), still pass required `children` and empty-state copy — do not omit `children` (TypeScript requires it).
 
-**Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only). Do **not** add a settings **View** tab for cards/table — that lives on the list header (`ListColumnLayoutToggle`).
-
-**Table column visibility:** optional per-user `tableColumns: { order, hidden }` on the plugin settings category (Contacts, Notes, Tasks, Requests, Teams, Matches, Garments inventory, Estimates, Invoices, Slots, Cups). Persist the **full** object via `updateSettings` (JSONB shallow merge). Normalize unknown/missing prefs to defaults; keep a required identity column always visible (`name` / `title` / `age_group` / `matchup` / `articleName` / `estimateNumber` / `invoiceNumber`). Settings UI: shared `TableColumnsSettingsSection` (HTML5 drag-and-drop + toggles) or plugin-local equivalent. Apply order/visibility in `*ListTable` only — cards view ignores `tableColumns`. Do not put column pickers on the list toolbar in this pattern. Shared helpers: `client/src/core/list/tableColumnsPref.ts`. Garments **list** person-matrix column settings (identity + Paid/custom checkboxes) are separate — see [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (Person rows).
+**List table columns:** **not** user-configurable in settings. Default visible columns are **name/title only** (required identity: `name` / `title` / `matchup` / `articleName` / `estimateNumber` / `invoiceNumber`, etc.). Extra metadata columns are decided **per plugin in code** later — keep column defs in `*ListTable` + helpers in `*TableColumns.ts` / `client/src/core/list/tableColumnsPref.ts`, and have `resolveVisible*` return code defaults (ignore any legacy `user_settings.tableColumns`). Do not add column pickers on the list toolbar or a settings **Columns** category. Garments list **checkbox** custom columns remain list-entity settings — see [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (Person rows).
 
 ### Panel / page titles
 
@@ -511,9 +481,11 @@ flex items-start justify-between gap-6
 
 Shared primitive: `client/src/core/ui/DetailHeaderMenus.tsx`. Plugin wrappers (e.g. `ContactDetailHeaderMenus`, `TaskDetailHeaderMenus`) supply actions/export/extra menus + dialogs. Wire via `Provider.getPanelTitle` in view mode; `PanelTitles` prefers non-string React nodes **before** the mobile “blank title” early-return.
 
-**Phone layout:** trigger row (`Actions` / `Export` / extras) scrolls horizontally when needed. When a menu is open, its action pills render **inline beside the active trigger** (horizontal scroll), not on a separate full-width row below — keeps one compact header band on narrow viewports. **Desktop (`md+`):** triggers wrap; open submenu pills sit on a **second row** below the triggers.
+**Layout (all breakpoints):** trigger buttons (`Actions` / `Export` / extras) stay on the first row and may scroll horizontally when needed. When a menu is open, its action pills **always** render on the **row below** the triggers (`justify-end`, `size="xs"` / `text-xs` — same density as Contacts `BulkActionRoundBar`). Do **not** render submenu pills inline beside the active trigger.
 
-| Trigger     | Idle / open                                                                   | Expanded row                                                                                                        |
+**Optional `leading`:** identity (name / invoice # / title) on the same row as the triggers, left side (`min-w-0 flex-1`). Used in mail-layout full QC card headers where there is no separate panel title. Edit remains under Actions (no standalone Edit beside menus).
+
+| Trigger     | Idle / open                                                                   | Expanded row (below triggers)                                                                                       |
 | ----------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | **Actions** | `RoundIconLabelButton` `variant="soft"` / `primary` when open                 | Secondary pills: Edit (`soft`), Delete / Duplicate (colored icons), Message (`text-sky-500`), Mail (`text-red-800`) |
 | **Export**  | same soft/primary toggle                                                      | TXT / CSV / PDF (+ share) secondary pills                                                                           |
@@ -555,7 +527,7 @@ Use **`ExpandableIconButton variant="soft"`** for Settings, Add, and routing sho
 - [ ] Delete has red hover background (header menu pills)
 - [ ] No `variant="default"` full-width rows in Quick actions
 - [ ] Header actions use `ExpandableIconButton variant="soft"` (Settings, Add) or round pattern above
-- [ ] Quick context header uses `QuickContextHeaderActions` (not ghost `h-8 w-8` icons)
+- [ ] Quick context / detail header uses `*DetailHeaderMenus` with `leading` (not ghost `h-8 w-8` icons)
 - [ ] Dialog footers use `DialogRoundButtons` / `AlertDialogRound*` with `alwaysExpanded`
 
 ---
@@ -784,14 +756,14 @@ Walk in order. No “probably OK” — verify in the running app.
 
 ### Quick context
 
-- [ ] Desktop row click opens sticky panel; compact opens full view
-- [ ] Same desktop row again (click or Space) closes the panel
-- [ ] Space on a focused list row does **not** open full view on desktop
-- [ ] Active row ring matches preview
-- [ ] ExternalLink / footer opens full profile; Edit opens edit
-- [ ] Close clears preview; bulk selection still works with panel open
-- [ ] Closing full view restores preview when `markPendingAndOpen` was used
-- [ ] No delete/duplicate controls in the panel
+**Mail-layout (default):**
+
+- [ ] Desktop row click shows stacked `*View` (full QC) in the detail column; compact uses panel flow
+- [ ] Same desktop row again (click or Space) clears the detail selection where the list toggles preview
+- [ ] Space on a focused list row does **not** call `open*ForView` on desktop
+- [ ] Active row ring matches the open detail item
+- [ ] Header menus (not QC body) own Edit / Delete / Duplicate / Export
+- [ ] Bulk selection still works with the detail column open
 
 ### Full view
 
@@ -817,7 +789,7 @@ Walk in order. No “probably OK” — verify in the running app.
 - [ ] Contacts-class header: Select/Clear + `BulkActionRoundBar` + `RoundExpandableSearch` in `PLUGIN_PAGE_HEADER_ACTIONS_CLASS` (not `ListToolbar`)
 - [ ] `selectionEnabled={selectionMode}` on table; bulk delete uses `BulkDeleteModal`
 - [ ] Provider lists without bulk: search-only header (`AIProvidersList.tsx` pattern)
-- [ ] Empty state Create; cards/table toggle per plugin
+- [ ] Empty state Create; **table-only** list (`SortableListTable` / `*ListTable`) — no cards/column layout toggle
 - [ ] Clickable table rows are focusable (`tabIndex={0}` via `SortableListTable`); ArrowUp/Down moves between `[data-list-item]`
 
 ### Quality gates
@@ -847,7 +819,7 @@ Walk in order. No “probably OK” — verify in the running app.
 ## Reference file map
 
 | File                                                                         | Shows                                                                                                                        |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | `client/src/core/ui/QuickContextHeaderActions.tsx`                           | Shared quick context Open/Edit/Close + footer CTA                                                                            |
 | `client/src/core/ui/dialogStyles.ts`                                         | Dialog header/body/footer layout tokens                                                                                      |
 | `client/src/core/ui/DialogHeading.tsx`                                       | Shared dialog title component                                                                                                |
@@ -859,17 +831,16 @@ Walk in order. No “probably OK” — verify in the running app.
 | `client/src/plugins/ai-providers/components/AIProvidersList.tsx`             | Provider list: search-only header (no Select)                                                                                |
 | `client/src/core/ui/PanelTitles.tsx`                                         | `createPanelTitles`; view React nodes before mobile blank; create/edit/settings prefer plugin `getPanelTitle` when non-empty |
 | `client/src/core/ui/MainLayout.tsx` / `SidebarBrand` / `MobileShellControls` | App shell without TopBar; brand in sidebar; floating phone/pad Menu + account                                                |
-| `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx`      | Canonical quick context (header, facts, variants, footer)                                                                    |
-| `client/src/plugins/garments/components/GarmentList.tsx`                     | Sticky aside + `useQuickContextPreview` + Contacts-class bulk header                                                         |
+| `client/src/plugins/contacts/components/ContactQuickContextPanel.tsx`        | Mail-layout full-only QC (header card + optional `headerBelow`)                                                              |
+| `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx`      | Full-view QC with facts/variants (from `GarmentView`, not list aside)                                                        |
+| `client/src/plugins/garments/components/GarmentList.tsx`                     | Mail-layout inventory/lists table (no sticky QC)                                                                             |
 | `client/src/plugins/garments/components/GarmentView.tsx`                     | Full inventory detail; header menus; no Information/Activity                                                                 |
 | `client/src/plugins/garments/components/GarmentForm.tsx`                     | Form chrome, variant delete confirm, unsaved warning                                                                         |
 | `client/src/plugins/garments/context/GarmentProvider.tsx`                    | `usePluginDuplicate`, `getDeleteMessage`, panel open helpers                                                                 |
-| `client/src/plugins/tasks/components/TaskQuickContextPanel.tsx`              | Rich quick context + link tiles                                                                                              |
-| `client/src/plugins/matches/components/MatchQuickContextPanel.tsx`           | Sport entity quick context + contact/team link tiles                                                                         |
-| `client/src/plugins/slots/components/SlotQuickContextPanel.tsx`              | Booking slot quick context                                                                                                   |
-| `client/src/plugins/teams/components/TeamQuickContextPanel.tsx`              | Team quick context + responsibles link tiles                                                                                 |
-| `client/src/plugins/slots/components/SlotView.tsx`                           | Detail header menus + duplicate pattern                                                                                      |
-| `client/src/core/hooks/useQuickContextPreview.ts`                            | Desktop vs compact preview; same-row toggle                                                                                  |
+| `client/src/plugins/tasks/components/TaskQuickContextPanel.tsx`              | Full-only task header card (`TaskDetailHeaderMenus`)                                                                         |
+| `client/src/plugins/matches/components/MatchQuickContextPanel.tsx`           | Full-only match header card                                                                                                  |
+| `client/src/plugins/teams/components/TeamQuickContextPanel.tsx`              | Full-only team header card                                                                                                   |
+| `client/src/plugins/slots/components/SlotsList.tsx` / `SlotView.tsx`         | Mail-layout list                                                                                                             | detail; `SlotDetailHeaderMenus` in view |
 | `client/src/core/keyboard/keyboardHandlers.ts`                               | List ArrowUp/Down + Space → row click (not `openForView`)                                                                    |
 | `client/src/core/ui/SortableListTable.tsx`                                   | Shared table; `tabIndex={0}` + `data-list-item` when clickable                                                               |
 | `client/src/core/ui/detailViewCardStyles.ts`                                 | Shared class tokens                                                                                                          |

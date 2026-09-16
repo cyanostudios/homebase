@@ -40,10 +40,12 @@ type Props = {
   currentItem?: Cup | null;
   onSave: (data: Partial<Cup> & { name: string }) => Promise<boolean>;
   onCancel: () => void;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
 };
 
 export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm(
-  { currentCup, currentItem, onSave, onCancel },
+  { currentCup, currentItem, onSave, onCancel, stacked = false },
   ref,
 ) {
   const { t } = useTranslation();
@@ -144,38 +146,37 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
     [submit, attemptAction, onCancel],
   );
 
+  const infoSidebar =
+    item && !stacked ? (
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('cups.information', { defaultValue: 'Information' })}
+          icon={Info}
+          iconPlugin="cups"
+          subtleTitle
+          className="p-4"
+          collapsible
+        >
+          <div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">ID</span>
+              <span className="font-mono font-extrabold text-foreground">
+                {formatDisplayNumber('cups', item.id)}
+              </span>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+    ) : undefined;
+
   return (
     <>
-      <DetailLayout
-        sidebar={
-          item ? (
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('cups.information', { defaultValue: 'Information' })}
-                icon={Info}
-                iconPlugin="cups"
-                subtleTitle
-                className="p-4"
-                collapsible
-              >
-                <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDisplayNumber('cups', item.id)}
-                    </span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-          ) : undefined
-        }
-      >
+      <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={infoSidebar}>
         <div className="space-y-3">
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title="Cup information" icon={Trophy} subtleTitle className="p-6">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="md:col-span-2">
+              <div className={cn('grid grid-cols-1 gap-3', !stacked && 'md:grid-cols-2')}>
+                <div className={cn(!stacked && 'md:col-span-2')}>
                   <Label>Name</Label>
                   <Input
                     value={form.name}
@@ -227,7 +228,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                     fullWidth
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div className={cn(!stacked && 'md:col-span-2')}>
                   <Label>Categories</Label>
                   <Input
                     value={form.categories}
@@ -282,7 +283,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                     className={FORM_INPUT_CLASS}
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div className={cn(!stacked && 'md:col-span-2')}>
                   <Label>Description</Label>
                   <Textarea
                     value={form.description}

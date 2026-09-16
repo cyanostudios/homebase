@@ -53,3 +53,28 @@ export const QC_TEAM_STATUS_BADGE_COLORS: Record<string, string> = {
   dormant: QC_STATUS_BADGE_COLORS.warning,
   break: QC_STATUS_BADGE_COLORS.neutral,
 };
+
+/**
+ * Calendar / SLA due chips (Tasks due + Requests response-due).
+ * Solid fills + pair with BADGE_CHIP_* (no washed /50 or font-medium baked in).
+ */
+export const DUE_DATE_BADGE_COLORS = {
+  overdue: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
+  today: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200',
+  soon: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+  later: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
+  muted: 'bg-muted text-muted-foreground',
+} as const;
+
+/** Meta-row text tones matching DUE_DATE_BADGE_COLORS (list cards without chip shell). */
+export const DUE_DATE_TEXT_COLORS = {
+  overdue: 'text-destructive font-extrabold',
+  today: 'text-orange-600 dark:text-orange-400 font-extrabold',
+  soon: 'text-amber-600 dark:text-amber-400 font-extrabold',
+  later: 'text-emerald-700 dark:text-emerald-300 font-extrabold',
+  muted: 'text-muted-foreground',
+} as const;
+
+/** Status/priority Select trigger chrome — same in Tasks + Requests. */
+export const BADGE_SELECT_TRIGGER_CLASS =
+  'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50';

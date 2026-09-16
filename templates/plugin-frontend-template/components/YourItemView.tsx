@@ -1,141 +1,167 @@
-import React, { useState } from 'react';
-import { Edit, Info, Trash2 } from 'lucide-react';
+/**
+ * Full detail view — see docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md
+ * and client/src/plugins/contacts/components/ContactView.tsx.
+ */
+import { FileText, LayoutGrid } from 'lucide-react';
+import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
-import { DetailSection } from '@/core/ui/DetailSection';
 import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailSection } from '@/core/ui/DetailSection';
 import {
   DETAIL_FIELD_LABEL_CLASS,
-  DETAIL_INFO_ROW_CLASS,
-  DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
-import type { YourItem } from '../types/your-items';
 import { useYourItems } from '../hooks/useYourItems';
+import type { YourItem } from '../types/your-items';
+
+import { YourItemQuickContextPanel } from './YourItemQuickContextPanel';
 
 interface YourItemViewProps {
   item: YourItem;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
+  /** @deprecated Mail aside uses full QC + tabs like ContactView; kept for call-site compat. */
+  onClosePreview?: () => void;
 }
 
-export const YourItemView: React.FC<YourItemViewProps> = ({ item }) => {
+/** EXAMPLE tabs — replace with domain-specific tabs in real plugins. */
+type YourItemViewTab = 'overview' | 'details';
+
+const YOUR_ITEM_VIEW_TABS: YourItemViewTab[] = ['overview', 'details'];
+
+function parseYourItemViewTab(value: string | null): YourItemViewTab {
+  if (value && YOUR_ITEM_VIEW_TABS.includes(value as YourItemViewTab)) {
+    return value as YourItemViewTab;
+  }
+  return 'overview';
+}
+
+export const YourItemView: React.FC<YourItemViewProps> = ({
+  item,
+  stacked: _stacked = false,
+  onClosePreview: _onClosePreview,
+}) => {
   const { t } = useTranslation();
-  const { openYourItemForEdit, deleteYourItem, getDeleteMessage } = useYourItems();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { openYourItemForEdit } = useYourItems();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseYourItemViewTab(searchParams.get('tab'));
 
-  if (!item) return null;
+  const setActiveTab = useCallback(
+    (tab: YourItemViewTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'overview') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
 
-  const created = formatDate(item.createdAt);
-  const updated = formatDate(item.updatedAt);
+  if (!item) {
+    return null;
+  }
 
-  const handleConfirmDelete = async () => {
-    await deleteYourItem(item.id);
-    setShowDeleteConfirm(false);
-  };
+  // EXAMPLE tab chips — Overview | Details (Teams / ContactView headerBelow pattern)
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {(
+        [
+          { id: 'overview' as const, label: 'Overview', icon: LayoutGrid },
+          { id: 'details' as const, label: 'Details', icon: FileText },
+        ] as const
+      ).map((tab) => {
+        const TabIcon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span>{tab.label}</span>
+          </Button>
+        );
+      })}
+    </div>
+  );
+
+  const overviewCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title="Overview" className="p-6">
+        <p className="text-sm text-muted-foreground">
+          EXAMPLE overview content — replace with domain fields.
+        </p>
+      </DetailSection>
+    </Card>
+  );
+
+  const detailsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title="Details" className="p-6">
+        <div className="space-y-4">
+          <div>
+            <div className={DETAIL_FIELD_LABEL_CLASS}>Title</div>
+            <div className="text-lg font-semibold">{item.title}</div>
+          </div>
+          <div className="border-t border-border/50 pt-4">
+            <div className={DETAIL_FIELD_LABEL_CLASS}>Description</div>
+            <div className="whitespace-pre-wrap text-sm">{item.description ?? '—'}</div>
+          </div>
+          <div className="border-t border-border/50 pt-4">
+            <div className={DETAIL_FIELD_LABEL_CLASS}>ID</div>
+            <div className="font-mono text-sm">{formatDisplayNumber('your-items', item.id)}</div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 border-t border-border/50 pt-4">
+            <div>
+              <div className={DETAIL_FIELD_LABEL_CLASS}>{t('common.created')}</div>
+              <div className="text-sm">{formatDate(item.createdAt)}</div>
+            </div>
+            <div>
+              <div className={DETAIL_FIELD_LABEL_CLASS}>{t('common.updated')}</div>
+              <div className="text-sm">{formatDate(item.updatedAt)}</div>
+            </div>
+          </div>
+        </div>
+      </DetailSection>
+    </Card>
+  );
 
   return (
-    <>
-      <DetailLayout
-        sidebar={
-          <div className="space-y-4">
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title="Quick actions"
-                icon={Edit}
-                iconPlugin="your-items"
-                className="p-4"
-              >
-                <div className="flex flex-col items-start gap-1.5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={Edit}
-                    className={cn(DETAIL_QUICK_ACTION_ROW_CLASS)}
-                    onClick={() => openYourItemForEdit(item)}
-                  >
-                    {t('common.edit')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={Trash2}
-                    className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    {t('common.delete')}
-                  </Button>
-                </div>
-              </DetailSection>
-            </Card>
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title="Information"
-                icon={Info}
-                iconPlugin="your-items"
-                subtleTitle
-                className="p-4"
-                collapsible
-              >
-                <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
-                      {formatDisplayNumber('your-items', item.id)}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Created</span>
-                    <span className="font-mono font-semibold text-foreground">{created}</span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Updated</span>
-                    <span className="font-mono font-semibold text-foreground">{updated}</span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-            <DetailActivityLog
-              entityType="your_item"
-              entityId={item.id}
-              title="Activity"
-              refreshKey={item.updatedAt}
-            />
-          </div>
-        }
-      >
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection title="Details" className="p-6">
-            <div className="space-y-1">
-              <div className={DETAIL_FIELD_LABEL_CLASS}>Title</div>
-              <div className="text-lg font-semibold">{item.title}</div>
-            </div>
-            <div className="border-t border-border/50 pt-4">
-              <div className={DETAIL_FIELD_LABEL_CLASS}>Description</div>
-              <div className="whitespace-pre-wrap text-sm">{item.description ?? '—'}</div>
-            </div>
-          </DetailSection>
-        </Card>
-      </DetailLayout>
+    <DetailLayout gridClassName="grid-cols-1">
+      <div className="space-y-4">
+        <YourItemQuickContextPanel
+          item={item}
+          onEdit={() => openYourItemForEdit(item)}
+          variant="full"
+          headerBelow={tabChips}
+        />
 
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title={t('dialog.deleteItem', { label: 'item' })}
-        message={getDeleteMessage(item)}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={() => void handleConfirmDelete()}
-        onCancel={() => setShowDeleteConfirm(false)}
-        variant="danger"
-      />
-    </>
+        {activeTab === 'overview' ? overviewCard : null}
+        {activeTab === 'details' ? detailsCard : null}
+      </div>
+    </DetailLayout>
   );
 };

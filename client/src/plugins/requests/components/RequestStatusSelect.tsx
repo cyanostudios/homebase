@@ -9,7 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
+import {
+  BADGE_CHIP_CLASS,
+  BADGE_CHIP_COMPACT_CLASS,
+  BADGE_SELECT_TRIGGER_CLASS,
+} from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 import {
@@ -40,7 +44,7 @@ export function RequestStatusSelect({
     <Select value={request.status} onValueChange={(v) => onStatusChange(v as RequestStatus)}>
       <SelectTrigger
         className={cn(
-          'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50',
+          BADGE_SELECT_TRIGGER_CLASS,
           compact ? 'h-7 w-[130px]' : 'h-9 w-full sm:w-[180px]',
         )}
       >

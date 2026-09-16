@@ -5,8 +5,16 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+/** Shared hover color timing for buttons, chips, and icon controls. */
+export const BUTTON_COLOR_TRANSITION_CLASS =
+  'transition-[background-color,color,border-color,opacity] duration-[450ms] ease-in-out';
+
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  cn(
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium',
+    BUTTON_COLOR_TRANSITION_CLASS,
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  ),
   {
     variants: {
       variant: {

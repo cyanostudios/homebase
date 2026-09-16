@@ -2,6 +2,8 @@
  * Detail view panel tokens (aligned with Contacts `ContactView`).
  * Use with `<Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>` on gray detail backgrounds.
  */
+import { BUTTON_COLOR_TRANSITION_CLASS } from '@/components/ui/button';
+
 export const DETAIL_VIEW_CARD_CLASS = 'rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950';
 
 /** List card hover — same as filter chips / ListFilterStatCard. */
@@ -30,8 +32,11 @@ export const DETAIL_PROP_ROW_CLASS =
 
 export const DETAIL_NOTE_CALLOUT_CLASS = 'rounded-md bg-amber-50/70 p-3.5 dark:bg-amber-950/20';
 
-export const DETAIL_EMPTY_STATE_CLASS =
-  'text-center border border-dashed border-border rounded-lg p-8 bg-muted/30 mt-3';
+/**
+ * Empty message inside a detail card section — same as Contacts linked when empty.
+ * Plain muted text; no dashed/bordered box.
+ */
+export const DETAIL_EMPTY_STATE_CLASS = 'text-xs text-muted-foreground';
 
 export const DETAIL_INFO_ROW_CLASS =
   'flex items-center justify-between py-2 border-b border-border/50 last:border-0 text-xs';
@@ -49,21 +54,21 @@ export const LINK_BUTTON_TEXT_ACTIVE_CLASS = 'text-foreground';
 export const LINK_BUTTON_FONT_CLASS = 'font-extrabold';
 
 /** ExternalLink + label control for related entities / quick-info. */
-export const DETAIL_ENTITY_LINK_TRIGGER_CLASS = `h-9 shrink-0 gap-1.5 rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-border transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground hover:decoration-foreground`;
+export const DETAIL_ENTITY_LINK_TRIGGER_CLASS = `h-9 shrink-0 gap-1.5 rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-border ${BUTTON_COLOR_TRANSITION_CLASS} ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground hover:decoration-foreground`;
 
 /** Ghost row buttons in Quick actions / Export sidebars — gray text, no fill. */
-export const DETAIL_QUICK_ACTION_ROW_CLASS = `h-9 justify-start rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:bg-muted/40 hover:text-foreground`;
+export const DETAIL_QUICK_ACTION_ROW_CLASS = `h-9 justify-start rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} ${BUTTON_COLOR_TRANSITION_CLASS} ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:bg-muted/40 hover:text-foreground`;
 
 /** Ghost row buttons in Quick actions — selected (black text). */
-export const DETAIL_QUICK_ACTION_ROW_ACTIVE_CLASS = `h-9 justify-start rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} ${LINK_BUTTON_TEXT_ACTIVE_CLASS} transition-colors hover:text-foreground`;
+export const DETAIL_QUICK_ACTION_ROW_ACTIVE_CLASS = `h-9 justify-start rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} ${LINK_BUTTON_TEXT_ACTIVE_CLASS} ${BUTTON_COLOR_TRANSITION_CLASS} hover:text-foreground`;
 
 /**
  * Compact list filter chips — pill shape (matches round buttons).
  * Idle: muted text + ghost hover fill. Selected: soft primary (blue).
  */
-export const LIST_FILTER_CHIP_CLASS = `h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs ${LINK_BUTTON_FONT_CLASS} transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground`;
+export const LIST_FILTER_CHIP_CLASS = `h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs ${LINK_BUTTON_FONT_CLASS} ${BUTTON_COLOR_TRANSITION_CLASS} ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground`;
 
-export const LIST_FILTER_CHIP_ACTIVE_CLASS = `h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs ${LINK_BUTTON_FONT_CLASS} bg-primary/10 text-primary transition-colors hover:bg-primary/10 hover:text-primary`;
+export const LIST_FILTER_CHIP_ACTIVE_CLASS = `h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs ${LINK_BUTTON_FONT_CLASS} bg-primary/10 text-primary ${BUTTON_COLOR_TRANSITION_CLASS} hover:bg-primary/10 hover:text-primary`;
 
 /**
  * Filter chip row — phone/pad: single-row horizontal scroll; lg+: wrap.

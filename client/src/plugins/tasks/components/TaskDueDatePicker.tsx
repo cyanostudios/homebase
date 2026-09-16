@@ -29,6 +29,7 @@ export function TaskDueDatePicker({
       clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
       compact={compact}
       variant="default"
+      propWidth
       align="end"
     />
   );

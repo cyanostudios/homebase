@@ -49,6 +49,12 @@ export interface ContactContextType {
   clearTagsFromContact: (contact: Contact) => Promise<boolean>;
   /** Set assignable flag on a contact. Used by bulk assignable dialog. */
   setContactAssignable: (contact: Contact, isAssignable: boolean) => Promise<boolean>;
+  /** Mark one contact person as invoice kundreferens (or clear). */
+  setContactPersonInvoiceReference: (
+    contact: Contact,
+    personId: string,
+    selected: boolean,
+  ) => Promise<boolean>;
   showDiscardTagsDialog: boolean;
   setShowDiscardTagsDialog: (show: boolean) => void;
   getCloseHandler: (defaultClose: () => void) => () => void;
@@ -139,6 +145,7 @@ const EMPTY_CONTACT_CONTEXT: ContactContextType = {
   removeTagFromContact: async () => false,
   clearTagsFromContact: async () => false,
   setContactAssignable: async () => false,
+  setContactPersonInvoiceReference: async () => false,
   showDiscardTagsDialog: false,
   setShowDiscardTagsDialog: () => {},
   getCloseHandler: (fn) => fn,

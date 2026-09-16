@@ -13,7 +13,14 @@ import type { Contact } from '../types/contacts';
 
 type TimeEntry = { id: string; seconds: number; loggedAt: string };
 
-export function ContactDetailHeaderMenus({ contact }: { contact: Contact }) {
+export function ContactDetailHeaderMenus({
+  contact,
+  leading,
+}: {
+  contact: Contact;
+  /** Optional leading content on the Actions/Export trigger row (e.g. contact name). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openContactForEdit,
@@ -190,21 +197,21 @@ export function ContactDetailHeaderMenus({ contact }: { contact: Contact }) {
         {timeEntries.map((entry) => (
           <div
             key={entry.id}
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-amber-600 px-3.5 pr-2 text-sm text-white dark:bg-amber-600"
+            className="inline-flex h-[2.0625rem] items-center gap-1.5 rounded-full bg-amber-600 px-2.5 pr-1.5 text-xs text-white dark:bg-amber-600"
           >
-            <Clock className="size-5 shrink-0 text-white" aria-hidden />
+            <Clock className="size-[0.9375rem] shrink-0 text-white" aria-hidden />
             <span className="whitespace-nowrap font-extrabold text-white">
               {formatDuration(entry.seconds)} – {new Date(entry.loggedAt).toLocaleDateString()}
             </span>
             <button
               type="button"
-              className="ml-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20 disabled:opacity-50"
+              className="ml-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20 disabled:opacity-50"
               aria-label={t('contacts.delete')}
               title={t('contacts.delete')}
               disabled={deletingEntryId === entry.id}
               onClick={() => setConfirmDeleteEntryId(entry.id)}
             >
-              <Trash2 className="size-4" aria-hidden />
+              <Trash2 className="size-3.5" aria-hidden />
             </button>
           </div>
         ))}
@@ -213,6 +220,7 @@ export function ContactDetailHeaderMenus({ contact }: { contact: Contact }) {
 
   return (
     <DetailHeaderMenus
+      leading={leading}
       actions={actions}
       exportActions={exportActions}
       actionsLabel={t('contacts.headerActions')}

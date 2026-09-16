@@ -35,6 +35,7 @@ import {
   resolveContactDisplayTags,
 } from '../utils/contactTagsDraft';
 import { buildContactAssignableSavePayload } from '../utils/contactAssignableSave';
+import { buildContactPersonsInvoiceReferenceSavePayload } from '../utils/contactInvoiceReference';
 import { normalizeContactType } from '../utils/normalizeContactType';
 
 import { ContactContext } from './ContactContext';
@@ -722,6 +723,37 @@ export function ContactProvider({
     [],
   );
 
+  const setContactPersonInvoiceReference = useCallback(
+    async (contact: Contact, personId: string, selected: boolean): Promise<boolean> => {
+      const nextPersons = buildContactPersonsInvoiceReferenceSavePayload(
+        contact,
+        personId,
+        selected,
+      ).contactPersons;
+      try {
+        const payload = { ...contact, contactPersons: nextPersons };
+        const saved = await contactsApi.updateContact(String(contact.id), payload);
+        const normalized: Contact = {
+          ...saved,
+          contactPersons: saved.contactPersons ?? nextPersons,
+          createdAt: new Date(saved.createdAt),
+          updatedAt: new Date(saved.updatedAt),
+        };
+        setContacts((prev) =>
+          prev.map((c) => (String(c.id) === String(contact.id) ? normalized : c)),
+        );
+        setCurrentContact((prev) =>
+          prev && String(prev.id) === String(contact.id) ? normalized : prev,
+        );
+        return true;
+      } catch (error) {
+        console.error('Failed to update invoice reference person:', error);
+        return false;
+      }
+    },
+    [],
+  );
+
   const getCloseHandler = useCallback(
     (defaultClose: () => void) => {
       return () => {
@@ -926,6 +958,7 @@ export function ContactProvider({
     removeTagFromContact,
     clearTagsFromContact,
     setContactAssignable,
+    setContactPersonInvoiceReference,
     showDiscardTagsDialog,
     setShowDiscardTagsDialog,
     getCloseHandler,

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { LIST_SEARCH_FIELD_PROPS } from '@/core/ui/listSearchFieldProps';
 import { cn } from '@/lib/utils';
+import { BUTTON_COLOR_TRANSITION_CLASS } from '@/components/ui/button';
 
 export interface RoundExpandableSearchProps {
   value: string;
@@ -14,6 +15,8 @@ export interface RoundExpandableSearchProps {
   className?: string;
   /** Tailwind width class when expanded (default w-80). */
   expandedWidthClass?: string;
+  /** Keep the search field open (no icon-only collapse). */
+  alwaysExpanded?: boolean;
 }
 
 /** Round primary search control — icon-only until click, then widens to an input field. */
@@ -24,15 +27,17 @@ export function RoundExpandableSearch({
   label,
   className,
   expandedWidthClass = 'w-80',
+  alwaysExpanded = false,
 }: RoundExpandableSearchProps) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(alwaysExpanded);
   const [blockAutofill, setBlockAutofill] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const resolvedLabel = label ?? t('common.search');
   const hasValue = value.trim().length > 0;
   const hasValueRef = useRef(hasValue);
+  const isExpanded = alwaysExpanded || expanded;
 
   useEffect(() => {
     hasValueRef.current = hasValue;
@@ -48,15 +53,25 @@ export function RoundExpandableSearch({
   }, [hasValue]);
 
   useEffect(() => {
-    if (!expanded) {
+    if (alwaysExpanded) {
+      setExpanded(true);
+    }
+  }, [alwaysExpanded]);
+
+  useEffect(() => {
+    if (!isExpanded) {
       setBlockAutofill(true);
       return;
     }
+    if (alwaysExpanded) {
+      // Don't steal focus on mount when permanently open.
+      return;
+    }
     inputRef.current?.focus({ preventScroll: true });
-  }, [expanded]);
+  }, [isExpanded, alwaysExpanded]);
 
   useEffect(() => {
-    if (!expanded) {
+    if (!isExpanded || alwaysExpanded) {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
@@ -65,7 +80,9 @@ export function RoundExpandableSearch({
       }
       // Keep expanded when the user already entered a search value.
       // This avoids accidental collapse when clicking other UI elements.
-      if (hasValueRef.current) return;
+      if (hasValueRef.current) {
+        return;
+      }
       setExpanded(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -82,7 +99,7 @@ export function RoundExpandableSearch({
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [expanded]);
+  }, [isExpanded, alwaysExpanded, onChange]);
 
   return (
     <div
@@ -91,11 +108,11 @@ export function RoundExpandableSearch({
         'inline-flex h-11 shrink-0 items-center overflow-hidden rounded-full',
         'bg-primary text-primary-foreground',
         'transition-[width,padding] duration-200 ease-out',
-        expanded ? cn('px-3.5', expandedWidthClass) : 'w-11',
+        isExpanded ? cn('px-3.5', expandedWidthClass) : 'w-11',
         className,
       )}
     >
-      {!expanded ? (
+      {!isExpanded ? (
         <button
           type="button"
           className={cn(
@@ -121,13 +138,18 @@ export function RoundExpandableSearch({
         >
           <button
             type="button"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-primary-foreground/15"
+            className={cn(
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full hover:bg-primary-foreground/15',
+              BUTTON_COLOR_TRANSITION_CLASS,
+            )}
             onClick={() => {
               onChange('');
-              setExpanded(false);
+              if (!alwaysExpanded) {
+                setExpanded(false);
+              }
             }}
-            aria-label={t('common.close')}
-            title={t('common.close')}
+            aria-label={alwaysExpanded ? resolvedLabel : t('common.close')}
+            title={alwaysExpanded ? resolvedLabel : t('common.close')}
           >
             <Search className="size-5 shrink-0 opacity-90" aria-hidden />
           </button>
@@ -148,7 +170,10 @@ export function RoundExpandableSearch({
           {hasValue ? (
             <button
               type="button"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-primary-foreground/15"
+              className={cn(
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-full hover:bg-primary-foreground/15',
+                BUTTON_COLOR_TRANSITION_CLASS,
+              )}
               onClick={() => onChange('')}
               aria-label={t('common.clearSearch')}
               title={t('common.clearSearch')}

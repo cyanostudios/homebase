@@ -23,6 +23,17 @@ Then **log out and log in** if plugin access changed. Production / `--both` only
 | Public form       | `/public/request`                              | Conversational wizard; branding via `PUBLIC_REQUESTS_USER_ID`                |
 | Public API        | `/api/requests/public/{teams,branding,submit}` | Unauthenticated; rate-limited                                                |
 
+### Staff detail layout (verified)
+
+Two columns via `DetailLayout` (`leftSidebar` + main), view and form aligned:
+
+| Column | Cards (order)                                                                                            |
+| ------ | -------------------------------------------------------------------------------------------------------- |
+| Left   | QC header + description (`variant="full"`) → submitted details (when shown) → submitter → **Properties** |
+| Right  | **Attachments** (`FileAttachmentsSection`) → assignee → assigned team                                    |
+
+Status / priority selects use shared `BADGE_CHIP_*` / `BADGE_SELECT_TRIGGER_CLASS`. Response-due control uses `RESPONSE_DUE_URGENCY_COLORS` (SLA days), not Tasks’ `DUE_DATE_*`.
+
 ## Plugin routing → Garments (verified)
 
 Hybrid flow: public intake stores structured data; **staff** sends to a garment list. No auto-routing.

@@ -4,10 +4,528 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-16 – Collapsed sidebar category flyout + global list toolbar
+
+**Typ:** enhancement / UI  
+**Scope:** `CollapsedCategoryFlyout`, `SidebarNavContent`, `Sidebar`, `listToolbarLayout`, `usePersistedToolbarCollapsed`, 18 mail-layout list consumers, tests  
+**QA:** Approved (2026-09-16). **Security:** N/A (client-only prefs + nav). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** In desktop collapsed left rail, hover or click on a category icon opens a Sort-style dropdown of that category’s plugins (submenu parents = labels + leaf destinations only). Selecting a plugin navigates without expanding the sidebar; chevron remains the sole expand control. List toolbar collapse (Menu button) is now one shared preference `homebase.listToolbar.collapsed` across all lists that had the toggle, with one-time any-collapsed-wins migration from legacy per-plugin keys.
+
+## 2026-09-16 – Clubdesk Guides mail-layout cleanup (Price List parity)
+
+**Typ:** enhancement / UI  
+**Scope:** `ClubdeskList`, `ClubdeskListTable`, `ClubdeskForm`, `ClubdeskView`, i18n, docs, `clubdeskListTableView.test.js`  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). UI-only; informational Low **S-UI-1** (soft-preview `getClubdesk` same authz as view — documented under hydrate entry). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Clubdesk Guides aligned to Price List / Slots **mail split list + detail**: desktop 20/80 list|detail, collapsible toolbar with portal toggle, filter-chips toggle, sort dropdown, soft preview with stacked `ClubdeskView`/`ClubdeskForm`, empty quick-context card. Table sky header + identity icon/meta + inline status badge. Guides-specific draft/published + category filter chips retained. `ClubdeskForm` hides bottom footer when `stacked`.
+
+## 2026-09-16 – Clubdesk Guides: edit from soft preview no longer bounces to view
+
+**Typ:** bugfix / UI  
+**Scope:** `clubdeskRoutes`, `ClubdeskProvider` deep-link sync  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). Client-routing only. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Same race as Price List: soft-preview edit set a pending `/clubdesk/:slug`, then `ensureFullClubdesk` re-synced the guides index and clobbered the pending path so navigate looked like a fresh deep link → `openClubdeskForView`. Added `shouldKeepPendingGuideItemPath` and skip view-open while already editing that guide.
+
+## 2026-09-16 – Clubdesk Guides soft-preview hydrates steps
+
+**Typ:** bugfix / UI  
+**Scope:** `ClubdeskList`  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). Soft-preview uses authenticated `GET /clubdesk/:id` (`requirePlugin` + id validation); informational Low **S-UI-1** (more frequent get than list-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Soft preview used list index rows that omit `steps`, so the Steps tab stayed empty until edit loaded a full guide. Preview now calls `getClubdesk` (same pattern as Price List `items`) and preserves hydrated steps across index sync.
+
+## 2026-09-16 – Requests: hide leftover shell Add Request
+
+**Typ:** bugfix / UI  
+**Scope:** `pluginRegistry` requests entry, `requestListTableView.test.js`  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). Registry flags only. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Requests mail-layout already owns Add via toolbar Plus + Quick Add and create/edit via `InlinePanelFormActions`. The plugin was missing `contentViewKey: 'requestsContentView'` (already documented in `PLUGIN_RUNTIME_CONVENTIONS.md`) and `noPrimaryAction: true`, so `resolvePrimaryAction` still injected the old ContentHeader green **Add Request** button on list and add/edit. Registry now matches notes/teams/garments; shell Add is gone.
+
+## 2026-09-16 – Slots mail-layout cleanup (parity + dead code)
+
+**Typ:** cleanup / enhancement / UI  
+**Scope:** `SlotForm`, `SlotListTable`, `SlotsList`, `SlotsProvider`, remove `SlotQuickContextPanel` / `SlotsSettingsForm`, i18n, docs  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). UI-only. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Slots aligned remaining Cups/Contacts gaps: `SlotForm` honors `stacked` (hide sidebar, single column), table sky header + identity icon/meta + `subtleRowDividers`, shell/settings padding, `noMatch`/`noYet` + aside `quickContext.title`. Removed orphan list-side QC panel and dead panel-mode settings form. Docs no longer treat Slots as legacy 50/50 sticky QC.
+
+## 2026-09-16 – Slots mail-layout (Contacts/Cups reference)
+
+**Typ:** enhancement / UI  
+**Scope:** `SlotsList`, `SlotForm`, `SlotView`, `SlotsStatisticsView`, `pluginRegistry`  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). UI-only. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Slots aligned to Contacts/Cups **mail split list + detail**: desktop 20/80 list|detail, collapsible toolbar, filter-chips toggle, sort dropdown, desktop preview with stacked `SlotView`/`SlotForm`, soft-sky empty statistics pane, `contentOwnsScroll: true`. Removed sticky list-side Quick Context. `SlotView` mounts `SlotDetailHeaderMenus` (Actions + Export) with leading title like Cups. Bulk message/email/properties/CSV export unchanged.
+
+## 2026-09-16 – Core list leftovers after A+B+C (effectiveListViewMode / TeamCard helper)
+
+**Typ:** Refactor / cleanup  
+**Scope:** `client/src/core/list/`, `client/src/plugins/teams/types/teams.ts`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Deleted unused card-era list helpers: `effectiveListViewMode.ts` (+ tests), `createPluginListViewMode.ts`, and unused `ListViewMode`/`session` APIs from `listViewMode.ts` (live export is `nextListTableSort` only). Removed `getDaysUntilTrainingAfterBreak` (no UI consumer after `TeamCard` delete) and its test. ListItem wiring tests kept as regression guards.
+
+## 2026-09-16 – Grind 1 A+B+C: plugin dead-code hygiene (frontend)
+
+**Typ:** Refactor / cleanup  
+**Scope:** `client/src/plugins/*` leftover list/QC/`columnCount` modules  
+**Local-first; not a prod release** by itself. Extends [2026-09-15 Depth A](#2026-09-15--grind-1-depth-a-orphan-cleanup-requestscontactstasks) (requests/contacts/tasks) across remaining plugins.
+
+**Sammanfattning:** Removed unused pre-table-only list artifacts (`*ListItem`, `*QuickAdd`, plugin-local `*ListViewMode`, `TeamCard`) and `*ColumnCount` modules that had no live `SETTINGS_KEY`. Kept `*ColumnCount.ts` files are **SETTINGS_KEY-only** (`contacts`, `tasks`, `notes`, `teams`, `matches`, `garments`, `invoices`, `estimates`, `cups`, `slots`). Unused Quick Context **list** branches stripped; at A+B+C time **Slots** still had sticky list QC — **superseded 2026-09-16** (Slots mail-layout; `SlotQuickContextPanel` removed). Mail-layout `*QuickContextPanel` components are full-only header cards in `*View`. Request QC reads `request.updated_at` (the field on the type; `updatedAt` was dead). No list-chrome behavior change — production lists were already table-only.
+
+**Not in this entry:** mail-layout/detail-tabs/invoice-controller work landed in the same commit range is documented in earlier 2026-09-15 entries, not as A+B+C.
+
+## 2026-09-16 – Docs: align Mail/Pulse/AI Sent + routing notes with verified UI
+
+- **Why:** CHANGELOG still described shell category chips / `min-h-full` mounts after Sent history and scrollport fixes; UI standards omitted provider mail-layout.
+- **What:** Supersession notes on older 2026-09-15 entries; `UI_AND_UX_STANDARDS_V3.md` §0.1 lists Mail/Pulse/AI mail-layout and Sent history bulk/filter pattern.
+
+## 2026-09-15 – Mail Sent: same Contacts-style toolbar as Pulse Sent SMS
+
+- **Why:** Mail – Sent still used settings-shell category buttons, full-width search, and legacy bulk bar.
+- **What:** `MailHistoryView` mirrors Pulse history: `RoundExpandableSearch`, Filters toggle + All/With source/Today chips, plugin dropdown beside Filters, Select/Clear + `BulkActionRoundBar`.
+
+## 2026-09-15 – Pulse Sent SMS: Contacts-style bulk selection
+
+- **Why:** Sent SMS always showed row checkboxes and the legacy `BulkActionBar`.
+- **What:** Opt-in Select/Clear, `BulkActionRoundBar` while selecting, and checkboxes only in selection mode (Contacts pattern).
+
+## 2026-09-15 – Pulse Sent SMS: Contacts-style search + filter toolbar
+
+- **Why:** Sent SMS used settings-shell category buttons and a full-width search field instead of the Contacts list toolbar pattern.
+- **What:** `PulseHistoryView` uses `RoundExpandableSearch`, `ListFilterChipsToggle` + compact All/Failed/Today chips; plugin-source dropdown sits next to the Filters button.
+
+## 2026-09-15 – Pulse/Mail/AI settings mounts: own scroll under contentOwnsScroll
+
+- **Why:** With `contentOwnsScroll`, MainLayout clips overflow; history/routing used `min-h-full` without a scrollport, so Sent SMS / Sent mail / routing could not scroll.
+- **What:** Pulse/Mail history and Pulse/Mail/AI routing page mounts use `flex min-h-0 flex-1 flex-col overflow-y-auto` so the settings page owns vertical scroll.
+
+## 2026-09-15 – Mail + Pulse provider detail: Actions + tabs (AI Providers pattern)
+
+- **Why:** Stacked Mail/Pulse provider detail lacked the Actions header row used by AI Providers.
+- **What:** `MailProviderView` / `PulseProviderView` mount `*DetailHeaderMenus` with leading title, Information / Configuration / Test chips via `?tab=`, and Actions Edit / Delete / Send test (opens test tab).
+
+## 2026-09-15 – Mail + Pulse sent history: routing settings page layout
+
+- **Why:** Sent mail / Sent SMS still used custom list chrome instead of the shared settings shell used by routing.
+- **What:** `MailHistoryView` and `PulseHistoryView` use `PluginSettingsPageShell` with Refresh + Close in the header, and Contacts-style page mount. Titles: **Mail – Sent** / **Pulse – Sent SMS**.
+- **Superseded:** Category chips in the shell header were replaced the same day by Contacts-style `ListFilterChipsToggle` + compact chips (see entries above).
+
+## 2026-09-15 – Mail + Pulse lists: name-only column default
+
+- **Why:** Align Mail/Pulse provider tables with AI Providers/Contacts name-only list defaults in the narrow list column.
+- **What:** `mailProvidersTableColumns` / `pulseProvidersTableColumns` hide status/capability/credentials by default; those show as meta under the provider name with a category icon.
+
+## 2026-09-15 – Mail + Pulse routing: Contacts settings page layout
+
+- **Why:** Routing still used custom page chrome instead of the shared plugin settings shell (categories, header Save/Close).
+- **What:** `MailProvidersRouting` and `PulseProvidersRouting` use `PluginSettingsPageShell` with Global / Per-plugin categories, header Save when global default is dirty, and Contacts-style page mount + padding. Per-plugin row Save/Clear unchanged.
+- **Note:** Mount scroll class later corrected to `flex min-h-0 flex-1 flex-col overflow-y-auto` under `contentOwnsScroll` (see “Pulse/Mail/AI settings mounts: own scroll”).
+
+## 2026-09-15 – Mail + Pulse provider lists: mail-layout list|content
+
+- **Why:** Mail and Pulse provider lists were full-width only — no desktop list|detail split like AI Providers/Contacts.
+- **What:** `MailProvidersList` and `PulseProvidersList` use 20/80 grid on desktop with `*StatisticsView` empty state, row preview, and inline create/edit form + provider view in the detail column. Collapsible toolbar, filter toggle, sort dropdown. Registry: `contentOwnsScroll: true` for both plugins.
+
+## 2026-09-15 – AI Providers routing: full Contacts settings page layout
+
+- **Why:** Routing used the settings shell components but not the Contacts settings page mount (padding/surface, lifted category state, header Save when dirty).
+- **What:** `AIProvidersList` mounts routing with Contacts-style padding (`px-4 py-4 md:px-6`). `AIProvidersRouting` accepts category/close props, uses `SETTINGS_CATEGORY_ICONS`, and shows `SettingsHeaderSaveButton` for dirty global default (per-plugin row Save/Clear unchanged).
+- **Note:** Mount scroll class later corrected to `flex min-h-0 flex-1 flex-col overflow-y-auto` under `contentOwnsScroll` (see “Pulse/Mail/AI settings mounts: own scroll”).
+
+## 2026-09-15 – AI Providers mail-layout list|content
+
+- **Why:** AI Providers list was full-width only — no desktop list|detail split like Contacts/Ingest.
+- **What:** `AIProvidersList` uses 20/80 grid on desktop with `AIProvidersStatisticsView` empty state, stacked `AIProviderView` on row select, and inline create/edit form. Compact viewport keeps panel flow. Registry: `contentOwnsScroll: true`, `contentViewKey: 'aiProvidersContentView'`.
+
+## 2026-09-15 – AI Providers routing: settings shell design
+
+- **Why:** Routing is a settings-like surface but used custom page chrome instead of the shared plugin settings layout.
+- **What:** `AIProvidersRouting` uses `PluginSettingsPageShell` with RoundIconLabelButton categories (Global default / Per-plugin) and shell Close — same pattern as Contacts/Guides settings.
+
+## 2026-09-15 – AI Providers: detail tabs + name-only list
+
+- **Why:** Long detail card stack and wide list table — align with Contacts/Cups/Ingest patterns.
+- **What:** `AIProviderView` tabs Information / Configuration / Test via `?tab=` and header-card chips; test tab always visible with empty state. List table defaults to provider-only column with status, model, and API key as meta under the name.
+
+## 2026-09-15 – Ingest list: name-only column default
+
+- **Why:** Align Ingest with Contacts/Cups/Tasks name-only list defaults.
+- **What:** `ingestTableColumns` hides type/active/status/last-fetch by default; those show as meta under the name row.
+
+## 2026-09-15 – Ingest detail: tab layout (Contacts pattern)
+
+- **Why:** Long card stack in source detail; information and URL lived in sidebar + main column.
+- **What:** `IngestSourceView` tabs Information / Excerpt / Fetch history via `?tab=` and header-card chips. Information merges sidebar fields and source URL; excerpt tab always visible with empty state; runs count on chip when history exists.
+
+## 2026-09-15 – Guides detail: tab layout (Contacts pattern)
+
+- **Why:** Long guide detail card stack — split main column into tabs for scanability while keeping production sidebar always visible.
+- **What:** `GuideView` tabs Details / Presentations / Review via `?tab=` and header-card chips. Review tab always visible with empty state; production banner and review queue gated to Review tab. Validation errors stay above tabs.
+
+## 2026-09-15 – Clubdesk detail: tab layout (Contacts pattern)
+
+- **Why:** Long card stacks in guide and price-list detail; currency lived only in sidebar for full panel.
+- **What:** `ClubdeskGuideView` tabs Information / Steps; `PriceListView` tabs Information / Items / Currency via `?tab=` and header-card chips. Currency moved from sidebar into tab.
+
+## 2026-09-15 – Grind 1 Depth A: orphan cleanup (requests/contacts/tasks)
+
+**Typ:** Refactor / cleanup (delete-only)  
+**Scope:** `client/src/plugins/{requests,contacts,tasks}/`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Removed 12 unused orphan files from the pre-table-only list era (`*ListItem`, `*QuickAdd`, plugin-local `*ListViewMode`, `requestColumnCount` + associated tests). No user-facing behavior change; production list views remain table-only. `contactColumnCount.ts` and `taskColumnCount.ts` kept for SETTINGS_KEY / columnCount persistence.
+
+## 2026-09-15 – Estimates detail: trial tab layout (Contacts pattern)
+
+- **Why:** Long estimate detail card stack — split into tabs for scanability.
+- **What:** `EstimateView` tabs Properties / Line items / Notes via `?tab=` and header-card chips (no QuickContextPanel). Notes tab always visible with empty state.
+
+## 2026-09-15 – Cups detail: tab layout (Contacts pattern)
+
+- **Why:** Long card stack in cup detail; ingest lived only in sidebar for full panel.
+- **What:** `CupView` tabs Information / Properties / Ratings / Ingest via `?tab=` and header-card chips (`CupDetailHeaderMenus` + `headerBelow`). Ingest moved from sidebar into tab; deleted banner stays above tab content.
+
+## 2026-09-15 – Invoices detail: trial tab layout (Contacts pattern)
+
+- **Why:** Same long card-stack problem as Contacts — split full detail into tabs for scanability.
+- **What:** `InvoicesView` tabs Information / Line items / Payments / Linked via `?tab=` and `InvoiceQuickContextPanel.headerBelow` chips. Sticky preview column unchanged. List quick context unchanged.
+
+## 2026-09-15 – Plugin frontend template: Contacts-class mail-layout
+
+**Typ:** Docs / template  
+**Scope:** `templates/plugin-frontend-template/`, `templates/README.md`, integration/design checklists, ADR [`ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md`](ai/adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md)
+
+**Sammanfattning:** Golden frontend template aligned to production Contacts mail-layout: table-only 20/80 list|detail split, `BulkActionRoundBar` + `RoundExpandableSearch`, `YourItemQuickContextPanel` (list|full), `YourItemDetailHeaderMenus`, `YourItemsStatisticsView` empty pane, inline form via `InlinePanelFormActions`. Removed card-column artifacts (`YourItemListItem`, `listViewMode` / `columnCount` utils). New CRUD scaffolds require `contentFlush` + `contentOwnsScroll` in registry. Template stays outside `client/src/` (not linted until copied).
+
+## 2026-09-15 – Matches detail: trial tab layout (Contacts pattern)
+
+- **Why:** Same long card-stack problem as Contacts — split full detail into tabs for scanability.
+- **What:** `MatchView` tabs Information / Properties / Contacts / Linked via `?tab=` and `MatchQuickContextPanel.headerBelow` chips. Related slots move from sidebar into Linked tab. List quick context unchanged.
+
+## 2026-09-15 – Tasks & Requests detail: trial tab layout (Contacts pattern)
+
+- **Why:** Same long card-stack problem as Contacts — split full detail into tabs for scanability.
+- **What:** `TaskView` tabs Information / Properties / Assignees / Linked; `RequestView` tabs Information / Properties / Assignees / Files (files gated on plugin). Both use `?tab=` + QuickContext `headerBelow` chips. List quick context unchanged.
+
+## 2026-09-15 – Contacts: invoice reference checkbox on contact persons
+
+- **Why:** Kundreferens on invoices was always the first contact person; users need to pick which person to use.
+- **What:** `invoiceReference` flag on person JSON; checkbox in ContactView + ContactForm (`CHECKBOX_SM_CLASS`); invoices prefer flagged person, else first named (legacy).
+
+## 2026-09-15 – Contacts detail: trial tab layout (Teams pattern)
+
+- **Why:** Test splitting the long contact detail card stack into tabs like Teams (one section at a time).
+- **What:** `ContactView` tabs Information / Addresses / Contact persons / Linked via `?tab=` and `ContactQuickContextPanel.headerBelow` chips. Edit form unchanged.
+
 ## 2026-09-15 – Garments list: clear size and audience
 
-- **Why:** Choosing **—** (or emptying free text) for size/audience in the person matrix did not persist — the client omitted the key, and the server’s partial merge kept the old value.
-- **What:** Send `""` for cleared keys (`ctFieldPatch`); optimistic `patchPersonLocal` on size/audience save so the matrix UI updates immediately.
+- **Why:** Choosing **—** (or emptying free text) for size/audience in the person matrix did not persist — the client omitted the key, and the server’s partial merge kept the old value. Soft-preview also failed to show any size/audience change because hydrate never wrote persons into `garmentLists`.
+- **What:** Send `""` for cleared keys (`ctFieldPatch`); hydrate soft-selected lists via `refreshGarmentList`; optimistic `patchPersonLocal` on size/audience save.
+
+## 2026-09-15 – Docs: detail empty, attachments UI, N/T/R one-card, due chips
+
+**Typ:** Docs  
+**Scope:** `PLUGIN_VIEW_IMPLEMENTATION_GUIDE`, `UI_AND_UX_STANDARDS_V3`, `FILES_PLUGIN`, `REQUESTS_PLUGIN`, `MENTIONS_AND_CROSS_PLUGIN_UI`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Standards/guides aligned to verified UI: `DETAIL_EMPTY_STATE_CLASS`, shared `FileAttachmentsSection` chrome, Notes/Tasks/Requests one-card full QC, Tasks `formatTaskDueDisplay` / `DUE_DATE_*` vs Requests `RESPONSE_DUE_URGENCY_COLORS`, Requests Properties↔Attachments column order.
+
+## 2026-09-15 – Task due display helper + unit tests
+
+**Typ:** Fix / test  
+**Scope:** `formatTaskDueDisplay`, `getTaskDueUrgency` / `getTaskDueDiffDays`, Tasks list/table/QC/provider/public  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Shared due-label helper removes duplicated overdue/today/tomorrow formatting (single short-locale date). Unit tests cover calendar buckets with injectable `nowMs`. Compact DatePicker/select triggers use `h-7` (chip parity). Requests response-due chips stay on `RESPONSE_DUE_URGENCY_COLORS` (not `DUE_DATE_*`).
+
+## 2026-09-14 – Tasks/Requests status, priority & due chip parity
+
+**Typ:** UI  
+**Scope:** `badgeStyles`, Tasks + Requests status/priority selects, due badges, TaskForm  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Tasks status/priority use the same solid chip fills and `BADGE_CHIP_*` / `BADGE_SELECT_TRIGGER_CLASS` as Requests. Tasks due urgency uses shared `DUE_DATE_*` tokens; Requests response-due keeps `RESPONSE_DUE_URGENCY_COLORS`. TaskForm uses the same select/date controls as detail/QC.
+
+## 2026-09-14 – Requests detail: Properties and Attachments swapped
+
+**Typ:** UI  
+**Scope:** `RequestView`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Properties moves to the main (left) column after Submitter; Attachments moves to the right column above Assignee. Same order in view and form.
+
+## 2026-09-14 – Detail card empty states match Contacts linked
+
+**Typ:** UI  
+**Scope:** `DETAIL_EMPTY_STATE_CLASS`, detail cards across Contacts/Files attachments + Teams/Requests/Garments/Matches/Instructions/Clubdesk/Estimates  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Empty messages inside detail cards (e.g. “No contact persons…”, attachments empty) use the same plain muted text as Contacts linked when empty — no bordered/dashed empty boxes. Attachments already share `FileAttachmentsSection` with `DetailSection` + `subtleTitle`.
+
+## 2026-09-14 – Attachments section uses DetailSection subtleTitle
+
+**Typ:** UI  
+**Scope:** `FileAttachmentsSection`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Attachments card header matches Notes/Requests section chrome (`DetailSection` + `subtleTitle` + Paperclip icon) instead of a custom semibold title with properties (`SlidersHorizontal`) icon.
+
+## 2026-09-14 – Requests detail: one card for header + description
+
+**Typ:** UI  
+**Scope:** `RequestView`, `RequestQuickContextPanel`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full request detail merges title/actions and description into a single QuickContext card (`variant="full"` + children), same pattern as Notes/Tasks. Full view badge row shows status + priority + response-due (type stays under the title). Submitter, submitted details, and attachments remain separate cards. List-side QuickContext preview unchanged.
+
+## 2026-09-14 – Tasks full view: status + priority + due badges
+
+**Typ:** UI  
+**Scope:** `TaskQuickContextPanel`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full detail shows priority and due-date badges beside the status badge under the title (same chip language as list cards). Due uses overdue/today/tomorrow styling; hidden when completed or missing.
+
+## 2026-09-14 – Tasks full view: persist status/priority/due immediately
+
+**Typ:** bugfix / UI  
+**Scope:** `TaskView`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full view status, priority, and due date now save immediately via `saveTask` + `buildTaskListQuickFieldsSavePayload` (same as assignee/team). They previously only updated the quick-edit draft, which required the global panel header **Update** button — missing in mail-layout detail.
+
+## 2026-09-14 – Tasks detail: one card for header + content
+
+**Typ:** UI  
+**Scope:** `TaskView`, `TaskQuickContextPanel`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full task detail merges title/actions and body into a single QuickContext card (`variant="full"` + children), same pattern as Notes. Properties, assignees, mentions, and share stay as separate cards. List-side QuickContext preview unchanged.
+
+## 2026-09-14 – Attachments list matches Files list identity row
+
+**Typ:** UI  
+**Scope:** `FileAttachmentsSection`, `FileIdentityCell`, `FileListTable`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Note/entity attachments reuse the same file identity row as the Files list name column (thumb or type icon, bold name, type · size · created meta) via shared `FileIdentityCell`, and the same tile shell/grid as Contacts linked (`bg-muted/40`, `QuickContextLinkTileGrid`). Download/open/remove actions unchanged.
+
+## 2026-09-14 – Notes detail: one card for header + content
+
+**Typ:** UI  
+**Scope:** `NoteView`, `NoteQuickContextPanel`, `NoteDetailHeaderMenus`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full note detail merges title/actions and body into a single QuickContext card (`variant="full"` + children). Focus mode is removed from detail view for now (still available in edit/`NoteForm`). Mentions, files, and share stay as separate cards below. List-side QuickContext preview unchanged. `showTitleInContent` no longer drives a second title in view (title lives in the header).
+
+## 2026-09-14 – Teams detail: tabs in first header card
+
+**Typ:** UI  
+**Scope:** `TeamView`, `TeamQuickContextPanel`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Full detail first card is QuickContext (`variant="full"`): title, header actions, identity meta under the title (name, age group, gender, playing format, player count, series-team count, status), and category tabs underneath. The second identity/stats card is removed. Stats placement deferred. List-side QuickContext preview unchanged.
+
+## 2026-09-14 – Teams detail: neutral header, tabs under title
+
+**Typ:** UI  
+**Scope:** `TeamView`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Detail identity card no longer uses the team color gradient. Category tabs (overview, schedule, series teams, responsibles, …) sit under the title in that first card header; stats stay below the tabs on a neutral card. _(Superseded by “tabs in first header card” above.)_
+
+## 2026-09-13 – Price-list edit no longer bounced by index deep-link
+
+**Typ:** bugfix / UI  
+**Scope:** `ClubdeskProvider` deep-link sync, `clubdeskRoutes`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** After preview hydrate, `ensureFullPriceList` is already resolved. Updating `priceLists` re-ran deep-link on `/clubdesk/price-list` (no slug), overwrote the pending item URL, then treated navigate as a fresh view deep-link. Index sync now keeps a pending `/clubdesk/price-list/:slug` and does not open view while already editing that list. Form first paint uses current list items instead of an empty default.
+
+## 2026-09-13 – Soft-preview hydrate price-list items
+
+**Typ:** bugfix / UI  
+**Scope:** `PriceListList`, `ClubdeskProvider.ensureFullPriceList`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Soft-select hydrates via `getPriceList` when `items` missing **or** empty while `itemCount > 0` (index stub / stale empty array). Sync preserves hydrated `items`. Fixes empty items after edit deep-link bounce fix.
+
+## 2026-09-13 – Fix price-list edit bounce from soft preview
+
+**Typ:** bugfix / UI  
+**Scope:** `ClubdeskProvider` deep-link sync  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Edit from mail soft-preview no longer jumps back to view. Navigating to `/clubdesk/price-list/:slug` was re-running deep-link sync → `openPriceListForView`. Edit/create now marks `deepLinkPathSyncedRef` before navigate (same for guides).
+
+## 2026-09-13 – QA rework: Estimates settings, Request highlight, price-list editor
+
+**Typ:** fix / UI  
+**Scope:** `EstimateSettingsView`, `RequestList`/`RequestListTable`, `PriceListForm`/`PriceListItemsEditor`, `priceListItemOps`  
+**QA:** Approved (2026-09-13, rework after B1–B4). **Security:** Approved (2026-09-13). UI-only (`client/` + `docs/`). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Estimates empty settings shell passes required `children` + empty-state copy. Request quick-add highlight combines unopened **or** `recentlyQuickAddedId` (cleared on navigate). Price-list `copyItem` highlight set outside React updater; row `clientKey` (FE-only; stripped in `savePriceList` mapping); remove renumber tests.
+
+**Begränsningar:** Teams list primary column is **name** (raw); richer `formatTeamLabel` still lives on the hidden `age_group` column. Estimates Settings remains reachable as an empty shell. Legacy `user_settings.tableColumns` rows may remain in DB but are ignored. Price-list item descriptions may still store markup; admin view uses `RichTextContent` + DOMPurify (Security residual **Low**).
+
+## 2026-09-13 – Price list items editor like invoices
+
+**Typ:** enhancement / UI  
+**Scope:** `PriceListItemsEditor`, `PriceListForm`, `priceListItemOps`  
+**QA:** Approved (2026-09-13, after rework). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Price list items use a compact invoice-style editor (`RoundIconLabelButton` actions, delete confirm, duplicate highlight). Move up/down disabled at category edges; remove renumbers within categories. Row layout: stacked title/price/category · description · actions.
+
+## 2026-09-13 – Clubdesk price list mail-layout
+
+**Typ:** enhancement / UI  
+**Scope:** `PriceListList`, `PriceListListTable`, `PriceListView`, `PriceListForm`, `ClubdeskList` (guides inline safety), `pluginRegistry`  
+**QA:** Approved (2026-09-13, with consolidating WT + rework). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Clubdesk **Price list** aligned to Contacts/Cups mail split: collapsible toolbar, filter-chips toggle, sort dropdown, desktop preview with stacked Form/View, soft-sky empty aside, `contentOwnsScroll: true`. Guides list keeps classic layout but mounts inline Form/View on desktop when panel open so create/edit still works.
+
+## 2026-09-13 – Cups mail-layout (Contacts reference)
+
+**Typ:** enhancement / UI  
+**Scope:** `CupsList`, `CupListTable`, `CupView`, `CupForm`, `CupDetailHeaderMenus`, `CupsStatisticsView`, `pluginRegistry`  
+**QA:** Approved (2026-09-13, with consolidating WT + rework). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Cups aligned to Contacts **mail split list + detail**: collapsible toolbar, filter-chips toggle, sort dropdown, desktop preview with stacked `CupView`/`CupForm`, soft-sky empty statistics pane, `contentOwnsScroll: true`. Ingest import flows unchanged.
+
+## 2026-09-13 – Cups list meta like other plugins
+
+**Typ:** enhancement / UI  
+**Scope:** `CupListTable`  
+**QA:** Approved (2026-09-13). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Cups list matches other plugins: **Trophy + name**; meta under shows **location · start date · district**. Soft sky table header.
+
+## 2026-09-13 – Files list: thumb + name with type/size meta
+
+**Typ:** enhancement / UI  
+**Scope:** `FileListTable`  
+**QA:** Approved (2026-09-13). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Files list shows **thumbnail/icon + name**; meta under the name is **type · size · created**.
+
+## 2026-09-13 – Estimates list meta like Invoices
+
+**Typ:** enhancement / UI  
+**Scope:** `EstimateListTable`  
+**QA:** Approved (2026-09-13). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Estimates list matches Invoices: **number + status** on the primary row; meta under shows **contact type icon · contact · total**.
+
+## 2026-09-13 – Matches list: matchup + location + time
+
+**Typ:** enhancement / UI  
+**Scope:** `matchTableColumns`, `MatchListTable`  
+**QA:** Approved (2026-09-13). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Matches list uses Contacts/Invoices pattern: **matchup** as the only column; meta under the name shows **linked team · time · venue**.
+
+## 2026-09-13 – Remove table-column settings; name-only list defaults
+
+**Typ:** enhancement / UI  
+**Scope:** All list plugins with `tableColumns` settings + garments person-matrix identity prefs; `*TableColumns` helpers; settings views; docs  
+**QA:** Approved (2026-09-13, after rework). **Security:** Approved (2026-09-13). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Removed **Table columns** from plugin settings (and garments identity-column settings). Lists default to the **name/title** column only; legacy `user_settings.tableColumns` / `personMatrixIdentityByList` are ignored. Extra metadata columns will be added per plugin in code later. Teams primary list column is **name** (always visible on mobile). Estimates settings is an empty shell until other categories exist. Garments list settings keep **checkbox** custom columns only.
+
+## 2026-09-13 – Tasks / Requests quick-add like Notes
+
+**Typ:** enhancement / UI  
+**Scope:** `TaskList`, `RequestList` mail toolbar quick-add  
+**QA:** Approved (2026-09-13, after Request highlight rework). **Security:** Approved (2026-09-13). Uses existing authenticated create APIs (no new routes). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Quick task and Quick request sit **left of search** (same as Notes). Domain icons: **CheckSquare** (tasks), **Inbox** (requests). Quick-created rows keep highlight via `recentlyDuplicatedTaskId` / `recentlyQuickAddedId`.
+
+## 2026-09-13 – Garments list hydrate + Tasks/Notes list UX
+
+**Typ:** fix / enhancement / UI  
+**Scope:** `GarmentList` soft-preview + `GarmentView` `PersonMatrix` key; `TaskList` default sort; `NoteList` quick-add placement/icon; `RoundExpandableQuickAdd` optional `icon`  
+**QA:** Approved (2026-09-13, after CHANGELOG rework). **Security:** Approved (2026-09-13). UI-only; soft-preview uses existing authenticated `garmentsApi.getList` (same authz as view-open); informational Low S-UI-2 (more frequent getList). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:**
+
+- **Garments lists (mail detail):** Soft-select clears `persons` and hydrates via `garmentsApi.getList` so PersonMatrix is not empty (index payload has `personCount` only). Preview sync keeps hydrated fields for the **same** list id only (no cross-list persons leak). `PersonMatrix` remounts with `key={list.id}`.
+- **Tasks:** Default list sort is **Created**, newest first (`createdAt` / `desc`).
+- **Notes:** Quick note control sits **left of search** in the mail toolbar; uses **StickyNote** icon (shared `RoundExpandableQuickAdd` `icon` prop; default remains Plus elsewhere).
+
+## 2026-09-13 – Mail toolbar: show/hide filter chips
+
+**Typ:** enhancement / UI  
+**Scope:** Shared `ListFilterChipsToggle` + `usePersistedFiltersVisible`; wired next to Sort in Contacts, Invoices, Notes, Tasks, Requests, Teams, Matches, Garments, Estimates, Files, Ingest mail toolbars  
+**QA:** Approved (2026-09-13, after CHANGELOG rework). **Security:** Approved (2026-09-13). UI-only; no new API/auth; filter visibility prefs in `localStorage` (`'1'`/`'0'` only); informational Low S-LS-1. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Collapsible mail toolbar gains a pressed **Filters** toggle (same chrome as Sort/Select) that shows or hides filter chips. Preference persists per plugin in `localStorage` (`homebase.<plugin>.toolbar.filtersVisible`, `'1'`/`'0'`; default visible). Hiding chips does not clear active filters. Toggle chrome: **on** = white, **off** = `bg-primary/10` (same soft primary as Sort/Select).
+
+## 2026-09-12 – Teams / Matches / Garments / Estimates / Files / Ingest mail-layout
+
+**Typ:** enhancement / UI  
+**Scope:** Teams, Matches, Garments (lists + inventory), Estimates, Files, Ingest lists/views/forms/QC + `pluginRegistry` `contentOwnsScroll`; soft-sky `*StatisticsView` empty panes; sky table headers; `*DetailHeaderMenus` `leading`  
+**QA:** Approved (2026-09-12, after GarmentForm stacked rework). **Security:** Approved (2026-09-12). UI-only; no new API/auth; toolbar collapse prefs in `localStorage` (`'1'`/`'0'` only); informational Low S-UI-2 / S-LS-1. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Same Contacts/Invoices/Notes **mail-layout reference** rolled out to six more plugins:
+
+- Desktop ~20% list | `1fr` detail; collapsible toolbar; `contentOwnsScroll`
+- Inline create/edit/view + `InlinePanelFormActions`; empty detail → soft-sky statistics card
+- Soft sky `SortableListTable` headers; list meta with domain icon shells
+- Full detail / QC: `*DetailHeaderMenus` + `leading` (Edit under Actions)
+- Card stacking `grid-cols-1` when stacked in the detail column (`GarmentForm` stacked omits list/inventory sidebars)
+- Garments: both lists and inventory modes share the mail shell
+- Files: `openFileForView` opens **view** mode for the mail detail column
+
+## 2026-09-11 – List tables: no horizontal scroll from long titles
+
+**Typ:** fix / UI  
+**Scope:** `SortableListTable` (`table-fixed` + `overflow-x-hidden`), `Table` optional `containerClassName`, identity/meta cells across plugin list tables (+ mail/pulses/AI provider tables); [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) list text-overflow rule  
+**QA:** Approved (2026-09-11, after doc rework). **Security:** Approved (2026-09-12). UI-only; no new API/auth; informational Low S-UI-1 (user text in `title`/cells, React-escaped). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** List tables must not create horizontal scroll from long titles or other cell text. Long strings truncate with ellipsis (`truncate`); prefer native `title` for the full value on hover.
+
+## 2026-09-11 – Notes / Tasks / Requests mail-layout (Contacts/Invoices reference)
+
+**Typ:** enhancement / UI  
+**Scope:** Notes, Tasks, Requests lists/views/forms/QC + `pluginRegistry` `contentOwnsScroll`; new `*StatisticsView`; soft sky table headers; `*DetailHeaderMenus` `leading` in QC full card  
+**QA:** Approved (2026-09-11, after doc rework). **Security:** Approved (2026-09-12). UI-only; no new API/auth; toolbar collapse prefs in `localStorage` (`'1'`/`'0'` only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Notes, Tasks, and Requests aligned to the Contacts/Invoices **mail-layout reference** from the entry below:
+
+- Desktop ~20% list | `1fr` detail; collapsible toolbar; `contentOwnsScroll`
+- Inline create/edit/view + `InlinePanelFormActions`; empty detail → soft-sky `*StatisticsView`
+- Soft sky `SortableListTable` headers; list meta with domain icon shells
+- Full QC card: `*DetailHeaderMenus` + `leading` (Actions/Export under identity; Edit under Actions)
+- Card stacking `grid-cols-1` (already in place; kept)
+
+## 2026-09-11 – Plugin lists table-only (no cards/column toggle)
+
+**Typ:** enhancement / UI  
+**Scope:** All dual-mode plugin lists + template; removed `ListColumnLayoutToggle` / `SettingsListViewModeToggle`; `ListTableSortIcon` extracted; docs (`UI_AND_UX_STANDARDS_V3`, `PLUGIN_VIEW_IMPLEMENTATION_GUIDE`, `PLUGIN_DEVELOPMENT_STANDARDS_V2`, ADR viewport tier)  
+**QA:** Approved (2026-09-11, after doc rework). **Security:** Approved (2026-09-12). UI-only; no new API/auth. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Cards | table layout switching removed everywhere. Plugin lists always render `*ListTable` / `SortableListTable` (Contacts/Invoices reference). Toolbar sort + visible-column settings unchanged where they existed.
+
+## 2026-09-11 – Contacts + Invoices mail-style list|detail (reference)
+
+**Typ:** enhancement / UI  
+**Scope:** Contacts + Invoices lists/views/forms/QC; shared shell (`AppContent` `inlineDesktopPanel`/`contentOwnsScroll`, `InlinePanelFormActions`, `SortableListTable` header overrides, `StatKpiTile` soft classes, `DetailHeaderMenus` leading + below-submenu); i18n `contacts.statistics.*`; [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) §5.1 iOS Mail palette (doc reference only)  
+**QA:** Approved (2026-09-11, after empty-state wiring-test rework). **Security:** N/A this pass (UI-only; no new API/auth). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Contacts and Invoices become the **reference mail-layout** for other list|detail plugins:
+
+- Desktop ~20% list | `1fr` detail; collapsible thin toolbar; per-column scroll (`contentOwnsScroll`)
+- Inline create/edit/view in detail on desktop (`inlineDesktopPanel`); shared `InlinePanelFormActions`
+- List meta: primary line + subtitle with type icon (`Users`/`User`) and soft sky/green shells
+- Soft sky table headers (opt-in `headerBarClassName` / `headerCellClassName`); KPI soft tiles; empty detail shows statistics card
+- Invoices: table-only list; centered document preview; card stacking `grid-cols-1`
+- Shared button color transitions / round-icon expand timing polish
+- **Detail Actions/Export in card header** (mail-split has no separate full-panel title): `*DetailHeaderMenus` with `leading` = identity (name / invoice #) in `*QuickContextPanel` `variant="full"`; no standalone Edit beside menus (Edit lives under Actions)
+- **`DetailHeaderMenus` layout:** trigger row stays put (Actions / Export / extras); submenu always opens on the row below; submenu pills `size="xs"` + `justify-end` (same density as Contacts bulk `BulkActionRoundBar`)
 
 ## 2026-09-09 – Prev/next follows visible list order (browse order)
 
@@ -385,7 +903,7 @@ Files: `ContactLinkedItemsSection.tsx`, `ContactQuickContextPanel.tsx`, `Contact
 **Beteende (verifierat i kod)**
 
 - Expanded `252px` / collapsed `72px`; `MainLayout` padding följer bredden
-- Collapsed: endast brand-logo + `SectionCategoryIcon` per kategori; klick på kategori expanderar och öppnar sektionen
+- Collapsed: brand-logo + `CollapsedCategoryFlyout` per kategori (hover 150ms eller klick → Radix `DropdownMenu` `side=right`, Sort-dropdown-chrome); val navigerar utan att expandera sidomenyn; endast kant-chevron expanderar (**superseded 2026-09-16** — se entry ovan)
 - Toggle: `ChevronLeft` / `ChevronRight`, `size="xs"`, `expandOnHover={false}`, högst upp på kanten (`top-1`, `translate-x-1/2`), vit bg / blå hover
 - `id="left-sidebar-nav"` endast på permanent desktop-rail via `navId` (inte mobil Sheet)
 
@@ -1347,6 +1865,8 @@ Internal notes följer Contacts-mönstret: **vänster identitets-/fakta-stack** 
 **Status:** Implementerat lokalt. **Ej prod-release.**
 
 `RequestForm` (2 kolumner) speglar nu samma kortplacering och chrome som `RequestView` / `TaskForm`: **vänster** = details (titel + beskrivning, `p-6`/`prominentTitle`) + submitter (`subtleTitle`) + Information (vid edit); **main** = properties med `DETAIL_PROP_ROW_CLASS` (type/status/priority/response due/source) → assignees → team → notes → files. Validation = destructive Card. Tidigare låg properties till vänster och submitter i main med `p-4`.
+
+**Superseded 2026-09-14:** Properties moved to the **left** column (after submitter); **Attachments** moved to the **right** (above assignee). See CHANGELOG 2026-09-14 swap entry and `REQUESTS_PLUGIN.md` staff detail layout.
 
 ---
 

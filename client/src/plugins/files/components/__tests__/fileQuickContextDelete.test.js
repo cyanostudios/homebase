@@ -1,17 +1,20 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('FileQuickContextPanel delete + FileForm cancel wiring', () => {
-  const qcSrc = fs.readFileSync(path.join(__dirname, '../FileQuickContextPanel.tsx'), 'utf8');
+describe('File detail delete + FileForm cancel wiring', () => {
+  const headerMenusSrc = fs.readFileSync(
+    path.join(__dirname, '../FileDetailHeaderMenus.tsx'),
+    'utf8',
+  );
   const formSrc = fs.readFileSync(path.join(__dirname, '../FileForm.tsx'), 'utf8');
 
-  test('QC delete opens ConfirmDialog then deleteFile', () => {
-    expect(qcSrc).toMatch(/ConfirmDialog/);
-    expect(qcSrc).toMatch(/variant="danger"/);
-    expect(qcSrc).toMatch(/getDeleteMessage/);
-    expect(qcSrc).toMatch(/deleteFile\(file\.id\)/);
-    expect(qcSrc).toMatch(/setShowDeleteConfirm\(true\)/);
-    expect(qcSrc).toMatch(/common\.delete/);
+  test('detail header menus open ConfirmDialog then deleteFile', () => {
+    expect(headerMenusSrc).toMatch(/ConfirmDialog/);
+    expect(headerMenusSrc).toMatch(/variant="danger"/);
+    expect(headerMenusSrc).toMatch(/getDeleteMessage/);
+    expect(headerMenusSrc).toMatch(/deleteFile\(file\.id\)/);
+    expect(headerMenusSrc).toMatch(/setShowDeleteConfirm\(true\)/);
+    expect(headerMenusSrc).toMatch(/common\.delete/);
   });
 
   test('FileForm cancel closes panel (no openForView loop)', () => {

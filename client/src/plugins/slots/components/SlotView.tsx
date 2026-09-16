@@ -3,6 +3,7 @@ import {
   CalendarDays,
   Search,
   SlidersHorizontal,
+  Store,
   Trash2,
   User,
   Users,
@@ -43,6 +44,7 @@ import {
 import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
+import { SlotDetailHeaderMenus } from './SlotDetailHeaderMenus';
 
 function formatTimeOnly(s: string | null): string {
   if (!s) {
@@ -64,17 +66,9 @@ function SlotMainInfoCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMai
   const slotDatePassed = isSlotTimePast(slot.slot_time);
   const { t } = useTranslation();
 
-  const displayName = slot.name?.trim() || `SLT ${formatDisplayNumber('slots', slot.id)}`;
-
   return (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-slots')}>
-      <div className="p-6 space-y-5">
-        <div>
-          <div className="text-[10px] uppercase tracking-wider font-normal text-muted-foreground mb-0.5">
-            {t('slots.nameLabel')}
-          </div>
-          <div className={PLUGIN_PAGE_TITLE_CLASS}>{displayName}</div>
-        </div>
+      <div className="space-y-5 p-6">
         {slotDatePassed ? (
           <div
             className="flex w-full max-w-full items-start gap-3 text-sm font-bold leading-snug text-red-600 dark:text-red-400"
@@ -91,13 +85,13 @@ function SlotMainInfoCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMai
         ) : null}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+            <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               {t('slots.startDateLabel')}
             </div>
             <div className="text-sm font-medium">{formatDateOnly(slot.slot_time)}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+            <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               {t('slots.endDateLabel')}
             </div>
             <div className="text-sm font-medium">{formatDateOnly(slot.slot_end ?? null)}</div>
@@ -504,9 +498,11 @@ function SlotSettingsCard({
 interface SlotViewProps {
   slot?: Slot;
   item?: Slot;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
 }
 
-export function SlotView({ slot: slotProp, item }: SlotViewProps) {
+export function SlotView({ slot: slotProp, item, stacked = false }: SlotViewProps) {
   const { t } = useTranslation();
   const slot = slotProp ?? item ?? null;
   const { contacts } = useContacts();
@@ -625,10 +621,28 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
     return null;
   }
 
+  const displayName = slot.name?.trim() || `SLT ${formatDisplayNumber('slots', slot.id)}`;
+  const titleLeading = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span title={t('nav.slots', { defaultValue: 'Slots' })} className="inline-flex shrink-0">
+        <SectionCategoryIcon
+          icon={Store}
+          className="h-9 w-9 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-4 [&_svg]:w-4"
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>{displayName}</h3>
+    </div>
+  );
+
   return (
     <>
-      <DetailLayout>
+      <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined}>
         <div className="space-y-4">
+          <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+            <div className="border-b border-border/50 px-4 py-5">
+              <SlotDetailHeaderMenus slot={slot} leading={titleLeading} />
+            </div>
+          </Card>
           <SlotMainInfoCard
             slot={slot}
             hasMatch={hasMatch}

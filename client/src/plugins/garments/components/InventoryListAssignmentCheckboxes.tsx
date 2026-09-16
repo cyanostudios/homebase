@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_EMPTY_STATE_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
 import { useGarments } from '../hooks/useGarments';
@@ -114,7 +114,7 @@ export function InventoryListAssignmentCheckboxes({ itemId }: { itemId?: string 
         ) : null}
 
         {itemId && garmentLists.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('garments.noListsYet')}</p>
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('garments.noListsYet')}</p>
         ) : null}
 
         {itemId && garmentLists.length > 0 ? (

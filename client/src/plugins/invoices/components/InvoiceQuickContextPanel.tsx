@@ -1,76 +1,44 @@
-import {
-  Calculator,
-  Calendar,
-  CreditCard,
-  FileText,
-  Hash,
-  ListOrdered,
-  Receipt,
-  Wallet,
-} from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Calendar, FileText, Hash, Receipt, User, Users, Wallet } from 'lucide-react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import {
-  DETAIL_FIELD_VALUE_CLASS,
-  DETAIL_NOTE_CALLOUT_CLASS,
-  DETAIL_VIEW_CARD_CLASS,
-} from '@/core/ui/detailViewCardStyles';
-import { BADGE_CHIP_CLASS, QC_INVOICE_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
-import { SubtleSectionHeading } from '@/core/ui/DetailSection';
-import { QuickContextActiveShareLink } from '@/core/ui/QuickContextActiveShareLink';
-import {
-  QuickContextHeaderActions,
-  QuickContextOpenFullFooter,
-} from '@/core/ui/QuickContextHeaderActions';
+import { useApp } from '@/core/api/AppContext';
+import { DETAIL_FIELD_VALUE_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDate, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
+import { CONTACT_TYPE_ICON_SHELL_CLASS } from '@/plugins/contacts/types/contacts';
 
-import { invoicesApi } from '../api/invoicesApi';
-import type { Invoice, InvoiceShare } from '../context/InvoicesContext';
+import type { Invoice } from '../context/InvoicesContext';
 import { formatInvoiceAmount, formatInvoiceMoney } from '../utils/formatInvoiceAmount';
-import { resolveInvoiceTotals } from '../utils/invoiceTotals';
-import { displayPlainText } from '../utils/htmlText';
 import { formatInvoiceDueDate, formatPaymentTermsLabel } from '../utils/invoiceDueDate';
+import { resolveInvoiceTotals } from '../utils/invoiceTotals';
 
-import { InvoicePricingSummary } from './InvoicePricingSummary';
-import { formatInvoiceStatusForDisplay } from './InvoiceStatusSelect';
+import { InvoiceDetailHeaderMenus } from './InvoiceDetailHeaderMenus';
+import {
+  INVOICE_STATUS_BADGE_CLASS,
+  INVOICE_STATUS_COLORS,
+  formatInvoiceStatusForDisplay,
+} from './InvoiceStatusSelect';
+
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
-function invoiceInitials(invoice: Invoice): string {
-  const raw = String(invoice.invoiceNumber || invoice.id || '').trim();
-  const digits = raw.replace(/\D/g, '');
-  if (digits.length > 0) {
-    return digits.slice(-2);
-  }
-  return raw.slice(0, 2).toUpperCase() || '—';
-}
-
 export function InvoiceQuickContextPanel({
   invoice,
-  onClose,
-  onOpenFullProfile,
-  onEdit,
-  variant = 'list',
+  headerBelow = null,
   children,
 }: {
   invoice: Invoice;
-  onClose?: () => void;
-  onOpenFullProfile?: () => void;
-  onEdit: () => void;
-  /** `list` = small preview beside the list; `full` = first column in full detail view. */
-  variant?: 'list' | 'full';
-  /** Extra content below the fact grid (full view: line items, pricing, notes). */
+  headerBelow?: React.ReactNode;
   children?: React.ReactNode;
 }) {
-  const isFullView = variant === 'full';
   const { t } = useTranslation();
-  const [listShareUrl, setListShareUrl] = useState<string | null>(null);
+  const { contacts } = useApp();
   const status = invoice.status || 'draft';
   const invoiceType = invoice.invoiceType || 'invoice';
   const due = formatInvoiceDueDate(invoice.dueDate);
@@ -81,147 +49,67 @@ export function InvoiceQuickContextPanel({
   const dueDateLabel = formatDate(invoice.dueDate) || '—';
   const currency = invoice.currency || 'SEK';
   const paymentTermsLabel = formatPaymentTermsLabel(invoice.paymentTerms);
-  const lineItemCount = Array.isArray(invoice.lineItems) ? invoice.lineItems.length : 0;
-  const invoiceNotes = displayPlainText(invoice.notes).trim();
-  const amountPaid = Number(invoice.amountPaid || 0);
-  const invoiceDiscount = Number(invoice.invoiceDiscount || 0);
   const totals = resolveInvoiceTotals(invoice);
-  const totalAmount = totals.total;
-  const amountLabel = formatInvoiceAmount(totalAmount);
-  const remaining = Math.max(0, Math.round((totalAmount - amountPaid) * 100) / 100);
-  const hasPayments = amountPaid > 0;
+  const amountLabel = formatInvoiceAmount(totals.total);
+  const totalLabel = formatInvoiceMoney(totals.total, currency);
+  const contactName = invoice.contactName?.trim() || '';
   const updatedLabel = invoice.updatedAt ? formatDateTimeShort(invoice.updatedAt) : null;
 
-  useEffect(() => {
-    if (isFullView) {
-      setListShareUrl(null);
-      return;
+  const contactType = (() => {
+    if (invoice.contactId == null) {
+      return undefined;
     }
-    let cancelled = false;
-    setListShareUrl(null);
-    invoicesApi
-      .getShares(invoice.id)
-      .then((shares: InvoiceShare[]) => {
-        if (cancelled) {
-          return;
-        }
-        const active = shares.find((share) => new Date(share.validUntil) > new Date());
-        setListShareUrl(
-          active ? `${window.location.origin}/public/invoice/${active.shareToken}` : null,
-        );
+    const contact = contacts?.find((c) => String(c.id) === String(invoice.contactId));
+    if (!contact?.contactType) {
+      return undefined;
+    }
+    return contact.contactType === 'private' ? 'private' : 'company';
+  })();
+  const ContactTypeIcon =
+    contactType === 'private' ? User : contactType === 'company' ? Users : null;
+  const contactTypeLabel = contactType
+    ? t(`contacts.type.${contactType}`, {
+        defaultValue: contactType === 'private' ? 'Private' : 'Company',
       })
-      .catch(() => {
-        if (!cancelled) {
-          setListShareUrl(null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isFullView, invoice.id]);
+    : null;
 
-  const identityHeader = (
-    <div className="flex items-center gap-3">
-      <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold plugin-invoices bg-plugin-subtle text-plugin"
-        aria-hidden
-      >
-        {invoiceInitials(invoice)}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0')}>
-          {invoice.contactName || t('invoices.noCustomer')}
-        </h3>
+  const titleLeading = (
+    <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 font-mono')}>{numberLabel}</h3>
         <Badge
           className={cn(
-            'shrink-0',
-            BADGE_CHIP_CLASS,
-            QC_INVOICE_STATUS_BADGE_COLORS[status] ?? QC_INVOICE_STATUS_BADGE_COLORS.draft,
+            INVOICE_STATUS_BADGE_CLASS,
+            INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
+            'h-5 shrink-0 px-1.5 py-0 text-[11px] font-normal leading-none',
           )}
         >
           {formatInvoiceStatusForDisplay(status)}
         </Badge>
       </div>
-      <QuickContextHeaderActions
-        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
-        onEdit={onEdit}
-        onClose={!isFullView && onClose ? onClose : undefined}
-        editLabel={t('common.edit')}
-        closeLabel={t('common.close')}
-      />
+      <div className="flex min-w-0 items-center gap-1.5">
+        {ContactTypeIcon ? (
+          <span title={contactTypeLabel ?? undefined} className="inline-flex shrink-0">
+            <SectionCategoryIcon
+              icon={ContactTypeIcon}
+              className={contactType ? CONTACT_TYPE_ICON_SHELL_CLASS[contactType] : undefined}
+            />
+          </span>
+        ) : null}
+        <span className="min-w-0 truncate text-sm font-normal leading-tight text-slate-400 dark:text-slate-500">
+          {contactName || t('invoices.noCustomer')}
+        </span>
+        {totalLabel ? (
+          <span className="shrink-0 tabular-nums text-sm font-normal leading-tight text-slate-400 dark:text-slate-500">
+            {totalLabel}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 
   const factValueClass = 'text-base font-medium text-foreground';
   const factValueEmphasisClass = DETAIL_FIELD_VALUE_CLASS;
-
-  const factGrid = (
-    <div className="grid grid-cols-1 gap-y-3 md:grid-cols-2 md:gap-x-4">
-      <div>
-        <div className={FACT_LABEL_CLASS}>
-          <Hash className="h-3 w-3" />
-          {t('invoices.table.number')}
-        </div>
-        <div className={factValueClass}>{numberLabel || '—'}</div>
-      </div>
-      <div>
-        <div className={FACT_LABEL_CLASS}>
-          <FileText className="h-3 w-3" />
-          {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
-        </div>
-        <div className={factValueClass}>{typeLabel}</div>
-      </div>
-      <div>
-        <div className={FACT_LABEL_CLASS}>
-          <Calendar className="h-3 w-3" />
-          {t('invoices.issueDate')}
-        </div>
-        <div className={factValueClass}>{issueDateLabel}</div>
-      </div>
-      <div>
-        <div className={FACT_LABEL_CLASS}>
-          <Calendar className="h-3 w-3" />
-          {t('invoices.fieldDueDate')}
-        </div>
-        <div
-          className={cn(factValueEmphasisClass, showDueUrgency && due ? due.className : undefined)}
-        >
-          {due && showDueUrgency ? due.text : dueDateLabel}
-        </div>
-      </div>
-      <div>
-        <div className={FACT_LABEL_CLASS}>
-          <Wallet className="h-3 w-3" />
-          {t('invoices.table.total')}
-        </div>
-        <div className={cn(factValueEmphasisClass, 'tabular-nums')}>
-          {amountLabel} {currency}
-        </div>
-      </div>
-      <div>
-        <div className={FACT_LABEL_CLASS}>
-          <Receipt className="h-3 w-3" />
-          {t('invoices.currency')}
-        </div>
-        <div className={factValueClass}>{currency}</div>
-      </div>
-      <div>
-        <div className={FACT_LABEL_CLASS}>{t('invoices.paymentTerms')}</div>
-        <div className={cn(factValueClass, 'truncate')}>{paymentTermsLabel}</div>
-      </div>
-      {!isFullView ? (
-        <div>
-          <div className={FACT_LABEL_CLASS}>
-            <ListOrdered className="h-3 w-3" />
-            {t('invoices.quickInfo.items')}
-          </div>
-          <div className={factValueClass}>
-            {t('invoices.quickInfo.itemsCount', { count: lineItemCount })}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
 
   return (
     <Card
@@ -229,97 +117,82 @@ export function InvoiceQuickContextPanel({
       className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-invoices flex flex-col')}
       data-plugin-name="invoices"
     >
-      <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
+      <div className="border-b border-border/50 px-4 py-5">
+        <InvoiceDetailHeaderMenus invoice={invoice} leading={titleLeading} />
+        {headerBelow ? <div className="mt-4">{headerBelow}</div> : null}
+      </div>
 
-      <div className={cn('px-4 py-4', isFullView ? 'space-y-4' : 'space-y-6')}>
+      <div className="space-y-4 px-4 py-4">
         {updatedLabel ? (
           <p className="text-xs text-muted-foreground">
             {t('common.updated')} {updatedLabel}
           </p>
         ) : null}
 
-        {factGrid}
-
-        {!isFullView && invoiceNotes ? (
+        <div className="grid grid-cols-1 gap-y-3 md:grid-cols-2 md:gap-x-4">
           <div>
-            <div className="mb-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                {t('invoices.notesAndTerms')}
-              </span>
+            <div className={FACT_LABEL_CLASS}>
+              <Hash className="h-3 w-3" />
+              {t('invoices.table.number')}
             </div>
-            <div className={DETAIL_NOTE_CALLOUT_CLASS}>
-              <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
-                {invoiceNotes}
-              </p>
+            <div className={factValueClass}>{numberLabel || '—'}</div>
+          </div>
+          <div>
+            <div className={FACT_LABEL_CLASS}>
+              <FileText className="h-3 w-3" />
+              {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
             </div>
+            <div className={factValueClass}>{typeLabel}</div>
           </div>
-        ) : null}
-
-        {!isFullView && lineItemCount > 0 ? (
-          <div className="space-y-2">
-            <SubtleSectionHeading title={t('invoices.pricingSummary')} icon={Calculator} />
-            <InvoicePricingSummary
-              totals={totals}
-              currency={currency}
-              invoiceDiscount={invoiceDiscount}
-            />
+          <div>
+            <div className={FACT_LABEL_CLASS}>
+              <Calendar className="h-3 w-3" />
+              {t('invoices.issueDate')}
+            </div>
+            <div className={factValueClass}>{issueDateLabel}</div>
           </div>
-        ) : null}
-
-        {!isFullView && hasPayments ? (
-          <div className="space-y-2">
-            <SubtleSectionHeading
-              title={t('invoices.payments.title', { defaultValue: 'Payments' })}
-              icon={CreditCard}
-            />
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-3">
-                <span className="text-muted-foreground">
-                  {t('invoices.payments.paid', { defaultValue: 'Paid' })}
-                </span>
-                <span className="text-xs font-medium tabular-nums text-foreground">
-                  {formatInvoiceMoney(amountPaid, currency)}
-                </span>
-              </div>
-              {remaining > 0 ? (
-                <div className="flex justify-between gap-3">
-                  <span className="text-muted-foreground">
-                    {t('invoices.payments.remaining', { defaultValue: 'Remaining' })}
-                  </span>
-                  <span className="text-xs font-medium tabular-nums text-foreground">
-                    {formatInvoiceMoney(remaining, currency)}
-                  </span>
-                </div>
-              ) : (
-                <p className="text-sm font-medium text-green-700 dark:text-green-400">
-                  {t('invoices.payments.fullyPaidHint', {
-                    defaultValue: 'This invoice is fully paid.',
-                  })}
-                </p>
+          <div>
+            <div className={FACT_LABEL_CLASS}>
+              <Calendar className="h-3 w-3" />
+              {t('invoices.fieldDueDate')}
+            </div>
+            <div
+              className={cn(
+                factValueEmphasisClass,
+                showDueUrgency && due ? due.className : undefined,
               )}
+            >
+              {due && showDueUrgency ? due.text : dueDateLabel}
             </div>
           </div>
-        ) : null}
+          <div>
+            <div className={FACT_LABEL_CLASS}>
+              <Wallet className="h-3 w-3" />
+              {t('invoices.table.total')}
+            </div>
+            <div className={cn(factValueEmphasisClass, 'tabular-nums')}>
+              {amountLabel} {currency}
+            </div>
+          </div>
+          <div>
+            <div className={FACT_LABEL_CLASS}>
+              <Receipt className="h-3 w-3" />
+              {t('invoices.currency')}
+            </div>
+            <div className={factValueClass}>{currency}</div>
+          </div>
+          <div>
+            <div className={FACT_LABEL_CLASS}>{t('invoices.paymentTerms')}</div>
+            <div className={cn(factValueClass, 'truncate')}>{paymentTermsLabel}</div>
+          </div>
+        </div>
 
-        {isFullView && children ? (
+        {children ? (
           <div className="min-w-0 space-y-6 overflow-x-hidden border-t border-border/50 pt-4">
             {children}
           </div>
         ) : null}
       </div>
-
-      {!isFullView && listShareUrl ? (
-        <div className="px-4 pb-4">
-          <QuickContextActiveShareLink
-            shareUrl={listShareUrl}
-            activeLabel={t('invoices.shareActive')}
-          />
-        </div>
-      ) : null}
-
-      {!isFullView && onOpenFullProfile ? (
-        <QuickContextOpenFullFooter onOpen={onOpenFullProfile} />
-      ) : null}
     </Card>
   );
 }

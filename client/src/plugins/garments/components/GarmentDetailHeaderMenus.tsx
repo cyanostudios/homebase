@@ -12,7 +12,14 @@ import type { GarmentList, InventoryItem } from '../types/garments';
 
 import { GarmentPersonImportDialog } from './GarmentPersonImportDialog';
 
-export function InventoryDetailHeaderMenus({ item }: { item: InventoryItem }) {
+export function InventoryDetailHeaderMenus({
+  item,
+  leading,
+}: {
+  item: InventoryItem;
+  /** Optional leading content on the Actions row (e.g. article name). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openInventoryForEdit,
@@ -72,6 +79,7 @@ export function InventoryDetailHeaderMenus({ item }: { item: InventoryItem }) {
 
   return (
     <DetailHeaderMenus
+      leading={leading}
       actions={actions}
       actionsLabel={t('common.headerActions')}
       exportLabel={t('common.headerExport')}
@@ -124,7 +132,14 @@ export function InventoryDetailHeaderMenus({ item }: { item: InventoryItem }) {
   );
 }
 
-export function GarmentListDetailHeaderMenus({ list }: { list: GarmentList }) {
+export function GarmentListDetailHeaderMenus({
+  list,
+  leading,
+}: {
+  list: GarmentList;
+  /** Optional leading content on the Actions row (e.g. list name). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openGarmentForEdit,
@@ -217,6 +232,7 @@ export function GarmentListDetailHeaderMenus({ list }: { list: GarmentList }) {
 
   return (
     <DetailHeaderMenus
+      leading={leading}
       actions={actions}
       actionsLabel={t('common.headerActions')}
       exportLabel={t('common.headerExport')}

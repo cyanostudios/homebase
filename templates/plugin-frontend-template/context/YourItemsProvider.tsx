@@ -9,6 +9,8 @@ import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 import { templateApi } from '../api/templateApi';
 import type { YourItem, YourItemPayload, ValidationError } from '../types/your-items';
 
+import { YourItemDetailHeaderMenus } from '../components/YourItemDetailHeaderMenus';
+
 import { YourItemsContext, type YourItemsContextType } from './YourItemsContext';
 
 interface YourItemsProviderProps {
@@ -233,6 +235,17 @@ export function YourItemsProvider({
     return 'Delete this item? This cannot be undone.';
   }, []);
 
+  const getPanelTitle = useCallback((mode: string, item: YourItem | null) => {
+    if (mode === 'view' && item) {
+      return (
+        <React.Suspense fallback={null}>
+          <YourItemDetailHeaderMenus key={String(item.id)} item={item} />
+        </React.Suspense>
+      );
+    }
+    return null;
+  }, []);
+
   const value = useMemo<YourItemsContextType>(
     () => ({
       isYourItemPanelOpen,
@@ -253,6 +266,7 @@ export function YourItemsProvider({
       deleteYourItems,
       getDeleteMessage,
       clearValidationErrors,
+      getPanelTitle,
     }),
     [
       isYourItemPanelOpen,
@@ -273,6 +287,7 @@ export function YourItemsProvider({
       deleteYourItems,
       getDeleteMessage,
       clearValidationErrors,
+      getPanelTitle,
     ],
   );
 

@@ -1,4 +1,4 @@
-import { Mail, MessageCircle, Store } from 'lucide-react';
+import { Mail, MessageSquare, Store } from 'lucide-react';
 import React, { useEffect, useCallback, useMemo, useRef, useState, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
@@ -76,7 +76,7 @@ export function SlotsProvider({
 
   const [isSlotsPanelOpen, setIsSlotsPanelOpen] = useState(false);
   const [currentSlot, setCurrentSlot] = useState<Slot | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<ValidationError>();
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -153,9 +153,8 @@ export function SlotsProvider({
       actions.push({
         id: 'send-message',
         label: t('bulk.message'),
-        icon: MessageCircle,
+        icon: MessageSquare,
         onClick: openSlotSendMessage,
-        className: 'h-9 text-xs px-3',
       });
     }
 
@@ -165,7 +164,6 @@ export function SlotsProvider({
         label: t('bulk.email'),
         icon: Mail,
         onClick: openSlotSendEmail,
-        className: 'h-9 text-xs px-3',
       });
     }
 
@@ -657,9 +655,6 @@ export function SlotsProvider({
       }
       if (mode === 'create') {
         return t('slots.newSlot');
-      }
-      if (mode === 'settings') {
-        return t('slots.settingsSlots');
       }
       return t('slots.slot');
     },

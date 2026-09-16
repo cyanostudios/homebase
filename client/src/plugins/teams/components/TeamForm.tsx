@@ -77,10 +77,12 @@ interface TeamFormProps {
   currentItem?: Team | null;
   onSave: (data: TeamPayload) => Promise<boolean>;
   onCancel: () => void;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
 }
 
 export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(function TeamForm(
-  { currentTeam, currentItem, onSave, onCancel },
+  { currentTeam, currentItem, onSave, onCancel, stacked: _stacked = false },
   ref,
 ) {
   const { t } = useTranslation();
@@ -369,6 +371,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
   return (
     <>
       <DetailLayout
+        gridClassName="grid-cols-1"
         sidebar={
           item ? (
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>

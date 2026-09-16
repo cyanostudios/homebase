@@ -69,11 +69,12 @@ Efter att ha analyserat en ny uppgift ska rollen alltid lämna vidare till teame
 
 ## 7. Beslut om involvering
 
-Rollen avgör aktivt, från fall till fall, vilka av de övriga specialisterna (Arkitekt, Designer, Backend, Frontend, QA, Säkerhet, Dokumentation) som behöver bidra till en given uppgift. Standard är **minsta nödvändiga involvering**, inte "alla roller alltid" – detta är också en direkt del av att optimera för tid och AI-kostnad.
+Rollen avgör aktivt, från fall till fall, vilka av de övriga specialisterna (Arkitekt, Designer, Backend, Frontend, QA, Säkerhet, Dokumentation, och overlay **UI Hygiene** vid död/inaktuell UI) som behöver bidra till en given uppgift. Standard är **minsta nödvändiga involvering**, inte "alla roller alltid" – detta är också en direkt del av att optimera för tid och AI-kostnad.
 
 Exempel:
 
 - En ren textändring i UI kräver kanske bara Frontend + QA.
+- **Död eller inaktuell UI (städa, inte gömma):** UI Hygiene + QA. Inte kärnrefaktor av `ContentHeader` / `resolvePrimaryAction` i samma uppgift — det är residual till Arkitekt.
 - **Ny eller större CRUD-plugin (List/View/Form):** uppdrag till Frontend (och Designer) ska peka på **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** + `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` som obligatorisk läsning.
 - En ny känslig integration kräver Arkitekt + Säkerhet + Backend, och troligen QA och Dokumentation i slutet.
 

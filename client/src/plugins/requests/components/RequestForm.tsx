@@ -46,10 +46,12 @@ interface RequestFormProps {
   currentItem?: Request | null;
   onSave: (data: RequestPayload) => Promise<boolean>;
   onCancel: () => void;
+  /** Reserved for mail-style list detail column (form is already single-column). */
+  stacked?: boolean;
 }
 
 export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(function RequestForm(
-  { currentRequest, currentItem, onSave, onCancel },
+  { currentRequest, currentItem, onSave, onCancel, stacked: _stacked = false },
   ref,
 ) {
   const { t } = useTranslation();
@@ -461,22 +463,81 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
         </DetailSection>
       </Card>
 
-      {hasFilesPlugin ? (
-        <div className="space-y-2">
-          {!item ? (
-            <p className="px-1 text-xs text-muted-foreground">
-              {t('requests.form.attachmentsAfterSave')}
-            </p>
-          ) : null}
-          <FileAttachmentsSection pluginName="requests" entityId={item?.id} />
-        </div>
-      ) : null}
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('requests.view.properties')}
+          icon={SlidersHorizontal}
+          subtleTitle
+          className="p-6"
+        >
+          <div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.form.requestType')}
+              </span>
+              <RequestTypeSelect
+                request={formRequestStub}
+                onTypeChange={handleTypeChange}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.form.status')}
+              </span>
+              <RequestStatusSelect
+                request={formRequestStub}
+                onStatusChange={(status) => updateForm('status', status)}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.form.priority')}
+              </span>
+              <RequestPrioritySelect
+                request={formRequestStub}
+                onPriorityChange={(priority) => updateForm('priority', priority)}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.responseDue.label')}
+              </span>
+              <RequestResponseDueControl
+                request={{
+                  responseDueAt: form.responseDueAt,
+                  created_at: createdAtForDue,
+                }}
+                onDaysChange={(_days, responseDueAt) => updateForm('responseDueAt', responseDueAt)}
+                hideInlineLabel
+              />
+            </div>
+            {item ? (
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('requests.view.source')}
+                </span>
+                <Badge
+                  variant="outline"
+                  className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS[item.source])}
+                >
+                  {item.source === 'external'
+                    ? t('requests.sourceExternal')
+                    : t('requests.sourceInternal')}
+                </Badge>
+              </div>
+            ) : null}
+          </div>
+        </DetailSection>
+      </Card>
     </div>
   );
 
   return (
     <>
-      <DetailLayout leftSidebar={formLeftSidebar}>
+      <DetailLayout gridClassName="grid-cols-1" leftSidebar={formLeftSidebar}>
         <form
           className="space-y-6"
           onSubmit={(e) => {
@@ -495,77 +556,16 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
             </Card>
           ) : null}
 
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('requests.view.properties')}
-              icon={SlidersHorizontal}
-              subtleTitle
-              className="p-6"
-            >
-              <div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.form.requestType')}
-                  </span>
-                  <RequestTypeSelect
-                    request={formRequestStub}
-                    onTypeChange={handleTypeChange}
-                    hideInlineLabel
-                  />
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.form.status')}
-                  </span>
-                  <RequestStatusSelect
-                    request={formRequestStub}
-                    onStatusChange={(status) => updateForm('status', status)}
-                    hideInlineLabel
-                  />
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.form.priority')}
-                  </span>
-                  <RequestPrioritySelect
-                    request={formRequestStub}
-                    onPriorityChange={(priority) => updateForm('priority', priority)}
-                    hideInlineLabel
-                  />
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.responseDue.label')}
-                  </span>
-                  <RequestResponseDueControl
-                    request={{
-                      responseDueAt: form.responseDueAt,
-                      created_at: createdAtForDue,
-                    }}
-                    onDaysChange={(_days, responseDueAt) =>
-                      updateForm('responseDueAt', responseDueAt)
-                    }
-                    hideInlineLabel
-                  />
-                </div>
-                {item ? (
-                  <div className={DETAIL_PROP_ROW_CLASS}>
-                    <span className="text-sm text-slate-500 dark:text-slate-400">
-                      {t('requests.view.source')}
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS[item.source])}
-                    >
-                      {item.source === 'external'
-                        ? t('requests.sourceExternal')
-                        : t('requests.sourceInternal')}
-                    </Badge>
-                  </div>
-                ) : null}
-              </div>
-            </DetailSection>
-          </Card>
+          {hasFilesPlugin ? (
+            <div className="space-y-2">
+              {!item ? (
+                <p className="px-1 text-xs text-muted-foreground">
+                  {t('requests.form.attachmentsAfterSave')}
+                </p>
+              ) : null}
+              <FileAttachmentsSection pluginName="requests" entityId={item?.id} />
+            </div>
+          ) : null}
 
           <RequestAssigneeSelect
             request={{ assignedToIds: form.assignedToIds }}

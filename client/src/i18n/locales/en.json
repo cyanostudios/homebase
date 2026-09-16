@@ -77,7 +77,10 @@
     "settings": "Settings",
     "statistics": "Statistics",
     "remove": "Remove",
-    "clearFilters": "Clear filters"
+    "clearFilters": "Clear filters",
+    "filters": "Filters",
+    "showFilters": "Show filters",
+    "hideFilters": "Hide filters"
   },
   "importWizard": {
     "file": "File",
@@ -199,8 +202,8 @@
     "editSlot": "Edit slot",
     "slot": "Slot",
     "searchPlaceholder": "Search {{count}} slots...",
-    "noSlotsMatch": "No slots match your search.",
-    "noSlotsYet": "No slots yet",
+    "noMatch": "No slots match your search.",
+    "noYet": "No slots yet",
     "sectionTitle": "Slot",
     "nameLabel": "Name",
     "namePlaceholder": "Leave empty for SLT number",
@@ -265,10 +268,7 @@
     "deleteSlotsFailed": "Could not delete selected slots",
     "loadFailed": "Failed to load slots",
     "quickContext": {
-      "openFullProfile": "Open full slot",
-      "contacts": "Contacts",
-      "readMore": "Read more",
-      "showLess": "Show less"
+      "title": "Slot details"
     },
     "slotDatePassed": "This slot’s date has passed and is not visible for bookings",
     "visibleDisabledPast": "Past slots are not shown for public booking; visibility cannot be changed",
@@ -279,13 +279,24 @@
     "dateTimePlaceholder": "Date & time",
     "dateTimeClear": "Clear date & time",
     "dateTimePickerTime": "Time",
-    "settingsSubtitle": "Manage table columns and categories.",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "stats": {
+      "total": "Total",
+      "visible": "Visible",
+      "upcoming": "Upcoming",
+      "withCategory": "With category"
+    },
+    "statistics": {
+      "title": "Slots overview",
+      "embeddedDescription": "Overview of slots by visibility, upcoming times, and category assignment.",
+      "overview": "Overview"
+    },
+    "settingsSubtitle": "Manage categories.",
     "settingsCategories": {
-      "columns": "Table columns",
-      "columnsDescription": "Choose which columns appear in the slots table and their order.",
-      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Name is always visible.",
-      "view": "View",
-      "viewDescription": "Default column layout for slot cards.",
       "categories": "Categories",
       "categoriesDescription": "Categories you can assign on slots."
     }
@@ -301,8 +312,15 @@
     "defaultHomeTeamLabel": "Home team name",
     "defaultHomeTeamPlaceholder": "e.g. Sorgenfri FF",
     "defaultHomeTeamHelp": "When set, a filter card appears in the matches list for home fixtures whose home team starts with this name (e.g. Sorgenfri FF also matches Sorgenfri FF black). The Teams matches tab and Matches statistics also use it to split home vs away and to compute club results.",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "statistics": {
       "title": "Match statistics",
+      "embeddedDescription": "Overview of upcoming fixtures and schedule.",
+      "overview": "Overview",
       "description": "Results for counted matches (with a score; canceled and postponed excluded). Points: 3 for a win, 1 for a draw.",
       "club": "Club",
       "byTeam": "By team",
@@ -377,6 +395,7 @@
     "statusDatePassed": "Past due",
     "openMatch": "Open match",
     "quickContext": {
+      "title": "Quick context",
       "openFullProfile": "Open full match",
       "contacts": "Contacts"
     },
@@ -439,6 +458,13 @@
     "dateTimePlaceholder": "Date & time",
     "dateTimeClear": "Clear date & time",
     "activity": "Activity",
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "contacts": "Contacts",
+      "linked": "Linked",
+      "linkedEmpty": "No slots linked to this match yet."
+    },
     "relatedSlots": "Slots",
     "noRelatedSlots": "No slots linked to this match yet",
     "open": "Open",
@@ -531,6 +557,19 @@
       "withTags": "With tags",
       "timeLogged": "Time logged"
     },
+    "statistics": {
+      "title": "Contact statistics",
+      "description": "Overview of companies, private contacts, tags, and time logged.",
+      "overview": "Overview",
+      "typeMix": "Company vs private",
+      "typeMixAria": "Share of company and private contacts"
+    },
+    "filter": "Filter",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "noMatch": "No contacts found matching your search.",
     "noYet": "No contacts yet",
     "addContact": "Add Contact",
@@ -546,7 +585,9 @@
     "personEmail": "Email",
     "personPhone": "Phone",
     "invoiceReferenceBadge": "Invoice reference",
-    "contactPersonsInvoiceReferenceHint": "The first person is used as invoice customer reference (kundreferens).",
+    "invoiceReferenceCheckboxLabel": "Use for invoices",
+    "invoiceReferenceCheckbox": "Use {{name}} as invoice customer reference",
+    "contactPersonsInvoiceReferenceHint": "Choose which person is used as invoice customer reference (kundreferens).",
     "settings": "Settings",
     "settingsContacts": "Contacts – Settings",
     "grid": "Grid",
@@ -577,6 +618,13 @@
     "activity": "Activity",
     "contactContent": "Contact Content",
     "contactProperties": "Contact Properties",
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "addresses": "Addresses",
+      "persons": "Contact persons",
+      "linked": "Linked"
+    },
     "relatedTeams": "Teams",
     "relatedTasks": "Tasks",
     "relatedSlots": "Slots",
@@ -673,6 +721,8 @@
     "quickContext": {
       "eyebrow": "Selected contact",
       "title": "Quick context",
+      "emptyTitle": "No contact selected",
+      "emptyHint": "Select a contact from the list to see details here.",
       "openFullProfile": "Open full profile",
       "addTag": "Add a tag...",
       "noMoreTags": "No more tags to add",
@@ -716,6 +766,18 @@
       "completed": "Completed",
       "overdue": "Overdue"
     },
+    "statistics": {
+      "title": "Task statistics",
+      "description": "Overview of open, completed, and overdue tasks.",
+      "overview": "Overview",
+      "workloadMix": "Open vs completed",
+      "workloadMixAria": "Share of open, completed, and overdue tasks"
+    },
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "quickAdd": "Quick task",
     "quickAddPlaceholder": "Create quick task...",
     "addTask": "Add Task",
@@ -743,6 +805,13 @@
     "exportOptions": "Export options",
     "activity": "Activity",
     "taskContent": "Task Content",
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "assignees": "Assignees",
+      "linked": "Linked",
+      "linkedEmpty": "No mentioned contacts yet."
+    },
     "quickEditDiscardMessage": "You have unsaved changes to status, priority, due date or assignees. Do you want to discard them?",
     "assignee": "Assignee",
     "noAssigneesYet": "No assignees yet.",
@@ -794,6 +863,25 @@
   },
   "notes": {
     "listDescription": "Capture ideas with mentions and rich context.",
+    "stats": {
+      "total": "Total",
+      "withMentions": "With mentions",
+      "withoutMentions": "Without mentions",
+      "withContent": "With content",
+      "recentlyUpdated": "Updated 7d"
+    },
+    "statistics": {
+      "title": "Note statistics",
+      "description": "Overview of mentions, content, and recent updates.",
+      "overview": "Overview",
+      "mentionsMix": "Notes with mentions",
+      "mentionsMixAria": "Share of notes with and without mentions"
+    },
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "searchPlaceholder": "Search {{count}} notes...",
     "noMatch": "No notes found matching your search.",
     "noYet": "No notes yet",
@@ -885,6 +973,13 @@
     "subtitleEdit": "Update invoice information",
     "subtitleCreate": "Enter new invoice details",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "lines": "Line items",
+      "payments": "Payments",
+      "linked": "Linked",
+      "linkedEmpty": "No linked contact yet."
+    },
     "quickActions": "Quick actions",
     "exportOptions": "Export options",
     "relations": "Relations",
@@ -989,7 +1084,15 @@
     "revokeShare": "Revoke",
     "shareDialogTitle": "Invoice share",
     "shareDialogHelp": "Anyone with this link can view invoice {{label}}.",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "quickContext": {
+      "title": "Quick context",
+      "emptyTitle": "No invoice selected",
+      "emptyHint": "Select an invoice from the list to see details here.",
       "openFull": "Open full invoice"
     },
     "table": {
@@ -1025,7 +1128,8 @@
   "estimates": {
     "listDescription": "Draft, send, and track quotes through acceptance.",
     "settingsTitle": "Estimates – Settings",
-    "settingsSubtitle": "Manage table columns for the estimates list.",
+    "settingsSubtitle": "Estimates settings will appear here when available.",
+    "settingsEmpty": "No settings categories yet. List columns are fixed in code (estimate number only).",
     "settingsCategories": {
       "columns": "Table columns",
       "columnsDescription": "Choose which columns appear in the estimates table and their order.",
@@ -1059,6 +1163,12 @@
     "activity": "Activity",
     "pricingSummary": "Pricing Summary",
     "lineItemsCount": "Line Items ({{count}})",
+    "tabs": {
+      "properties": "Properties",
+      "lines": "Line items",
+      "notes": "Notes",
+      "notesEmpty": "No notes yet."
+    },
     "quickInfo": {
       "items": "Items",
       "itemsCount_one": "{{count}} item",
@@ -1078,6 +1188,26 @@
     "table": {
       "number": "Number",
       "total": "Total"
+    },
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "filter": {
+      "total": "Total",
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted"
+    },
+    "statistics": {
+      "title": "Estimate statistics",
+      "description": "Overview of draft, sent, and accepted estimates.",
+      "overview": "Overview",
+      "total": "Total",
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted"
     }
   },
   "ingest": {
@@ -1119,6 +1249,12 @@
     "running": "Fetching…",
     "openUrl": "Open URL",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "excerpt": "Excerpt",
+      "runs": "Fetch history",
+      "excerptEmpty": "No excerpt yet. Run a fetch to see the latest result."
+    },
     "lastFetch": "Last fetched",
     "lastStatus": "Last status",
     "runsTitle": "Fetch history",
@@ -1134,6 +1270,29 @@
     "columns2": "2 columns",
     "columns3": "3 columns",
     "columnsLabel": "Columns",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "stats": {
+      "total": "Total",
+      "success": "Success",
+      "failed": "Failed"
+    },
+    "quickContext": {
+      "title": "Source details"
+    },
+    "statistics": {
+      "title": "Ingest statistics",
+      "description": "Overview of sources, active status, and content types.",
+      "overview": "Overview",
+      "types": "Source types",
+      "activeMix": "Active vs inactive",
+      "activeMixAria": "Share of active and inactive ingest sources",
+      "typeMix": "Sources by type",
+      "typeMixAria": "Distribution of ingest sources by content type"
+    },
     "errors": {
       "nameRequired": "Name is required",
       "urlRequired": "URL is required",
@@ -1296,6 +1455,10 @@
     "selectClubdesk": "Select guide",
     "unselectClubdesk": "Unselect guide",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "steps": "Steps"
+    },
     "quickActions": "Quick actions",
     "activity": "Activity",
     "notVisiblePublic": "Not visible on the kiosk",
@@ -1309,6 +1472,13 @@
     "sortBy": "Sort by",
     "sortAsc": "Sort ascending",
     "sortDesc": "Sort descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "quickContext": {
+      "title": "Guide details",
+      "emptyTitle": "No guide selected",
+      "emptyHint": "Select a guide from the list to see details here."
+    },
     "sort": {
       "updated": "Updated",
       "title": "Title",
@@ -1352,6 +1522,11 @@
     },
     "settingsSubtitle": "Manage view layout and categories.",
     "priceList": {
+      "tabs": {
+        "information": "Information",
+        "items": "Items",
+        "currency": "Currency"
+      },
       "listDescription": "Create and manage price lists for the clubdesk kiosk.",
       "searchPlaceholder": "Search {{count}} price lists...",
       "noMatch": "No matches",
@@ -1400,6 +1575,7 @@
       "moveItemDown": "Move item down",
       "copyItem": "Copy item",
       "removeItem": "Remove item",
+      "removeItemConfirm": "Remove this item from the price list?",
       "itemTitleRequired": "Item {{number}} needs a title",
       "publishNeedsItems": "Add at least one item before publishing.",
       "itemCount_one": "{{count}} item",
@@ -1413,7 +1589,17 @@
       "deleteFailed": "Failed to delete price list.",
       "deleteConfirmThis": "Are you sure you want to delete this price list?",
       "deleteConfirmNamed": "Are you sure you want to delete \"{{name}}\"?",
-      "showingCount": "Showing {{shown}} of {{total}} price lists"
+      "showingCount": "Showing {{shown}} of {{total}} price lists",
+      "sort": "Sort",
+      "sortAsc": "Sort ascending",
+      "sortDesc": "Sort descending",
+      "collapseToolbar": "Hide toolbar",
+      "expandToolbar": "Show toolbar",
+      "quickContext": {
+        "title": "Quick context",
+        "emptyTitle": "No price list selected",
+        "emptyHint": "Select a price list from the list to see details here."
+      }
     },
     "siteContent": {
       "subtitle": "Copy and cards for the public Clubdesk app.",
@@ -1545,6 +1731,12 @@
     "colUpdated": "Updated",
     "colCreated": "Created",
     "details": "Details",
+    "tabs": {
+      "details": "Details",
+      "presentations": "Presentations",
+      "review": "Review",
+      "reviewEmpty": "No production review in progress."
+    },
     "information": {
       "title": "Information",
       "generatedLanguages": "Generated in",
@@ -1911,6 +2103,22 @@
     "filterImages": "Images",
     "filterWithSize": "With size",
     "filterUpdated7d": "Updated 7d",
+    "sortLabel": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "quickContext": {
+      "title": "File details"
+    },
+    "statistics": {
+      "title": "File statistics",
+      "description": "Overview of file types, sizes, and recent uploads.",
+      "overview": "Overview",
+      "mimeMix": "Images vs other files",
+      "mimeMixAria": "Share of image files versus other file types",
+      "otherFiles": "Other files"
+    },
     "sort": {
       "updatedAt": "Updated",
       "name": "Name",
@@ -1990,7 +2198,7 @@
     "providerCount": "{{count}} providers · {{status}}",
     "settingsButton": "Settings",
     "refresh": "Refresh",
-    "historyTitle": "Sent mail history",
+    "historyTitle": "Mail – Sent",
     "total": "Total",
     "emptyHistory": "No sent emails yet. Mail is sent from other plugins (e.g. Contacts or Slots).",
     "date": "Date",
@@ -2034,6 +2242,13 @@
     "addProvider": "Add provider",
     "backToProviders": "Providers",
     "historyDescription": "Monitor email traffic from plugins.",
+    "history": {
+      "categories": {
+        "all": "All",
+        "withSource": "With source",
+        "today": "Today"
+      }
+    },
     "showingHistoryCount": "Showing {{visible}} of {{total}} emails",
     "createSubtitle": "Configure an email provider",
     "providerType": "Provider type",
@@ -2053,12 +2268,31 @@
     "quickActions": "Quick actions",
     "information": "Information",
     "sectionDetails": "Configuration",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Configuration",
+      "test": "Test",
+      "testEmpty": "Enter an address to send a test email."
+    },
     "enabled": "Enabled",
     "enabledHint": "Disabled providers cannot be selected in routing.",
     "secretHint": "Leave unchanged to keep the stored value. Clear and save to remove it.",
     "searchProviders": "Search providers ({{count}})",
     "showingCount": "Showing {{visible}} of {{total}} providers",
     "openProvider": "Open {{provider}}",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "statistics": {
+      "title": "Email provider statistics",
+      "description": "Overview of enabled, disabled, and configured providers.",
+      "overview": "Overview"
+    },
+    "quickContext": {
+      "title": "Provider details"
+    },
     "columns1": "1 column",
     "columns2": "2 columns",
     "columns3": "3 columns",
@@ -2078,10 +2312,15 @@
     },
     "routing": {
       "open": "Routing",
-      "title": "Email provider routing",
+      "title": "Mail – Routing",
       "description": "Set a global default email provider and optional per-plugin overrides. Only email-capable providers appear here.",
+      "categories": {
+        "global": "Global default",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global default",
       "globalHint": "Used by any plugin without its own override. Only configured and enabled email providers are available.",
+      "pluginsHint": "Optional. When set, a plugin uses its assigned provider instead of the global default.",
       "provider": "Provider",
       "plugin": "Plugin",
       "pluginsTitle": "Per-plugin overrides",
@@ -2103,8 +2342,15 @@
     "notConfigured": "Not configured",
     "settingsButton": "Settings",
     "refresh": "Refresh",
-    "historyTitle": "SMS history",
+    "historyTitle": "Pulse – Sent SMS",
     "historyDescription": "Monitor SMS and message traffic from plugins.",
+    "history": {
+      "categories": {
+        "all": "All",
+        "failed": "Failed",
+        "today": "Today"
+      }
+    },
     "backToProviders": "Providers",
     "total": "Total",
     "emptyHistory": "No SMS sent yet. SMS can be sent from other plugins when Pulse is configured.",
@@ -2159,6 +2405,12 @@
     "quickActions": "Quick actions",
     "information": "Information",
     "sectionDetails": "Configuration",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Configuration",
+      "test": "Test",
+      "testEmpty": "Enter a number to send a test SMS."
+    },
     "enabled": "Enabled",
     "enabledHint": "Disabled providers cannot be selected in routing.",
     "secretHint": "Leave unchanged to keep the stored value. Clear and save to remove it.",
@@ -2166,6 +2418,19 @@
     "searchProviders": "Search providers ({{count}})",
     "showingCount": "Showing {{visible}} of {{total}} providers",
     "openProvider": "Open {{provider}}",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "statistics": {
+      "title": "SMS provider statistics",
+      "description": "Overview of enabled, disabled, and configured providers.",
+      "overview": "Overview"
+    },
+    "quickContext": {
+      "title": "Provider details"
+    },
     "columns1": "1 column",
     "columns2": "2 columns",
     "columns3": "3 columns",
@@ -2196,10 +2461,15 @@
     },
     "routing": {
       "open": "Routing",
-      "title": "SMS provider routing",
+      "title": "Pulse – Routing",
       "description": "Set a global default SMS provider and optional per-plugin overrides. Only SMS-capable providers appear here.",
+      "categories": {
+        "global": "Global default",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global default",
-      "globalHint": "Used by any plugin without its own override.",
+      "globalHint": "Used by any plugin without its own override. Only configured and enabled SMS providers are available.",
+      "pluginsHint": "Optional. When set, a plugin uses its assigned provider instead of the global default.",
       "provider": "Provider",
       "plugin": "Plugin",
       "pluginsTitle": "Per-plugin overrides",
@@ -2238,11 +2508,30 @@
     "deleteConfirm": "Delete the {{provider}} configuration? This cannot be undone.",
     "deleteError": "Failed to delete provider",
     "filterAll": "Total",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "quickContext": {
+      "title": "Provider details"
+    },
+    "statistics": {
+      "title": "AI provider statistics",
+      "description": "Overview of enabled, disabled, and configured providers.",
+      "overview": "Overview"
+    },
     "colProvider": "Provider",
     "colStatus": "Status",
     "providerKey": "Key",
     "quickActions": "Quick actions",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Configuration",
+      "test": "Test connection",
+      "testEmpty": "No test result yet. Use Test connection in the header actions."
+    },
     "sectionDetails": "Configuration",
     "showingCount": "Showing {{visible}} of {{total}} providers",
     "columns1": "1 column",
@@ -2264,8 +2553,12 @@
     "saveError": "Failed to save settings",
     "routing": {
       "open": "Routing",
-      "title": "Provider routing",
+      "title": "AI Providers – Routing",
       "description": "Set a global default provider and optional per-plugin overrides. Plugins request AI through routing — never a specific vendor directly.",
+      "categories": {
+        "global": "Global default",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global default",
       "globalHint": "Used by any plugin without its own override. Only configured and enabled providers are available.",
       "pluginsTitle": "Per-plugin overrides",
@@ -2377,8 +2670,23 @@
     "addCup": "Add Cup",
     "importFromIngest": "Import from Ingest",
     "searchPlaceholder": "Search cups ({{count}})",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "noMatch": "No cups match your search.",
     "noYet": "No cups yet",
+    "stats": {
+      "total": "Total",
+      "visible": "Visible",
+      "featured": "Featured",
+      "upcoming": "Upcoming",
+      "removed": "Removed"
+    },
+    "quickContext": {
+      "title": "Quick context"
+    },
     "columnName": "Name",
     "columnOrganizer": "Organizer",
     "columnVisible": "Visible",
@@ -2394,6 +2702,12 @@
     "propertySanctioned": "Sanctioned",
     "propertyFeatured": "Featured",
     "cupProperties": "Properties",
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "ratings": "Ratings",
+      "ingest": "Ingest"
+    },
     "quickEditDiscardMessage": "You have unsaved changes to cup properties. Do you want to discard them?",
     "heroImageView": "Hero image (public site)",
     "heroImageNone": "No image uploaded — Cupappen uses a default photo for featured cards.",
@@ -2433,6 +2747,9 @@
     },
     "statistics": {
       "title": "Cupappen statistics",
+      "overview": "Overview",
+      "embeddedDescription": "Overview of cups by visibility, featured status, and upcoming dates.",
+      "openFull": "Open Cupappen statistics",
       "description": "First-party pageviews from Cupappen (cup detail and district pages). Directional only — not Google Analytics.",
       "loading": "Loading statistics…",
       "loadError": "Could not load statistics.",
@@ -2478,6 +2795,11 @@
     "bulkAgeGroupPlaceholder": "Age group",
     "searchPlaceholder": "Search teams ({{count}})",
     "filterAll": "All",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
     "noMatchTitle": "No teams found",
     "noMatch": "Try another filter or search.",
     "noYet": "No teams yet",
@@ -2727,6 +3049,7 @@
     },
     "statistics": {
       "title": "Teams statistics",
+      "embeddedDescription": "Overview of team status and roster size.",
       "overview": "Team overview",
       "totalTeams": "Total teams",
       "active": "Active",
@@ -2920,6 +3243,21 @@
     "statCompleted": "Completed",
     "statExternal": "External",
     "statNotRelated": "Not related",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "statistics": {
+      "title": "Request statistics",
+      "description": "Overview of open, completed, unlinked, and external requests.",
+      "overview": "Overview",
+      "statusMix": "Status mix",
+      "statusMixAria": "Share of active, completed, and cancelled requests"
+    },
+    "quickContext": {
+      "title": "Quick context"
+    },
     "dashboardOpen": "{{count}} open",
     "dashboardExternal": "{{count}} external",
     "sourceExternal": "External",
@@ -3005,6 +3343,12 @@
       "sendToListError": "Could not send to list. Try again.",
       "openTargetList": "Open list",
       "unknownList": "List #{{id}}"
+    },
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "assignees": "Assignees",
+      "files": "Files"
     },
     "settings": {
       "title": "Requests settings",
@@ -3367,6 +3711,21 @@
     "searchLists": "Search lists...",
     "searchInventory": "Search inventory...",
     "sortBy": "Sort by",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "filterAll": "All",
+    "statistics": {
+      "title": "Garment statistics",
+      "description": "Overview of lists, inventory, and assignments.",
+      "overview": "Overview",
+      "listCount": "Lists",
+      "inventoryCount": "Inventory items",
+      "assignedInventory": "Assigned to lists",
+      "totalPersons": "Total persons"
+    },
     "columnsAria": "{{count}} columns",
     "noSearchResults": "No items match your search.",
     "noListsYet": "No garment lists yet.",

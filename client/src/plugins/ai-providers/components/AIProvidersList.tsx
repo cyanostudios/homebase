@@ -1,35 +1,36 @@
 import {
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
   CheckCircle2,
+  ChevronDown,
   Key,
   LayoutGrid,
+  Menu,
   Plus,
   Route,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useApp } from '@/core/api/AppContext';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
-import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import {
+  DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
@@ -37,28 +38,22 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
-import {
-  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
-  PLUGIN_PAGE_LIST_SHELL_CLASS,
-  PLUGIN_PAGE_SECTION_GAP_CLASS,
-  PLUGIN_PAGE_TITLE_CLASS,
-  PLUGIN_PAGE_TITLE_ROW_CLASS,
-} from '@/core/ui/pluginPageStyles';
+import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
+import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useAIProviders } from '../hooks/useAIProviders';
 import type { ProviderSettings } from '../types/aiProviders';
-import {
-  AI_PROVIDERS_COLUMN_COUNT_STORAGE_KEY,
-  AI_PROVIDERS_SETTINGS_KEY,
-  getInitialAIProvidersColumnCount,
-  resolveAIProvidersColumnCount,
-  type AIProvidersColumnCount,
-} from '../utils/aiProvidersColumnCount';
 import {
   aiProviderMatchesListFilters,
   toggleAIProvidersListFilter,
@@ -71,16 +66,23 @@ import {
   type AIProviderSortField,
   type AIProviderSortOrder,
 } from '../utils/aiProvidersListSort';
-import {
-  getInitialAIProvidersListViewMode,
-  persistAIProvidersListViewModeSession,
-  resolveAIProvidersListViewMode,
-  type AIProvidersListViewMode,
-} from '../utils/aiProvidersListViewMode';
 
-import { AIProvidersListItem } from './AIProvidersListItem';
+import { AIProviderView } from './AIProviderView';
 import { AIProvidersListTable } from './AIProvidersListTable';
-import { AIProvidersRouting } from './AIProvidersRouting';
+import { AIProvidersRouting, type AIProvidersRoutingCategory } from './AIProvidersRouting';
+import { AIProvidersSettingsForm } from './AIProvidersSettingsForm';
+import { AIProvidersStatisticsView } from './AIProvidersStatisticsView';
+
+const AI_PROVIDERS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.ai-providers.toolbar.filtersVisible';
+
+const SORT_FIELD_OPTIONS: { value: AIProviderSortField; labelKey: string }[] = [
+  { value: 'providerKey', labelKey: 'aiProviders.colProvider' },
+  { value: 'status', labelKey: 'aiProviders.colStatus' },
+  { value: 'defaultModel', labelKey: 'aiProviders.defaultModel' },
+  { value: 'updatedAt', labelKey: 'common.updated' },
+];
+
+let pendingPreviewProviderKey: string | null = null;
 
 function providerTitle(
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -93,21 +95,29 @@ function providerTitle(
 
 export const AIProvidersList: React.FC = () => {
   const { t } = useTranslation();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
-
-  useMobileActions({
-    onAdd: () => attemptNavigation(() => openAIProviderPanel(null)),
-  });
 
   const {
     providers,
     loading,
     openAIProviderPanel,
     openAIProviderForView,
+    closeAIProviderPanel,
+    saveAIProvider,
+    isAIProvidersPanelOpen,
+    panelMode,
+    currentAIProvider,
     aiProvidersContentView,
     openRoutingView,
+    closeRoutingView,
   } = useAIProviders();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openAIProviderPanel(null)),
+  });
+
+  const isCompactViewport = useMediaQuery('(max-width: 1023px)');
+  const showDesktopSplit = !isCompactViewport;
 
   const { searchTerm, setSearchTerm } = usePersistedListSearch('ai-providers');
   useRegisterMobileSearch({
@@ -115,71 +125,103 @@ export const AIProvidersList: React.FC = () => {
     onChange: setSearchTerm,
     placeholder: t('aiProviders.searchPlaceholder', { count: providers.length }),
   });
+
   const [primarySort, setPrimarySort] = useState<AIProviderSortField>('providerKey');
   const [sortOrder, setSortOrder] = useState<AIProviderSortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<AIProvidersColumnCount>(
-    getInitialAIProvidersColumnCount,
-  );
-  const [listViewMode, setListViewModeState] = useState<AIProvidersListViewMode>(
-    getInitialAIProvidersListViewMode,
-  );
   const [activeFilters, setActiveFilters] = useState<AIProvidersListFilterSelection>([]);
+  const [routingCategory, setRoutingCategory] = useState<AIProvidersRoutingCategory>('global');
+  const [previewProvider, setPreviewProvider] = useState<ProviderSettings | null>(null);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
+  const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
+    AI_PROVIDERS_FILTERS_VISIBLE_STORAGE_KEY,
+  );
+  const restoredPendingProviderRef = useRef(false);
+  const pageShellRef = useRef<HTMLDivElement>(null);
+  const inlineFormRef = useRef<PanelFormHandle | null>(null);
+  const [toolbarToggleBox, setToolbarToggleBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const inlineForm =
+    showDesktopSplit && isAIProvidersPanelOpen && (panelMode === 'create' || panelMode === 'edit');
+  const inlinePanelView =
+    showDesktopSplit && isAIProvidersPanelOpen && panelMode === 'view' && currentAIProvider != null;
+  const detailProvider = inlinePanelView ? currentAIProvider : previewProvider;
+  const activeListProviderId =
+    (inlineForm || inlinePanelView) && currentAIProvider != null
+      ? currentAIProvider.providerKey
+      : (previewProvider?.providerKey ?? null);
+
+  const updateToolbarToggleBox = useCallback(() => {
+    const el = pageShellRef.current;
+    if (!el) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const sidebarToggle = document.querySelector<HTMLElement>('[aria-controls="left-sidebar-nav"]');
+    const sidebarTop = sidebarToggle?.getBoundingClientRect().top;
+    setToolbarToggleBox({
+      top: typeof sidebarTop === 'number' ? sidebarTop : rect.top + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    updateToolbarToggleBox();
+    window.addEventListener('resize', updateToolbarToggleBox);
+    const scrollParent = pageShellRef.current?.closest('.overflow-y-auto, .overflow-auto');
+    scrollParent?.addEventListener('scroll', updateToolbarToggleBox, { passive: true });
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateToolbarToggleBox) : null;
+    if (pageShellRef.current && ro) {
+      ro.observe(pageShellRef.current);
+    }
+    return () => {
+      window.removeEventListener('resize', updateToolbarToggleBox);
+      scrollParent?.removeEventListener('scroll', updateToolbarToggleBox);
+      ro?.disconnect();
+    };
+  }, [updateToolbarToggleBox]);
 
   useEffect(() => {
-    let cancelled = false;
-    getSettings(AI_PROVIDERS_SETTINGS_KEY)
-      .then((settings) => {
-        if (cancelled) {
-          return;
-        }
-        const resolved = resolveAIProvidersColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as AIProvidersColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(AI_PROVIDERS_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(AI_PROVIDERS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolveAIProvidersListViewMode(settings);
-        setListViewModeState(nextView);
-        persistAIProvidersListViewModeSession(nextView);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [getSettings, settingsVersion]);
+    if (restoredPendingProviderRef.current || !pendingPreviewProviderKey) {
+      return;
+    }
+    const restored = providers.find(
+      (provider) => provider.providerKey === pendingPreviewProviderKey,
+    );
+    if (restored) {
+      setPreviewProvider(restored);
+      restoredPendingProviderRef.current = true;
+      pendingPreviewProviderKey = null;
+    }
+  }, [providers]);
 
-  const setColumnCount = useCallback(
-    (_count: AIProvidersColumnCount) => {
-      const next = 3 as AIProvidersColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistAIProvidersListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(AI_PROVIDERS_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(AI_PROVIDERS_SETTINGS_KEY, {
-        columnCount: next,
-        listViewMode: 'cards',
-      }).catch(() => {});
-    },
-    [updateSettings],
-  );
+  useEffect(() => {
+    if (!previewProvider) {
+      return;
+    }
+    const next = providers.find((provider) => provider.providerKey === previewProvider.providerKey);
+    if (!next) {
+      setPreviewProvider(null);
+      return;
+    }
+    if (next !== previewProvider) {
+      setPreviewProvider(next);
+    }
+  }, [providers, previewProvider]);
 
-  const setListViewMode = useCallback(
-    (mode: AIProvidersListViewMode) => {
-      setListViewModeState(mode);
-      persistAIProvidersListViewModeSession(mode);
-      updateSettings(AI_PROVIDERS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
+  useEffect(() => {
+    if (!showDesktopSplit || !isAIProvidersPanelOpen) {
+      return;
+    }
+    if ((panelMode === 'edit' || panelMode === 'view') && currentAIProvider) {
+      setPreviewProvider(currentAIProvider);
+    }
+  }, [showDesktopSplit, isAIProvidersPanelOpen, panelMode, currentAIProvider]);
 
   const stats = useMemo(
     () => ({
@@ -226,10 +268,6 @@ export const AIProvidersList: React.FC = () => {
     setSortOrder(field === 'updatedAt' ? 'desc' : 'asc');
   }, []);
 
-  const toggleSortOrder = useCallback(() => {
-    setSortOrder((order) => (order === 'asc' ? 'desc' : 'asc'));
-  }, []);
-
   const handleTableSort = useCallback(
     (field: AIProviderSortField) => {
       const next = nextAIProviderTableSort(primarySort, sortOrder, field);
@@ -239,232 +277,438 @@ export const AIProvidersList: React.FC = () => {
     [primarySort, sortOrder],
   );
 
-  const handleOpenForView = (provider: ProviderSettings) =>
+  const handleOpenForView = (provider: ProviderSettings) => {
+    pendingPreviewProviderKey = provider.providerKey;
     attemptNavigation(() => openAIProviderForView(provider));
+  };
 
-  const SORT_FIELD_OPTIONS: { value: AIProviderSortField; label: string }[] = [
-    { value: 'providerKey', label: t('aiProviders.colProvider', { defaultValue: 'Provider' }) },
-    { value: 'status', label: t('aiProviders.colStatus', { defaultValue: 'Status' }) },
-    { value: 'defaultModel', label: t('aiProviders.defaultModel') },
-    { value: 'updatedAt', label: t('common.updated') },
-  ];
+  const handleRowActivate = (provider: ProviderSettings) => {
+    if (isCompactViewport) {
+      handleOpenForView(provider);
+      return;
+    }
+    if (
+      isAIProvidersPanelOpen &&
+      (panelMode === 'create' || panelMode === 'edit' || panelMode === 'view')
+    ) {
+      attemptNavigation(() => {
+        closeAIProviderPanel();
+        setPreviewProvider(provider);
+      });
+      return;
+    }
+    setPreviewProvider((current) =>
+      current && current.providerKey === provider.providerKey ? null : provider,
+    );
+  };
+
+  const handleInlineFormSave = useCallback(async () => {
+    await inlineFormRef.current?.submit();
+  }, []);
+
+  const handleInlineFormClose = useCallback(() => {
+    if (inlineFormRef.current) {
+      inlineFormRef.current.cancel();
+      return;
+    }
+    closeAIProviderPanel();
+  }, [closeAIProviderPanel]);
+
+  const handleInlineFormOnSave = useCallback(
+    async (data: Record<string, unknown>) => {
+      const ok = await saveAIProvider(data);
+      return ok;
+    },
+    [saveAIProvider],
+  );
+
+  const headerDropdownTriggerClass =
+    'gap-1.5 border-0 bg-primary/10 px-3.5 text-sm font-extrabold text-primary shadow-none hover:bg-primary hover:text-primary-foreground';
+
+  const renderFilterChips = () => {
+    const chips: Array<{
+      key: string;
+      active: boolean;
+      icon: typeof LayoutGrid;
+      label: string;
+      count: number;
+      onClick: () => void;
+    }> = [
+      {
+        key: 'all',
+        active: activeFilters.length === 0,
+        icon: LayoutGrid,
+        label: t('aiProviders.filterAll', { defaultValue: 'Total' }),
+        count: stats.total,
+        onClick: () => setActiveFilters([]),
+      },
+      {
+        key: 'enabled',
+        active: isFilterActive('enabled'),
+        icon: CheckCircle2,
+        label: t('aiProviders.statusEnabled'),
+        count: stats.enabled,
+        onClick: () => toggleFilter('enabled'),
+      },
+      {
+        key: 'disabled',
+        active: isFilterActive('disabled'),
+        icon: XCircle,
+        label: t('aiProviders.statusDisabled'),
+        count: stats.disabled,
+        onClick: () => toggleFilter('disabled'),
+      },
+      {
+        key: 'configured',
+        active: isFilterActive('configured'),
+        icon: Key,
+        label: t('aiProviders.keyConfigured'),
+        count: stats.configured,
+        onClick: () => toggleFilter('configured'),
+      },
+    ];
+
+    return (
+      <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+        {chips.map((chip) => {
+          const Icon = chip.icon;
+          return (
+            <Button
+              key={chip.key}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={chip.onClick}
+              className={cn(chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span>
+                {chip.label} <span className="tabular-nums font-semibold">({chip.count})</span>
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const primarySortLabel =
+    SORT_FIELD_OPTIONS.find((option) => option.value === primarySort)?.labelKey ??
+    SORT_FIELD_OPTIONS[0].labelKey;
+
+  const renderSortDropdown = (triggerClassName: string) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('aiProviders.sort', { defaultValue: 'Sort' })}
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          <span>{t('aiProviders.sort', { defaultValue: 'Sort' })}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[14rem] rounded-xl border-border/50 shadow-xl"
+      >
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {t(primarySortLabel)}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={primarySort}
+          onValueChange={(value) => handlePrimarySortChange(value as AIProviderSortField)}
+        >
+          {SORT_FIELD_OPTIONS.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              className="rounded-md text-xs"
+              onSelect={(event) => event.preventDefault()}
+            >
+              {t(option.labelKey)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {sortOrder === 'asc'
+            ? t('aiProviders.sortAsc', { defaultValue: 'Ascending' })
+            : t('aiProviders.sortDesc', { defaultValue: 'Descending' })}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={sortOrder}
+          onValueChange={(value) => setSortOrder(value as AIProviderSortOrder)}
+        >
+          <DropdownMenuRadioItem
+            value="asc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowUp className="mr-2 h-3.5 w-3.5" />
+            {t('aiProviders.sortAsc', { defaultValue: 'Ascending' })}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="desc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowDown className="mr-2 h-3.5 w-3.5" />
+            {t('aiProviders.sortDesc', { defaultValue: 'Descending' })}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const toolbarEdgeToggle =
+    typeof document !== 'undefined' && toolbarToggleBox
+      ? createPortal(
+          <div
+            className="pointer-events-none fixed z-40 hidden justify-center md:flex"
+            style={{
+              top: toolbarToggleBox.top,
+              left: toolbarToggleBox.left,
+              width: toolbarToggleBox.width,
+            }}
+          >
+            <div className="pointer-events-auto">
+              <RoundIconLabelButton
+                icon={Menu}
+                label={
+                  toolbarCollapsed
+                    ? t('aiProviders.expandToolbar')
+                    : t('aiProviders.collapseToolbar')
+                }
+                variant={toolbarCollapsed ? 'primary' : 'secondary'}
+                size="xs"
+                expandOnHover={false}
+                className={
+                  toolbarCollapsed
+                    ? undefined
+                    : 'bg-white text-primary shadow-sm hover:bg-primary hover:text-primary-foreground dark:bg-white dark:text-primary dark:hover:bg-primary dark:hover:text-primary-foreground'
+                }
+                aria-expanded={!toolbarCollapsed}
+                aria-controls="ai-providers-mail-toolbar"
+                onClick={toggleToolbarCollapsed}
+              />
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  const detailColumnOpen = Boolean(detailProvider || inlineForm);
 
   if (aiProvidersContentView === 'routing') {
-    return <AIProvidersRouting />;
-  }
-
-  return (
-    <div className={cn('plugin-ai-providers', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
-      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
-        <div className="hidden md:block">
-          <div className="flex items-start justify-between gap-6">
-            <div className="min-w-0">
-              <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
-                <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
-                  {t('nav.ai-providers', { defaultValue: 'AI Providers' })}
-                </h2>
-                <ExpandableIconButton
-                  icon={Route}
-                  label={t('aiProviders.routing.open', { defaultValue: 'Routing' })}
-                  variant="soft"
-                  onClick={() => attemptNavigation(openRoutingView)}
-                />
-              </div>
-            </div>
-            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
-              <RoundExpandableSearch
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('aiProviders.searchPlaceholder', { count: providers.length })}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) =>
-                  t(`aiProviders.columns${count}`, { defaultValue: `${count} columns` })
-                }
-                tableAriaLabel={t('common.tableView')}
-              />
-              <ExpandableIconButton
-                icon={Plus}
-                label={t('aiProviders.addProvider')}
-                variant="soft"
-                alwaysExpanded
-                onClick={() => attemptNavigation(() => openAIProviderPanel(null))}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
-          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveFilters([])}
-              className={cn(
-                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>
-                {t('aiProviders.filterAll', { defaultValue: 'Total' })}{' '}
-                <span className="tabular-nums font-semibold">({stats.total})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('enabled')}
-              className={cn(
-                isFilterActive('enabled') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>
-                {t('aiProviders.statusEnabled')}{' '}
-                <span className="tabular-nums font-semibold">({stats.enabled})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('disabled')}
-              className={cn(
-                isFilterActive('disabled') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <XCircle className="h-3.5 w-3.5" />
-              <span>
-                {t('aiProviders.statusDisabled')}{' '}
-                <span className="tabular-nums font-semibold">({stats.disabled})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('configured')}
-              className={cn(
-                isFilterActive('configured')
-                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
-                  : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <Key className="h-3.5 w-3.5" />
-              <span>
-                {t('aiProviders.keyConfigured')}{' '}
-                <span className="tabular-nums font-semibold">({stats.configured})</span>
-              </span>
-            </Button>
-          </div>
-          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-            <Select
-              value={primarySort}
-              onValueChange={(value) => handlePrimarySortChange(value as AIProviderSortField)}
-            >
-              <SelectTrigger
-                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                aria-label="Sort by"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="item-aligned"
-                className="rounded-xl border-border/50 shadow-xl"
-              >
-                {SORT_FIELD_OPTIONS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="rounded-md text-xs"
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 px-0 text-xs"
-              onClick={toggleSortOrder}
-              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-            >
-              {sortOrder === 'asc' ? (
-                <ArrowUp className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowDown className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {loading && providers.length === 0 ? (
-            <div className="rounded-xl bg-white p-6 text-center text-sm text-muted-foreground shadow-sm dark:bg-slate-950">
-              {t('common.loading')}
-            </div>
-          ) : filteredAndSorted.length === 0 ? (
-            <ListEmptyState
-              message={searchTerm.trim() ? t('aiProviders.noMatch') : t('aiProviders.noYet')}
-              createLabel={!searchTerm.trim() ? t('aiProviders.addProvider') : undefined}
-              onCreate={
-                !searchTerm.trim()
-                  ? () => attemptNavigation(() => openAIProviderPanel(null))
-                  : undefined
-              }
-            />
-          ) : isTableView ? (
-            <AIProvidersListTable
-              providers={filteredAndSorted}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              onRowClick={handleOpenForView}
-              providerTitle={(provider) => providerTitle(t, provider)}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((provider) => (
-                <AIProvidersListItem
-                  key={provider.providerKey}
-                  provider={provider}
-                  title={providerTitle(t, provider)}
-                  onClick={() => handleOpenForView(provider)}
-                  columnCount={effectiveCardColumnCount}
-                />
-              ))}
-            </div>
-          )}
-
-          <ListFooterBar
-            meta={
-              <>
-                {t('aiProviders.showingCount', {
-                  defaultValue: 'Showing {{visible}} of {{total}} providers',
-                  visible: filteredAndSorted.length,
-                  total: providers.length,
-                })}
-              </>
-            }
+    return (
+      <div className="plugin-ai-providers flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
+        <div className="px-4 py-4 md:px-6">
+          <AIProvidersRouting
+            selectedCategory={routingCategory}
+            onSelectedCategoryChange={setRoutingCategory}
+            renderCategoryButtonsInline
+            onClose={closeRoutingView}
           />
         </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <>
+      {toolbarEdgeToggle}
+      <div
+        ref={pageShellRef}
+        className={cn(
+          'plugin-ai-providers flex min-h-0 flex-1 flex-col',
+          PLUGIN_PAGE_LIST_SHELL_CLASS,
+          showDesktopSplit
+            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+            : 'overflow-y-auto md:pt-3',
+        )}
+      >
+        <div
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 flex-col',
+            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+          )}
+        >
+          <div className="relative hidden shrink-0 md:block">
+            <div
+              className={cn(
+                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
+              )}
+              aria-hidden={toolbarCollapsed}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div
+                  id="ai-providers-mail-toolbar"
+                  className={cn(
+                    'flex flex-wrap items-center justify-between gap-3',
+                    toolbarCollapsed && 'pointer-events-none',
+                  )}
+                >
+                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
+                      {t('nav.ai-providers', { defaultValue: 'AI Providers' })}
+                    </h2>
+                    <ExpandableIconButton
+                      icon={Route}
+                      label={t('aiProviders.routing.open', { defaultValue: 'Routing' })}
+                      variant="soft"
+                      alwaysExpanded
+                      onClick={() => attemptNavigation(openRoutingView)}
+                    />
+                    {renderSortDropdown('h-11 rounded-full')}
+                    <ListFilterChipsToggle
+                      visible={filtersVisible}
+                      onVisibleChange={setFiltersVisible}
+                      className="h-11 rounded-full"
+                    />
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <RoundExpandableSearch
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                      placeholder={t('aiProviders.searchPlaceholder', { count: providers.length })}
+                    />
+                    <ExpandableIconButton
+                      icon={Plus}
+                      label={t('aiProviders.addProvider')}
+                      variant={detailColumnOpen ? 'soft' : 'primary'}
+                      onClick={() => attemptNavigation(() => openAIProviderPanel(null))}
+                    />
+                  </div>
+                </div>
+                {filtersVisible ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {renderFilterChips()}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+            {filtersVisible ? renderFilterChips() : null}
+            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+              <ListFilterChipsToggle
+                visible={filtersVisible}
+                onVisibleChange={setFiltersVisible}
+                className="h-7 rounded-md"
+              />
+              {renderSortDropdown('h-7 rounded-md')}
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              'grid min-h-0 min-w-0 gap-2',
+              showDesktopSplit
+                ? 'flex-1 grid-cols-[minmax(220px,20%)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-stretch'
+                : 'grid-cols-1 items-start',
+            )}
+          >
+            <div
+              className={cn(
+                'min-w-0',
+                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+              )}
+            >
+              <div className="flex min-w-0 flex-col gap-3">
+                {loading && providers.length === 0 ? (
+                  <div className="rounded-xl bg-white p-6 text-center text-sm text-muted-foreground shadow-sm dark:bg-slate-950">
+                    {t('common.loading')}
+                  </div>
+                ) : filteredAndSorted.length === 0 ? (
+                  <ListEmptyState
+                    message={searchTerm.trim() ? t('aiProviders.noMatch') : t('aiProviders.noYet')}
+                    createLabel={!searchTerm.trim() ? t('aiProviders.addProvider') : undefined}
+                    onCreate={
+                      !searchTerm.trim()
+                        ? () => attemptNavigation(() => openAIProviderPanel(null))
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <AIProvidersListTable
+                    providers={filteredAndSorted}
+                    primarySort={primarySort}
+                    sortOrder={sortOrder}
+                    onSort={handleTableSort}
+                    onRowClick={handleRowActivate}
+                    providerTitle={(provider) => providerTitle(t, provider)}
+                    activeProviderId={activeListProviderId}
+                  />
+                )}
+
+                <ListFooterBar
+                  meta={
+                    <>
+                      {t('aiProviders.showingCount', {
+                        defaultValue: 'Showing {{visible}} of {{total}} providers',
+                        visible: filteredAndSorted.length,
+                        total: providers.length,
+                      })}
+                    </>
+                  }
+                />
+              </div>
+            </div>
+
+            {showDesktopSplit ? (
+              <aside
+                className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain"
+                role="region"
+                aria-label={t('aiProviders.quickContext.title', {
+                  defaultValue: 'Provider details',
+                })}
+                aria-live="polite"
+              >
+                {inlineForm ? (
+                  <div className="flex min-h-0 flex-col gap-3">
+                    <div className="flex shrink-0 justify-end">
+                      <InlinePanelFormActions
+                        mode={panelMode === 'edit' ? 'edit' : 'create'}
+                        hasBlockingErrors={false}
+                        onClose={handleInlineFormClose}
+                        onSave={() => {
+                          void handleInlineFormSave();
+                        }}
+                        t={t}
+                      />
+                    </div>
+                    <AIProvidersSettingsForm
+                      ref={inlineFormRef}
+                      currentAIProvider={currentAIProvider}
+                      onSave={handleInlineFormOnSave}
+                      onCancel={closeAIProviderPanel}
+                      stacked
+                    />
+                  </div>
+                ) : detailProvider ? (
+                  <AIProviderView aiProvider={detailProvider} stacked />
+                ) : (
+                  <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
+                    <AIProvidersStatisticsView />
+                  </Card>
+                )}
+              </aside>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </>
   );
 };

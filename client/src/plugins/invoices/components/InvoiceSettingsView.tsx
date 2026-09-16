@@ -17,7 +17,6 @@ import {
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
-import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 
@@ -34,26 +33,6 @@ import {
   type InvoiceNumberingByType,
   type InvoiceNumberingType,
 } from '../utils/invoiceNumbering';
-import {
-  invoiceTableColumnsEqual,
-  isInvoiceTableColumnId,
-  normalizeInvoiceTableColumns,
-  reorderInvoiceTableColumns,
-  setInvoiceTableColumnHidden,
-  type InvoiceTableColumnId,
-  type InvoiceTableColumnsPref,
-} from '../utils/invoiceTableColumns';
-
-const COLUMN_LABEL_KEYS: Record<InvoiceTableColumnId, string> = {
-  invoiceNumber: 'invoices.table.number',
-  invoiceType: 'invoices.invoiceType',
-  contactName: 'invoices.fieldContact',
-  status: 'invoices.fieldStatus',
-  total: 'invoices.table.total',
-  dueDate: 'invoices.fieldDueDate',
-  createdAt: 'common.created',
-  updatedAt: 'common.updated',
-};
 
 const NUMBERING_TYPE_ICONS = {
   invoice: FileText,
@@ -62,7 +41,7 @@ const NUMBERING_TYPE_ICONS = {
   receipt: Receipt,
 } as const;
 
-export type InvoiceSettingsCategory = 'columns' | 'numbering';
+export type InvoiceSettingsCategory = 'numbering';
 
 interface InvoiceSettingsViewProps {
   selectedCategory?: InvoiceSettingsCategory;
@@ -80,16 +59,10 @@ export function InvoiceSettingsView({
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
 
-  const [internalCategory, setInternalCategory] = useState<InvoiceSettingsCategory>('columns');
+  const [internalCategory, setInternalCategory] = useState<InvoiceSettingsCategory>('numbering');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
-  const [tableColumns, setTableColumns] = useState<InvoiceTableColumnsPref>(() =>
-    normalizeInvoiceTableColumns(null),
-  );
-  const [initialTableColumns, setInitialTableColumns] = useState<InvoiceTableColumnsPref>(() =>
-    normalizeInvoiceTableColumns(null),
-  );
   const [numberingByType, setNumberingByType] = useState<InvoiceNumberingByType>(() =>
     normalizeInvoiceNumberingByType(null),
   );
@@ -111,12 +84,6 @@ export function InvoiceSettingsView({
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
       {
-        id: 'columns',
-        label: t('invoices.settingsCategories.columns'),
-        description: t('invoices.settingsCategories.columnsDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.columns,
-      },
-      {
         id: 'numbering',
         label: t('invoices.settingsCategories.numbering'),
         description: t('invoices.settingsCategories.numberingDescription'),
@@ -133,10 +100,7 @@ export function InvoiceSettingsView({
         if (cancelled) {
           return;
         }
-        const loadedColumns = normalizeInvoiceTableColumns(settings?.tableColumns);
         const loadedNumbering = normalizeInvoiceNumberingByType(settings);
-        setTableColumns(loadedColumns);
-        setInitialTableColumns(loadedColumns);
         setNumberingByType(loadedNumbering);
         setInitialNumberingByType(loadedNumbering);
         setNumberStartDraftByType(
@@ -172,27 +136,10 @@ export function InvoiceSettingsView({
   }, [numberStartDraftByType, numberingByType]);
 
   const isDirty =
-    (activeCategory === 'columns' &&
-      !invoiceTableColumnsEqual(tableColumns, initialTableColumns)) ||
-    (activeCategory === 'numbering' &&
-      !invoiceNumberingByTypeEqual(numberingForCompare, initialNumberingByType));
+    activeCategory === 'numbering' &&
+    !invoiceNumberingByTypeEqual(numberingForCompare, initialNumberingByType);
 
   const handleSave = useCallback(async () => {
-    if (activeCategory === 'columns') {
-      setIsSaving(true);
-      try {
-        const next = normalizeInvoiceTableColumns(tableColumns);
-        await updateSettings(INVOICES_SETTINGS_KEY, { tableColumns: next });
-        setTableColumns(next);
-        setInitialTableColumns(next);
-      } catch (error) {
-        console.error('Failed to save invoices table columns:', error);
-      } finally {
-        setIsSaving(false);
-      }
-      return;
-    }
-
     if (activeCategory !== 'numbering') {
       return;
     }
@@ -216,7 +163,7 @@ export function InvoiceSettingsView({
     } finally {
       setIsSaving(false);
     }
-  }, [activeCategory, numberingForCompare, tableColumns, updateSettings]);
+  }, [activeCategory, numberingForCompare, updateSettings]);
 
   const currentYear = new Date().getFullYear();
   const activeSeries = numberingForCompare[activeNumberingType];
@@ -282,20 +229,6 @@ export function InvoiceSettingsView({
         ) : null
       }
     >
-      {activeCategory === 'columns' && (
-        <TableColumnsSettingsSection
-          title={t('invoices.settingsCategories.columns')}
-          hint={t('invoices.settingsCategories.columnsHint')}
-          pref={tableColumns}
-          requiredColumnId="invoiceNumber"
-          labelFor={(id) => t(COLUMN_LABEL_KEYS[id])}
-          isColumnId={isInvoiceTableColumnId}
-          reorder={reorderInvoiceTableColumns}
-          setHidden={setInvoiceTableColumnHidden}
-          onChange={setTableColumns}
-        />
-      )}
-
       {activeCategory === 'numbering' && (
         <DetailSection title={t('invoices.settingsCategories.numbering')} className="pt-0">
           <div className="space-y-4">

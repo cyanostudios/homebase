@@ -49,11 +49,19 @@ interface IngestSourceFormProps {
   onSave: (data: Record<string, unknown>) => Promise<boolean>;
   onCancel: () => void;
   isSubmitting?: boolean;
+  /** Single-column layout for mail detail column. */
+  stacked?: boolean;
 }
 
 export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFormProps>(
   function IngestSourceForm(
-    { currentIngest, onSave, onCancel, isSubmitting: externalIsSubmitting = false },
+    {
+      currentIngest,
+      onSave,
+      onCancel,
+      isSubmitting: externalIsSubmitting = false,
+      stacked: _stacked = false,
+    },
     ref,
   ) {
     const { t } = useTranslation();
@@ -216,7 +224,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
     return (
       <>
         <div className="plugin-ingest">
-          <DetailLayout sidebar={formSidebar}>
+          <DetailLayout gridClassName="grid-cols-1" sidebar={formSidebar}>
             <div className="space-y-6">
               {validationErrors
                 .filter((e) => e.field === 'general')

@@ -1,36 +1,37 @@
 import {
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
   Bell,
   CheckCircle2,
+  ChevronDown,
   Key,
   LayoutGrid,
+  Menu,
   Plus,
   Route,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useApp } from '@/core/api/AppContext';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
-import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import {
+  DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
@@ -38,28 +39,22 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
-import {
-  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
-  PLUGIN_PAGE_LIST_SHELL_CLASS,
-  PLUGIN_PAGE_SECTION_GAP_CLASS,
-  PLUGIN_PAGE_TITLE_CLASS,
-  PLUGIN_PAGE_TITLE_ROW_CLASS,
-} from '@/core/ui/pluginPageStyles';
+import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { usePulses } from '../hooks/usePulses';
 import type { PulseProviderSettings } from '../types/pulse';
-import {
-  getInitialPulseColumnCount,
-  PULSES_COLUMN_COUNT_STORAGE_KEY,
-  PULSES_SETTINGS_KEY,
-  resolvePulseColumnCount,
-  type PulseColumnCount,
-} from '../utils/pulseColumnCount';
 import {
   comparePulseProviders,
   nextPulseProviderTableSort,
@@ -67,21 +62,28 @@ import {
   type PulseProviderSortOrder,
 } from '../utils/pulseListSort';
 import {
-  getInitialPulseListViewMode,
-  persistPulseListViewModeSession,
-  resolvePulseListViewMode,
-  type PulseListViewMode,
-} from '../utils/pulseListViewMode';
-import {
   pulseProviderMatchesListFilters,
   togglePulseProvidersListFilter,
   type PulseProvidersListFilter,
   type PulseProvidersListFilterSelection,
 } from '../utils/pulseProvidersListFilter';
 
-import { PulseProvidersListItem } from './PulseProvidersListItem';
+import { PulseProviderView } from './PulseProviderView';
 import { PulseProvidersListTable } from './PulseProvidersListTable';
-import { PulseProvidersRouting } from './PulseProvidersRouting';
+import { PulseProvidersRouting, type PulseProvidersRoutingCategory } from './PulseProvidersRouting';
+import { PulseProvidersStatisticsView } from './PulseProvidersStatisticsView';
+import { PulseSettingsForm } from './PulseSettingsForm';
+
+const PULSES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.pulses.toolbar.filtersVisible';
+
+const SORT_FIELD_OPTIONS: { value: PulseProviderSortField; labelKey: string }[] = [
+  { value: 'providerKey', labelKey: 'pulses.colProvider' },
+  { value: 'status', labelKey: 'pulses.colStatus' },
+  { value: 'capability', labelKey: 'pulses.capability' },
+  { value: 'updatedAt', labelKey: 'common.updated' },
+];
+
+let pendingPreviewProviderKey: string | null = null;
 
 function providerTitle(
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -94,22 +96,30 @@ function providerTitle(
 
 export const PulseProvidersList: React.FC = () => {
   const { t } = useTranslation();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
-
-  useMobileActions({
-    onAdd: () => attemptNavigation(() => openPulsePanel(null)),
-  });
 
   const {
     providers,
     loading,
     openPulsePanel,
     openPulseForView,
+    closePulsePanel,
+    savePulse,
+    isPulsesPanelOpen,
+    panelMode,
+    currentPulse,
     openHistoryView,
     openRoutingView,
+    closeRoutingView,
     pulsesContentView,
   } = usePulses();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openPulsePanel(null)),
+  });
+
+  const isCompactViewport = useMediaQuery('(max-width: 1023px)');
+  const showDesktopSplit = !isCompactViewport;
 
   const { searchTerm, setSearchTerm } = usePersistedListSearch('pulses-providers');
   useRegisterMobileSearch({
@@ -120,68 +130,103 @@ export const PulseProvidersList: React.FC = () => {
       count: providers.length,
     }),
   });
+
+  const [routingCategory, setRoutingCategory] = useState<PulseProvidersRoutingCategory>('global');
   const [primarySort, setPrimarySort] = useState<PulseProviderSortField>('providerKey');
   const [sortOrder, setSortOrder] = useState<PulseProviderSortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<PulseColumnCount>(getInitialPulseColumnCount);
-  const [listViewMode, setListViewModeState] = useState<PulseListViewMode>(
-    getInitialPulseListViewMode,
-  );
   const [activeFilters, setActiveFilters] = useState<PulseProvidersListFilterSelection>([]);
+  const [previewProvider, setPreviewProvider] = useState<PulseProviderSettings | null>(null);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
+  const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
+    PULSES_FILTERS_VISIBLE_STORAGE_KEY,
+  );
+  const restoredPendingProviderRef = useRef(false);
+  const pageShellRef = useRef<HTMLDivElement>(null);
+  const inlineFormRef = useRef<PanelFormHandle | null>(null);
+  const [toolbarToggleBox, setToolbarToggleBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const inlineForm =
+    showDesktopSplit && isPulsesPanelOpen && (panelMode === 'create' || panelMode === 'edit');
+  const inlinePanelView =
+    showDesktopSplit && isPulsesPanelOpen && panelMode === 'view' && currentPulse != null;
+  const detailProvider = inlinePanelView ? currentPulse : previewProvider;
+  const activeListProviderId =
+    (inlineForm || inlinePanelView) && currentPulse != null
+      ? currentPulse.providerKey
+      : (previewProvider?.providerKey ?? null);
+
+  const updateToolbarToggleBox = useCallback(() => {
+    const el = pageShellRef.current;
+    if (!el) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const sidebarToggle = document.querySelector<HTMLElement>('[aria-controls="left-sidebar-nav"]');
+    const sidebarTop = sidebarToggle?.getBoundingClientRect().top;
+    setToolbarToggleBox({
+      top: typeof sidebarTop === 'number' ? sidebarTop : rect.top + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    updateToolbarToggleBox();
+    window.addEventListener('resize', updateToolbarToggleBox);
+    const scrollParent = pageShellRef.current?.closest('.overflow-y-auto, .overflow-auto');
+    scrollParent?.addEventListener('scroll', updateToolbarToggleBox, { passive: true });
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateToolbarToggleBox) : null;
+    if (pageShellRef.current && ro) {
+      ro.observe(pageShellRef.current);
+    }
+    return () => {
+      window.removeEventListener('resize', updateToolbarToggleBox);
+      scrollParent?.removeEventListener('scroll', updateToolbarToggleBox);
+      ro?.disconnect();
+    };
+  }, [updateToolbarToggleBox]);
 
   useEffect(() => {
-    let cancelled = false;
-    getSettings(PULSES_SETTINGS_KEY)
-      .then((settings) => {
-        if (cancelled) {
-          return;
-        }
-        const resolved = resolvePulseColumnCount(settings);
-        const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as PulseColumnCount;
-        setColumnCountState(next);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(PULSES_COLUMN_COUNT_STORAGE_KEY, String(next));
-        }
-        if (next !== resolved) {
-          updateSettings(PULSES_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-        }
-        const nextView = resolvePulseListViewMode(settings);
-        setListViewModeState(nextView);
-        persistPulseListViewModeSession(nextView);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [getSettings, settingsVersion]);
+    if (restoredPendingProviderRef.current || !pendingPreviewProviderKey) {
+      return;
+    }
+    const restored = providers.find(
+      (provider) => provider.providerKey === pendingPreviewProviderKey,
+    );
+    if (restored) {
+      setPreviewProvider(restored);
+      restoredPendingProviderRef.current = true;
+      pendingPreviewProviderKey = null;
+    }
+  }, [providers]);
 
-  const setColumnCount = useCallback(
-    (_count: PulseColumnCount) => {
-      const next = 3 as PulseColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistPulseListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(PULSES_COLUMN_COUNT_STORAGE_KEY, String(next));
-      }
-      updateSettings(PULSES_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
+  useEffect(() => {
+    if (!previewProvider) {
+      return;
+    }
+    const next = providers.find((provider) => provider.providerKey === previewProvider.providerKey);
+    if (!next) {
+      setPreviewProvider(null);
+      return;
+    }
+    if (next !== previewProvider) {
+      setPreviewProvider(next);
+    }
+  }, [providers, previewProvider]);
 
-  const setListViewMode = useCallback(
-    (mode: PulseListViewMode) => {
-      setListViewModeState(mode);
-      persistPulseListViewModeSession(mode);
-      updateSettings(PULSES_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
+  useEffect(() => {
+    if (!showDesktopSplit || !isPulsesPanelOpen) {
+      return;
+    }
+    if ((panelMode === 'edit' || panelMode === 'view') && currentPulse) {
+      setPreviewProvider(currentPulse);
+    }
+  }, [showDesktopSplit, isPulsesPanelOpen, panelMode, currentPulse]);
 
   const stats = useMemo(
     () => ({
@@ -222,10 +267,6 @@ export const PulseProvidersList: React.FC = () => {
     setSortOrder(field === 'updatedAt' ? 'desc' : 'asc');
   }, []);
 
-  const toggleSortOrder = useCallback(() => {
-    setSortOrder((order) => (order === 'asc' ? 'desc' : 'asc'));
-  }, []);
-
   const handleTableSort = useCallback(
     (field: PulseProviderSortField) => {
       const next = nextPulseProviderTableSort(primarySort, sortOrder, field);
@@ -235,243 +276,452 @@ export const PulseProvidersList: React.FC = () => {
     [primarySort, sortOrder],
   );
 
-  const handleOpenForView = (provider: PulseProviderSettings) =>
+  const handleOpenForView = (provider: PulseProviderSettings) => {
+    pendingPreviewProviderKey = provider.providerKey;
     attemptNavigation(() => openPulseForView(provider));
+  };
 
-  const SORT_FIELD_OPTIONS: { value: PulseProviderSortField; label: string }[] = [
-    { value: 'providerKey', label: t('pulses.colProvider', { defaultValue: 'Provider' }) },
-    { value: 'status', label: t('pulses.colStatus', { defaultValue: 'Status' }) },
-    { value: 'capability', label: t('pulses.capability', { defaultValue: 'Capability' }) },
-    { value: 'updatedAt', label: t('common.updated') },
-  ];
+  const handleRowActivate = (provider: PulseProviderSettings) => {
+    if (isCompactViewport) {
+      handleOpenForView(provider);
+      return;
+    }
+    if (
+      isPulsesPanelOpen &&
+      (panelMode === 'create' || panelMode === 'edit' || panelMode === 'view')
+    ) {
+      attemptNavigation(() => {
+        closePulsePanel();
+        setPreviewProvider(provider);
+      });
+      return;
+    }
+    setPreviewProvider((current) =>
+      current && current.providerKey === provider.providerKey ? null : provider,
+    );
+  };
+
+  const handleInlineFormSave = useCallback(async () => {
+    await inlineFormRef.current?.submit();
+  }, []);
+
+  const handleInlineFormClose = useCallback(() => {
+    if (inlineFormRef.current) {
+      inlineFormRef.current.cancel();
+      return;
+    }
+    closePulsePanel();
+  }, [closePulsePanel]);
+
+  const handleInlineFormOnSave = useCallback(
+    async (data: Record<string, unknown>) => {
+      const ok = await savePulse(data);
+      return ok;
+    },
+    [savePulse],
+  );
+
+  const headerDropdownTriggerClass =
+    'gap-1.5 border-0 bg-primary/10 px-3.5 text-sm font-extrabold text-primary shadow-none hover:bg-primary hover:text-primary-foreground';
+
+  const renderFilterChips = () => {
+    const chips: Array<{
+      key: string;
+      active: boolean;
+      icon: typeof LayoutGrid;
+      label: string;
+      count: number;
+      onClick: () => void;
+    }> = [
+      {
+        key: 'all',
+        active: activeFilters.length === 0,
+        icon: LayoutGrid,
+        label: t('pulses.total', { defaultValue: 'Total' }),
+        count: stats.total,
+        onClick: () => setActiveFilters([]),
+      },
+      {
+        key: 'enabled',
+        active: isFilterActive('enabled'),
+        icon: CheckCircle2,
+        label: t('pulses.statusEnabled', { defaultValue: 'Enabled' }),
+        count: stats.enabled,
+        onClick: () => toggleFilter('enabled'),
+      },
+      {
+        key: 'disabled',
+        active: isFilterActive('disabled'),
+        icon: XCircle,
+        label: t('pulses.statusDisabled', { defaultValue: 'Disabled' }),
+        count: stats.disabled,
+        onClick: () => toggleFilter('disabled'),
+      },
+      {
+        key: 'configured',
+        active: isFilterActive('configured'),
+        icon: Key,
+        label: t('pulses.keyConfigured', { defaultValue: 'Configured' }),
+        count: stats.configured,
+        onClick: () => toggleFilter('configured'),
+      },
+    ];
+
+    return (
+      <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+        {chips.map((chip) => {
+          const Icon = chip.icon;
+          return (
+            <Button
+              key={chip.key}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={chip.onClick}
+              className={cn(chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span>
+                {chip.label} <span className="tabular-nums font-semibold">({chip.count})</span>
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const primarySortLabel =
+    SORT_FIELD_OPTIONS.find((option) => option.value === primarySort)?.labelKey ??
+    SORT_FIELD_OPTIONS[0].labelKey;
+
+  const renderSortDropdown = (triggerClassName: string) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('pulses.sort', { defaultValue: 'Sort' })}
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          <span>{t('pulses.sort', { defaultValue: 'Sort' })}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[14rem] rounded-xl border-border/50 shadow-xl"
+      >
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {t(primarySortLabel)}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={primarySort}
+          onValueChange={(value) => handlePrimarySortChange(value as PulseProviderSortField)}
+        >
+          {SORT_FIELD_OPTIONS.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              className="rounded-md text-xs"
+              onSelect={(event) => event.preventDefault()}
+            >
+              {t(option.labelKey)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {sortOrder === 'asc'
+            ? t('pulses.sortAsc', { defaultValue: 'Ascending' })
+            : t('pulses.sortDesc', { defaultValue: 'Descending' })}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={sortOrder}
+          onValueChange={(value) => setSortOrder(value as PulseProviderSortOrder)}
+        >
+          <DropdownMenuRadioItem
+            value="asc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowUp className="mr-2 h-3.5 w-3.5" />
+            {t('pulses.sortAsc', { defaultValue: 'Ascending' })}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="desc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowDown className="mr-2 h-3.5 w-3.5" />
+            {t('pulses.sortDesc', { defaultValue: 'Descending' })}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const toolbarEdgeToggle =
+    typeof document !== 'undefined' && toolbarToggleBox
+      ? createPortal(
+          <div
+            className="pointer-events-none fixed z-40 hidden justify-center md:flex"
+            style={{
+              top: toolbarToggleBox.top,
+              left: toolbarToggleBox.left,
+              width: toolbarToggleBox.width,
+            }}
+          >
+            <div className="pointer-events-auto">
+              <RoundIconLabelButton
+                icon={Menu}
+                label={
+                  toolbarCollapsed
+                    ? t('pulses.expandToolbar', { defaultValue: 'Show toolbar' })
+                    : t('pulses.collapseToolbar', { defaultValue: 'Hide toolbar' })
+                }
+                variant={toolbarCollapsed ? 'primary' : 'secondary'}
+                size="xs"
+                expandOnHover={false}
+                className={
+                  toolbarCollapsed
+                    ? undefined
+                    : 'bg-white text-primary shadow-sm hover:bg-primary hover:text-primary-foreground dark:bg-white dark:text-primary dark:hover:bg-primary dark:hover:text-primary-foreground'
+                }
+                aria-expanded={!toolbarCollapsed}
+                aria-controls="pulses-mail-toolbar"
+                onClick={toggleToolbarCollapsed}
+              />
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  const detailColumnOpen = Boolean(detailProvider || inlineForm);
 
   if (pulsesContentView === 'routing') {
-    return <PulseProvidersRouting />;
-  }
-
-  return (
-    <div className={cn('plugin-pulses', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
-      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
-        <div className="hidden md:block">
-          <div className="flex items-start justify-between gap-6">
-            <div className="min-w-0">
-              <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
-                <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
-                  {t('nav.pulses', { defaultValue: 'Pulse' })}
-                </h2>
-                <ExpandableIconButton
-                  icon={Bell}
-                  label={t('pulses.historyTitle', { defaultValue: 'SMS history' })}
-                  variant="soft"
-                  onClick={() => attemptNavigation(openHistoryView)}
-                />
-                <ExpandableIconButton
-                  icon={Route}
-                  label={t('pulses.routing.open', { defaultValue: 'Routing' })}
-                  variant="soft"
-                  onClick={() => attemptNavigation(openRoutingView)}
-                />
-              </div>
-            </div>
-            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
-              <RoundExpandableSearch
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('pulses.searchProviders', {
-                  defaultValue: 'Search providers ({{count}})',
-                  count: providers.length,
-                })}
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) =>
-                  t(`pulses.columns${count}`, { defaultValue: `${count} columns` })
-                }
-                tableAriaLabel={t('common.tableView')}
-              />
-              <ExpandableIconButton
-                icon={Plus}
-                label={t('pulses.addProvider', { defaultValue: 'Add provider' })}
-                variant="soft"
-                alwaysExpanded
-                onClick={() => attemptNavigation(() => openPulsePanel(null))}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
-          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveFilters([])}
-              className={cn(
-                activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>
-                {t('pulses.total', { defaultValue: 'Total' })}{' '}
-                <span className="tabular-nums font-semibold">({stats.total})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('enabled')}
-              className={cn(
-                isFilterActive('enabled') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>
-                {t('pulses.statusEnabled', { defaultValue: 'Enabled' })}{' '}
-                <span className="tabular-nums font-semibold">({stats.enabled})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('disabled')}
-              className={cn(
-                isFilterActive('disabled') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <XCircle className="h-3.5 w-3.5" />
-              <span>
-                {t('pulses.statusDisabled', { defaultValue: 'Disabled' })}{' '}
-                <span className="tabular-nums font-semibold">({stats.disabled})</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleFilter('configured')}
-              className={cn(
-                isFilterActive('configured')
-                  ? LIST_FILTER_CHIP_ACTIVE_CLASS
-                  : LIST_FILTER_CHIP_CLASS,
-              )}
-            >
-              <Key className="h-3.5 w-3.5" />
-              <span>
-                {t('pulses.keyConfigured', { defaultValue: 'Configured' })}{' '}
-                <span className="tabular-nums font-semibold">({stats.configured})</span>
-              </span>
-            </Button>
-          </div>
-          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-            <Select
-              value={primarySort}
-              onValueChange={(value) => handlePrimarySortChange(value as PulseProviderSortField)}
-            >
-              <SelectTrigger
-                className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                aria-label="Sort by"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="item-aligned"
-                className="rounded-xl border-border/50 shadow-xl"
-              >
-                {SORT_FIELD_OPTIONS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="rounded-md text-xs"
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 px-0 text-xs"
-              onClick={toggleSortOrder}
-              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-            >
-              {sortOrder === 'asc' ? (
-                <ArrowUp className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowDown className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {loading && providers.length === 0 ? (
-            <div className="rounded-xl bg-white p-6 text-center text-sm text-muted-foreground shadow-sm dark:bg-slate-950">
-              {t('common.loading')}
-            </div>
-          ) : filteredAndSorted.length === 0 ? (
-            <ListEmptyState
-              message={
-                searchTerm.trim()
-                  ? t('pulses.noMatch', { defaultValue: 'No matching providers' })
-                  : t('pulses.noYet', { defaultValue: 'No providers yet — add Twilio or Mock' })
-              }
-              createLabel={!searchTerm.trim() ? t('pulses.addProvider') : undefined}
-              onCreate={
-                !searchTerm.trim() ? () => attemptNavigation(() => openPulsePanel(null)) : undefined
-              }
-            />
-          ) : isTableView ? (
-            <PulseProvidersListTable
-              providers={filteredAndSorted}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              onRowClick={handleOpenForView}
-              providerTitle={(provider) => providerTitle(t, provider)}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((provider) => (
-                <PulseProvidersListItem
-                  key={provider.providerKey}
-                  provider={provider}
-                  title={providerTitle(t, provider)}
-                  onClick={() => handleOpenForView(provider)}
-                  columnCount={effectiveCardColumnCount}
-                />
-              ))}
-            </div>
-          )}
-
-          <ListFooterBar
-            meta={
-              <>
-                {t('pulses.showingCount', {
-                  defaultValue: 'Showing {{visible}} of {{total}} providers',
-                  visible: filteredAndSorted.length,
-                  total: providers.length,
-                })}
-              </>
-            }
+    return (
+      <div className="plugin-pulses flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
+        <div className="px-4 py-4 md:px-6">
+          <PulseProvidersRouting
+            selectedCategory={routingCategory}
+            onSelectedCategoryChange={setRoutingCategory}
+            renderCategoryButtonsInline
+            onClose={closeRoutingView}
           />
         </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <>
+      {toolbarEdgeToggle}
+      <div
+        ref={pageShellRef}
+        className={cn(
+          'plugin-pulses flex min-h-0 flex-1 flex-col',
+          PLUGIN_PAGE_LIST_SHELL_CLASS,
+          showDesktopSplit
+            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+            : 'overflow-y-auto md:pt-3',
+        )}
+      >
+        <div
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 flex-col',
+            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+          )}
+        >
+          <div className="relative hidden shrink-0 md:block">
+            <div
+              className={cn(
+                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
+              )}
+              aria-hidden={toolbarCollapsed}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div
+                  id="pulses-mail-toolbar"
+                  className={cn(
+                    'flex flex-wrap items-center justify-between gap-3',
+                    toolbarCollapsed && 'pointer-events-none',
+                  )}
+                >
+                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
+                      {t('nav.pulses', { defaultValue: 'Pulse' })}
+                    </h2>
+                    <ExpandableIconButton
+                      icon={Bell}
+                      label={t('pulses.historyTitle', { defaultValue: 'SMS history' })}
+                      variant="soft"
+                      alwaysExpanded
+                      onClick={() => attemptNavigation(openHistoryView)}
+                    />
+                    <ExpandableIconButton
+                      icon={Route}
+                      label={t('pulses.routing.open', { defaultValue: 'Routing' })}
+                      variant="soft"
+                      alwaysExpanded
+                      onClick={() => attemptNavigation(openRoutingView)}
+                    />
+                    {renderSortDropdown('h-11 rounded-full')}
+                    <ListFilterChipsToggle
+                      visible={filtersVisible}
+                      onVisibleChange={setFiltersVisible}
+                      className="h-11 rounded-full"
+                    />
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <RoundExpandableSearch
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                      placeholder={t('pulses.searchProviders', {
+                        defaultValue: 'Search providers ({{count}})',
+                        count: providers.length,
+                      })}
+                    />
+                    <ExpandableIconButton
+                      icon={Plus}
+                      label={t('pulses.addProvider', { defaultValue: 'Add provider' })}
+                      variant={detailColumnOpen ? 'soft' : 'primary'}
+                      onClick={() => attemptNavigation(() => openPulsePanel(null))}
+                    />
+                  </div>
+                </div>
+                {filtersVisible ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {renderFilterChips()}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+            {filtersVisible ? renderFilterChips() : null}
+            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+              <ListFilterChipsToggle
+                visible={filtersVisible}
+                onVisibleChange={setFiltersVisible}
+                className="h-7 rounded-md"
+              />
+              {renderSortDropdown('h-7 rounded-md')}
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              'grid min-h-0 min-w-0 gap-2',
+              showDesktopSplit
+                ? 'flex-1 grid-cols-[minmax(220px,20%)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-stretch'
+                : 'grid-cols-1 items-start',
+            )}
+          >
+            <div
+              className={cn(
+                'min-w-0',
+                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+              )}
+            >
+              <div className="flex min-w-0 flex-col gap-3">
+                {loading && providers.length === 0 ? (
+                  <div className="rounded-xl bg-white p-6 text-center text-sm text-muted-foreground shadow-sm dark:bg-slate-950">
+                    {t('common.loading')}
+                  </div>
+                ) : filteredAndSorted.length === 0 ? (
+                  <ListEmptyState
+                    message={
+                      searchTerm.trim()
+                        ? t('pulses.noMatch', { defaultValue: 'No matching providers' })
+                        : t('pulses.noYet', {
+                            defaultValue: 'No providers yet — add Twilio or Mock',
+                          })
+                    }
+                    createLabel={!searchTerm.trim() ? t('pulses.addProvider') : undefined}
+                    onCreate={
+                      !searchTerm.trim()
+                        ? () => attemptNavigation(() => openPulsePanel(null))
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <PulseProvidersListTable
+                    providers={filteredAndSorted}
+                    primarySort={primarySort}
+                    sortOrder={sortOrder}
+                    onSort={handleTableSort}
+                    onRowClick={handleRowActivate}
+                    providerTitle={(provider) => providerTitle(t, provider)}
+                    activeProviderId={activeListProviderId}
+                  />
+                )}
+
+                <ListFooterBar
+                  meta={
+                    <>
+                      {t('pulses.showingCount', {
+                        defaultValue: 'Showing {{visible}} of {{total}} providers',
+                        visible: filteredAndSorted.length,
+                        total: providers.length,
+                      })}
+                    </>
+                  }
+                />
+              </div>
+            </div>
+
+            {showDesktopSplit ? (
+              <aside
+                className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain"
+                role="region"
+                aria-label={t('pulses.quickContext.title', { defaultValue: 'Provider details' })}
+                aria-live="polite"
+              >
+                {inlineForm ? (
+                  <div className="flex min-h-0 flex-col gap-3">
+                    <div className="flex shrink-0 justify-end">
+                      <InlinePanelFormActions
+                        mode={panelMode === 'edit' ? 'edit' : 'create'}
+                        hasBlockingErrors={false}
+                        onClose={handleInlineFormClose}
+                        onSave={() => {
+                          void handleInlineFormSave();
+                        }}
+                        t={t}
+                      />
+                    </div>
+                    <PulseSettingsForm
+                      ref={inlineFormRef}
+                      currentPulse={currentPulse}
+                      onSave={handleInlineFormOnSave}
+                      onCancel={closePulsePanel}
+                      stacked
+                    />
+                  </div>
+                ) : detailProvider ? (
+                  <PulseProviderView pulse={detailProvider} />
+                ) : (
+                  <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
+                    <PulseProvidersStatisticsView />
+                  </Card>
+                )}
+              </aside>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </>
   );
 };

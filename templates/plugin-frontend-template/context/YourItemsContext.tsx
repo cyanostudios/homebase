@@ -23,6 +23,7 @@ export interface YourItemsContextType {
   deleteYourItems: (ids: string[]) => Promise<void>;
   getDeleteMessage: (item: YourItem | null) => string;
   clearValidationErrors: () => void;
+  getPanelTitle: (mode: string, item: YourItem | null) => React.ReactNode;
 }
 
 export const YourItemsContext = createContext<YourItemsContextType | undefined>(undefined);
@@ -54,6 +55,7 @@ const EMPTY_YOUR_ITEMS_CONTEXT: YourItemsContextType = {
   deleteYourItems: async () => {},
   getDeleteMessage: () => '',
   clearValidationErrors: () => {},
+  getPanelTitle: () => null,
 };
 
 export function YourItemsNullProvider({ children }: { children: React.ReactNode }) {

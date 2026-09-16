@@ -33,7 +33,17 @@ function getNoteShareIconColorClass(actionId: string): string {
   return '';
 }
 
-export function NoteDetailHeaderMenus({ note }: { note: Note }) {
+export function NoteDetailHeaderMenus({
+  note,
+  leading,
+  afterActions,
+}: {
+  note: Note;
+  /** Optional leading content on the Actions/Export trigger row (e.g. note title). */
+  leading?: React.ReactNode;
+  /** Optional controls after Actions (e.g. focus mode), before Export. */
+  afterActions?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openNoteForEdit,
@@ -135,6 +145,8 @@ export function NoteDetailHeaderMenus({ note }: { note: Note }) {
 
   return (
     <DetailHeaderMenus
+      leading={leading}
+      afterActions={afterActions}
       actions={actions}
       exportActions={exportActions}
       actionsLabel={t('common.headerActions')}

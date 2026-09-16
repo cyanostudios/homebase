@@ -97,6 +97,11 @@ export interface PluginRegistryEntry {
   displayPrefix?: string;
   /** If true, plugin pages render edge-to-edge without inner content padding. */
   contentFlush?: boolean;
+  /**
+   * If true with contentFlush, the shell does not scroll the page — the plugin List
+   * must fill height and own overflow (e.g. Contacts list|detail columns).
+   */
+  contentOwnsScroll?: boolean;
   /** Field (or resolver) used to derive human-friendly URL slugs. */
   slugField?: string | ((item: any) => string);
   /** Optional context key that stores plugin content view state (e.g. list/settings). */
@@ -567,6 +572,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: ContactsDashboardWidget,
     displayPrefix: 'CNT',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'companyName',
     contentViewKey: 'contactsContentView',
   },
@@ -592,6 +598,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: NotesDashboardWidget,
     displayPrefix: 'NTS',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'title',
     noPrimaryAction: true,
   },
@@ -617,6 +624,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: TasksDashboardWidget,
     displayPrefix: 'TSK',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'title',
     contentViewKey: 'tasksContentView',
   },
@@ -642,6 +650,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: EstimatesDashboardWidget,
     displayPrefix: 'EST',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'estimateNumber',
     contentViewKey: 'estimatesContentView',
   },
@@ -662,6 +671,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: InvoicesDashboardWidget,
     displayPrefix: 'INV',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'invoiceNumber',
     contentViewKey: 'invoicesContentView',
   },
@@ -687,6 +697,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: FilesDashboardWidget,
     displayPrefix: 'FLS',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'name',
     contentViewKey: 'filesContentView',
   },
@@ -712,6 +723,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: TeamsDashboardWidget,
     displayPrefix: 'TEAM',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'name',
     contentViewKey: 'teamsContentView',
     noPrimaryAction: true,
@@ -761,6 +773,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: MatchesDashboardWidget,
     displayPrefix: 'MAT',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`,
     contentViewKey: 'matchesContentView',
   },
@@ -780,6 +793,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     navigation: garmentsNavigation,
     displayPrefix: 'GRM',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'name',
     contentViewKey: 'garmentsContentView',
     noPrimaryAction: true,
@@ -806,7 +820,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: RequestsDashboardWidget,
     displayPrefix: 'REQ',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'title',
+    contentViewKey: 'requestsContentView',
+    noPrimaryAction: true,
   },
   {
     name: 'slots',
@@ -830,6 +847,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: SlotsDashboardWidget,
     displayPrefix: 'SLT',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: (i: any) => (i.slot_time ? String(i.slot_time).slice(0, 10) : ''),
     noPrimaryAction: true,
     getFormExtraProps: (context: any) =>
@@ -856,6 +874,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: CupsDashboardWidget,
     displayPrefix: 'CUP',
     contentFlush: true,
+    contentOwnsScroll: true,
     noPrimaryAction: true,
   },
   {
@@ -880,6 +899,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: IngestDashboardWidget,
     displayPrefix: 'ING',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'name',
     noPrimaryAction: true,
   },
@@ -949,6 +969,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     navigation: clubdeskNavigation,
     displayPrefix: 'CDK',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'slug',
     noPrimaryAction: true,
   },
@@ -973,6 +994,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: MailDashboardWidget,
     displayPrefix: 'MAIL',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'providerKey',
     contentViewKey: 'mailContentView',
     noPrimaryAction: true,
@@ -999,6 +1021,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: PulsesDashboardWidget,
     displayPrefix: 'PULSE',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'providerKey',
     contentViewKey: 'pulsesContentView',
     noPrimaryAction: true,
@@ -1026,7 +1049,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: AIProvidersDashboardWidget,
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: 'providerKey',
+    contentViewKey: 'aiProvidersContentView',
     noPrimaryAction: true,
   },
   {

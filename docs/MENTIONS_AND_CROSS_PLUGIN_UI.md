@@ -104,7 +104,7 @@ Name click on assignment rows (teams/tasks/slots/notes/estimates) opens `Assignm
 
 **Private contacts (PII):** For `contactType === 'private'`, ContactView/Form show **personal number** (not organization number); F-tax is hidden; tax rate is forced to `0` on save via `applyContactTypeFieldRules`. Personal number is tenant-visible PII by design.
 
-**Notes `NoteView`:** mentioned contacts render under note content (and attachments), not in the sidebar. Name / `@`-mention opens shared `ContactQuickInfoDialog` (copy email/phone + Open contact → `navigate('/contacts/…')`). TeamView’s `ResponsibleContactDialog` wraps the same dialog.
+**Notes `NoteView`:** Full detail merges title/actions + rich content into one QuickContext card (`variant="full"` + children). Mentions render as a separate card under attachments (not in a sidebar). Name / `@`-mention opens shared `ContactQuickInfoDialog` (copy email/phone + Open contact → `navigate('/contacts/…')`). TeamView’s `ResponsibleContactDialog` wraps the same dialog. Attachments use shared `FileAttachmentsSection` when the files plugin is enabled.
 
 `SlotsProvider` syncs its list via `syncSharedSlots` whenever `slots` changes. **MatchView** reads related slots from `useSlotsContext().slots` filtered by `match_id` (no separate `GET /api/slots`).
 
@@ -150,13 +150,13 @@ Optional: a separate row action (e.g. “Open team”) may still navigate immedi
 
 ### Existing dialogs (reuse these)
 
-| Dialog                      | Entity                     | Used from (examples)                                                                                                                                                                                                                                                              |
-| --------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ContactQuickInfoDialog`    | Contact                    | `NoteView` / `NoteQuickContextPanel` mentions; `TaskView` / `TaskAssigneeSelect` / `TaskQuickContextPanel` assignees & mentions; `RequestView` / `RequestAssigneeSelect` / `RequestQuickContextPanel` assignees & linked submitter contact; `ResponsibleContactDialog` (TeamView) |
-| `AssignmentQuickInfoDialog` | Team / task / slot preview | `ContactView` related cards; `TaskAssignedTeamSelect` / `TaskQuickContextPanel` assigned team; `RequestAssignedTeamSelect` / `RequestQuickContextPanel` assigned team                                                                                                             |
-| `MatchQuickInfoDialog`      | Match                      | `TeamMatchesSection`                                                                                                                                                                                                                                                              |
-| `RequestQuickInfoDialog`    | Request                    | `TeamRequestsSection` (Teams plugin)                                                                                                                                                                                                                                              |
-| `ScheduleSlotDetailDialog`  | Schedule slot              | Schedule grid / list slot click                                                                                                                                                                                                                                                   |
+| Dialog                      | Entity                     | Used from (examples)                                                                                                                                                                             |
+| --------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ContactQuickInfoDialog`    | Contact                    | `NoteView` mentions; `TaskView` / `TaskAssigneeSelect` assignees & mentions; `RequestView` / `RequestAssigneeSelect` assignees & linked submitter contact; `ResponsibleContactDialog` (TeamView) |
+| `AssignmentQuickInfoDialog` | Team / task / slot preview | `ContactView` related cards; `TaskAssignedTeamSelect` / `TaskView`; `RequestAssignedTeamSelect` / `RequestView`                                                                                  |
+| `MatchQuickInfoDialog`      | Match                      | `TeamMatchesSection`                                                                                                                                                                             |
+| `RequestQuickInfoDialog`    | Request                    | `TeamRequestsSection` (Teams plugin)                                                                                                                                                             |
+| `ScheduleSlotDetailDialog`  | Schedule slot              | Schedule grid / list slot click                                                                                                                                                                  |
 
 ### Anti-patterns
 

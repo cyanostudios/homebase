@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Textarea } from '@/components/ui/textarea';
 import { FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
+import { DETAIL_EMPTY_STATE_CLASS } from '@/core/ui/detailViewCardStyles';
 
 import type { TeamNote } from '../types/teams';
 
@@ -44,7 +45,7 @@ export function TeamNotesSection({
     <div className="space-y-4">
       <div className="space-y-2">
         {notes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('teams.view.noNotes')}</p>
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('teams.view.noNotes')}</p>
         ) : (
           <div className="space-y-1.5">
             {notes.map((note) => (

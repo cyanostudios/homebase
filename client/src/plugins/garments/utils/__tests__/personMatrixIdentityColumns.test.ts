@@ -11,10 +11,10 @@ import {
 } from '../personMatrixIdentityColumns';
 
 describe('personMatrixIdentityColumns', () => {
-  it('defaults all identity columns visible with name required', () => {
+  it('defaults to name-only visible with other identity columns hidden', () => {
     const pref = normalizePersonMatrixIdentityColumns(null);
     expect(pref).toEqual(DEFAULT_PERSON_MATRIX_IDENTITY_COLUMNS);
-    expect(pref.hidden).toEqual([]);
+    expect(pref.hidden).toEqual(['team', 'jerseyName', 'initials', 'jerseyNumber']);
     expect(pref.order[0]).toBe('name');
   });
 
@@ -26,7 +26,7 @@ describe('personMatrixIdentityColumns', () => {
     expect(pref.hidden).toEqual(['team', 'jerseyNumber']);
   });
 
-  it('resolves visible columns per list from settings', () => {
+  it('resolveVisible always returns name-only (settings prefs removed)', () => {
     const settings = {
       personMatrixIdentityByList: {
         '1': {
@@ -35,21 +35,11 @@ describe('personMatrixIdentityColumns', () => {
         },
       },
     };
-    expect(resolveVisiblePersonMatrixIdentityColumns(settings, '1')).toEqual([
-      'name',
-      'team',
-      'jerseyNumber',
-    ]);
-    expect(resolveVisiblePersonMatrixIdentityColumns(settings, 'missing')).toEqual([
-      'name',
-      'team',
-      'jerseyName',
-      'initials',
-      'jerseyNumber',
-    ]);
+    expect(resolveVisiblePersonMatrixIdentityColumns(settings, '1')).toEqual(['name']);
+    expect(resolveVisiblePersonMatrixIdentityColumns(settings, 'missing')).toEqual(['name']);
   });
 
-  it('preserves custom order in resolveVisible', () => {
+  it('getPersonMatrixIdentityPrefForList always returns code defaults', () => {
     const settings = {
       personMatrixIdentityByList: {
         '2': {
@@ -58,27 +48,27 @@ describe('personMatrixIdentityColumns', () => {
         },
       },
     };
-    expect(resolveVisiblePersonMatrixIdentityColumns(settings, '2')).toEqual([
-      'jerseyNumber',
-      'name',
-      'initials',
-      'jerseyName',
-    ]);
+    expect(getPersonMatrixIdentityPrefForList(settings, '2')).toEqual(
+      DEFAULT_PERSON_MATRIX_IDENTITY_COLUMNS,
+    );
   });
 
   it('updates per-list map and compares prefs', () => {
     const base = getPersonMatrixIdentityPrefForList(null, '9');
     const next = setPersonMatrixIdentityColumnHidden(base, 'team', true);
-    expect(personMatrixIdentityColumnsEqual(base, next)).toBe(false);
+    // team already hidden in defaults — equal when already hidden
+    expect(personMatrixIdentityColumnsEqual(base, next)).toBe(true);
+    const shown = setPersonMatrixIdentityColumnHidden(base, 'team', false);
+    expect(personMatrixIdentityColumnsEqual(base, shown)).toBe(false);
     const reordered = {
-      ...next,
-      order: reorderPersonMatrixIdentityColumns(next.order, 'jerseyNumber', 'team'),
+      ...shown,
+      order: reorderPersonMatrixIdentityColumns(shown.order, 'jerseyNumber', 'team'),
     };
     expect(reordered.order.indexOf('jerseyNumber')).toBeLessThan(reordered.order.indexOf('team'));
     const byList = normalizePersonMatrixIdentityByList({
       '9': reordered,
     });
-    expect(byList['9'].hidden).toContain('team');
+    expect(byList['9'].hidden).not.toContain('team');
   });
 
   it('keeps known ids only in by-list map', () => {

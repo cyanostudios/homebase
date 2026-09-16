@@ -1,4 +1,4 @@
-/** Canonical table column ids for Contacts list table (settings + SortableListTable). */
+/** Canonical table column ids for Contacts list table (SortableListTable). */
 export const CONTACT_TABLE_COLUMN_IDS = [
   'name',
   'type',
@@ -18,10 +18,10 @@ export type ContactTableColumnsPref = {
   hidden: ContactTableColumnId[];
 };
 
-/** Default ON: name, type, tags, assignable, time. Default OFF: email, phone, createdAt, updatedAt. */
+/** Name-only list default; per-plugin metadata columns come later in code. */
 export const DEFAULT_CONTACT_TABLE_COLUMNS: ContactTableColumnsPref = {
   order: [...CONTACT_TABLE_COLUMN_IDS],
-  hidden: ['email', 'phone', 'createdAt', 'updatedAt'],
+  hidden: ['type', 'tags', 'assignable', 'time', 'email', 'phone', 'createdAt', 'updatedAt'],
 };
 
 const KNOWN_IDS = new Set<string>(CONTACT_TABLE_COLUMN_IDS);
@@ -88,12 +88,13 @@ export function normalizeContactTableColumns(raw: unknown): ContactTableColumnsP
   return { order, hidden };
 }
 
-/** Ordered list of visible column ids for the table. */
+/** Always code defaults — table column prefs were removed from settings. */
 export function resolveVisibleContactTableColumns(
-  settings: { tableColumns?: unknown } | null | undefined,
+  _settings?: { tableColumns?: unknown } | null,
 ): ContactTableColumnId[] {
-  const normalized = normalizeContactTableColumns(settings?.tableColumns);
-  return normalized.order.filter((id) => !normalized.hidden.includes(id));
+  return DEFAULT_CONTACT_TABLE_COLUMNS.order.filter(
+    (id) => !DEFAULT_CONTACT_TABLE_COLUMNS.hidden.includes(id),
+  );
 }
 
 export function contactTableColumnsEqual(

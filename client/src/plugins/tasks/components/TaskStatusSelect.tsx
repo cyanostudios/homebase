@@ -8,7 +8,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
+import {
+  BADGE_CHIP_CLASS,
+  BADGE_CHIP_COMPACT_CLASS,
+  BADGE_SELECT_TRIGGER_CLASS,
+} from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 import { TASK_STATUS_COLORS, TASK_STATUS_OPTIONS, formatStatusForDisplay } from '../types/tasks';
@@ -32,8 +36,8 @@ export function TaskStatusSelect({
     <Select value={task.status} onValueChange={onStatusChange}>
       <SelectTrigger
         className={cn(
-          'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50',
-          compact ? 'h-8 min-h-8 w-[130px] sm:h-7' : 'h-9 w-[180px]',
+          BADGE_SELECT_TRIGGER_CLASS,
+          compact ? 'h-7 w-[130px]' : 'h-9 w-full sm:w-[180px]',
         )}
       >
         <SelectValue placeholder="Select status">
@@ -77,7 +81,7 @@ export function TaskStatusSelect({
 
   return (
     <div className="flex items-center justify-between gap-4">
-      <div className="text-sm font-medium text-foreground whitespace-nowrap">Status</div>
+      <div className="whitespace-nowrap text-sm font-medium text-foreground">Status</div>
       {selectEl}
     </div>
   );

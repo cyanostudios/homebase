@@ -77,7 +77,10 @@
     "settings": "Inställningar",
     "statistics": "Statistik",
     "remove": "Ta bort",
-    "clearFilters": "Rensa filter"
+    "clearFilters": "Rensa filter",
+    "filters": "Filter",
+    "showFilters": "Visa filter",
+    "hideFilters": "Dölj filter"
   },
   "importWizard": {
     "file": "Fil",
@@ -199,8 +202,8 @@
     "editSlot": "Redigera slot",
     "slot": "Slot",
     "searchPlaceholder": "Sök {{count}} slots...",
-    "noSlotsMatch": "Inga slots matchar sökningen.",
-    "noSlotsYet": "Inga slots ännu",
+    "noMatch": "Inga slots matchar sökningen.",
+    "noYet": "Inga slots ännu",
     "sectionTitle": "Slot",
     "nameLabel": "Namn",
     "namePlaceholder": "Lämna tomt för SLT-nummer",
@@ -265,10 +268,7 @@
     "deleteSlotsFailed": "Kunde inte ta bort valda slots",
     "loadFailed": "Kunde inte ladda slots",
     "quickContext": {
-      "openFullProfile": "Öppna hela sloten",
-      "contacts": "Kontakter",
-      "readMore": "Läs mer",
-      "showLess": "Visa mindre"
+      "title": "Slotdetaljer"
     },
     "slotDatePassed": "Datumet för denna slot har passerat och visas inte för bokningar",
     "visibleDisabledPast": "Passerade slots visas inte för publik bokning; synlighet kan inte ändras",
@@ -279,13 +279,24 @@
     "dateTimePlaceholder": "Datum och tid",
     "dateTimeClear": "Rensa datum och tid",
     "dateTimePickerTime": "Tid",
-    "settingsSubtitle": "Hantera tabellkolumner och kategorier.",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "stats": {
+      "total": "Totalt",
+      "visible": "Synliga",
+      "upcoming": "Kommande",
+      "withCategory": "Med kategori"
+    },
+    "statistics": {
+      "title": "Slots-översikt",
+      "embeddedDescription": "Översikt av slots efter synlighet, kommande tider och kategoritilldelning.",
+      "overview": "Översikt"
+    },
+    "settingsSubtitle": "Hantera kategorier.",
     "settingsCategories": {
-      "columns": "Tabellkolumner",
-      "columnsDescription": "Välj vilka kolumner som visas i platstabellen och i vilken ordning.",
-      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Namn är alltid synligt.",
-      "view": "Vy",
-      "viewDescription": "Standardkolumner för platskort.",
       "categories": "Kategorier",
       "categoriesDescription": "Kategorier som kan tilldelas platser."
     }
@@ -301,8 +312,15 @@
     "defaultHomeTeamLabel": "Hemmalagsnamn",
     "defaultHomeTeamPlaceholder": "t.ex. Sorgenfri FF",
     "defaultHomeTeamHelp": "När det är angivet visas ett filterkort i matchlistan för hemmamatcher vars hemmalag börjar med detta namn (t.ex. Sorgenfri FF matchar även Sorgenfri FF svart). Teams matchflik och Matches-statistik använder samma värde för hemma/borta och klubbresultat.",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "statistics": {
       "title": "Matchstatistik",
+      "embeddedDescription": "Översikt av kommande matcher och schema.",
+      "overview": "Översikt",
       "description": "Resultat för räknade matcher (med resultat; inställda och uppskjutna exkluderas). Poäng: 3 för vinst, 1 för oavgjort.",
       "club": "Klubb",
       "byTeam": "Per lag",
@@ -377,6 +395,7 @@
     "statusDatePassed": "Datum passerat",
     "openMatch": "Öppna match",
     "quickContext": {
+      "title": "Snabbkontext",
       "openFullProfile": "Öppna hela matchen",
       "contacts": "Kontakter"
     },
@@ -431,6 +450,13 @@
     "dateTimePlaceholder": "Datum och tid",
     "dateTimeClear": "Rensa datum och tid",
     "activity": "Aktivitet",
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "contacts": "Kontakter",
+      "linked": "Länkat",
+      "linkedEmpty": "Inga slots kopplade till den här matchen än."
+    },
     "relatedSlots": "Slots",
     "noRelatedSlots": "Inga slots kopplade till den här matchen än",
     "open": "Öppna",
@@ -525,6 +551,19 @@
       "withTags": "Med taggar",
       "timeLogged": "Tid loggad"
     },
+    "statistics": {
+      "title": "Kontaktstatistik",
+      "description": "Översikt av företag, privata kontakter, taggar och loggad tid.",
+      "overview": "Översikt",
+      "typeMix": "Företag vs privat",
+      "typeMixAria": "Andel företag och privata kontakter"
+    },
+    "filter": "Filter",
+    "sort": "Sortering",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "noMatch": "Inga kontakter matchar sökningen.",
     "noYet": "Inga kontakter ännu",
     "addContact": "Lägg till kontakt",
@@ -540,7 +579,9 @@
     "personEmail": "E-post",
     "personPhone": "Telefon",
     "invoiceReferenceBadge": "Fakturareferens",
-    "contactPersonsInvoiceReferenceHint": "Första personen används som kundreferens på fakturan.",
+    "invoiceReferenceCheckboxLabel": "Använd på fakturor",
+    "invoiceReferenceCheckbox": "Använd {{name}} som kundreferens på faktura",
+    "contactPersonsInvoiceReferenceHint": "Välj vilken person som används som kundreferens på fakturan.",
     "settings": "Inställningar",
     "settingsContacts": "Kontakter – Inställningar",
     "grid": "Rutnät",
@@ -571,6 +612,13 @@
     "activity": "Aktivitet",
     "contactContent": "Kontaktinnehåll",
     "contactProperties": "Kontaktegenskaper",
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "addresses": "Adresser",
+      "persons": "Kontaktpersoner",
+      "linked": "Kopplat"
+    },
     "relatedTeams": "Lag",
     "relatedTasks": "Uppgifter",
     "relatedSlots": "Slots",
@@ -667,6 +715,8 @@
     "quickContext": {
       "eyebrow": "Vald kontakt",
       "title": "Snabbkontext",
+      "emptyTitle": "Ingen kontakt vald",
+      "emptyHint": "Välj en kontakt i listan för att se detaljer här.",
       "openFullProfile": "Öppna full profil",
       "addTag": "Lägg till tagg...",
       "noMoreTags": "Inga fler taggar att lägga till",
@@ -710,6 +760,18 @@
       "completed": "Klara",
       "overdue": "Försenade"
     },
+    "statistics": {
+      "title": "Uppgiftsstatistik",
+      "description": "Översikt av öppna, klara och försenade uppgifter.",
+      "overview": "Översikt",
+      "workloadMix": "Öppna vs klara",
+      "workloadMixAria": "Andel öppna, klara och försenade uppgifter"
+    },
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "quickAdd": "Snabb uppgift",
     "quickAddPlaceholder": "Skapa snabb uppgift...",
     "addTask": "Lägg till uppgift",
@@ -737,6 +799,13 @@
     "exportOptions": "Exportalternativ",
     "activity": "Aktivitet",
     "taskContent": "Uppgiftsinnehåll",
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "assignees": "Ansvariga",
+      "linked": "Kopplat",
+      "linkedEmpty": "Inga nämnda kontakter ännu."
+    },
     "quickEditDiscardMessage": "Du har osparade ändringar i status, prioritet, förfallodatum eller ansvariga. Vill du kasta dem?",
     "assignee": "Ansvarig",
     "noAssigneesYet": "Inga ansvariga ännu.",
@@ -788,6 +857,25 @@
   },
   "notes": {
     "listDescription": "Samla idéer med omnämnanden och sammanhang.",
+    "stats": {
+      "total": "Totalt",
+      "withMentions": "Med omnämnanden",
+      "withoutMentions": "Utan omnämnanden",
+      "withContent": "Med innehåll",
+      "recentlyUpdated": "Uppdaterade 7d"
+    },
+    "statistics": {
+      "title": "Anteckningsstatistik",
+      "description": "Översikt av omnämnanden, innehåll och senaste uppdateringar.",
+      "overview": "Översikt",
+      "mentionsMix": "Anteckningar med omnämnanden",
+      "mentionsMixAria": "Andel anteckningar med och utan omnämnanden"
+    },
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "searchPlaceholder": "Sök {{count}} anteckningar...",
     "noMatch": "Inga anteckningar matchar sökningen.",
     "noYet": "Inga anteckningar ännu",
@@ -879,6 +967,13 @@
     "subtitleEdit": "Uppdatera fakturainformation",
     "subtitleCreate": "Ange nya fakturauppgifter",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "lines": "Rader",
+      "payments": "Betalningar",
+      "linked": "Länkade",
+      "linkedEmpty": "Ingen länkad kontakt ännu."
+    },
     "quickActions": "Snabbåtgärder",
     "exportOptions": "Exportalternativ",
     "relations": "Relationer",
@@ -983,7 +1078,15 @@
     "revokeShare": "Återkalla",
     "shareDialogTitle": "Dela faktura",
     "shareDialogHelp": "Alla med den här länken kan visa faktura {{label}}.",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "quickContext": {
+      "title": "Snabbkontext",
+      "emptyTitle": "Ingen faktura vald",
+      "emptyHint": "Välj en faktura i listan för att se detaljer här.",
       "openFull": "Öppna hela fakturan"
     },
     "table": {
@@ -1019,7 +1122,8 @@
   "estimates": {
     "listDescription": "Skapa, skicka och följ offerter till godkännande.",
     "settingsTitle": "Offerter – Inställningar",
-    "settingsSubtitle": "Hantera tabellkolumner för offertlistan.",
+    "settingsSubtitle": "Offertinställningar visas här när de finns.",
+    "settingsEmpty": "Inga inställningskategorier ännu. Listkolumner är fasta i kod (endast offertnummer).",
     "settingsCategories": {
       "columns": "Tabellkolumner",
       "columnsDescription": "Välj vilka kolumner som visas i offerttabellen och i vilken ordning.",
@@ -1053,6 +1157,12 @@
     "activity": "Aktivitet",
     "pricingSummary": "Prisöversikt",
     "lineItemsCount": "Rader ({{count}})",
+    "tabs": {
+      "properties": "Egenskaper",
+      "lines": "Rader",
+      "notes": "Anteckningar",
+      "notesEmpty": "Inga anteckningar ännu."
+    },
     "quickInfo": {
       "items": "Rader",
       "itemsCount_one": "{{count}} rad",
@@ -1072,6 +1182,26 @@
     "table": {
       "number": "Nummer",
       "total": "Totalt"
+    },
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "filter": {
+      "total": "Totalt",
+      "draft": "Utkast",
+      "sent": "Skickad",
+      "accepted": "Godkänd"
+    },
+    "statistics": {
+      "title": "Offertstatistik",
+      "description": "Översikt av utkast, skickade och godkända offerter.",
+      "overview": "Översikt",
+      "total": "Totalt",
+      "draft": "Utkast",
+      "sent": "Skickad",
+      "accepted": "Godkänd"
     }
   },
   "ingest": {
@@ -1113,6 +1243,12 @@
     "running": "Hämtar…",
     "openUrl": "Öppna URL",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "excerpt": "Utdrag",
+      "runs": "Hämtningshistorik",
+      "excerptEmpty": "Inget utdrag ännu. Kör en hämtning för att se senaste resultatet."
+    },
     "lastFetch": "Senast hämtad",
     "lastStatus": "Senaste status",
     "runsTitle": "Hämtningshistorik",
@@ -1128,6 +1264,29 @@
     "columns2": "2 kolumner",
     "columns3": "3 kolumner",
     "columnsLabel": "Kolumner",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "stats": {
+      "total": "Totalt",
+      "success": "Lyckade",
+      "failed": "Misslyckade"
+    },
+    "quickContext": {
+      "title": "Källdetaljer"
+    },
+    "statistics": {
+      "title": "Ingest-statistik",
+      "description": "Översikt av källor, aktiv status och innehållstyper.",
+      "overview": "Översikt",
+      "types": "Källtyper",
+      "activeMix": "Aktiva vs inaktiva",
+      "activeMixAria": "Andel aktiva och inaktiva ingest-källor",
+      "typeMix": "Källor per typ",
+      "typeMixAria": "Fördelning av ingest-källor per innehållstyp"
+    },
     "errors": {
       "nameRequired": "Namn krävs",
       "urlRequired": "URL krävs",
@@ -1290,6 +1449,10 @@
     "selectClubdesk": "Markera guide",
     "unselectClubdesk": "Avmarkera guide",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "steps": "Steg"
+    },
     "quickActions": "Snabbåtgärder",
     "activity": "Aktivitet",
     "notVisiblePublic": "Syns inte på kiosken",
@@ -1303,6 +1466,13 @@
     "sortBy": "Sortera efter",
     "sortAsc": "Sortera stigande",
     "sortDesc": "Sortera fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "quickContext": {
+      "title": "Guidedetaljer",
+      "emptyTitle": "Ingen guide vald",
+      "emptyHint": "Välj en guide i listan för att se detaljer här."
+    },
     "sort": {
       "updated": "Uppdaterad",
       "title": "Titel",
@@ -1346,6 +1516,11 @@
     },
     "settingsSubtitle": "Hantera listvy och kategorier.",
     "priceList": {
+      "tabs": {
+        "information": "Information",
+        "items": "Artiklar",
+        "currency": "Valuta"
+      },
       "listDescription": "Skapa och hantera prislistor för clubdesk-kiosken.",
       "searchPlaceholder": "Sök bland {{count}} prislistor...",
       "noMatch": "Inga träffar",
@@ -1394,6 +1569,7 @@
       "moveItemDown": "Flytta artikel ner",
       "copyItem": "Kopiera artikel",
       "removeItem": "Ta bort artikel",
+      "removeItemConfirm": "Ta bort den här artikeln från prislistan?",
       "itemTitleRequired": "Artikel {{number}} behöver en titel",
       "publishNeedsItems": "Lägg till minst en artikel innan publicering.",
       "itemCount_one": "{{count}} artikel",
@@ -1407,7 +1583,17 @@
       "deleteFailed": "Kunde inte ta bort prislistan.",
       "deleteConfirmThis": "Är du säker på att du vill ta bort den här prislistan?",
       "deleteConfirmNamed": "Är du säker på att du vill ta bort \"{{name}}\"?",
-      "showingCount": "Visar {{shown}} av {{total}} prislistor"
+      "showingCount": "Visar {{shown}} av {{total}} prislistor",
+      "sort": "Sortera",
+      "sortAsc": "Sortera stigande",
+      "sortDesc": "Sortera fallande",
+      "collapseToolbar": "Dölj verktygsfält",
+      "expandToolbar": "Visa verktygsfält",
+      "quickContext": {
+        "title": "Snabbkontext",
+        "emptyTitle": "Ingen prislista vald",
+        "emptyHint": "Välj en prislista i listan för att se detaljer här."
+      }
     },
     "siteContent": {
       "subtitle": "Texter och kort för den publika Clubdesk-appen.",
@@ -1539,6 +1725,12 @@
     "colUpdated": "Uppdaterad",
     "colCreated": "Skapad",
     "details": "Detaljer",
+    "tabs": {
+      "details": "Detaljer",
+      "presentations": "Presentationer",
+      "review": "Granskning",
+      "reviewEmpty": "Ingen produktionsgranskning pågår."
+    },
     "information": {
       "title": "Information",
       "generatedLanguages": "Genererad på",
@@ -1950,6 +2142,22 @@
     "filterImages": "Bilder",
     "filterWithSize": "Med storlek",
     "filterUpdated7d": "Uppdaterad 7d",
+    "sortLabel": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "quickContext": {
+      "title": "Fildetaljer"
+    },
+    "statistics": {
+      "title": "Filstatistik",
+      "description": "Översikt av filtyper, storlekar och senaste uppladdningar.",
+      "overview": "Översikt",
+      "mimeMix": "Bilder vs övriga filer",
+      "mimeMixAria": "Andel bildfiler jämfört med andra filtyper",
+      "otherFiles": "Övriga filer"
+    },
     "sort": {
       "updatedAt": "Uppdaterad",
       "name": "Namn",
@@ -1984,7 +2192,7 @@
     "providerCount": "{{count}} leverantörer · {{status}}",
     "settingsButton": "Inställningar",
     "refresh": "Uppdatera",
-    "historyTitle": "Skickad mail-historik",
+    "historyTitle": "Mail – Skickat",
     "total": "Totalt",
     "emptyHistory": "Inga skickade e-postmeddelanden än. Mail skickas från andra plugins (t.ex. Kontakter eller Slots).",
     "date": "Datum",
@@ -2028,6 +2236,13 @@
     "addProvider": "Lägg till leverantör",
     "backToProviders": "Leverantörer",
     "historyDescription": "Följ e-posttrafik från plugins.",
+    "history": {
+      "categories": {
+        "all": "Alla",
+        "withSource": "Med källa",
+        "today": "Idag"
+      }
+    },
     "showingHistoryCount": "Visar {{visible}} av {{total}} e-postmeddelanden",
     "createSubtitle": "Konfigurera en e-postleverantör",
     "providerType": "Leverantörstyp",
@@ -2047,12 +2262,31 @@
     "quickActions": "Snabbåtgärder",
     "information": "Information",
     "sectionDetails": "Konfiguration",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Konfiguration",
+      "test": "Test",
+      "testEmpty": "Ange en adress för att skicka ett testmejl."
+    },
     "enabled": "Aktiverad",
     "enabledHint": "Inaktiverade leverantörer kan inte väljas i routing.",
     "secretHint": "Lämna oförändrat för att behålla det sparade värdet. Rensa och spara för att ta bort.",
     "searchProviders": "Sök leverantörer ({{count}})",
     "showingCount": "Visar {{visible}} av {{total}} leverantörer",
     "openProvider": "Öppna {{provider}}",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "statistics": {
+      "title": "E-postleverantör — statistik",
+      "description": "Översikt av aktiverade, inaktiverade och konfigurerade leverantörer.",
+      "overview": "Översikt"
+    },
+    "quickContext": {
+      "title": "Leverantörsdetaljer"
+    },
     "columns1": "1 kolumn",
     "columns2": "2 kolumner",
     "columns3": "3 kolumner",
@@ -2072,10 +2306,15 @@
     },
     "routing": {
       "open": "Routing",
-      "title": "Routing för e-postleverantörer",
+      "title": "Mail – Routing",
       "description": "Ange en global standardleverantör och valfria per-plugin-overrides. Bara e-postkapabla leverantörer visas här.",
+      "categories": {
+        "global": "Global standard",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global standard",
       "globalHint": "Används av alla plugins utan egna overrides. Bara konfigurerade och aktiverade e-postleverantörer är tillgängliga.",
+      "pluginsHint": "Valfritt. När det är satt använder pluginet sin tilldelade leverantör i stället för global standard.",
       "provider": "Leverantör",
       "plugin": "Plugin",
       "pluginsTitle": "Per-plugin overrides",
@@ -2097,8 +2336,15 @@
     "notConfigured": "Ej konfigurerad",
     "settingsButton": "Inställningar",
     "refresh": "Uppdatera",
-    "historyTitle": "SMS-historik",
+    "historyTitle": "Pulse – Skickade SMS",
     "historyDescription": "Följ SMS och meddelanden från plugins.",
+    "history": {
+      "categories": {
+        "all": "Alla",
+        "failed": "Misslyckade",
+        "today": "Idag"
+      }
+    },
     "backToProviders": "Leverantörer",
     "total": "Totalt",
     "emptyHistory": "Inga SMS skickade än. SMS kan skickas från andra plugins när Pulse är konfigurerat.",
@@ -2153,6 +2399,12 @@
     "quickActions": "Snabbåtgärder",
     "information": "Information",
     "sectionDetails": "Konfiguration",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Konfiguration",
+      "test": "Test",
+      "testEmpty": "Ange ett nummer för att skicka ett test-SMS."
+    },
     "enabled": "Aktiverad",
     "enabledHint": "Inaktiverade leverantörer kan inte väljas i routing.",
     "secretHint": "Lämna oförändrat för att behålla sparat värde. Rensa och spara för att ta bort det.",
@@ -2160,6 +2412,19 @@
     "searchProviders": "Sök leverantörer ({{count}})",
     "showingCount": "Visar {{visible}} av {{total}} leverantörer",
     "openProvider": "Öppna {{provider}}",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "statistics": {
+      "title": "SMS-leverantör — statistik",
+      "description": "Översikt av aktiverade, inaktiverade och konfigurerade leverantörer.",
+      "overview": "Översikt"
+    },
+    "quickContext": {
+      "title": "Leverantörsdetaljer"
+    },
     "columns1": "1 kolumn",
     "columns2": "2 kolumner",
     "columns3": "3 kolumner",
@@ -2190,10 +2455,15 @@
     },
     "routing": {
       "open": "Routing",
-      "title": "SMS provider routing",
+      "title": "Pulse – Routing",
       "description": "Set a global default SMS provider and optional per-plugin overrides. Only SMS-capable providers appear here.",
+      "categories": {
+        "global": "Global standard",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global default",
-      "globalHint": "Used by any plugin without its own override.",
+      "globalHint": "Used by any plugin without its own override. Only configured and enabled SMS providers are available.",
+      "pluginsHint": "Optional. When set, a plugin uses its assigned provider instead of the global default.",
       "provider": "Provider",
       "plugin": "Plugin",
       "pluginsTitle": "Per-plugin overrides",
@@ -2232,11 +2502,30 @@
     "deleteConfirm": "Ta bort konfigurationen för {{provider}}? Detta kan inte ångras.",
     "deleteError": "Kunde inte ta bort leverantören",
     "filterAll": "Totalt",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "quickContext": {
+      "title": "Leverantörsdetaljer"
+    },
+    "statistics": {
+      "title": "Statistik för AI-leverantörer",
+      "description": "Översikt av aktiverade, inaktiverade och konfigurerade leverantörer.",
+      "overview": "Översikt"
+    },
     "colProvider": "Leverantör",
     "colStatus": "Status",
     "providerKey": "Nyckel",
     "quickActions": "Snabbåtgärder",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "configuration": "Konfiguration",
+      "test": "Testa anslutning",
+      "testEmpty": "Inget testresultat ännu. Använd Testa anslutning i headeråtgärderna."
+    },
     "sectionDetails": "Konfiguration",
     "showingCount": "Visar {{visible}} av {{total}} leverantörer",
     "columns1": "1 kolumn",
@@ -2258,8 +2547,12 @@
     "saveError": "Kunde inte spara inställningar",
     "routing": {
       "open": "Routing",
-      "title": "Provider-routing",
+      "title": "AI-leverantörer – Routing",
       "description": "Ange en global standardleverantör och valfria plugin-överskridanden. Plugins begär AI via routing — aldrig direkt mot en specifik leverantör.",
+      "categories": {
+        "global": "Global standard",
+        "plugins": "Per-plugin"
+      },
       "globalTitle": "Global standard",
       "globalHint": "Används av plugins utan egen överskridning. Endast konfigurerade och aktiverade leverantörer är tillgängliga.",
       "pluginsTitle": "Plugin-överskridanden",
@@ -2371,8 +2664,23 @@
     "addCup": "Lägg till cup",
     "importFromIngest": "Importera från Ingest",
     "searchPlaceholder": "Sök cuper ({{count}})",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "noMatch": "Inga cuper matchar din sökning.",
     "noYet": "Inga cuper ännu",
+    "stats": {
+      "total": "Totalt",
+      "visible": "Synliga",
+      "featured": "Utvalda",
+      "upcoming": "Kommande",
+      "removed": "Borttagna"
+    },
+    "quickContext": {
+      "title": "Snabbkontext"
+    },
     "columnName": "Namn",
     "columnOrganizer": "Arrangör",
     "columnVisible": "Synlig",
@@ -2388,6 +2696,12 @@
     "propertySanctioned": "Sanktionerad",
     "propertyFeatured": "Utvald",
     "cupProperties": "Egenskaper",
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "ratings": "Betyg",
+      "ingest": "Ingest"
+    },
     "quickEditDiscardMessage": "Du har osparade ändringar i cup-egenskaper. Vill du kasta dem?",
     "heroImageView": "Hjältebild (publik sajt)",
     "heroImageNone": "Ingen bild uppladdad — Cupappen använder standardfoto på utvalda kort.",
@@ -2427,6 +2741,9 @@
     },
     "statistics": {
       "title": "Cupappen-statistik",
+      "overview": "Översikt",
+      "embeddedDescription": "Översikt av cuper efter synlighet, utvald status och kommande datum.",
+      "openFull": "Öppna Cupappen-statistik",
       "description": "Första-parts sidvisningar från Cupappen (cup-detalj och distriktssidor). Riktningsgivande — inte Google Analytics.",
       "loading": "Laddar statistik…",
       "loadError": "Kunde inte ladda statistik.",
@@ -2472,6 +2789,11 @@
     "bulkAgeGroupPlaceholder": "Åldersgrupp",
     "searchPlaceholder": "Sök lag ({{count}})",
     "filterAll": "Alla",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
     "noMatchTitle": "Inga lag hittades",
     "noMatch": "Prova ett annat filter eller sök.",
     "noYet": "Inga lag ännu",
@@ -2721,6 +3043,7 @@
     },
     "statistics": {
       "title": "Lagstatistik",
+      "embeddedDescription": "Översikt av lagstatus och truppstorlek.",
       "overview": "Lagöversikt",
       "totalTeams": "Totalt antal lag",
       "active": "Aktiva",
@@ -2914,6 +3237,21 @@
     "statCompleted": "Avslutade",
     "statExternal": "Externa",
     "statNotRelated": "Ej kopplad",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "statistics": {
+      "title": "Ärendestatistik",
+      "description": "Översikt av öppna, avslutade, okopplade och externa ärenden.",
+      "overview": "Översikt",
+      "statusMix": "Statusfördelning",
+      "statusMixAria": "Andel aktiva, avslutade och avbrutna ärenden"
+    },
+    "quickContext": {
+      "title": "Snabbkontext"
+    },
     "dashboardOpen": "{{count}} öppna",
     "dashboardExternal": "{{count}} externa",
     "sourceExternal": "Externt",
@@ -2999,6 +3337,12 @@
       "sendToListError": "Kunde inte skicka till listan. Försök igen.",
       "openTargetList": "Öppna lista",
       "unknownList": "Lista #{{id}}"
+    },
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "assignees": "Tilldelade",
+      "files": "Filer"
     },
     "settings": {
       "title": "Ärendeinställningar",
@@ -3361,6 +3705,20 @@
     "searchLists": "Sök listor...",
     "searchInventory": "Sök inventarie...",
     "sortBy": "Sortera efter",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "statistics": {
+      "title": "Klädstatistik",
+      "description": "Översikt av listor, inventarie och tilldelningar.",
+      "overview": "Översikt",
+      "listCount": "Listor",
+      "inventoryCount": "Inventarieartiklar",
+      "assignedInventory": "Tilldelade till listor",
+      "totalPersons": "Personer totalt"
+    },
     "columnsAria": "{{count}} kolumner",
     "noSearchResults": "Inga träffar.",
     "noListsYet": "Inga klädlistor ännu.",

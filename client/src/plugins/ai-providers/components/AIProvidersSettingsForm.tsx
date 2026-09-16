@@ -35,6 +35,8 @@ interface AIProvidersSettingsFormProps {
   onSave?: (data: Record<string, unknown>) => Promise<boolean>;
   onCancel?: () => void;
   onSaveSuccess?: () => void;
+  /** Single-column layout for list detail column (no sidebar column). */
+  stacked?: boolean;
 }
 
 function buildDraftForProvider(
@@ -58,7 +60,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
   PanelFormHandle,
   AIProvidersSettingsFormProps
 >(function AIProvidersSettingsForm(
-  { currentAIProvider: currentAIProviderProp, onSave, onCancel, onSaveSuccess },
+  { currentAIProvider: currentAIProviderProp, onSave, onCancel, onSaveSuccess, stacked = false },
   ref,
 ) {
   const { t } = useTranslation();
@@ -283,7 +285,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
 
   return (
     <div className="plugin-ai-providers">
-      <DetailLayout sidebar={formSidebar}>
+      <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
         <div className="space-y-6">
           {error ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">

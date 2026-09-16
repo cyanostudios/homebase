@@ -1,8 +1,11 @@
 import {
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
   CheckSquare,
+  ChevronDown,
   LayoutGrid,
+  Menu,
   Plus,
   Settings,
   Shirt,
@@ -10,32 +13,32 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
-import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
-import {
-  useEffectiveCardColumnCount,
-  useEffectiveColumnCount,
-  useIsEffectiveTableView,
-} from '@/core/list/effectiveListViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
+  DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
@@ -43,24 +46,24 @@ import {
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
+import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { pathToNavPage } from '@/core/routing/routeMap';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
+import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
+import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
+import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useGarments } from '../hooks/useGarments';
 import type { GarmentList as GarmentListModel, InventoryItem } from '../types/garments';
-import {
-  getInitialGarmentColumnCount,
-  resolveGarmentColumnCount,
-  settingsHasGarmentColumnPreference,
-  GARMENTS_COLUMN_COUNT_STORAGE_KEY,
-  GARMENTS_SETTINGS_KEY,
-  type GarmentColumnCount,
-} from '../utils/garmentColumnCount';
+import { GARMENTS_SETTINGS_KEY } from '../utils/garmentColumnCount';
 import {
   countInventoryItemsWithTag,
   garmentListMatchesSearch,
@@ -78,18 +81,12 @@ import {
   type InventorySortField,
 } from '../utils/garmentListSort';
 import {
-  getInitialGarmentListViewMode,
-  isGarmentListViewMode,
-  persistGarmentListViewModeSession,
-  resolveGarmentListViewMode,
-  type GarmentListViewMode,
-} from '../utils/garmentListViewMode';
-import {
   resolveVisibleInventoryTableColumns,
   type InventoryTableColumnId,
 } from '../utils/inventoryTableColumns';
 
-import { GarmentListItem } from './GarmentListItem';
+import { GarmentForm } from './GarmentForm';
+import { GarmentListTable } from './GarmentListTable';
 import {
   GarmentsInventorySettingsView,
   type GarmentsInventorySettingsCategory,
@@ -98,20 +95,11 @@ import {
   GarmentsListsSettingsView,
   type GarmentsListsSettingsCategory,
 } from './GarmentsListsSettingsView';
+import { GarmentsStatisticsView } from './GarmentsStatisticsView';
+import { GarmentView } from './GarmentView';
 import { InventoryBulkListsDialog } from './InventoryBulkListsDialog';
 import { InventoryBulkTagsDialog } from './InventoryBulkTagsDialog';
-import { GarmentListTable } from './GarmentListTable';
-import { InventoryListItem } from './InventoryListItem';
 import { InventoryListTable } from './InventoryListTable';
-import { InventoryQuickContextPanel } from './InventoryQuickContextPanel';
-import {
-  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
-  PLUGIN_PAGE_LIST_SHELL_CLASS,
-  PLUGIN_PAGE_SECTION_GAP_CLASS,
-  PLUGIN_PAGE_TITLE_CLASS,
-  PLUGIN_PAGE_TITLE_ROW_CLASS,
-} from '@/core/ui/pluginPageStyles';
-import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 
 const LIST_SORT_OPTIONS: { value: GarmentSortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'common.updated' },
@@ -128,6 +116,8 @@ const INVENTORY_SORT_OPTIONS: { value: InventorySortField; labelKey: string }[] 
   { value: 'variantCount', labelKey: 'garments.variantCount' },
 ];
 
+const GARMENTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.garments.toolbar.filtersVisible';
+
 export const GarmentList: React.FC = () => {
   const { t } = useTranslation();
   const {
@@ -137,9 +127,6 @@ export const GarmentList: React.FC = () => {
     openGarmentForView,
     openInventoryPanel,
     openInventoryForView,
-    openInventoryForEdit,
-    updateInventoryVariantQuantity,
-    isSaving,
     deleteGarments,
     deleteInventoryItems,
     assignInventoryItemToList,
@@ -151,13 +138,25 @@ export const GarmentList: React.FC = () => {
     garmentsContentView,
     openGarmentsSettings,
     closeGarmentsSettingsView,
+    isGarmentPanelOpen,
+    panelMode,
+    panelKind,
+    currentGarment,
+    currentInventoryItem,
+    saveGarment,
+    closeGarmentPanel,
+    validationErrors,
+    refreshGarmentList,
   } = useGarments();
   const location = useLocation();
   const garmentsNavPage = pathToNavPage(location.pathname);
-  const { getSettings, updateSettings, settingsVersion } = useApp();
+  const { getSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const isInventory = garmentsNavPage === 'garments-inventory';
+
+  const isCompactViewport = useMediaQuery('(max-width: 1023px)');
+  const showDesktopSplit = !isCompactViewport;
 
   const [inventorySettingsCategory, setInventorySettingsCategory] =
     useState<GarmentsInventorySettingsCategory>('tags');
@@ -176,16 +175,11 @@ export const GarmentList: React.FC = () => {
     onChange: setSearchTerm,
     placeholder: isInventory ? t('garments.searchInventory') : t('garments.searchLists'),
   });
+
   const [selectionMode, setSelectionMode] = useState(false);
   const [listSort, setListSort] = useState<GarmentSortField>('name');
   const [inventorySort, setInventorySort] = useState<InventorySortField>('articleName');
   const [sortOrder, setSortOrder] = useState<GarmentSortOrder>('asc');
-  const [columnCount, setColumnCountState] = useState<GarmentColumnCount>(
-    getInitialGarmentColumnCount,
-  );
-  const [listViewMode, setListViewModeState] = useState<GarmentListViewMode>(
-    getInitialGarmentListViewMode,
-  );
   const [visibleColumnIds, setVisibleColumnIds] = useState<InventoryTableColumnId[]>(() =>
     resolveVisibleInventoryTableColumns(null),
   );
@@ -196,30 +190,81 @@ export const GarmentList: React.FC = () => {
   const [showBulkListsDialog, setShowBulkListsDialog] = useState(false);
   const [showBulkTagsDialog, setShowBulkTagsDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [previewList, setPreviewList] = useState<GarmentListModel | null>(null);
+  const [previewInventory, setPreviewInventory] = useState<InventoryItem | null>(null);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
+  const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
+    GARMENTS_FILTERS_VISIBLE_STORAGE_KEY,
+  );
+  const pageShellRef = useRef<HTMLDivElement>(null);
+  const inlineFormRef = useRef<PanelFormHandle | null>(null);
+  const [toolbarToggleBox, setToolbarToggleBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
-  const {
-    previewItem: previewInventory,
-    setPreviewItem: setPreviewInventory,
-    showQuickContext,
-    markPendingAndOpen,
-    activateRow,
-  } = useQuickContextPreview({
-    storeKey: 'garments-inventory',
-    items: inventoryItems,
-    getItemId: (item) => String(item.id),
-  });
+  const modeMatchesPanel =
+    (isInventory && panelKind === 'inventory') || (!isInventory && panelKind === 'list');
+  const inlineForm =
+    showDesktopSplit &&
+    isGarmentPanelOpen &&
+    modeMatchesPanel &&
+    (panelMode === 'create' || panelMode === 'edit');
+  const inlinePanelView =
+    showDesktopSplit && isGarmentPanelOpen && modeMatchesPanel && panelMode === 'view';
+  const detailList = inlinePanelView && panelKind === 'list' ? currentGarment : previewList;
+  const detailInventory =
+    inlinePanelView && panelKind === 'inventory' ? currentInventoryItem : previewInventory;
+  const detailOpen = Boolean(isInventory ? detailInventory : detailList);
+  const activeListItemId =
+    (inlineForm || inlinePanelView) && modeMatchesPanel
+      ? isInventory
+        ? (currentInventoryItem?.id ?? null)
+        : (currentGarment?.id ?? null)
+      : isInventory
+        ? (previewInventory?.id ?? null)
+        : (previewList?.id ?? null);
+
+  const updateToolbarToggleBox = useCallback(() => {
+    const el = pageShellRef.current;
+    if (!el) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const sidebarToggle = document.querySelector<HTMLElement>('[aria-controls="left-sidebar-nav"]');
+    const sidebarTop = sidebarToggle?.getBoundingClientRect().top;
+    setToolbarToggleBox({
+      top: typeof sidebarTop === 'number' ? sidebarTop : rect.top + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    updateToolbarToggleBox();
+    window.addEventListener('resize', updateToolbarToggleBox);
+    const scrollParent = pageShellRef.current?.closest('.overflow-y-auto, .overflow-auto');
+    scrollParent?.addEventListener('scroll', updateToolbarToggleBox, { passive: true });
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateToolbarToggleBox) : null;
+    if (pageShellRef.current && ro) {
+      ro.observe(pageShellRef.current);
+    }
+    return () => {
+      window.removeEventListener('resize', updateToolbarToggleBox);
+      scrollParent?.removeEventListener('scroll', updateToolbarToggleBox);
+      ro?.disconnect();
+    };
+  }, [updateToolbarToggleBox]);
 
   useEffect(() => {
     setSelectedIds([]);
     setSearchTerm('');
     setInventoryTagFilter(null);
-  }, [garmentsNavPage]);
-
-  useEffect(() => {
-    if (!isInventory) {
-      setPreviewInventory(null);
-    }
-  }, [isInventory, setPreviewInventory]);
+    setPreviewList(null);
+    setPreviewInventory(null);
+  }, [garmentsNavPage, setSearchTerm]);
 
   useEffect(() => {
     if (inventoryTagFilter && !availableTags.includes(inventoryTagFilter)) {
@@ -236,27 +281,6 @@ export const GarmentList: React.FC = () => {
         }
         setAvailableTags(normalizeInventoryTags(settings?.tags));
         setVisibleColumnIds(resolveVisibleInventoryTableColumns(settings));
-        const hasColumnPref = settingsHasGarmentColumnPreference(settings);
-        const hasListViewPref = isGarmentListViewMode(settings?.listViewMode);
-        if (!hasColumnPref && !hasListViewPref) {
-          return;
-        }
-        if (hasColumnPref) {
-          const resolved = resolveGarmentColumnCount(settings);
-          const next = (resolved === 1 || resolved === 2 ? 3 : resolved) as GarmentColumnCount;
-          setColumnCountState(next);
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.setItem(GARMENTS_COLUMN_COUNT_STORAGE_KEY, String(next));
-          }
-          if (next !== resolved) {
-            updateSettings(GARMENTS_SETTINGS_KEY, { columnCount: next }).catch(() => {});
-          }
-        }
-        if (hasListViewPref) {
-          const nextView = resolveGarmentListViewMode(settings);
-          setListViewModeState(nextView);
-          persistGarmentListViewModeSession(nextView);
-        }
       })
       .catch(() => {});
     return () => {
@@ -264,30 +288,95 @@ export const GarmentList: React.FC = () => {
     };
   }, [getSettings, settingsVersion]);
 
-  const setColumnCount = useCallback(
-    (_count: GarmentColumnCount) => {
-      const next = 3 as GarmentColumnCount;
-      setColumnCountState(next);
-      setListViewModeState('cards');
-      persistGarmentListViewModeSession('cards');
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(GARMENTS_COLUMN_COUNT_STORAGE_KEY, String(next));
+  useEffect(() => {
+    if (isInventory) {
+      if (!previewInventory) {
+        return;
       }
-      updateSettings(GARMENTS_SETTINGS_KEY, { columnCount: next, listViewMode: 'cards' }).catch(
-        () => {},
-      );
-    },
-    [updateSettings],
-  );
+      const next = inventoryItems.find((item) => String(item.id) === String(previewInventory.id));
+      if (!next) {
+        setPreviewInventory(null);
+        return;
+      }
+      if (next !== previewInventory) {
+        setPreviewInventory(next);
+      }
+      return;
+    }
+    // Keep previewList in sync with index updates for the SAME id only.
+    // Never copy persons/checkboxColumns from a previously selected list.
+    setPreviewList((current) => {
+      if (!current) {
+        return current;
+      }
+      const next = garmentLists.find((list) => String(list.id) === String(current.id));
+      if (!next) {
+        return null;
+      }
+      if (next === current) {
+        return current;
+      }
+      if (Array.isArray(next.persons)) {
+        return next;
+      }
+      if (!Array.isArray(current.persons)) {
+        return next;
+      }
+      return {
+        ...next,
+        persons: current.persons,
+        checkboxColumns:
+          (next.checkboxColumns?.length ?? 0) > 0 ? next.checkboxColumns : current.checkboxColumns,
+      };
+    });
+  }, [garmentLists, inventoryItems, isInventory, previewInventory]);
 
-  const setListViewMode = useCallback(
-    (mode: GarmentListViewMode) => {
-      setListViewModeState(mode);
-      persistGarmentListViewModeSession(mode);
-      updateSettings(GARMENTS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
-    },
-    [updateSettings],
-  );
+  // Soft-selected lists need a full getList payload for PersonMatrix (index omits persons).
+  // Refresh into garmentLists too so person PATCH/optimistic updates reach the preview.
+  useEffect(() => {
+    if (isInventory || !previewList?.id) {
+      return;
+    }
+    if (Array.isArray(previewList.persons)) {
+      return;
+    }
+    const listId = previewList.id;
+    let cancelled = false;
+    void refreshGarmentList(listId)
+      .then((full) => {
+        if (cancelled || !full) {
+          return;
+        }
+        setPreviewList((current) =>
+          current && String(current.id) === String(full.id) ? full : current,
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isInventory, previewList?.id, previewList?.persons, refreshGarmentList]);
+
+  useEffect(() => {
+    if (!showDesktopSplit || !isGarmentPanelOpen || !modeMatchesPanel) {
+      return;
+    }
+    if (panelMode === 'edit' || panelMode === 'view') {
+      if (isInventory && currentInventoryItem) {
+        setPreviewInventory(currentInventoryItem);
+      } else if (!isInventory && currentGarment) {
+        setPreviewList(currentGarment);
+      }
+    }
+  }, [
+    showDesktopSplit,
+    isGarmentPanelOpen,
+    modeMatchesPanel,
+    panelMode,
+    isInventory,
+    currentInventoryItem,
+    currentGarment,
+  ]);
 
   const handleListSortChange = (field: GarmentSortField) => {
     setListSort(field);
@@ -297,10 +386,6 @@ export const GarmentList: React.FC = () => {
   const handleInventorySortChange = (field: InventorySortField) => {
     setInventorySort(field);
     setSortOrder(isInventoryAscDefaultField(field) ? 'asc' : 'desc');
-  };
-
-  const toggleSortOrder = () => {
-    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
 
   const handleTableSortList = useCallback(
@@ -320,11 +405,6 @@ export const GarmentList: React.FC = () => {
     },
     [inventorySort, sortOrder],
   );
-
-  const isTableView = useIsEffectiveTableView(listViewMode);
-  const quickContextOpen = Boolean(showQuickContext && previewInventory);
-  const effectiveColumnCount = useEffectiveColumnCount(columnCount, { quickContextOpen });
-  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount, { quickContextOpen });
 
   const filteredLists = useMemo(() => {
     const filtered = garmentLists.filter((item) => garmentListMatchesSearch(item, searchTerm));
@@ -416,20 +496,55 @@ export const GarmentList: React.FC = () => {
     }
   };
 
-  const handleOpenList = (list: GarmentListModel) => {
-    attemptNavigation(() => openGarmentForView(list));
-  };
-
   const handleListRowActivate = (list: GarmentListModel) => {
+    if (isCompactViewport) {
+      attemptNavigation(() => openGarmentForView(list));
+      return;
+    }
     if (selectionMode) {
       toggleOne(String(list.id));
       return;
     }
-    handleOpenList(list);
+    if (isGarmentPanelOpen && modeMatchesPanel) {
+      if (panelMode === 'view' && currentGarment && String(currentGarment.id) === String(list.id)) {
+        attemptNavigation(() => {
+          closeGarmentPanel();
+          setPreviewList(null);
+        });
+        return;
+      }
+      attemptNavigation(() => openGarmentForView(list));
+      return;
+    }
+    // Lists need a full getList payload (PersonMatrix). Soft-select a stub without
+    // persons, then hydrate — never reuse another list's persons array.
+    setPreviewList((current) => {
+      if (current && String(current.id) === String(list.id)) {
+        return null;
+      }
+      return { ...list, persons: undefined };
+    });
   };
 
-  const handleOpenInventoryForView = (item: InventoryItem) => {
-    markPendingAndOpen(item, () => attemptNavigation(() => openInventoryForView(item)));
+  const handleInventoryRowActivate = (item: InventoryItem) => {
+    if (isCompactViewport) {
+      attemptNavigation(() => openInventoryForView(item));
+      return;
+    }
+    if (selectionMode) {
+      toggleOne(String(item.id));
+      return;
+    }
+    if (isGarmentPanelOpen && modeMatchesPanel) {
+      attemptNavigation(() => {
+        closeGarmentPanel();
+        setPreviewInventory(item);
+      });
+      return;
+    }
+    setPreviewInventory((current) =>
+      current && String(current.id) === String(item.id) ? null : item,
+    );
   };
 
   const handleEnterSelectionMode = () => {
@@ -441,13 +556,26 @@ export const GarmentList: React.FC = () => {
     setSelectionMode(false);
   };
 
-  const handleRowActivate = (item: InventoryItem) => {
-    if (selectionMode) {
-      toggleOne(String(item.id));
+  const handleInlineFormSave = useCallback(async () => {
+    await inlineFormRef.current?.submit();
+  }, []);
+
+  const handleInlineFormClose = useCallback(() => {
+    if (inlineFormRef.current) {
+      inlineFormRef.current.cancel();
       return;
     }
-    activateRow(item, (next) => attemptNavigation(() => openInventoryForView(next)));
-  };
+    closeGarmentPanel();
+  }, [closeGarmentPanel]);
+
+  const handleInlineFormOnSave = useCallback(
+    async (data: Parameters<typeof saveGarment>[0]) => saveGarment(data),
+    [saveGarment],
+  );
+
+  const inlineFormHasBlockingErrors = validationErrors.some(
+    (e) => !String(e?.message || '').includes('Warning'),
+  );
 
   const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
     const disabled = selectedCount === 0;
@@ -481,6 +609,186 @@ export const GarmentList: React.FC = () => {
 
   const totalCount = isInventory ? inventoryItems.length : garmentLists.length;
   const filteredCount = isInventory ? filteredInventory.length : filteredLists.length;
+  const primarySort = isInventory ? inventorySort : listSort;
+  const sortOptions = isInventory ? INVENTORY_SORT_OPTIONS : LIST_SORT_OPTIONS;
+
+  const handlePrimarySortChange = (field: string) => {
+    if (isInventory) {
+      handleInventorySortChange(field as InventorySortField);
+    } else {
+      handleListSortChange(field as GarmentSortField);
+    }
+  };
+
+  const headerDropdownTriggerClass =
+    'gap-1.5 border-0 bg-primary/10 px-3.5 text-sm font-extrabold text-primary shadow-none hover:bg-primary hover:text-primary-foreground';
+
+  const headerDropdownTriggerDangerClass =
+    'gap-1.5 border-0 bg-red-600/10 px-3.5 text-sm font-extrabold text-red-700 shadow-none hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white';
+
+  const primarySortLabel =
+    sortOptions.find((option) => option.value === primarySort)?.labelKey ?? sortOptions[0].labelKey;
+
+  const renderSortDropdown = (triggerClassName: string) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('garments.sort', { defaultValue: 'Sort' })}
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          <span>{t('garments.sort', { defaultValue: 'Sort' })}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[14rem] rounded-xl border-border/50 shadow-xl"
+      >
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {t(primarySortLabel)}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={primarySort}
+          onValueChange={(value) => handlePrimarySortChange(value)}
+        >
+          {sortOptions.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              className="rounded-md text-xs"
+              onSelect={(event) => event.preventDefault()}
+            >
+              {t(option.labelKey)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+          {sortOrder === 'asc'
+            ? t('garments.sortAsc', { defaultValue: 'Ascending' })
+            : t('garments.sortDesc', { defaultValue: 'Descending' })}
+        </DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={sortOrder}
+          onValueChange={(value) => setSortOrder(value as GarmentSortOrder)}
+        >
+          <DropdownMenuRadioItem
+            value="asc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowUp className="mr-2 h-3.5 w-3.5" />
+            {t('garments.sortAsc', { defaultValue: 'Ascending' })}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="desc"
+            className="rounded-md text-xs"
+            onSelect={(event) => event.preventDefault()}
+          >
+            <ArrowDown className="mr-2 h-3.5 w-3.5" />
+            {t('garments.sortDesc', { defaultValue: 'Descending' })}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const renderBulkActionBar = (className?: string) =>
+    selectionMode ? (
+      <BulkActionRoundBar
+        selectedCount={selectedCount}
+        actions={bulkRoundActions}
+        size="xs"
+        className={cn('gap-1.5', className)}
+      />
+    ) : null;
+
+  const renderSelectControls = (triggerClassName: string) => {
+    if (filteredCount === 0) {
+      return null;
+    }
+
+    if (!selectionMode) {
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(headerDropdownTriggerClass, triggerClassName)}
+          aria-label={t('common.select')}
+          aria-pressed={false}
+          onClick={handleEnterSelectionMode}
+        >
+          <CheckSquare className="h-3.5 w-3.5" />
+          <span>{t('common.select')}</span>
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn(headerDropdownTriggerDangerClass, triggerClassName)}
+        aria-label={t('common.clear')}
+        aria-pressed={true}
+        onClick={handleExitSelectionMode}
+      >
+        <XCircle className="h-3.5 w-3.5" />
+        <span>{t('common.clear')}</span>
+      </Button>
+    );
+  };
+
+  const renderFilterChips = () => {
+    if (!isInventory) {
+      return null;
+    }
+
+    return (
+      <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setInventoryTagFilter(null)}
+          className={cn(
+            inventoryTagFilter == null ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+          )}
+        >
+          <LayoutGrid className="h-3.5 w-3.5" />
+          <span>
+            {t('garments.filterAll', { defaultValue: 'All' })}{' '}
+            <span className="tabular-nums font-semibold">({inventoryItems.length})</span>
+          </span>
+        </Button>
+        {availableTags.map((tag) => {
+          const isActive = inventoryTagFilter === tag;
+          return (
+            <Button
+              key={tag}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setInventoryTagFilter(isActive ? null : tag)}
+              className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+            >
+              <Tag className="h-3.5 w-3.5" />
+              <span>
+                {tag}{' '}
+                <span className="tabular-nums font-semibold">({inventoryTagCounts[tag] ?? 0})</span>
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
 
   if (garmentsContentView === 'settings') {
     return (
@@ -506,411 +814,306 @@ export const GarmentList: React.FC = () => {
     );
   }
 
+  const toolbarEdgeToggle =
+    typeof document !== 'undefined' && toolbarToggleBox
+      ? createPortal(
+          <div
+            className="pointer-events-none fixed z-40 hidden justify-center md:flex"
+            style={{
+              top: toolbarToggleBox.top,
+              left: toolbarToggleBox.left,
+              width: toolbarToggleBox.width,
+            }}
+          >
+            <div className="pointer-events-auto">
+              <RoundIconLabelButton
+                icon={Menu}
+                label={
+                  toolbarCollapsed
+                    ? t('garments.expandToolbar', { defaultValue: 'Show toolbar' })
+                    : t('garments.collapseToolbar', { defaultValue: 'Hide toolbar' })
+                }
+                variant={toolbarCollapsed ? 'primary' : 'secondary'}
+                size="xs"
+                expandOnHover={false}
+                className={
+                  toolbarCollapsed
+                    ? undefined
+                    : 'bg-white text-primary shadow-sm hover:bg-primary hover:text-primary-foreground dark:bg-white dark:text-primary dark:hover:bg-primary dark:hover:text-primary-foreground'
+                }
+                aria-expanded={!toolbarCollapsed}
+                aria-controls="garments-mail-toolbar"
+                onClick={toggleToolbarCollapsed}
+              />
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div className={cn('plugin-garments', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
-      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
-        <div className="hidden md:block">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex min-w-0 flex-1 flex-col gap-5">
-              <div className="min-w-0">
-                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
-                  <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
-                    {t(isInventory ? 'nav.garments-inventory' : 'nav.garments-lists')}
-                  </h2>
-                  <ExpandableIconButton
-                    icon={Settings}
-                    label={t('common.settings')}
-                    variant="soft"
-                    onClick={() => openGarmentsSettings(isInventory ? 'inventory' : 'lists')}
-                  />
-                  {filteredCount > 0 ? (
-                    selectionMode ? (
-                      <ExpandableIconButton
-                        icon={XCircle}
-                        label={t('common.clear')}
-                        variant="danger"
-                        alwaysExpanded
-                        onClick={handleExitSelectionMode}
-                      />
-                    ) : (
-                      <ExpandableIconButton
-                        icon={CheckSquare}
-                        label={t('common.select')}
-                        variant="soft"
-                        alwaysExpanded
-                        onClick={handleEnterSelectionMode}
-                      />
-                    )
-                  ) : null}
-                </div>
-              </div>
-              {selectionMode ? (
-                <BulkActionRoundBar
-                  selectedCount={selectedCount}
-                  actions={bulkRoundActions}
-                  className="gap-2"
-                />
-              ) : null}
-            </div>
-            <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
-              <RoundExpandableSearch
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={
-                  isInventory ? t('garments.searchInventory') : t('garments.searchLists')
-                }
-              />
-              <ListColumnLayoutToggle
-                columnCount={columnCount}
-                listViewMode={listViewMode}
-                onSelectColumns={setColumnCount}
-                onSelectTable={() => setListViewMode('table')}
-                columnAriaLabel={(count) => t('garments.columnsAria', { count })}
-                tableAriaLabel={t('common.tableView')}
-              />
-              <ExpandableIconButton
-                icon={Plus}
-                label={isInventory ? t('garments.addInventory') : t('garments.addList')}
-                variant="soft"
-                alwaysExpanded
-                onClick={() =>
-                  attemptNavigation(() =>
-                    isInventory ? openInventoryPanel(null) : openGarmentPanel(null),
-                  )
-                }
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
-          <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
-            {isInventory ? (
-              <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setInventoryTagFilter(null)}
-                  className={cn(
-                    inventoryTagFilter == null
-                      ? LIST_FILTER_CHIP_ACTIVE_CLASS
-                      : LIST_FILTER_CHIP_CLASS,
-                  )}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                  <span>
-                    {t('garments.filterAll')}{' '}
-                    <span className="tabular-nums font-semibold">({inventoryItems.length})</span>
-                  </span>
-                </Button>
-                {availableTags.map((tag) => {
-                  const isActive = inventoryTagFilter === tag;
-                  return (
-                    <Button
-                      key={tag}
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setInventoryTagFilter(isActive ? null : tag)}
-                      className={cn(
-                        isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-                      )}
-                    >
-                      <Tag className="h-3.5 w-3.5" />
-                      <span>
-                        {tag}{' '}
-                        <span className="tabular-nums font-semibold">
-                          ({inventoryTagCounts[tag] ?? 0})
-                        </span>
-                      </span>
-                    </Button>
-                  );
-                })}
-              </>
-            ) : null}
-          </div>
-          <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-            {isInventory ? (
-              <Select
-                value={inventorySort}
-                onValueChange={(value) => handleInventorySortChange(value as InventorySortField)}
-              >
-                <SelectTrigger
-                  className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                  aria-label={t('garments.sortBy')}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent
-                  position="item-aligned"
-                  className="rounded-xl border-border/50 shadow-xl"
-                >
-                  {INVENTORY_SORT_OPTIONS.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      className="rounded-md text-xs"
-                    >
-                      {t(option.labelKey)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Select
-                value={listSort}
-                onValueChange={(value) => handleListSortChange(value as GarmentSortField)}
-              >
-                <SelectTrigger
-                  className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                  aria-label={t('garments.sortBy')}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent
-                  position="item-aligned"
-                  className="rounded-xl border-border/50 shadow-xl"
-                >
-                  {LIST_SORT_OPTIONS.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      className="rounded-md text-xs"
-                    >
-                      {t(option.labelKey)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 px-0 text-xs"
-              onClick={toggleSortOrder}
-              aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-            >
-              {sortOrder === 'asc' ? (
-                <ArrowUp className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowDown className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        <BulkDeleteModal
-          isOpen={showBulkDeleteModal}
-          onClose={() => setShowBulkDeleteModal(false)}
-          onConfirm={handleBulkDelete}
-          itemCount={selectedCount}
-          itemLabel={isInventory ? t('garments.inventoryItems') : t('garments.lists')}
-          isLoading={deleting}
-        />
-
-        {isInventory ? (
-          <>
-            <InventoryBulkTagsDialog
-              isOpen={showBulkTagsDialog}
-              onClose={() => setShowBulkTagsDialog(false)}
-              selectedItems={selectedInventoryItems}
-              availableTags={availableTags}
-              applyTagToInventoryItem={applyTagToInventoryItem}
-              clearTagsFromInventoryItem={clearTagsFromInventoryItem}
-              onSuccess={clearSelection}
-            />
-            <InventoryBulkListsDialog
-              isOpen={showBulkListsDialog}
-              onClose={() => setShowBulkListsDialog(false)}
-              selectedItems={selectedInventoryItems}
-              garmentLists={garmentLists}
-              assignInventoryItemToList={assignInventoryItemToList}
-              unassignInventoryItemFromList={unassignInventoryItemFromList}
-              onSuccess={clearSelection}
-            />
-          </>
-        ) : null}
-
-        <div className="flex min-w-0 flex-col gap-3">
-          {isInventory ? (
+    <>
+      {toolbarEdgeToggle}
+      <div
+        ref={pageShellRef}
+        className={cn(
+          'plugin-garments flex min-h-0 flex-1 flex-col',
+          PLUGIN_PAGE_LIST_SHELL_CLASS,
+          showDesktopSplit
+            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+            : 'overflow-y-auto md:pt-3',
+        )}
+      >
+        <div
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 flex-col',
+            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+          )}
+        >
+          <div className="relative hidden shrink-0 md:block">
             <div
               className={cn(
-                'grid items-start gap-4',
-                showQuickContext && previewInventory ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
+              )}
+              aria-hidden={toolbarCollapsed}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div
+                  id="garments-mail-toolbar"
+                  className={cn(
+                    'flex flex-wrap items-center justify-between gap-3',
+                    toolbarCollapsed && 'pointer-events-none',
+                  )}
+                >
+                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
+                      {t(isInventory ? 'nav.garments-inventory' : 'nav.garments-lists')}
+                    </h2>
+                    <ExpandableIconButton
+                      icon={Settings}
+                      label={t('common.settings')}
+                      variant="soft"
+                      onClick={() => openGarmentsSettings(isInventory ? 'inventory' : 'lists')}
+                    />
+                    {renderSortDropdown('h-11 rounded-full')}
+                    <ListFilterChipsToggle
+                      visible={filtersVisible}
+                      onVisibleChange={setFiltersVisible}
+                      className="h-11 rounded-full"
+                    />
+                    {renderSelectControls('h-11 rounded-full')}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <RoundExpandableSearch
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                      placeholder={
+                        isInventory ? t('garments.searchInventory') : t('garments.searchLists')
+                      }
+                    />
+                    <ExpandableIconButton
+                      icon={Plus}
+                      label={isInventory ? t('garments.addInventory') : t('garments.addList')}
+                      variant="soft"
+                      onClick={() =>
+                        attemptNavigation(() =>
+                          isInventory ? openInventoryPanel(null) : openGarmentPanel(null),
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+                {filtersVisible ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {renderFilterChips()}
+                  </div>
+                ) : null}
+                {renderBulkActionBar('py-3')}
+              </div>
+            </div>
+          </div>
+
+          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+            {filtersVisible ? renderFilterChips() : null}
+            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+              <ListFilterChipsToggle
+                visible={filtersVisible}
+                onVisibleChange={setFiltersVisible}
+                className="h-7 rounded-md"
+              />
+              {renderSortDropdown('h-7 rounded-md')}
+            </div>
+          </div>
+
+          {selectionMode ? (
+            <div className="shrink-0 py-3 md:hidden">{renderBulkActionBar()}</div>
+          ) : null}
+
+          <BulkDeleteModal
+            isOpen={showBulkDeleteModal}
+            onClose={() => setShowBulkDeleteModal(false)}
+            onConfirm={handleBulkDelete}
+            itemCount={selectedCount}
+            itemLabel={isInventory ? t('garments.inventoryItems') : t('garments.lists')}
+            isLoading={deleting}
+          />
+
+          {isInventory ? (
+            <>
+              <InventoryBulkTagsDialog
+                isOpen={showBulkTagsDialog}
+                onClose={() => setShowBulkTagsDialog(false)}
+                selectedItems={selectedInventoryItems}
+                availableTags={availableTags}
+                applyTagToInventoryItem={applyTagToInventoryItem}
+                clearTagsFromInventoryItem={clearTagsFromInventoryItem}
+                onSuccess={clearSelection}
+              />
+              <InventoryBulkListsDialog
+                isOpen={showBulkListsDialog}
+                onClose={() => setShowBulkListsDialog(false)}
+                selectedItems={selectedInventoryItems}
+                garmentLists={garmentLists}
+                assignInventoryItemToList={assignInventoryItemToList}
+                unassignInventoryItemFromList={unassignInventoryItemFromList}
+                onSuccess={clearSelection}
+              />
+            </>
+          ) : null}
+
+          <div
+            className={cn(
+              'grid min-h-0 min-w-0 gap-2',
+              showDesktopSplit
+                ? 'flex-1 grid-cols-[minmax(220px,20%)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-stretch'
+                : 'grid-cols-1 items-start',
+            )}
+          >
+            <div
+              className={cn(
+                'min-w-0',
+                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
               )}
             >
-              {showQuickContext && previewInventory ? (
-                <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
-                  <InventoryQuickContextPanel
-                    item={previewInventory}
-                    onClose={() => setPreviewInventory(null)}
-                    onOpenFullProfile={() => handleOpenInventoryForView(previewInventory)}
-                    onEdit={() => {
-                      markPendingAndOpen(previewInventory, () =>
-                        attemptNavigation(() => openInventoryForEdit(previewInventory)),
-                      );
-                    }}
-                    onVariantQuantityChange={async (variantId, quantity) => {
-                      await updateInventoryVariantQuantity(
-                        previewInventory.id,
-                        variantId,
-                        quantity,
-                      );
-                    }}
-                    quantitySaving={isSaving}
-                  />
-                </aside>
-              ) : null}
               <div className="flex min-w-0 flex-col gap-3">
                 {filteredCount === 0 ? (
                   <ListEmptyState
                     message={
-                      searchTerm ? t('garments.noSearchResults') : t('garments.noInventoryYet')
+                      searchTerm
+                        ? t('garments.noSearchResults')
+                        : isInventory
+                          ? t('garments.noInventoryYet')
+                          : t('garments.noListsYet')
                     }
-                    createLabel={!searchTerm ? t('garments.addInventory') : undefined}
+                    createLabel={
+                      !searchTerm
+                        ? isInventory
+                          ? t('garments.addInventory')
+                          : t('garments.addList')
+                        : undefined
+                    }
                     onCreate={
                       !searchTerm
-                        ? () => attemptNavigation(() => openInventoryPanel(null))
+                        ? () =>
+                            attemptNavigation(() =>
+                              isInventory ? openInventoryPanel(null) : openGarmentPanel(null),
+                            )
                         : undefined
                     }
                   />
-                ) : isTableView ? (
+                ) : isInventory ? (
                   <InventoryListTable
                     items={filteredInventory}
                     primarySort={inventorySort}
                     sortOrder={sortOrder}
                     onSort={handleTableSortInventory}
                     isSelected={isSelected}
-                    onRowClick={handleRowActivate}
+                    onRowClick={handleInventoryRowActivate}
                     onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
                     onCheckboxChange={onVisibleRowCheckboxChange}
                     allVisibleSelected={allVisibleSelected}
                     onHeaderCheckboxChange={handleHeaderCheckboxChange}
                     selectionEnabled={selectionMode}
-                    activeInventoryId={previewInventory?.id ?? null}
+                    activeInventoryId={activeListItemId}
                     recentlyDuplicatedInventoryId={recentlyDuplicatedInventoryId}
                     visibleColumnIds={visibleColumnIds}
                   />
                 ) : (
-                  <div
-                    className={cn(
-                      'grid gap-3',
-                      effectiveColumnCount === 1 && 'grid-cols-1',
-                      effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                      effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-                    )}
-                  >
-                    {filteredInventory.map((item, index) => {
-                      const itemIsSelected = isSelected(String(item.id));
-                      return (
-                        <InventoryListItem
-                          key={item.id}
-                          item={item}
-                          selected={itemIsSelected}
-                          highlighted={recentlyDuplicatedInventoryId === String(item.id)}
-                          active={
-                            previewInventory !== null &&
-                            String(previewInventory.id) === String(item.id)
-                          }
-                          onClick={() => handleRowActivate(item)}
-                          columnCount={effectiveCardColumnCount}
-                          checkbox={
-                            selectionMode ? (
-                              <input
-                                type="checkbox"
-                                checked={itemIsSelected}
-                                onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                                onChange={() => onVisibleRowCheckboxChange(String(item.id))}
-                                onClick={(e) => e.stopPropagation()}
-                                className="h-4 w-4 cursor-pointer"
-                                aria-label={
-                                  itemIsSelected ? t('common.unselectRow') : t('common.selectRow')
-                                }
-                              />
-                            ) : undefined
-                          }
-                        />
-                      );
-                    })}
-                  </div>
+                  <GarmentListTable
+                    items={filteredLists}
+                    primarySort={listSort}
+                    sortOrder={sortOrder}
+                    onSort={handleTableSortList}
+                    isSelected={isSelected}
+                    onRowClick={handleListRowActivate}
+                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                    onCheckboxChange={onVisibleRowCheckboxChange}
+                    allVisibleSelected={allVisibleSelected}
+                    onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                    recentlyDuplicatedListId={recentlyDuplicatedListId}
+                    selectionEnabled={selectionMode}
+                    activeListId={activeListItemId}
+                  />
                 )}
+
                 <ListFooterBar
                   meta={<>{t('garments.showingOf', { shown: filteredCount, total: totalCount })}</>}
                 />
               </div>
             </div>
-          ) : filteredCount === 0 ? (
-            <ListEmptyState
-              message={searchTerm ? t('garments.noSearchResults') : t('garments.noListsYet')}
-              createLabel={!searchTerm ? t('garments.addList') : undefined}
-              onCreate={
-                !searchTerm ? () => attemptNavigation(() => openGarmentPanel(null)) : undefined
-              }
-            />
-          ) : isTableView ? (
-            <GarmentListTable
-              items={filteredLists}
-              primarySort={listSort}
-              sortOrder={sortOrder}
-              onSort={handleTableSortList}
-              isSelected={isSelected}
-              onRowClick={handleListRowActivate}
-              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-              onCheckboxChange={onVisibleRowCheckboxChange}
-              allVisibleSelected={allVisibleSelected}
-              onHeaderCheckboxChange={handleHeaderCheckboxChange}
-              recentlyDuplicatedListId={recentlyDuplicatedListId}
-              selectionEnabled={selectionMode}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                effectiveColumnCount === 1 && 'grid-cols-1',
-                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredLists.map((item, index) => {
-                const itemIsSelected = isSelected(String(item.id));
-                return (
-                  <GarmentListItem
-                    key={item.id}
-                    item={item}
-                    selected={itemIsSelected}
-                    highlighted={recentlyDuplicatedListId === String(item.id)}
-                    onClick={() => handleListRowActivate(item)}
-                    columnCount={effectiveCardColumnCount}
-                    checkbox={
-                      selectionMode ? (
-                        <input
-                          type="checkbox"
-                          checked={itemIsSelected}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(String(item.id))}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={
-                            itemIsSelected ? t('common.unselectRow') : t('common.selectRow')
-                          }
-                        />
-                      ) : undefined
-                    }
-                  />
-                );
-              })}
-            </div>
-          )}
 
-          {!isInventory ? (
-            <ListFooterBar
-              meta={<>{t('garments.showingOf', { shown: filteredCount, total: totalCount })}</>}
-            />
-          ) : null}
+            {showDesktopSplit ? (
+              <aside
+                className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain"
+                role="region"
+                aria-label={t('garments.quickContext.title', { defaultValue: 'Quick context' })}
+                aria-live="polite"
+              >
+                {inlineForm ? (
+                  <div className="flex min-h-0 flex-col gap-3">
+                    <div className="flex shrink-0 justify-end">
+                      <InlinePanelFormActions
+                        mode={panelMode === 'edit' ? 'edit' : 'create'}
+                        hasBlockingErrors={inlineFormHasBlockingErrors}
+                        onClose={handleInlineFormClose}
+                        onSave={() => {
+                          void handleInlineFormSave();
+                        }}
+                        t={t}
+                      />
+                    </div>
+                    <GarmentForm
+                      ref={inlineFormRef}
+                      currentGarment={isInventory ? null : currentGarment}
+                      currentItem={isInventory ? null : currentGarment}
+                      onSave={handleInlineFormOnSave}
+                      onCancel={closeGarmentPanel}
+                      stacked
+                    />
+                  </div>
+                ) : detailOpen ? (
+                  isInventory ? (
+                    <GarmentView inventoryItem={detailInventory} stacked />
+                  ) : (
+                    <GarmentView garment={detailList} stacked />
+                  )
+                ) : (
+                  <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
+                    <GarmentsStatisticsView />
+                  </Card>
+                )}
+              </aside>
+            ) : null}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

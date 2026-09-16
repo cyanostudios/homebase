@@ -1,8 +1,19 @@
-import { Calculator, Eye, Link2, ListOrdered, Send, StickyNote, Users } from 'lucide-react';
+import {
+  Calculator,
+  CreditCard,
+  Eye,
+  Info,
+  Link2,
+  ListOrdered,
+  Send,
+  StickyNote,
+  Users,
+} from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
@@ -10,9 +21,13 @@ import { EMPTY_ORGANIZATION, organizationApi } from '@/core/api/organizationApi'
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SubtleSectionHeading } from '@/core/ui/DetailSection';
 import {
+  DETAIL_EMPTY_STATE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_PROP_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -27,7 +42,6 @@ import {
 } from '@/plugins/contacts/types/contacts';
 
 import type { Invoice } from '../context/InvoicesContext';
-import { useInvoices } from '../hooks/useInvoices';
 import { useInvoiceStatusActions } from '../hooks/useInvoiceStatusActions';
 import type { Invoice as InvoiceRecord } from '../types/invoices';
 import { resolveInvoiceTotals } from '../utils/invoiceTotals';
@@ -62,14 +76,45 @@ import { InvoiceStatusSelect } from './InvoiceStatusSelect';
 interface InvoiceViewProps {
   invoice?: Invoice;
   item?: Invoice;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
 }
 
-export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
+type InvoiceViewTab = 'information' | 'lines' | 'payments' | 'linked';
+
+const INVOICE_VIEW_TABS: InvoiceViewTab[] = ['information', 'lines', 'payments', 'linked'];
+
+function parseInvoiceViewTab(value: string | null): InvoiceViewTab {
+  if (value && INVOICE_VIEW_TABS.includes(value as InvoiceViewTab)) {
+    return value as InvoiceViewTab;
+  }
+  return 'information';
+}
+
+export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacked = false }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseInvoiceViewTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: InvoiceViewTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'information') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
   const enabledPlugins = useEnabledPlugins();
   const { contacts, user } = useApp();
-  const { openInvoiceForEdit } = useInvoices();
   const {
     showStatusModal,
     pendingStatus,
@@ -186,56 +231,106 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
     navigate(`/contacts/${buildSlug(contact, contacts || [], 'companyName')}`);
   };
 
-  const previewFormData = {
-    contactId: actualItem.contactId || '',
-    contactName: actualItem.contactName || '',
-    organizationNumber: actualItem.organizationNumber || '',
-    currency,
-    lineItems,
-    invoiceDiscount,
-    notes: actualItem.notes || '',
-    paymentTerms: actualItem.paymentTerms || '30',
-    orderNumber: actualItem.orderNumber || '',
-    deliveryMethod: actualItem.deliveryMethod || '',
-    issueDate: actualItem.issueDate ? new Date(actualItem.issueDate) : null,
-    dueDate: actualItem.dueDate ? new Date(actualItem.dueDate) : null,
-    status,
-    invoiceType: actualItem.invoiceType || 'invoice',
-  };
+  const tabs = [
+    {
+      id: 'information' as const,
+      label: t('invoices.tabs.information'),
+      icon: Info,
+      count: null as number | null,
+    },
+    {
+      id: 'lines' as const,
+      label: t('invoices.tabs.lines'),
+      icon: ListOrdered,
+      count: lineItems.length > 0 ? lineItems.length : null,
+    },
+    {
+      id: 'payments' as const,
+      label: t('invoices.tabs.payments'),
+      icon: CreditCard,
+      count: null as number | null,
+    },
+    {
+      id: 'linked' as const,
+      label: t('invoices.tabs.linked'),
+      icon: Link2,
+      count: null as number | null,
+    },
+  ];
 
-  const leftColumn = (
-    <div className="space-y-4">
-      <InvoiceQuickContextPanel
-        invoice={actualItem}
-        onEdit={() => openInvoiceForEdit(actualItem)}
-        variant="full"
-      >
-        <div className="space-y-4">
-          <div className={DETAIL_PROP_ROW_CLASS}>
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {t('invoices.propertyStatus', { defaultValue: 'Status' })}
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span>
+              {tab.label}
+              {tab.count != null ? (
+                <>
+                  {' '}
+                  <span className="tabular-nums font-semibold">({tab.count})</span>
+                </>
+              ) : null}
             </span>
-            <InvoiceStatusSelect
-              invoice={actualItem}
-              onStatusChange={(nextStatus) => handleStatusChange(statusInvoice, nextStatus)}
-              hideInlineLabel
-              filled
-            />
-          </div>
+          </Button>
+        );
+      })}
+    </div>
+  );
 
-          {hasNotes ? (
-            <div className="space-y-2">
-              <SubtleSectionHeading title={t('invoices.notesAndTerms')} icon={StickyNote} />
-              <div className={DETAIL_NOTE_CALLOUT_CLASS}>
-                <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
-                  {displayPlainText(actualItem.notes)}
-                </p>
-              </div>
+  const informationCard = (
+    <div className="space-y-4">
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('invoices.information')}
+          icon={Info}
+          iconPlugin="invoices"
+          subtleTitle
+          className="p-6"
+        >
+          <div className="space-y-4">
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('invoices.propertyStatus', { defaultValue: 'Status' })}
+              </span>
+              <InvoiceStatusSelect
+                invoice={actualItem}
+                onStatusChange={(nextStatus) => handleStatusChange(statusInvoice, nextStatus)}
+                hideInlineLabel
+                filled
+              />
             </div>
-          ) : null}
-        </div>
-      </InvoiceQuickContextPanel>
 
+            {hasNotes ? (
+              <div className="space-y-2">
+                <SubtleSectionHeading title={t('invoices.notesAndTerms')} icon={StickyNote} />
+                <div className={DETAIL_NOTE_CALLOUT_CLASS}>
+                  <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
+                    {displayPlainText(actualItem.notes)}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </DetailSection>
+      </Card>
+      <InvoiceShareBlock />
+    </div>
+  );
+
+  const linesCard = (
+    <div className="space-y-4">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('invoices.lineItemsCount', { count: lineItems.length })}
@@ -321,59 +416,91 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
           </DetailSection>
         </Card>
       ) : null}
+    </div>
+  );
 
-      <InvoicePaymentsBlock
-        invoiceId={String(actualItem.id)}
-        currency={currency}
-        total={totals.total}
-        amountPaid={Number(actualItem.amountPaid ?? 0)}
-        status={status}
-      />
+  const paymentsCard = (
+    <InvoicePaymentsBlock
+      invoiceId={String(actualItem.id)}
+      currency={currency}
+      total={totals.total}
+      amountPaid={Number(actualItem.amountPaid ?? 0)}
+      status={status}
+    />
+  );
 
-      {actualItem.contactId && enabledPlugins.has('contacts') ? (
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection
-            title={t('invoices.relations', { defaultValue: 'Relations' })}
-            icon={Link2}
-            iconPlugin="contacts"
-            subtleTitle
-            className="p-6"
-          >
-            <QuickContextLinkTileGrid>
-              <QuickContextLinkTile
-                label={t('nav.contact')}
-                meta={
-                  contactRecord
-                    ? t(
-                        `contacts.type.${contactRecord.contactType === 'private' ? 'private' : 'company'}`,
-                      )
-                    : actualItem.organizationNumber
-                      ? `Org: ${actualItem.organizationNumber}`
-                      : undefined
-                }
-                metaClassName={
-                  contactRecord
-                    ? CONTACT_TYPE_COLORS[
-                        contactRecord.contactType === 'private' ? 'private' : 'company'
-                      ]
+  const linkedCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('invoices.relations', { defaultValue: 'Relations' })}
+        icon={Link2}
+        iconPlugin="contacts"
+        subtleTitle
+        className="p-6"
+      >
+        {actualItem.contactId || actualItem.contactName ? (
+          <QuickContextLinkTileGrid className={stacked ? 'md:grid-cols-1' : undefined}>
+            <QuickContextLinkTile
+              label={t('nav.contact')}
+              meta={
+                contactRecord
+                  ? t(
+                      `contacts.type.${contactRecord.contactType === 'private' ? 'private' : 'company'}`,
+                    )
+                  : actualItem.organizationNumber
+                    ? `Org: ${actualItem.organizationNumber}`
                     : undefined
+              }
+              metaClassName={
+                contactRecord
+                  ? CONTACT_TYPE_COLORS[
+                      contactRecord.contactType === 'private' ? 'private' : 'company'
+                    ]
+                  : undefined
+              }
+              icon={Users}
+              iconClassName="text-sky-600"
+              onClick={() => {
+                if (contactRecord && enabledPlugins.has('contacts')) {
+                  setViewingContact(contactRecord);
                 }
-                icon={Users}
-                iconClassName="text-sky-600"
-                onClick={() => {
-                  if (contactRecord) {
-                    setViewingContact(contactRecord);
-                  }
-                }}
-              >
-                {actualItem.contactName || t('invoices.noCustomer')}
-              </QuickContextLinkTile>
-            </QuickContextLinkTileGrid>
-          </DetailSection>
-        </Card>
-      ) : null}
+              }}
+            >
+              {actualItem.contactName || t('invoices.noCustomer')}
+            </QuickContextLinkTile>
+          </QuickContextLinkTileGrid>
+        ) : (
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('invoices.tabs.linkedEmpty')}</p>
+        )}
+      </DetailSection>
+    </Card>
+  );
 
-      <InvoiceShareBlock />
+  const previewFormData = {
+    contactId: actualItem.contactId || '',
+    contactName: actualItem.contactName || '',
+    organizationNumber: actualItem.organizationNumber || '',
+    currency,
+    lineItems,
+    invoiceDiscount,
+    notes: actualItem.notes || '',
+    paymentTerms: actualItem.paymentTerms || '30',
+    orderNumber: actualItem.orderNumber || '',
+    deliveryMethod: actualItem.deliveryMethod || '',
+    issueDate: actualItem.issueDate ? new Date(actualItem.issueDate) : null,
+    dueDate: actualItem.dueDate ? new Date(actualItem.dueDate) : null,
+    status,
+    invoiceType: actualItem.invoiceType || 'invoice',
+  };
+
+  const leftColumn = (
+    <div className="space-y-4">
+      <InvoiceQuickContextPanel invoice={actualItem} headerBelow={tabChips} />
+
+      {activeTab === 'information' ? informationCard : null}
+      {activeTab === 'lines' ? linesCard : null}
+      {activeTab === 'payments' ? paymentsCard : null}
+      {activeTab === 'linked' ? linkedCard : null}
     </div>
   );
 
@@ -391,7 +518,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
               defaultValue: 'This is how the invoice will look when shared or exported as PDF.',
             })}
           </p>
-          <div className="w-full max-w-[794px]">
+          <div className="mx-auto w-full max-w-[794px]">
             <InvoiceDocumentPreview
               formData={previewFormData}
               invoiceId={actualItem.id}
@@ -428,7 +555,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
   return (
     <>
       <div className="plugin-invoices">
-        <DetailLayout gridClassName="grid-cols-1 lg:grid-cols-2" leftSidebar={leftColumn}>
+        <DetailLayout gridClassName="grid-cols-1" leftSidebar={leftColumn}>
           {rightColumn}
         </DetailLayout>
       </div>

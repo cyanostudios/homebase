@@ -1,6 +1,7 @@
 import { Edit, Send, Trash2 } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/DetailHeaderMenus';
@@ -8,8 +9,16 @@ import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/Detail
 import { useAIProviders } from '../hooks/useAIProviders';
 import type { ProviderSettings } from '../types/aiProviders';
 
-export function AIProviderDetailHeaderMenus({ provider }: { provider: ProviderSettings }) {
+export function AIProviderDetailHeaderMenus({
+  provider,
+  leading,
+}: {
+  provider: ProviderSettings;
+  /** Optional leading content on the Actions row (e.g. provider name). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
+  const [, setSearchParams] = useSearchParams();
   const {
     openAIProviderForEdit,
     deleteProvider,
@@ -20,6 +29,22 @@ export function AIProviderDetailHeaderMenus({ provider }: { provider: ProviderSe
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const testing = testingProviderKey === provider.providerKey;
+
+  const openTestTab = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', 'test');
+        return next;
+      },
+      { replace: false },
+    );
+  }, [setSearchParams]);
+
+  const onTestConnection = useCallback(() => {
+    openTestTab();
+    void handleTestConnection(provider);
+  }, [handleTestConnection, openTestTab, provider]);
 
   const actions = useMemo(
     (): DetailHeaderMenuAction[] => [
@@ -45,14 +70,14 @@ export function AIProviderDetailHeaderMenus({ provider }: { provider: ProviderSe
         variant: 'secondary',
         contentClassName: 'text-green-600 dark:text-green-400',
         disabled: testing || !provider.hasApiKey,
-        onClick: () => void handleTestConnection(provider),
+        onClick: onTestConnection,
       },
     ],
-    [handleTestConnection, openAIProviderForEdit, provider, testing, t],
+    [onTestConnection, openAIProviderForEdit, provider, testing, t],
   );
 
   return (
-    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')}>
+    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')} leading={leading}>
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title={t('aiProviders.deleteTitle')}

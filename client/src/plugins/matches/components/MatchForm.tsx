@@ -73,6 +73,8 @@ interface MatchFormProps {
   currentMatch?: any;
   onSave: (data: Record<string, unknown>) => Promise<boolean>;
   onCancel: () => void;
+  /** Single-column card stack (e.g. list detail column). */
+  stacked?: boolean;
 }
 
 function toDatetimeLocal(iso: string | null): string {
@@ -89,7 +91,7 @@ function toDatetimeLocal(iso: string | null): string {
 }
 
 export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(function MatchForm(
-  { currentMatch, onSave, onCancel },
+  { currentMatch, onSave, onCancel, stacked: _stacked = false },
   ref,
 ) {
   const { t } = useTranslation();
@@ -359,7 +361,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
 
   return (
     <div className="plugin-matches">
-      <DetailLayout sidebar={formSidebar}>
+      <DetailLayout gridClassName="grid-cols-1" sidebar={formSidebar}>
         <form
           ref={formRef}
           className="space-y-6"

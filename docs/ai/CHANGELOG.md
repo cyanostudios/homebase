@@ -2,6 +2,26 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## UI Hygiene overlay role (2026-09-16)
+
+Ny overlay-roll för städning av död/inaktuell UI: radera, göm inte, rör inte kärna som kräver refaktor. SSOT [`roles/ui-hygiene.md`](roles/ui-hygiene.md), Cursor-regel `role-ui-hygiene.mdc`, subagent `.cursor/agents/ui-hygiene.md`. Team Workflow: overlay efter Frontend, inte en nionde grind. Handover `Current Role` förblir `Frontend Developer` (inte ett nionde Workflow Runner-värde). TPM involveringsexempel + Frontend samarbete uppdaterade.
+
+## Slots + Clubdesk Guides mail-layout — docs sync (2026-09-16)
+
+Docs efter **QA Approved** + **Security Approved** för Slots mail-layout (orphan `SlotQuickContextPanel` / settings form bort), Clubdesk Guides mail-layout (Price List parity), soft-preview `getClubdesk` steps hydrate, edit deep-link bounce fix (`shouldKeepPendingGuideItemPath`), och Requests shell Add registry flags. Operator: [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) (legacy sticky QC removed; checklist), [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) §0.1 / §4.0, ADR [`adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md`](adr/PLUGIN_FRONTEND_TEMPLATE_MAIL_LAYOUT.md) non-goals. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-16 (Guides + Slots + hydrate + bounce + Requests Add). **S-UI-1** informational (authenticated soft-preview get). **Working tree; local-first; ej prod-release.** Out-of-scope: earlier invoice BE Security spår.
+
+## Requests hide leftover shell Add — docs sync (2026-09-16)
+
+`pluginRegistry` requests now has `contentViewKey: 'requestsContentView'` (already in [`PLUGIN_RUNTIME_CONVENTIONS.md`](../PLUGIN_RUNTIME_CONVENTIONS.md)) and `noPrimaryAction: true` so ContentHeader no longer shows the old Add Request button over mail-layout create/edit. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-16 Requests hide leftover shell Add.
+
+## Core list leftovers after A+B+C — docs sync (2026-09-16)
+
+Deleted unused `effectiveListViewMode` / `createPluginListViewMode` / cards session APIs; `listViewMode.ts` is `nextListTableSort` only. ADR [`adr/VIEWPORT_TIER_PAD_SPLIT.md`](adr/VIEWPORT_TIER_PAD_SPLIT.md) §5 updated. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-16 core list leftovers.
+
+## Grind 1 A+B+C plugin dead-code hygiene — docs sync (2026-09-16)
+
+Docs efter **QA Approved** (scoped A+B+C; Grind 5 N/A för denna FrontendOnly-hygien) för orphan/`SETTINGS_KEY`/`QC list`-städning. Operator: [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) §1, [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) §0.1 / §4.0, [`FILES_PLUGIN.md`](../FILES_PLUGIN.md), [`INVOICES_PLUGIN.md`](../INVOICES_PLUGIN.md), [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md), checklists. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-16 A+B+C. **Working tree; local-first; ej prod-release.** Historiska CHANGELOG-länkar till raderade `*ListItem` orörda (låst). `4154a5c8` mail/tabs/invoice BE utanför denna docs-pass. **Supersession:** A+B+C-texten som sa att Slots fortfarande hade sticky list QC är **ersatt 2026-09-16** (Slots mail-layout; se post ovan).
+
 ## Focus remove + invoice Send confirm + browse-order prev/next — docs sync (2026-09-09)
 
 Docs efter **QA Approved** + **Security Approved** för (1) Contacts full-view focus overlay **removed**, (2) invoice form Send/status confirm via `InvoiceStatusModal`, (3) prev/next **browse order** (`useRegisterBrowseOrder` / `setBrowseOrderIds` on invoices, contacts, notes, tasks, estimates, requests). Operator: [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) (Contacts focus trial struck; ItemNavigation browse-order note), [`INVOICES_PLUGIN.md`](../INVOICES_PLUGIN.md) Send/edit confirm. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-09 (tre poster; trial superseded). **Working tree; local-first; ej prod-release.** Begränsning: teams/cups/files/garments saknar ännu browse-order-wiring (rå provider-ordning). Requests: kort fönster med rå store-ordning innan list registrerar IDs (UX, ej authz).

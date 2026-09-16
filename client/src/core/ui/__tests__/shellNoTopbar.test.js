@@ -18,9 +18,10 @@ describe('Shell without TopBar', () => {
     expect(mainLayout).not.toMatch(/detailPanelBreadcrumbLabel/);
     expect(mainLayout).toMatch(/MobileShellControls/);
     expect(mainLayout).toMatch(/MOBILE_SHELL_TOP_INSET_CLASS/);
-    expect(mainLayout).toMatch(/CONTENT_SHELL_Y_GUTTER_CLASS/);
+    expect(mainLayout).toMatch(/CONTENT_SHELL_GUTTER_CLASS/);
     expect(mainLayout).toMatch(/CONTENT_SHELL_BOTTOM_GUTTER_CLASS/);
     expect(styles).toMatch(/MOBILE_SHELL_TOP_INSET_CLASS/);
+    expect(styles).toMatch(/CONTENT_SHELL_GUTTER_CLASS/);
     expect(styles).toMatch(/CONTENT_SHELL_Y_GUTTER_CLASS/);
   });
 

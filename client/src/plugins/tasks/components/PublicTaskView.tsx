@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 
+import { Badge } from '@/components/ui/badge';
+import { BADGE_CHIP_CLASS, DUE_DATE_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { formatDateTime } from '@/core/utils/dateFormat';
 import { dedupeInFlightByKey } from '@/core/utils/dedupeInFlightByKey';
+import { cn } from '@/lib/utils';
 
 import { taskShareApi } from '../api/tasksApi';
 import {
   formatStatusForDisplay,
+  formatTaskDueDisplay,
   TASK_PRIORITY_COLORS,
   TASK_STATUS_COLORS,
   type PublicTask,
@@ -84,9 +88,7 @@ export function PublicTaskView({ token }: PublicTaskViewProps) {
   }
 
   const title = (task.title || '').trim() || '—';
-  const dueLabel = task.dueDate
-    ? new Date(task.dueDate).toLocaleDateString(undefined, { dateStyle: 'medium' })
-    : null;
+  const dueDisplay = formatTaskDueDisplay(task.dueDate, task.status);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -97,21 +99,37 @@ export function PublicTaskView({ token }: PublicTaskViewProps) {
             <p className="text-xs text-muted-foreground mt-1">
               Shared task · link expires {formatDateTime(task.shareValidUntil)}
             </p>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span
-                className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-extrabold ${TASK_STATUS_COLORS[task.status] ?? ''}`}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge
+                variant="outline"
+                className={cn(BADGE_CHIP_CLASS, TASK_STATUS_COLORS[task.status] ?? '')}
               >
                 {formatStatusForDisplay(task.status)}
-              </span>
-              <span
-                className={`inline-flex items-center rounded-md border px-2 py-0.5 font-medium ${TASK_PRIORITY_COLORS[task.priority] ?? ''}`}
+              </Badge>
+              <Badge
+                variant="outline"
+                className={cn(BADGE_CHIP_CLASS, TASK_PRIORITY_COLORS[task.priority] ?? '')}
               >
                 {task.priority}
-              </span>
-              {dueLabel ? (
-                <span className="inline-flex items-center rounded-md border border-border bg-muted/50 px-2 py-0.5 font-medium text-foreground">
-                  Due {dueLabel}
-                </span>
+              </Badge>
+              {dueDisplay ? (
+                <Badge
+                  variant="outline"
+                  className={cn(BADGE_CHIP_CLASS, dueDisplay.badgeClassName)}
+                >
+                  {dueDisplay.text}
+                </Badge>
+              ) : task.dueDate ? (
+                <Badge
+                  variant="outline"
+                  className={cn(BADGE_CHIP_CLASS, DUE_DATE_BADGE_COLORS.muted)}
+                >
+                  {new Date(task.dueDate).toLocaleDateString(undefined, {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </Badge>
               ) : null}
             </div>
           </div>

@@ -1,13 +1,21 @@
-import { Link2, SlidersHorizontal, Users } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { FileText, Info, Link2, SlidersHorizontal, Users } from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_PROP_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -28,16 +36,49 @@ import { TaskAssignedTeamSelect } from './TaskAssignedTeamSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { TaskDueDatePicker } from './TaskDueDatePicker';
 import { TaskPrioritySelect } from './TaskPrioritySelect';
+import { TaskQuickContextPanel } from './TaskQuickContextPanel';
 import { TaskShareBlock } from './TaskShareBlock';
 import { TaskStatusSelect } from './TaskStatusSelect';
 
 interface TaskViewProps {
   task: any;
+  /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
+  stacked?: boolean;
 }
 
-export function TaskView({ task }: TaskViewProps) {
+type TaskViewTab = 'information' | 'properties' | 'assignees' | 'linked';
+
+const TASK_VIEW_TABS: TaskViewTab[] = ['information', 'properties', 'assignees', 'linked'];
+
+function parseTaskViewTab(value: string | null): TaskViewTab {
+  if (value && TASK_VIEW_TABS.includes(value as TaskViewTab)) {
+    return value as TaskViewTab;
+  }
+  return 'information';
+}
+
+export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseTaskViewTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: TaskViewTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'information') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
   const { contacts } = useContacts();
   const {
     closeTaskPanel,
@@ -76,11 +117,18 @@ export function TaskView({ task }: TaskViewProps) {
     setViewingContact(contact);
   };
 
-  const handleStatusChange = (newStatus: string) => {
+  const handleStatusChange = async (newStatus: string) => {
+    if (!task?.id) {
+      return;
+    }
     setQuickEditField('status', newStatus);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
+    await saveTask(
+      buildTaskListQuickFieldsSavePayload(task, { status: newStatus }, quickEditDraft),
+      task.id,
+    );
   };
 
   // Display task merges saved task with quick-edit draft (status, priority, dueDate, assignee)
@@ -89,18 +137,32 @@ export function TaskView({ task }: TaskViewProps) {
     [task, quickEditDraft],
   );
 
-  const handlePriorityChange = (newPriority: string) => {
+  const handlePriorityChange = async (newPriority: string) => {
+    if (!task?.id) {
+      return;
+    }
     setQuickEditField('priority', newPriority);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
+    await saveTask(
+      buildTaskListQuickFieldsSavePayload(task, { priority: newPriority }, quickEditDraft),
+      task.id,
+    );
   };
 
-  const handleDueDateChange = (newDate: Date | null) => {
+  const handleDueDateChange = async (newDate: Date | null) => {
+    if (!task?.id) {
+      return;
+    }
     setQuickEditField('dueDate', newDate);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
+    await saveTask(
+      buildTaskListQuickFieldsSavePayload(task, { dueDate: newDate }, quickEditDraft),
+      task.id,
+    );
   };
 
   const handleAssigneeChange = async (newAssigneeIds: string[]) => {
@@ -142,45 +204,212 @@ export function TaskView({ task }: TaskViewProps) {
     return Array.from(new Map(raw.map((m) => [m.contactId, m])).values());
   }, [task?.mentions]);
 
-  const updatedLabel = task?.updatedAt
-    ? new Date(task.updatedAt).toLocaleString(undefined, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
+  const assigneeCount = Array.isArray(displayTask?.assignedToIds)
+    ? displayTask.assignedToIds.length
+    : Array.isArray(task?.assignedToIds)
+      ? task.assignedToIds.length
+      : 0;
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: 'information' as const,
+        label: t('tasks.tabs.information'),
+        icon: Info,
+        count: null as number | null,
+      },
+      {
+        id: 'properties' as const,
+        label: t('tasks.tabs.properties'),
+        icon: SlidersHorizontal,
+        count: null as number | null,
+      },
+      {
+        id: 'assignees' as const,
+        label: t('tasks.tabs.assignees'),
+        icon: Users,
+        count: assigneeCount > 0 ? assigneeCount : null,
+      },
+      {
+        id: 'linked' as const,
+        label: t('tasks.tabs.linked'),
+        icon: Link2,
+        count: uniqueMentions.length > 0 ? uniqueMentions.length : null,
+      },
+    ],
+    [assigneeCount, t, uniqueMentions.length],
+  );
+
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span>
+              {tab.label}
+              {tab.count != null ? (
+                <>
+                  {' '}
+                  <span className="tabular-nums font-semibold">({tab.count})</span>
+                </>
+              ) : null}
+            </span>
+          </Button>
+        );
+      })}
+    </div>
+  );
 
   if (!task) {
     return null;
   }
 
-  const contentColumn = (
+  const informationCard = (
+    <div className="space-y-4">
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection title={t('tasks.taskContent')} icon={FileText} subtleTitle className="p-6">
+          <div className="min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [&_.rich-text-content]:break-words [&_.rich-text-content]:[overflow-wrap:anywhere] [&_.rich-text-content_pre]:whitespace-pre-wrap [&_.rich-text-content_pre]:break-words [&_.rich-text-content_pre]:overflow-x-hidden">
+            <RichTextContent
+              content={task.content}
+              mentions={task.mentions}
+              onMentionClick={handleContactClick}
+            />
+          </div>
+        </DetailSection>
+      </Card>
+      <TaskShareBlock task={task} />
+    </div>
+  );
+
+  const propertiesCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
-        title={String((displayTask ?? task)?.title || '').trim() || '—'}
+        title={t('tasks.taskProperties')}
+        icon={SlidersHorizontal}
+        subtleTitle
         className="p-6"
-        prominentTitle
       >
-        {updatedLabel ? (
-          <p className="mb-3 text-xs text-muted-foreground">
-            {t('common.updated')} {updatedLabel}
-          </p>
-        ) : null}
-        <RichTextContent
-          content={task.content}
-          mentions={task.mentions}
-          onMentionClick={handleContactClick}
+        <div>
+          <div className={DETAIL_PROP_ROW_CLASS}>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {t('tasks.propertyStatus')}
+            </span>
+            <TaskStatusSelect
+              task={displayTask ?? task}
+              onStatusChange={handleStatusChange}
+              hideInlineLabel
+            />
+          </div>
+          <div className={DETAIL_PROP_ROW_CLASS}>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {t('tasks.propertyPriority')}
+            </span>
+            <TaskPrioritySelect
+              task={displayTask ?? task}
+              onPriorityChange={handlePriorityChange}
+              hideInlineLabel
+            />
+          </div>
+          {(displayTask ?? task).status !== 'completed' && (
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('tasks.propertyDueDate')}
+              </span>
+              <TaskDueDatePicker
+                task={displayTask ?? task}
+                onDueDateChange={handleDueDateChange}
+                hideInlineLabel
+              />
+            </div>
+          )}
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const assigneesCard = (
+    <div className="space-y-4">
+      <TaskAssigneeSelect task={displayTask ?? task} onAssigneeChange={handleAssigneeChange} />
+      {hasTeamsPlugin ? (
+        <TaskAssignedTeamSelect
+          task={displayTask ?? task}
+          onTeamChange={handleAssignedTeamChange}
         />
+      ) : null}
+    </div>
+  );
+
+  const linkedCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={
+          <span className="inline-flex items-baseline gap-2">
+            <span>{t('tasks.mentionedContacts')}</span>
+            <span className="text-xs font-normal normal-case tracking-normal text-muted-foreground">
+              {t('tasks.quickContext.mentionsHint')}
+            </span>
+          </span>
+        }
+        icon={Link2}
+        iconPlugin="contacts"
+        subtleTitle
+        className="p-6"
+      >
+        {uniqueMentions.length > 0 ? (
+          <QuickContextLinkTileGrid>
+            {uniqueMentions.map((mention) => {
+              const contactData = contactById.get(String(mention.contactId));
+              const name =
+                contactData?.companyName ??
+                mention.contactName ??
+                mention.companyName ??
+                mention.contactId;
+              const typeKey = contactData?.contactType === 'private' ? 'private' : 'company';
+              const isDeleted = !contactData;
+              return (
+                <QuickContextLinkTile
+                  key={`mention-${mention.contactId}`}
+                  label={t('nav.contact')}
+                  meta={isDeleted ? t('contacts.deletedContact') : t(`contacts.type.${typeKey}`)}
+                  metaClassName={
+                    isDeleted
+                      ? 'border-transparent bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                      : CONTACT_TYPE_COLORS[typeKey]
+                  }
+                  icon={Users}
+                  iconClassName={isDeleted ? 'text-slate-400' : 'text-sky-600'}
+                  onClick={contactData ? () => handleContactClick(mention.contactId) : undefined}
+                  className={isDeleted ? 'opacity-70' : undefined}
+                >
+                  {name}
+                </QuickContextLinkTile>
+              );
+            })}
+          </QuickContextLinkTileGrid>
+        ) : (
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('tasks.tabs.linkedEmpty')}</p>
+        )}
       </DetailSection>
     </Card>
   );
 
   return (
     <>
-      <DetailLayout gridClassName="grid-cols-1 lg:grid-cols-2" leftSidebar={contentColumn}>
-        <div className="space-y-6">
+      <DetailLayout gridClassName="grid-cols-1">
+        <div className="space-y-4">
+          <TaskQuickContextPanel task={displayTask ?? task} headerBelow={tabChips} />
+
           {blockingValidationErrors.length > 0 ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
               <div className="text-sm font-medium text-destructive">{t('common.cannotSave')}</div>
@@ -192,114 +421,10 @@ export function TaskView({ task }: TaskViewProps) {
             </Card>
           ) : null}
 
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('tasks.taskProperties')}
-              icon={SlidersHorizontal}
-              subtleTitle
-              className="p-6"
-            >
-              <div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('tasks.propertyStatus')}
-                  </span>
-                  <TaskStatusSelect
-                    task={displayTask ?? task}
-                    onStatusChange={handleStatusChange}
-                    hideInlineLabel
-                  />
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('tasks.propertyPriority')}
-                  </span>
-                  <TaskPrioritySelect
-                    task={displayTask ?? task}
-                    onPriorityChange={handlePriorityChange}
-                    hideInlineLabel
-                  />
-                </div>
-                {(displayTask ?? task).status !== 'completed' && (
-                  <div className={DETAIL_PROP_ROW_CLASS}>
-                    <span className="text-sm text-slate-500 dark:text-slate-400">
-                      {t('tasks.propertyDueDate')}
-                    </span>
-                    <TaskDueDatePicker
-                      task={displayTask ?? task}
-                      onDueDateChange={handleDueDateChange}
-                      hideInlineLabel
-                    />
-                  </div>
-                )}
-              </div>
-            </DetailSection>
-          </Card>
-
-          <TaskAssigneeSelect task={displayTask ?? task} onAssigneeChange={handleAssigneeChange} />
-
-          {hasTeamsPlugin ? (
-            <TaskAssignedTeamSelect
-              task={displayTask ?? task}
-              onTeamChange={handleAssignedTeamChange}
-            />
-          ) : null}
-
-          {uniqueMentions.length > 0 ? (
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={
-                  <span className="inline-flex items-baseline gap-2">
-                    <span>{t('tasks.mentionedContacts')}</span>
-                    <span className="text-xs font-normal normal-case tracking-normal text-muted-foreground">
-                      {t('tasks.quickContext.mentionsHint')}
-                    </span>
-                  </span>
-                }
-                icon={Link2}
-                iconPlugin="contacts"
-                subtleTitle
-                className="p-6"
-              >
-                <QuickContextLinkTileGrid>
-                  {uniqueMentions.map((mention) => {
-                    const contactData = contactById.get(String(mention.contactId));
-                    const name =
-                      contactData?.companyName ??
-                      mention.contactName ??
-                      mention.companyName ??
-                      mention.contactId;
-                    const typeKey = contactData?.contactType === 'private' ? 'private' : 'company';
-                    const isDeleted = !contactData;
-                    return (
-                      <QuickContextLinkTile
-                        key={`mention-${mention.contactId}`}
-                        label={t('nav.contact')}
-                        meta={
-                          isDeleted ? t('contacts.deletedContact') : t(`contacts.type.${typeKey}`)
-                        }
-                        metaClassName={
-                          isDeleted
-                            ? 'border-transparent bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                            : CONTACT_TYPE_COLORS[typeKey]
-                        }
-                        icon={Users}
-                        iconClassName={isDeleted ? 'text-slate-400' : 'text-sky-600'}
-                        onClick={
-                          contactData ? () => handleContactClick(mention.contactId) : undefined
-                        }
-                        className={isDeleted ? 'opacity-70' : undefined}
-                      >
-                        {name}
-                      </QuickContextLinkTile>
-                    );
-                  })}
-                </QuickContextLinkTileGrid>
-              </DetailSection>
-            </Card>
-          ) : null}
-
-          <TaskShareBlock task={task} />
+          {activeTab === 'information' ? informationCard : null}
+          {activeTab === 'properties' ? propertiesCard : null}
+          {activeTab === 'assignees' ? assigneesCard : null}
+          {activeTab === 'linked' ? linkedCard : null}
         </div>
       </DetailLayout>
 

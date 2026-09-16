@@ -10,7 +10,14 @@ import { useTeams } from '../hooks/useTeams';
 import type { Team } from '../types/teams';
 import { formatTeamLabel } from '../utils/formatTeamLabel';
 
-export function TeamDetailHeaderMenus({ team }: { team: Team }) {
+export function TeamDetailHeaderMenus({
+  team,
+  leading,
+}: {
+  team: Team;
+  /** Optional leading content on the Actions trigger row (e.g. team identity). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openTeamForEdit,
@@ -61,7 +68,7 @@ export function TeamDetailHeaderMenus({ team }: { team: Team }) {
   }, [canDuplicate, openTeamForEdit, team, t]);
 
   return (
-    <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')}>
+    <DetailHeaderMenus leading={leading} actions={actions} actionsLabel={t('common.headerActions')}>
       <ConfirmDialog
         isOpen={showDelete}
         title={t('teams.view.deleteTeam')}

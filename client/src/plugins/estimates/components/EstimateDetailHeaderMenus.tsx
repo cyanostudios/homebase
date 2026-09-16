@@ -23,7 +23,14 @@ function getEstimateActionIconColorClass(actionId: string): string {
   return '';
 }
 
-export function EstimateDetailHeaderMenus({ estimate }: { estimate: Estimate }) {
+export function EstimateDetailHeaderMenus({
+  estimate,
+  leading,
+}: {
+  estimate: Estimate;
+  /** Optional leading content on the Actions row (e.g. estimate number). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openEstimateForEdit,
@@ -92,6 +99,7 @@ export function EstimateDetailHeaderMenus({ estimate }: { estimate: Estimate }) 
 
   return (
     <DetailHeaderMenus
+      leading={leading}
       actions={actions}
       exportActions={exportActions}
       actionsLabel={t('common.headerActions')}

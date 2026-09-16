@@ -1,8 +1,11 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Users } from 'lucide-react';
+
 import { Badge } from '@/components/ui/badge';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   SortableListTable,
   type SortableListTableColumn,
@@ -71,17 +74,48 @@ export function TeamListTable({
       age_group: {
         field: 'age_group',
         header: t('teams.table.age'),
-        cell: (team) => (
-          <span className="font-extrabold text-foreground transition-colors group-hover:text-primary">
-            {formatTeamLabel(team) || '—'}
-          </span>
-        ),
+        cell: (team) => {
+          const label = formatTeamLabel(team) || '—';
+          return (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span title={t('nav.team')} className="inline-flex shrink-0">
+                <SectionCategoryIcon
+                  icon={Users}
+                  className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
+                />
+              </span>
+              <span
+                className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+                title={label !== '—' ? label : undefined}
+              >
+                {label}
+              </span>
+            </div>
+          );
+        },
       },
       name: {
         field: 'name',
         header: t('teams.table.name'),
-        className: 'hidden sm:table-cell',
-        cell: (team) => <span className="text-xs text-muted-foreground">{team.name || '—'}</span>,
+        cell: (team) => {
+          const label = team.name?.trim() || '—';
+          return (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span title={t('nav.team')} className="inline-flex shrink-0">
+                <SectionCategoryIcon
+                  icon={Users}
+                  className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
+                />
+              </span>
+              <span
+                className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+                title={label !== '—' ? label : undefined}
+              >
+                {label}
+              </span>
+            </div>
+          );
+        },
       },
       gender: {
         field: 'gender',
@@ -205,6 +239,9 @@ export function TeamListTable({
           : undefined
       }
       selection={selection}
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       pluginName="teams"
       dataListItem={(team) => team}
     />

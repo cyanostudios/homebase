@@ -1,4 +1,4 @@
-import { Download, Grip, Plus, Upload, X } from 'lucide-react';
+import { Download, Plus, Upload, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
-import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
@@ -23,15 +22,6 @@ import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
 import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
-import {
-  contactTableColumnsEqual,
-  isContactTableColumnId,
-  normalizeContactTableColumns,
-  reorderContactTableColumns,
-  setContactTableColumnHidden,
-  type ContactTableColumnId,
-  type ContactTableColumnsPref,
-} from '../utils/contactTableColumns';
 
 const getContactImportSchema = (): ImportSchema => ({
   fields: [
@@ -51,19 +41,7 @@ const CONTACT_IMPORT_EXAMPLE_ROW: Record<string, string> = {
   notes: 'Imported sample',
 };
 
-const COLUMN_LABEL_KEYS: Record<ContactTableColumnId, string> = {
-  name: 'contacts.table.name',
-  type: 'contacts.table.type',
-  tags: 'contacts.table.tags',
-  assignable: 'contacts.table.assignable',
-  time: 'contacts.table.time',
-  email: 'contacts.table.email',
-  phone: 'contacts.table.phone',
-  createdAt: 'contacts.table.created',
-  updatedAt: 'contacts.table.updated',
-};
-
-export type ContactSettingsCategory = 'tags' | 'columns' | 'import';
+export type ContactSettingsCategory = 'tags' | 'import';
 
 interface ContactSettingsViewProps {
   selectedCategory?: ContactSettingsCategory;
@@ -90,14 +68,6 @@ export function ContactSettingsView({
   const [tags, setTags] = useState<string[]>([]);
   const [initialTags, setInitialTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
-  const [tableColumns, setTableColumns] = useState<ContactTableColumnsPref>(() =>
-    normalizeContactTableColumns(null),
-  );
-  const [initialTableColumns, setInitialTableColumns] = useState<ContactTableColumnsPref>(() =>
-    normalizeContactTableColumns(null),
-  );
-  const [draggingColumnId, setDraggingColumnId] = useState<ContactTableColumnId | null>(null);
-  const [dragOverColumnId, setDragOverColumnId] = useState<ContactTableColumnId | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -108,12 +78,6 @@ export function ContactSettingsView({
         label: t('contacts.settingsCategories.tags'),
         description: t('contacts.settingsCategories.tagsDescription'),
         icon: SETTINGS_CATEGORY_ICONS.tags,
-      },
-      {
-        id: 'columns',
-        label: t('contacts.settingsCategories.columns'),
-        description: t('contacts.settingsCategories.columnsDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.columns,
       },
       {
         id: 'import',
@@ -140,9 +104,6 @@ export function ContactSettingsView({
           : [];
         setTags(loadedTags);
         setInitialTags(loadedTags);
-        const loadedColumns = normalizeContactTableColumns(settings?.tableColumns);
-        setTableColumns(loadedColumns);
-        setInitialTableColumns(loadedColumns);
       })
       .catch(() => {})
       .finally(() => {
@@ -157,10 +118,7 @@ export function ContactSettingsView({
 
   const tagsEqual =
     tags.length === initialTags.length && tags.every((tag, i) => tag === initialTags[i]);
-  const columnsEqual = contactTableColumnsEqual(tableColumns, initialTableColumns);
-  const isDirty =
-    (activeCategory === 'tags' && tagsEqual === false) ||
-    (activeCategory === 'columns' && columnsEqual === false);
+  const isDirty = activeCategory === 'tags' && tagsEqual === false;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -168,18 +126,13 @@ export function ContactSettingsView({
       if (activeCategory === 'tags') {
         await updateSettings(CONTACTS_SETTINGS_KEY, { tags });
         setInitialTags([...tags]);
-      } else if (activeCategory === 'columns') {
-        const next = normalizeContactTableColumns(tableColumns);
-        await updateSettings(CONTACTS_SETTINGS_KEY, { tableColumns: next });
-        setTableColumns(next);
-        setInitialTableColumns(next);
       }
     } catch (error) {
       console.error('Failed to save contacts settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [activeCategory, tags, tableColumns, updateSettings]);
+  }, [activeCategory, tags, updateSettings]);
 
   const addTag = useCallback(() => {
     const next = newTag.trim();
@@ -198,38 +151,6 @@ export function ContactSettingsView({
   const removeTag = useCallback((tag: string) => {
     setTags((prev) => prev.filter((x) => x !== tag));
   }, []);
-
-  const handleDragStart = (e: React.DragEvent, columnId: ContactTableColumnId) => {
-    setDraggingColumnId(columnId);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', columnId);
-  };
-
-  const handleDragOver = (e: React.DragEvent, columnId: ContactTableColumnId) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggingColumnId && draggingColumnId !== columnId) {
-      setDragOverColumnId(columnId);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, targetId: ContactTableColumnId) => {
-    e.preventDefault();
-    const rawSource = e.dataTransfer.getData('text/plain') || draggingColumnId;
-    if (isContactTableColumnId(rawSource)) {
-      setTableColumns((prev) => ({
-        ...prev,
-        order: reorderContactTableColumns(prev.order, rawSource, targetId),
-      }));
-    }
-    setDraggingColumnId(null);
-    setDragOverColumnId(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggingColumnId(null);
-    setDragOverColumnId(null);
-  };
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('contacts.loading')}</div>;
@@ -308,64 +229,6 @@ export function ContactSettingsView({
                   ))}
                 </div>
               )}
-            </div>
-          </DetailSection>
-        )}
-
-        {activeCategory === 'columns' && (
-          <DetailSection title={t('contacts.settingsCategories.columns')} className="pt-0">
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {t('contacts.settingsCategories.columnsHint')}
-              </p>
-              <ul className="divide-y divide-border/50 rounded-lg border border-border/50 bg-background">
-                {tableColumns.order.map((columnId) => {
-                  const isVisible = !tableColumns.hidden.includes(columnId);
-                  const isName = columnId === 'name';
-                  return (
-                    <li
-                      key={columnId}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, columnId)}
-                      onDragOver={(e) => handleDragOver(e, columnId)}
-                      onDrop={(e) => handleDrop(e, columnId)}
-                      onDragEnd={handleDragEnd}
-                      onDragLeave={() => {
-                        if (dragOverColumnId === columnId) {
-                          setDragOverColumnId(null);
-                        }
-                      }}
-                      className={cn(
-                        'flex items-center justify-between gap-3 px-4 py-2.5 transition-colors',
-                        draggingColumnId === columnId && 'opacity-50',
-                        dragOverColumnId === columnId && 'bg-muted/60',
-                      )}
-                    >
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <Grip
-                          className="h-3.5 w-3.5 flex-shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
-                          aria-hidden
-                        />
-                        <span className="text-sm font-medium">
-                          {t(COLUMN_LABEL_KEYS[columnId])}
-                        </span>
-                      </div>
-                      <Switch
-                        checked={isVisible}
-                        disabled={isName}
-                        onCheckedChange={(checked) => {
-                          setTableColumns((prev) =>
-                            setContactTableColumnHidden(prev, columnId, !checked),
-                          );
-                        }}
-                        aria-label={t('contacts.settingsCategories.columnsToggle', {
-                          column: t(COLUMN_LABEL_KEYS[columnId]),
-                        })}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
             </div>
           </DetailSection>
         )}

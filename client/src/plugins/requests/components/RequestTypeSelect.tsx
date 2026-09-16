@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { BADGE_SELECT_TRIGGER_CLASS } from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 import { useRequests } from '../hooks/useRequests';
@@ -43,7 +44,7 @@ export function RequestTypeSelect({
     <Select value={request.requestType} onValueChange={onTypeChange}>
       <SelectTrigger
         className={cn(
-          'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50',
+          BADGE_SELECT_TRIGGER_CLASS,
           compact ? 'h-7 w-[130px]' : 'h-9 w-full sm:w-[180px]',
         )}
       >
