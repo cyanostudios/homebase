@@ -14,8 +14,8 @@ export type PersonMatrixIdentityColumnId = (typeof PERSON_MATRIX_IDENTITY_COLUMN
 const helpers = createTableColumnsHelpers({
   columnIds: PERSON_MATRIX_IDENTITY_COLUMN_IDS,
   requiredColumnId: 'name',
-  /** Name-only default; additional identity columns come later in code if needed. */
-  defaultHidden: ['team', 'jerseyName', 'initials', 'jerseyNumber'],
+  /** Team stays hidden; jersey name / initials / number are visible by default. */
+  defaultHidden: ['team'],
 });
 
 export const DEFAULT_PERSON_MATRIX_IDENTITY_COLUMNS = helpers.DEFAULT;
