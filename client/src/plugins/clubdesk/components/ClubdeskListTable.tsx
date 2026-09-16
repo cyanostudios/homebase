@@ -1,12 +1,17 @@
+import { ListOrdered } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { cn } from '@/lib/utils';
 
 import type { Clubdesk } from '../types/clubdesk';
 import type { ClubdeskSortField, ClubdeskSortOrder } from '../utils/clubdeskListSort';
+
+const PUBLISHED_BADGE =
+  'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200';
 
 export type ClubdeskListTableProps = {
   clubdesks: Clubdesk[];
@@ -20,8 +25,21 @@ export type ClubdeskListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedClubdeskId: string | null;
+  activeClubdeskId?: string | null;
   selectionEnabled?: boolean;
 };
+
+function clubdeskIdentityMeta(
+  row: Clubdesk,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  const parts: string[] = [];
+  const category = (row.category || '').trim();
+  parts.push(category || t('clubdesk.uncategorized'));
+  const count = row.stepCount ?? row.steps?.length ?? 0;
+  parts.push(t('clubdesk.stepCount', { count }));
+  return parts.join(' · ');
+}
 
 export function ClubdeskListTable({
   clubdesks,
@@ -35,6 +53,7 @@ export function ClubdeskListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyDuplicatedClubdeskId,
+  activeClubdeskId = null,
   selectionEnabled = true,
 }: ClubdeskListTableProps) {
   const { t } = useTranslation();
@@ -44,31 +63,39 @@ export function ClubdeskListTable({
       {
         field: 'title',
         header: t('clubdesk.sort.title'),
-        cell: (row) => (
-          <span
-            className="block min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
-            title={row.title}
-          >
-            {row.title}
-          </span>
-        ),
-      },
-      {
-        field: 'publicationStatus',
-        header: t('clubdesk.sort.status'),
         cell: (row) => {
+          const label = row.title?.trim() || '—';
           const isPublished = row.publicationStatus === 'published';
+          const identityMeta = clubdeskIdentityMeta(row, t);
           return (
-            <Badge
-              variant={isPublished ? 'default' : 'secondary'}
-              className={cn(
-                'text-[10px] font-extrabold',
-                isPublished &&
-                  'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200',
-              )}
-            >
-              {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
-            </Badge>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={t('nav.clubdesk-guides')} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={ListOrdered}
+                    className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={label !== '—' ? label : undefined}
+                >
+                  {label}
+                </span>
+                <Badge
+                  variant={isPublished ? 'default' : 'secondary'}
+                  className={cn(
+                    'h-4 shrink-0 px-1 py-0 text-[10px] font-normal leading-none',
+                    isPublished && PUBLISHED_BADGE,
+                  )}
+                >
+                  {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
+                </Badge>
+              </div>
+              <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                {identityMeta}
+              </span>
+            </div>
           );
         },
       },
@@ -85,6 +112,7 @@ export function ClubdeskListTable({
       sortOrder={sortOrder}
       onSort={onSort}
       onRowClick={onRowClick}
+      isRowActive={(row) => activeClubdeskId != null && String(row.id) === String(activeClubdeskId)}
       rowAriaLabel={(row) => t('clubdesk.openClubdesk', { title: row.title })}
       rowClassName={(row) =>
         recentlyDuplicatedClubdeskId === String(row.id)
@@ -107,6 +135,9 @@ export function ClubdeskListTable({
             }
           : undefined
       }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
     />
   );
 }

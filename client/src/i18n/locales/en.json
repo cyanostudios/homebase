@@ -202,8 +202,8 @@
     "editSlot": "Edit slot",
     "slot": "Slot",
     "searchPlaceholder": "Search {{count}} slots...",
-    "noSlotsMatch": "No slots match your search.",
-    "noSlotsYet": "No slots yet",
+    "noMatch": "No slots match your search.",
+    "noYet": "No slots yet",
     "sectionTitle": "Slot",
     "nameLabel": "Name",
     "namePlaceholder": "Leave empty for SLT number",
@@ -268,10 +268,7 @@
     "deleteSlotsFailed": "Could not delete selected slots",
     "loadFailed": "Failed to load slots",
     "quickContext": {
-      "openFullProfile": "Open full slot",
-      "contacts": "Contacts",
-      "readMore": "Read more",
-      "showLess": "Show less"
+      "title": "Slot details"
     },
     "slotDatePassed": "This slot’s date has passed and is not visible for bookings",
     "visibleDisabledPast": "Past slots are not shown for public booking; visibility cannot be changed",
@@ -282,13 +279,24 @@
     "dateTimePlaceholder": "Date & time",
     "dateTimeClear": "Clear date & time",
     "dateTimePickerTime": "Time",
-    "settingsSubtitle": "Manage table columns and categories.",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "stats": {
+      "total": "Total",
+      "visible": "Visible",
+      "upcoming": "Upcoming",
+      "withCategory": "With category"
+    },
+    "statistics": {
+      "title": "Slots overview",
+      "embeddedDescription": "Overview of slots by visibility, upcoming times, and category assignment.",
+      "overview": "Overview"
+    },
+    "settingsSubtitle": "Manage categories.",
     "settingsCategories": {
-      "columns": "Table columns",
-      "columnsDescription": "Choose which columns appear in the slots table and their order.",
-      "columnsHint": "Drag to reorder. Toggle to show or hide a column. Name is always visible.",
-      "view": "View",
-      "viewDescription": "Default column layout for slot cards.",
       "categories": "Categories",
       "categoriesDescription": "Categories you can assign on slots."
     }
@@ -1464,6 +1472,13 @@
     "sortBy": "Sort by",
     "sortAsc": "Sort ascending",
     "sortDesc": "Sort descending",
+    "collapseToolbar": "Hide toolbar",
+    "expandToolbar": "Show toolbar",
+    "quickContext": {
+      "title": "Guide details",
+      "emptyTitle": "No guide selected",
+      "emptyHint": "Select a guide from the list to see details here."
+    },
     "sort": {
       "updated": "Updated",
       "title": "Title",

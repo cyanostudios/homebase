@@ -1,8 +1,10 @@
+import { Store } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
+import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -17,6 +19,19 @@ import {
 
 function formatSlotDateTime(s: string | null) {
   return s ? formatDateTimeShort(s) : '—';
+}
+
+function slotIdentityMeta(slot: Slot): string | null {
+  const parts: string[] = [];
+  const location = slot.location?.trim();
+  if (location) {
+    parts.push(location);
+  }
+  const when = slot.slot_time ? formatDateTimeShort(slot.slot_time) : '';
+  if (when) {
+    parts.push(when);
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 type SlotTableColumnField = SlotSortField | 'created_at' | 'updated_at';
@@ -70,13 +85,32 @@ export function SlotListTable({
         header: t('slots.nameLabel'),
         cell: (slot) => {
           const label = slot.name?.trim() || `SLT ${slot.id}`;
+          const identityMeta = slotIdentityMeta(slot);
           return (
-            <span
-              className="block min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
-              title={label}
-            >
-              {label}
-            </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={t('nav.slots')} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={Store}
+                    className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={label}
+                >
+                  {label}
+                </span>
+              </div>
+              {identityMeta ? (
+                <span
+                  className="pl-6 text-[10px] font-medium leading-3 text-slate-400 dark:text-slate-500"
+                  title={identityMeta}
+                >
+                  <span className="block truncate">{identityMeta}</span>
+                </span>
+              ) : null}
+            </div>
           );
         },
       },
@@ -213,6 +247,9 @@ export function SlotListTable({
             }
           : undefined
       }
+      subtleRowDividers
+      headerBarClassName="bg-sky-50 dark:bg-sky-950/40"
+      headerCellClassName="text-sky-800 dark:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40"
       pluginName="slots"
       dataListItem={(slot) => slot}
     />

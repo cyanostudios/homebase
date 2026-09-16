@@ -9,7 +9,7 @@ import type { Slot, ValidationError, SlotMention } from '../types/slots';
 export interface SlotsContextType {
   isSlotsPanelOpen: boolean;
   currentSlot: Slot | null;
-  panelMode: 'create' | 'edit' | 'view' | 'settings';
+  panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   slots: Slot[];
 

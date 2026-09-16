@@ -28,9 +28,9 @@ Stale checklist and template docs caused new plugins to copy obsolete list patte
 
 4. **Backend template unchanged:** no list-layout `/settings` routes; do not document `listViewMode` / `columnCount` as template defaults (legacy plugins may still use AppContext user settings).
 
-5. **50/50 sticky quick-context aside** (separate `*QuickContextPanel` beside the list) is **legacy/alternate** — not the golden template. Use only when product explicitly requires that pattern; otherwise follow mail-layout.
+5. **50/50 sticky quick-context aside** (separate `*QuickContextPanel` beside the list) is **legacy/alternate** — not the golden template. **Removed from production** (Slots migrated 2026-09-16). Do not reintroduce.
 
-**Production note (2026-09-16, A+B+C):** live mail-layout `*QuickContextPanel` components are **full-only** (no `variant`). The only production list-side QC is **Slots**. The golden template still ships `variant="list" | "full"` for optional sticky preview; do not copy that branch into new plugins unless product requires Slots-style QC.
+**Production note (2026-09-16):** live mail-layout `*QuickContextPanel` components are **full-only** (no `variant`), or plugins mount `*DetailHeaderMenus` with `leading` in `*View` (Cups/Slots). The golden template may still ship optional `variant="list" | "full"` scaffolding — do **not** copy sticky list-side QC into new plugins.
 
 6. **Template location:** `templates/plugin-frontend-template/` remains outside `client/src/` and is not linted until copied into `client/src/plugins/<name>/`.
 
@@ -52,5 +52,5 @@ Stale checklist and template docs caused new plugins to copy obsolete list patte
 
 ## Non-goals
 
-- Migrating legacy plugins that still use cards/column prefs (Files, Slots, …) — out of scope for the template change.
+- Historical card-column / sticky list-side QC migrations already completed for production CRUD (incl. Slots / Clubdesk Guides as of 2026-09-16) — this ADR does not re-litigate those landings.
 - Changing `templates/plugin-backend-template/` list-layout comments in this ADR (backend template code unchanged).

@@ -53,11 +53,7 @@ function parseClubdeskGuideViewTab(value: string | null): ClubdeskGuideViewTab {
   return 'information';
 }
 
-const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({
-  clubdesk,
-  item,
-  stacked: _stacked = false,
-}) => {
+const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item, stacked = false }) => {
   const viewItem = clubdesk ?? item ?? null;
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -276,7 +272,7 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({
   );
 
   return (
-    <DetailLayout gridClassName="grid-cols-1">
+    <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined}>
       <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
         <div className="border-b border-border/50 px-4 py-5">
           <ClubdeskDetailHeaderMenus clubdesk={viewItem} leading={titleLeading} />

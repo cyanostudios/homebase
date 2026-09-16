@@ -12,6 +12,7 @@ import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import {
   CLUBDESK_SUBPAGE_SET,
   resolveClubdeskPanelClosePath,
+  shouldKeepPendingGuideItemPath,
   shouldKeepPendingPriceListItemPath,
 } from '@/core/routing/clubdeskRoutes';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
@@ -392,6 +393,8 @@ export function ClubdeskProvider({
       setIsClubdeskPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      // Soft-preview often has no item slug in the URL; navigating would otherwise re-trigger
+      // deep-link sync → openClubdeskForView and bounce edit back to view.
       deepLinkPathSyncedRef.current = `/clubdesk/${buildSlug(item, clubdesk, 'slug')}`;
       navigateToItem(item, clubdesk, 'slug');
       void ensureFullClubdesk(item).then((full) => {
@@ -580,6 +583,13 @@ export function ClubdeskProvider({
   priceListPanelModeRef.current = panelMode;
   currentPriceListIdRef.current = currentPriceList ? String(currentPriceList.id) : null;
 
+  const guidePanelModeRef = useRef(panelMode);
+  const currentClubdeskIdRef = useRef<string | null>(
+    currentClubdesk ? String(currentClubdesk.id) : null,
+  );
+  guidePanelModeRef.current = panelMode;
+  currentClubdeskIdRef.current = currentClubdesk ? String(currentClubdesk.id) : null;
+
   useEffect(() => {
     const segments = location.pathname.split('/').filter(Boolean);
     if (segments[0] !== 'clubdesk') {
@@ -624,14 +634,23 @@ export function ClubdeskProvider({
     }
     const slug = segments[1] ?? '';
     if (!slug || CLUBDESK_SUBPAGE_SET.has(slug)) {
+      if (shouldKeepPendingGuideItemPath(pathKey, deepLinkPathSyncedRef.current)) {
+        return;
+      }
       deepLinkPathSyncedRef.current = pathKey;
       return;
     }
     const item = resolveSlug(slug, clubdesk, 'slug');
     deepLinkPathSyncedRef.current = pathKey;
-    if (item) {
-      openClubdeskForViewRef.current(item as Clubdesk);
+    if (!item) {
+      return;
     }
+    const mode = guidePanelModeRef.current;
+    const currentId = currentClubdeskIdRef.current;
+    if ((mode === 'edit' || mode === 'create') && currentId && String(item.id) === currentId) {
+      return;
+    }
+    openClubdeskForViewRef.current(item as Clubdesk);
   }, [location.pathname, clubdesk, priceLists]);
 
   const guideNav = usePluginNavigation(clubdesk, currentClubdesk, openClubdeskForView);

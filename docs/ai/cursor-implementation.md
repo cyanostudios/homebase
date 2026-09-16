@@ -49,7 +49,7 @@ Följande Cursor-funktioner används för att realisera AI-teamet. Beskrivningen
 
 **Syfte:** Används för faktisk implementation – skriva kod, skapa filer, köra kommandon. Aktiveras först efter att plan/design är godkänd via beslutsgrindarna i Team Workflow.
 
-**Typiska roller:** Backendutvecklare, Frontendutvecklare, Dokumentationsspecialist.
+**Typiska roller:** Backendutvecklare, Frontendutvecklare, UI Hygiene (städa död UI), Dokumentationsspecialist.
 
 ### Ask-läge
 

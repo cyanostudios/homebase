@@ -90,6 +90,16 @@ describe('RequestList table view wiring', () => {
     expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
   });
 
+  test('requests plugin registry hides shell Add and wires content view', () => {
+    const registrySrc = fs.readFileSync(
+      path.join(__dirname, '../../../../core/pluginRegistry.ts'),
+      'utf8',
+    );
+    expect(registrySrc).toMatch(
+      /name: 'requests'[\s\S]*?contentOwnsScroll: true[\s\S]*?contentViewKey: 'requestsContentView'[\s\S]*?noPrimaryAction: true[\s\S]*?name: 'slots'/,
+    );
+  });
+
   test('desktop create/edit renders RequestForm in the detail column', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/RequestForm/);

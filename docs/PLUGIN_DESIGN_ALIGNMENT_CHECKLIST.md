@@ -3,7 +3,7 @@
 **Referensplugin:** `slots` (primär), `notes` och `tasks` (sekundära)  
 **Princip:** Kopiera exakt. Ta bort gammal kod. Inga workarounds.
 
-**Kompletterande guide (quick context, full view, view/edit-sync, dialoger):** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) — mail-layout QC: `ContactQuickContextPanel`; enda list-side QC: `SlotQuickContextPanel`.
+**Kompletterande guide (quick context, full view, view/edit-sync, dialoger):** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) — mail-layout QC: `ContactQuickContextPanel` (full-only in `*View`); list|detail for Slots/Cups/Contacts m.fl.
 
 ## Official Template Rule
 

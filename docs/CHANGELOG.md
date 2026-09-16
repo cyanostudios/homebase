@@ -4,6 +4,54 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-16 – Clubdesk Guides mail-layout cleanup (Price List parity)
+
+**Typ:** enhancement / UI  
+**Scope:** `ClubdeskList`, `ClubdeskListTable`, `ClubdeskForm`, `ClubdeskView`, i18n, docs, `clubdeskListTableView.test.js`  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). UI-only; informational Low **S-UI-1** (soft-preview `getClubdesk` same authz as view — documented under hydrate entry). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Clubdesk Guides aligned to Price List / Slots **mail split list + detail**: desktop 20/80 list|detail, collapsible toolbar with portal toggle, filter-chips toggle, sort dropdown, soft preview with stacked `ClubdeskView`/`ClubdeskForm`, empty quick-context card. Table sky header + identity icon/meta + inline status badge. Guides-specific draft/published + category filter chips retained. `ClubdeskForm` hides bottom footer when `stacked`.
+
+## 2026-09-16 – Clubdesk Guides: edit from soft preview no longer bounces to view
+
+**Typ:** bugfix / UI  
+**Scope:** `clubdeskRoutes`, `ClubdeskProvider` deep-link sync  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). Client-routing only. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Same race as Price List: soft-preview edit set a pending `/clubdesk/:slug`, then `ensureFullClubdesk` re-synced the guides index and clobbered the pending path so navigate looked like a fresh deep link → `openClubdeskForView`. Added `shouldKeepPendingGuideItemPath` and skip view-open while already editing that guide.
+
+## 2026-09-16 – Clubdesk Guides soft-preview hydrates steps
+
+**Typ:** bugfix / UI  
+**Scope:** `ClubdeskList`  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). Soft-preview uses authenticated `GET /clubdesk/:id` (`requirePlugin` + id validation); informational Low **S-UI-1** (more frequent get than list-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Soft preview used list index rows that omit `steps`, so the Steps tab stayed empty until edit loaded a full guide. Preview now calls `getClubdesk` (same pattern as Price List `items`) and preserves hydrated steps across index sync.
+
+## 2026-09-16 – Requests: hide leftover shell Add Request
+
+**Typ:** bugfix / UI  
+**Scope:** `pluginRegistry` requests entry, `requestListTableView.test.js`  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). Registry flags only. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Requests mail-layout already owns Add via toolbar Plus + Quick Add and create/edit via `InlinePanelFormActions`. The plugin was missing `contentViewKey: 'requestsContentView'` (already documented in `PLUGIN_RUNTIME_CONVENTIONS.md`) and `noPrimaryAction: true`, so `resolvePrimaryAction` still injected the old ContentHeader green **Add Request** button on list and add/edit. Registry now matches notes/teams/garments; shell Add is gone.
+
+## 2026-09-16 – Slots mail-layout cleanup (parity + dead code)
+
+**Typ:** cleanup / enhancement / UI  
+**Scope:** `SlotForm`, `SlotListTable`, `SlotsList`, `SlotsProvider`, remove `SlotQuickContextPanel` / `SlotsSettingsForm`, i18n, docs  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). UI-only. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Slots aligned remaining Cups/Contacts gaps: `SlotForm` honors `stacked` (hide sidebar, single column), table sky header + identity icon/meta + `subtleRowDividers`, shell/settings padding, `noMatch`/`noYet` + aside `quickContext.title`. Removed orphan list-side QC panel and dead panel-mode settings form. Docs no longer treat Slots as legacy 50/50 sticky QC.
+
+## 2026-09-16 – Slots mail-layout (Contacts/Cups reference)
+
+**Typ:** enhancement / UI  
+**Scope:** `SlotsList`, `SlotForm`, `SlotView`, `SlotsStatisticsView`, `pluginRegistry`  
+**QA:** Approved (2026-09-16). **Security:** Approved (2026-09-16). UI-only. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Slots aligned to Contacts/Cups **mail split list + detail**: desktop 20/80 list|detail, collapsible toolbar, filter-chips toggle, sort dropdown, desktop preview with stacked `SlotView`/`SlotForm`, soft-sky empty statistics pane, `contentOwnsScroll: true`. Removed sticky list-side Quick Context. `SlotView` mounts `SlotDetailHeaderMenus` (Actions + Export) with leading title like Cups. Bulk message/email/properties/CSV export unchanged.
+
 ## 2026-09-16 – Core list leftovers after A+B+C (effectiveListViewMode / TeamCard helper)
 
 **Typ:** Refactor / cleanup  
@@ -18,7 +66,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 **Scope:** `client/src/plugins/*` leftover list/QC/`columnCount` modules  
 **Local-first; not a prod release** by itself. Extends [2026-09-15 Depth A](#2026-09-15--grind-1-depth-a-orphan-cleanup-requestscontactstasks) (requests/contacts/tasks) across remaining plugins.
 
-**Sammanfattning:** Removed unused pre-table-only list artifacts (`*ListItem`, `*QuickAdd`, plugin-local `*ListViewMode`, `TeamCard`) and `*ColumnCount` modules that had no live `SETTINGS_KEY`. Kept `*ColumnCount.ts` files are **SETTINGS_KEY-only** (`contacts`, `tasks`, `notes`, `teams`, `matches`, `garments`, `invoices`, `estimates`, `cups`, `slots`). Unused Quick Context **list** branches stripped except **Slots** (still 50/50 sticky `variant="list"|"full"`). Mail-layout `*QuickContextPanel` components are full-only header cards in `*View`. Request QC reads `request.updated_at` (the field on the type; `updatedAt` was dead). No list-chrome behavior change — production lists were already table-only.
+**Sammanfattning:** Removed unused pre-table-only list artifacts (`*ListItem`, `*QuickAdd`, plugin-local `*ListViewMode`, `TeamCard`) and `*ColumnCount` modules that had no live `SETTINGS_KEY`. Kept `*ColumnCount.ts` files are **SETTINGS_KEY-only** (`contacts`, `tasks`, `notes`, `teams`, `matches`, `garments`, `invoices`, `estimates`, `cups`, `slots`). Unused Quick Context **list** branches stripped; at A+B+C time **Slots** still had sticky list QC — **superseded 2026-09-16** (Slots mail-layout; `SlotQuickContextPanel` removed). Mail-layout `*QuickContextPanel` components are full-only header cards in `*View`. Request QC reads `request.updated_at` (the field on the type; `updatedAt` was dead). No list-chrome behavior change — production lists were already table-only.
 
 **Not in this entry:** mail-layout/detail-tabs/invoice-controller work landed in the same commit range is documented in earlier 2026-09-15 entries, not as A+B+C.
 

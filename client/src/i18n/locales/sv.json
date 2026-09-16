@@ -202,8 +202,8 @@
     "editSlot": "Redigera slot",
     "slot": "Slot",
     "searchPlaceholder": "Sök {{count}} slots...",
-    "noSlotsMatch": "Inga slots matchar sökningen.",
-    "noSlotsYet": "Inga slots ännu",
+    "noMatch": "Inga slots matchar sökningen.",
+    "noYet": "Inga slots ännu",
     "sectionTitle": "Slot",
     "nameLabel": "Namn",
     "namePlaceholder": "Lämna tomt för SLT-nummer",
@@ -268,10 +268,7 @@
     "deleteSlotsFailed": "Kunde inte ta bort valda slots",
     "loadFailed": "Kunde inte ladda slots",
     "quickContext": {
-      "openFullProfile": "Öppna hela sloten",
-      "contacts": "Kontakter",
-      "readMore": "Läs mer",
-      "showLess": "Visa mindre"
+      "title": "Slotdetaljer"
     },
     "slotDatePassed": "Datumet för denna slot har passerat och visas inte för bokningar",
     "visibleDisabledPast": "Passerade slots visas inte för publik bokning; synlighet kan inte ändras",
@@ -282,13 +279,24 @@
     "dateTimePlaceholder": "Datum och tid",
     "dateTimeClear": "Rensa datum och tid",
     "dateTimePickerTime": "Tid",
-    "settingsSubtitle": "Hantera tabellkolumner och kategorier.",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "stats": {
+      "total": "Totalt",
+      "visible": "Synliga",
+      "upcoming": "Kommande",
+      "withCategory": "Med kategori"
+    },
+    "statistics": {
+      "title": "Slots-översikt",
+      "embeddedDescription": "Översikt av slots efter synlighet, kommande tider och kategoritilldelning.",
+      "overview": "Översikt"
+    },
+    "settingsSubtitle": "Hantera kategorier.",
     "settingsCategories": {
-      "columns": "Tabellkolumner",
-      "columnsDescription": "Välj vilka kolumner som visas i platstabellen och i vilken ordning.",
-      "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Namn är alltid synligt.",
-      "view": "Vy",
-      "viewDescription": "Standardkolumner för platskort.",
       "categories": "Kategorier",
       "categoriesDescription": "Kategorier som kan tilldelas platser."
     }
@@ -1458,6 +1466,13 @@
     "sortBy": "Sortera efter",
     "sortAsc": "Sortera stigande",
     "sortDesc": "Sortera fallande",
+    "collapseToolbar": "Dölj verktygsfält",
+    "expandToolbar": "Visa verktygsfält",
+    "quickContext": {
+      "title": "Guidedetaljer",
+      "emptyTitle": "Ingen guide vald",
+      "emptyHint": "Välj en guide i listan för att se detaljer här."
+    },
     "sort": {
       "updated": "Uppdaterad",
       "title": "Titel",

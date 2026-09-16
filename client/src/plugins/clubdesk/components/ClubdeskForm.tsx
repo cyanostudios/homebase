@@ -943,34 +943,36 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                 </DetailSection>
               </Card>
 
-              <div className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  icon={X}
-                  onClick={handleCancel}
-                  disabled={isCurrentlySubmitting}
-                  className="h-9 px-3 text-xs"
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  icon={Check}
-                  onClick={() => void handleSubmit()}
-                  disabled={hasBlockingErrors || isCurrentlySubmitting}
-                  className="h-9 px-3 text-xs bg-green-600 hover:bg-green-700 text-white border-none"
-                >
-                  {isCurrentlySubmitting
-                    ? t('common.saving')
-                    : panelMode === 'edit'
-                      ? t('common.update')
-                      : t('common.save')}
-                </Button>
-              </div>
+              {!stacked ? (
+                <div className="flex justify-end gap-2 border-t border-border pt-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    icon={X}
+                    onClick={handleCancel}
+                    disabled={isCurrentlySubmitting}
+                    className="h-9 px-3 text-xs"
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    icon={Check}
+                    onClick={() => void handleSubmit()}
+                    disabled={hasBlockingErrors || isCurrentlySubmitting}
+                    className="h-9 px-3 text-xs bg-green-600 hover:bg-green-700 text-white border-none"
+                  >
+                    {isCurrentlySubmitting
+                      ? t('common.saving')
+                      : panelMode === 'edit'
+                        ? t('common.update')
+                        : t('common.save')}
+                  </Button>
+                </div>
+              ) : null}
             </form>
           </DetailLayout>
         </div>

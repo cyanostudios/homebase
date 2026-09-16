@@ -42,8 +42,6 @@ import { useSlotsContext as useSlots } from '../context/SlotsContext';
 import { CAPACITY_OPTIONS, type SlotMention } from '../types/slots';
 import { isSlotTimePast } from '../utils/slotTimeUtils';
 
-import { SlotsSettingsForm } from './SlotsSettingsForm';
-
 interface SlotFormState {
   name: string;
   slot_time: string;
@@ -101,6 +99,7 @@ interface SlotFormProps {
   onSaveSlots?: (dataArray: Record<string, unknown>[]) => Promise<boolean>;
   onCancel: () => void;
   isSubmitting?: boolean;
+  stacked?: boolean;
 }
 
 /**
@@ -128,12 +127,12 @@ function toDatetimeLocal(iso: string | null | undefined): string {
 }
 
 export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(function SlotForm(
-  { currentSlot, onSave, onSaveSlots, onCancel },
+  { currentSlot, onSave, onSaveSlots, onCancel, stacked = false },
   ref,
 ) {
   const { t } = useTranslation();
   const { contacts, getSettings, settingsVersion } = useApp();
-  const { validationErrors, clearValidationErrors, panelMode } = useSlots();
+  const { validationErrors, clearValidationErrors } = useSlots();
   const assignableContacts = contacts.filter(
     (c: { isAssignable?: boolean }) => c.isAssignable !== false,
   );
@@ -328,17 +327,13 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
       setSelectedContactIds(nextSelectedContactIds);
       baselineRef.current = { formData: nextFormData, selectedContactIds: nextSelectedContactIds };
       markClean();
-    } else if (panelMode !== 'settings') {
+    } else {
       initializedSlotIdRef.current = null;
       resetForm();
     }
-  }, [currentSlot, panelMode, markClean, resetForm]);
+  }, [currentSlot, markClean, resetForm]);
 
   const handleSubmit = useCallback(async () => {
-    if (panelMode === 'settings') {
-      onCancel();
-      return;
-    }
     if (isSubmitting) {
       return;
     }
@@ -403,13 +398,11 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
       setIsSubmitting(false);
     }
   }, [
-    panelMode,
     formData,
     selectedContactIds,
     assignableContacts,
     onSave,
     onSaveSlots,
-    onCancel,
     markClean,
     currentSlot,
     resetForm,
@@ -435,10 +428,6 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
     [handleSubmit, handleCancel],
   );
 
-  if (panelMode === 'settings') {
-    return <SlotsSettingsForm onCancel={onCancel} />;
-  }
-
   const updateField = <K extends keyof SlotFormState>(field: K, value: SlotFormState[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     markDirty();
@@ -458,50 +447,55 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
     !!endBeforeStartError ||
     validationErrors.some((e) => !e.message?.toLowerCase().includes('warning'));
 
-  const formSidebar = currentSlot ? (
-    <div className="space-y-4">
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('slots.information')}
-          icon={Info}
-          iconPlugin="slots"
-          className="p-4"
-          collapsible
-        >
-          <div className="space-y-4 text-xs">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">ID</span>
-              <span className="font-mono font-medium">
-                {formatDisplayNumber('slots', currentSlot.id)}
-              </span>
+  const formSidebar =
+    currentSlot && !stacked ? (
+      <div className="space-y-4">
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('slots.information')}
+            icon={Info}
+            iconPlugin="slots"
+            className="p-4"
+            collapsible
+          >
+            <div className="space-y-4 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">ID</span>
+                <span className="font-mono font-medium">
+                  {formatDisplayNumber('slots', currentSlot.id)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Created</span>
+                <span className="font-medium">
+                  {currentSlot.created_at
+                    ? new Date(currentSlot.created_at).toLocaleDateString()
+                    : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Updated</span>
+                <span className="font-medium">
+                  {currentSlot.updated_at
+                    ? new Date(currentSlot.updated_at).toLocaleDateString()
+                    : '—'}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Created</span>
-              <span className="font-medium">
-                {currentSlot.created_at
-                  ? new Date(currentSlot.created_at).toLocaleDateString()
-                  : '—'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Updated</span>
-              <span className="font-medium">
-                {currentSlot.updated_at
-                  ? new Date(currentSlot.updated_at).toLocaleDateString()
-                  : '—'}
-              </span>
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
-      <DetailActivityLog entityType="slot" entityId={currentSlot.id} title={t('slots.activity')} />
-    </div>
-  ) : undefined;
+          </DetailSection>
+        </Card>
+        <DetailActivityLog
+          entityType="slot"
+          entityId={currentSlot.id}
+          title={t('slots.activity')}
+        />
+      </div>
+    ) : undefined;
 
   return (
     <>
       <div className="plugin-slots">
-        <DetailLayout sidebar={formSidebar}>
+        <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
           <form
             className="space-y-4"
             onSubmit={(e) => {
@@ -536,7 +530,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
 
             {!currentSlot && isSeries && onSaveSlots && (
               <Card className="p-4 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className={cn('grid grid-cols-1 gap-4', !stacked && 'md:grid-cols-2')}>
                   <div className="space-y-2">
                     <Label htmlFor="series-count">{t('slots.numberOfSlots')}</Label>
                     <Input
@@ -620,7 +614,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                     />
                   </div>
                   {/* Start / end (same combined date+time UI as matches DateTimePicker) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className={cn('grid grid-cols-1 gap-4', !stacked && 'md:grid-cols-2')}>
                     <div className="space-y-2">
                       <Label htmlFor="slots-start-datetime">{t('slots.dateTimeStart')}</Label>
                       <DateTimePicker
@@ -677,7 +671,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       className={FORM_INPUT_CLASS}
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className={cn('grid grid-cols-1 gap-4', !stacked && 'md:grid-cols-2')}>
                     <div className="space-y-2">
                       <Label>{t('slots.categoryLabel')}</Label>
                       <Select

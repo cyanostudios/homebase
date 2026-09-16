@@ -822,6 +822,8 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentFlush: true,
     contentOwnsScroll: true,
     slugField: 'title',
+    contentViewKey: 'requestsContentView',
+    noPrimaryAction: true,
   },
   {
     name: 'slots',
@@ -845,6 +847,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: SlotsDashboardWidget,
     displayPrefix: 'SLT',
     contentFlush: true,
+    contentOwnsScroll: true,
     slugField: (i: any) => (i.slot_time ? String(i.slot_time).slice(0, 10) : ''),
     noPrimaryAction: true,
     getFormExtraProps: (context: any) =>

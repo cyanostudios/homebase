@@ -6,22 +6,28 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/DetailHeaderMenus';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import type { ExportFormat } from '@/core/utils/exportUtils';
-import { cn } from '@/lib/utils';
 
 import { useSlotsContext } from '../context/SlotsContext';
 import type { Slot } from '../types/slots';
 
 function getSlotActionIconColorClass(actionId: string): string {
   if (actionId === 'send-message') {
-    return 'text-violet-600 dark:text-violet-400';
+    return 'text-sky-500 dark:text-sky-400';
   }
   if (actionId === 'send-email') {
-    return 'text-red-600 dark:text-red-400';
+    return 'text-red-800 dark:text-red-500';
   }
   return '';
 }
 
-export function SlotDetailHeaderMenus({ slot }: { slot: Slot }) {
+export function SlotDetailHeaderMenus({
+  slot,
+  leading,
+}: {
+  slot: Slot;
+  /** Optional leading content on the Actions trigger row (e.g. slot name). */
+  leading?: React.ReactNode;
+}) {
   const { t } = useTranslation();
   const {
     openSlotForEdit,
@@ -79,7 +85,7 @@ export function SlotDetailHeaderMenus({ slot }: { slot: Slot }) {
           label: action.label,
           variant: 'secondary',
           disabled: action.disabled,
-          contentClassName: cn(getSlotActionIconColorClass(action.id), action.className),
+          contentClassName: getSlotActionIconColorClass(action.id),
           onClick: () => action.onClick(slot),
         });
       }
@@ -107,6 +113,7 @@ export function SlotDetailHeaderMenus({ slot }: { slot: Slot }) {
 
   return (
     <DetailHeaderMenus
+      leading={leading}
       actions={actions}
       exportActions={exportActions}
       actionsLabel={t('common.headerActions')}

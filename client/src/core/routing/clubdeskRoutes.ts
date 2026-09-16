@@ -31,6 +31,29 @@ export function shouldKeepPendingPriceListItemPath(
 }
 
 /**
+ * Same race as price lists for Guides soft-preview → edit: pending
+ * `/clubdesk/:slug` must survive an index re-sync while still on `/clubdesk`.
+ */
+export function shouldKeepPendingGuideItemPath(
+  currentPathname: string,
+  pendingPath: string | null,
+): boolean {
+  const current = currentPathname.replace(/\/+$/, '') || '/';
+  if (current !== '/clubdesk') {
+    return false;
+  }
+  if (!pendingPath) {
+    return false;
+  }
+  const pending = pendingPath.replace(/\/+$/, '') || '/';
+  if (!pending.startsWith('/clubdesk/')) {
+    return false;
+  }
+  const segment = pending.slice('/clubdesk/'.length).split('/')[0] ?? '';
+  return Boolean(segment) && !CLUBDESK_SUBPAGE_SET.has(segment);
+}
+
+/**
  * Where to send the user after closing a clubdesk panel.
  *
  * Returns a path only when the URL is still an item deep-link

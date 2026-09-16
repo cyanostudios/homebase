@@ -1,6 +1,7 @@
 import {
   isClubdeskSubRoute,
   resolveClubdeskPanelClosePath,
+  shouldKeepPendingGuideItemPath,
   shouldKeepPendingPriceListItemPath,
 } from '@/core/routing/clubdeskRoutes';
 
@@ -41,6 +42,25 @@ describe('shouldKeepPendingPriceListItemPath', () => {
     expect(shouldKeepPendingPriceListItemPath('/clubdesk/price-list', '/clubdesk/price-list')).toBe(
       false,
     );
+  });
+});
+
+describe('shouldKeepPendingGuideItemPath', () => {
+  it('keeps a pending guide URL while still on the guides index', () => {
+    expect(shouldKeepPendingGuideItemPath('/clubdesk', '/clubdesk/opening-checklist')).toBe(true);
+  });
+
+  it('does not keep a pending path on the guide URL itself', () => {
+    expect(
+      shouldKeepPendingGuideItemPath('/clubdesk/opening-checklist', '/clubdesk/opening-checklist'),
+    ).toBe(false);
+  });
+
+  it('does not keep named subpages or empty pending paths', () => {
+    expect(shouldKeepPendingGuideItemPath('/clubdesk', null)).toBe(false);
+    expect(shouldKeepPendingGuideItemPath('/clubdesk', '/clubdesk')).toBe(false);
+    expect(shouldKeepPendingGuideItemPath('/clubdesk', '/clubdesk/price-list')).toBe(false);
+    expect(shouldKeepPendingGuideItemPath('/clubdesk', '/clubdesk/info')).toBe(false);
   });
 });
 
