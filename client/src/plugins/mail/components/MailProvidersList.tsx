@@ -47,6 +47,7 @@ import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActio
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -73,30 +74,7 @@ import { MailProvidersRouting, type MailProvidersRoutingCategory } from './MailP
 import { MailProvidersStatisticsView } from './MailProvidersStatisticsView';
 import { MailSettingsForm } from './MailSettingsForm';
 
-const MAIL_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.mail.toolbar.collapsed';
 const MAIL_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.mail.toolbar.filtersVisible';
-
-function readMailToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(MAIL_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeMailToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(MAIL_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: MailProviderSortField; labelKey: string }[] = [
   { value: 'providerKey', labelKey: 'mail.colProvider' },
@@ -158,7 +136,7 @@ export const MailProvidersList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<MailProviderSortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<MailProvidersListFilterSelection>([]);
   const [previewProvider, setPreviewProvider] = useState<MailProviderSettings | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readMailToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     MAIL_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -180,14 +158,6 @@ export const MailProvidersList: React.FC = () => {
     (inlineForm || inlinePanelView) && currentMail != null
       ? currentMail.providerKey
       : (previewProvider?.providerKey ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeMailToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

@@ -29,7 +29,7 @@ describe('Garment inventory list split view wiring', () => {
     expect(listSrc).not.toMatch(/sticky top-0 z-20/);
     expect(listSrc).not.toMatch(/useQuickContextPreview/);
     expect(listSrc).not.toMatch(/InventoryQuickContextPanel/);
-    expect(listSrc).toMatch(/GARMENTS_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/garments\.collapseToolbar/);
     expect(listSrc).toMatch(/garments\.expandToolbar/);
     expect(listSrc).toMatch(/renderSortDropdown/);

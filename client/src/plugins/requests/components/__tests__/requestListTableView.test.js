@@ -24,7 +24,7 @@ describe('RequestList table view wiring', () => {
     expect(listSrc).not.toMatch(/sticky top-0 z-20/);
     expect(listSrc).not.toMatch(/useQuickContextPreview/);
     expect(listSrc).not.toMatch(/RequestQuickContextPanel/);
-    expect(listSrc).toMatch(/REQUESTS_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/requests\.collapseToolbar/);
     expect(listSrc).toMatch(/requests\.expandToolbar/);
     expect(listSrc).toMatch(/renderFilterChips/);

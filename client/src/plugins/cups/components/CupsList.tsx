@@ -57,6 +57,7 @@ import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActio
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -96,30 +97,7 @@ import { CupsStatisticsView } from './CupsStatisticsView';
 type SortField = CupSortField;
 type SortOrder = CupSortOrder;
 
-const CUPS_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.cups.toolbar.collapsed';
 const CUPS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.cups.toolbar.filtersVisible';
-
-function readCupsToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(CUPS_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeCupsToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(CUPS_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'common.updated' },
@@ -188,7 +166,7 @@ export function CupsList() {
   const [activeFilters, setActiveFilters] = useState<CupListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<CupsSettingsCategory>('appearance');
   const [previewCup, setPreviewCup] = useState<Cup | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readCupsToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     CUPS_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -312,14 +290,6 @@ export function CupsList() {
       setPreviewCup(currentCup);
     }
   }, [showDesktopSplit, isCupPanelOpen, panelMode, currentCup]);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeCupsToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

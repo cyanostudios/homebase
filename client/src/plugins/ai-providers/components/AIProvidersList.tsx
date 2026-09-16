@@ -46,6 +46,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -72,30 +73,7 @@ import { AIProvidersRouting, type AIProvidersRoutingCategory } from './AIProvide
 import { AIProvidersSettingsForm } from './AIProvidersSettingsForm';
 import { AIProvidersStatisticsView } from './AIProvidersStatisticsView';
 
-const AI_PROVIDERS_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.ai-providers.toolbar.collapsed';
 const AI_PROVIDERS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.ai-providers.toolbar.filtersVisible';
-
-function readAIProvidersToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(AI_PROVIDERS_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeAIProvidersToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(AI_PROVIDERS_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: AIProviderSortField; labelKey: string }[] = [
   { value: 'providerKey', labelKey: 'aiProviders.colProvider' },
@@ -153,7 +131,7 @@ export const AIProvidersList: React.FC = () => {
   const [activeFilters, setActiveFilters] = useState<AIProvidersListFilterSelection>([]);
   const [routingCategory, setRoutingCategory] = useState<AIProvidersRoutingCategory>('global');
   const [previewProvider, setPreviewProvider] = useState<ProviderSettings | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readAIProvidersToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     AI_PROVIDERS_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -175,14 +153,6 @@ export const AIProvidersList: React.FC = () => {
     (inlineForm || inlinePanelView) && currentAIProvider != null
       ? currentAIProvider.providerKey
       : (previewProvider?.providerKey ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeAIProvidersToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

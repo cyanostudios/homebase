@@ -27,7 +27,7 @@ describe('SlotsList table view wiring', () => {
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);
     expect(listSrc).not.toMatch(/sticky lg:top-4/);
     expect(listSrc).not.toMatch(/SlotQuickContextPanel/);
-    expect(listSrc).toMatch(/SLOTS_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/slots\.collapseToolbar/);
     expect(listSrc).toMatch(/slots\.expandToolbar/);
     expect(listSrc).toMatch(/renderFilterChips/);

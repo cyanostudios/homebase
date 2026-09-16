@@ -55,6 +55,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -115,30 +116,7 @@ const INVENTORY_SORT_OPTIONS: { value: InventorySortField; labelKey: string }[] 
   { value: 'variantCount', labelKey: 'garments.variantCount' },
 ];
 
-const GARMENTS_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.garments.toolbar.collapsed';
 const GARMENTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.garments.toolbar.filtersVisible';
-
-function readGarmentsToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(GARMENTS_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeGarmentsToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(GARMENTS_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 export const GarmentList: React.FC = () => {
   const { t } = useTranslation();
@@ -214,7 +192,7 @@ export const GarmentList: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [previewList, setPreviewList] = useState<GarmentListModel | null>(null);
   const [previewInventory, setPreviewInventory] = useState<InventoryItem | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readGarmentsToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     GARMENTS_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -247,14 +225,6 @@ export const GarmentList: React.FC = () => {
       : isInventory
         ? (previewInventory?.id ?? null)
         : (previewList?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeGarmentsToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

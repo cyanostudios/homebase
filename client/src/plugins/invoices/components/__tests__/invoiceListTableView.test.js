@@ -20,7 +20,7 @@ describe('InvoicesList table view wiring', () => {
     expect(listSrc).not.toMatch(/sticky top-0 z-20/);
     expect(listSrc).not.toMatch(/useQuickContextPreview/);
     expect(listSrc).not.toMatch(/InvoiceQuickContextPanel/);
-    expect(listSrc).toMatch(/INVOICES_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/invoices\.collapseToolbar/);
     expect(listSrc).toMatch(/invoices\.expandToolbar/);
     expect(listSrc).toMatch(/renderFilterChips/);

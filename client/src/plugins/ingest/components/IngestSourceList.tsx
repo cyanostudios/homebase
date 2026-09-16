@@ -51,6 +51,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -79,30 +80,7 @@ import { IngestStatisticsView } from './IngestStatisticsView';
 type SortField = IngestSortField;
 type SortOrder = IngestSortOrder;
 
-const INGEST_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.ingest.toolbar.collapsed';
 const INGEST_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.ingest.toolbar.filtersVisible';
-
-function readIngestToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(INGEST_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeIngestToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(INGEST_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'name', labelKey: 'ingest.colName' },
@@ -163,7 +141,7 @@ export const IngestSourceList: React.FC = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [previewSource, setPreviewSource] = useState<IngestSource | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readIngestToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     INGEST_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -185,14 +163,6 @@ export const IngestSourceList: React.FC = () => {
     (inlineForm || inlinePanelView) && currentIngest != null
       ? currentIngest.id
       : (previewSource?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeIngestToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

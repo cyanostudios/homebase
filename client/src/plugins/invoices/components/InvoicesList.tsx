@@ -58,6 +58,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { formatDate } from '@/core/utils/dateFormat';
@@ -95,30 +96,7 @@ import { InvoicesView } from './InvoicesView';
 type SortField = InvoiceSortField;
 type SortOrder = InvoiceSortOrder;
 
-const INVOICES_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.invoices.toolbar.collapsed';
 const INVOICES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.invoices.toolbar.filtersVisible';
-
-function readInvoicesToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(INVOICES_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeInvoicesToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(INVOICES_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'createdAt', labelKey: 'common.created' },
@@ -198,7 +176,7 @@ export function InvoicesList() {
   const [activeFilters, setActiveFilters] = useState<InvoiceListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<InvoiceSettingsCategory>('numbering');
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readInvoicesToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     INVOICES_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -220,14 +198,6 @@ export function InvoicesList() {
     (inlineForm || inlinePanelView) && currentInvoice != null
       ? currentInvoice.id
       : (previewInvoice?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeInvoicesToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

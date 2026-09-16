@@ -58,6 +58,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
@@ -100,30 +101,7 @@ import { TaskView } from './TaskView';
 type SortField = TaskSortField;
 type SortOrder = TaskSortOrder;
 
-const TASKS_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.tasks.toolbar.collapsed';
 const TASKS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.tasks.toolbar.filtersVisible';
-
-function readTasksToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(TASKS_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeTasksToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(TASKS_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'common.updated' },
@@ -198,7 +176,7 @@ export function TaskList() {
     useState<TaskListFilterSelection>(TASK_LIST_FILTER_INITIAL);
   const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('import');
   const [previewTask, setPreviewTask] = useState<Task | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readTasksToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     TASKS_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -220,14 +198,6 @@ export function TaskList() {
     (inlineForm || inlinePanelView) && currentTask != null
       ? currentTask.id
       : (previewTask?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeTasksToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

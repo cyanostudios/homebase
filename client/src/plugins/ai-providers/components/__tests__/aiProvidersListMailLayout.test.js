@@ -62,7 +62,7 @@ describe('AIProvidersList mail-layout list|content split', () => {
 
   test('toolbar collapse toggle wired like Ingest', () => {
     expect(listSrc).toMatch(/toolbarEdgeToggle/);
-    expect(listSrc).toMatch(/AI_PROVIDERS_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/aiProviders\.collapseToolbar/);
     expect(listSrc).toMatch(/aiProviders\.expandToolbar/);
   });

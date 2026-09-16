@@ -20,7 +20,7 @@ describe('EstimateList table view wiring', () => {
     expect(listSrc).toMatch(/toolbarCollapsed/);
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);
     expect(listSrc).not.toMatch(/sticky top-0 z-20/);
-    expect(listSrc).toMatch(/ESTIMATES_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/estimates\.collapseToolbar/);
     expect(listSrc).toMatch(/estimates\.expandToolbar/);
     expect(listSrc).toMatch(/renderFilterChips/);

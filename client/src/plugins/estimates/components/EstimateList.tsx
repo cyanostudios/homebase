@@ -57,6 +57,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -92,30 +93,7 @@ import { EstimateView } from './EstimateView';
 type SortField = EstimateSortField;
 type SortOrder = EstimateSortOrder;
 
-const ESTIMATES_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.estimates.toolbar.collapsed';
 const ESTIMATES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.estimates.toolbar.filtersVisible';
-
-function readEstimatesToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(ESTIMATES_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeEstimatesToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(ESTIMATES_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'createdAt', labelKey: 'common.created' },
@@ -181,7 +159,7 @@ export function EstimateList() {
   );
   const [activeFilters, setActiveFilters] = useState<EstimateListFilterSelection>([]);
   const [previewEstimate, setPreviewEstimate] = useState<Estimate | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readEstimatesToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     ESTIMATES_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -202,14 +180,6 @@ export function EstimateList() {
     (inlineForm || inlinePanelView) && currentEstimate != null
       ? currentEstimate.id
       : (previewEstimate?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeEstimatesToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

@@ -61,6 +61,7 @@ import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActio
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -107,30 +108,7 @@ import { SlotsStatisticsView } from './SlotsStatisticsView';
 type SortField = SlotSortField;
 type SortOrder = SlotSortOrder;
 
-const SLOTS_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.slots.toolbar.collapsed';
 const SLOTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.slots.toolbar.filtersVisible';
-
-function readSlotsToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(SLOTS_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeSlotsToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(SLOTS_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'slot_time', labelKey: 'slots.timeLabel' },
@@ -199,7 +177,7 @@ export function SlotsList() {
   );
   const [settingsCategory, setSettingsCategory] = useState<SlotsSettingsCategory>('categories');
   const [previewSlot, setPreviewSlot] = useState<Slot | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readSlotsToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     SLOTS_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -272,14 +250,6 @@ export function SlotsList() {
       setPreviewSlot(currentSlot);
     }
   }, [showDesktopSplit, isSlotsPanelOpen, panelMode, currentSlot]);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeSlotsToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

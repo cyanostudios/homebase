@@ -58,6 +58,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
@@ -95,30 +96,7 @@ import { NoteView } from './NoteView';
 type SortField = NoteSortField;
 type SortOrder = NoteSortOrder;
 
-const NOTES_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.notes.toolbar.collapsed';
 const NOTES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.notes.toolbar.filtersVisible';
-
-function readNotesToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(NOTES_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeNotesToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(NOTES_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'title', labelKey: 'notes.title' },
@@ -186,7 +164,7 @@ export const NoteList: React.FC = () => {
   const [activeFilters, setActiveFilters] = useState<NoteListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('import');
   const [previewNote, setPreviewNote] = useState<Note | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readNotesToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     NOTES_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -208,14 +186,6 @@ export const NoteList: React.FC = () => {
     (inlineForm || inlinePanelView) && currentNote != null
       ? currentNote.id
       : (previewNote?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeNotesToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

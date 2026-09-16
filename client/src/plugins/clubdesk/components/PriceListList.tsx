@@ -51,6 +51,7 @@ import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActio
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -86,30 +87,7 @@ const SORT_FIELD_OPTIONS: { value: PriceListSortField; labelKey: string }[] = [
   { value: 'itemCount', labelKey: 'clubdesk.priceList.itemsCard' },
 ];
 
-const PRICE_LIST_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.clubdesk.priceList.toolbar.collapsed';
 const PRICE_LIST_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.clubdesk.priceList.toolbar.filtersVisible';
-
-function readPriceListToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(PRICE_LIST_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writePriceListToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(PRICE_LIST_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 export const PriceListList: React.FC = () => {
   const { t } = useTranslation();
@@ -150,7 +128,7 @@ export const PriceListList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<PriceListSortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<PriceListListFilterSelection>([]);
   const [previewPriceList, setPreviewPriceList] = useState<ClubdeskPriceList | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readPriceListToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     PRICE_LIST_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -265,14 +243,6 @@ export const PriceListList: React.FC = () => {
       });
     }
   }, [showDesktopSplit, isClubdeskPanelOpen, activeDomain, panelMode, currentPriceList]);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writePriceListToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

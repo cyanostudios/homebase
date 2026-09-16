@@ -20,8 +20,7 @@ describe('ClubdeskGuidesList table view wiring', () => {
     expect(listSrc).toMatch(/toolbarCollapsed/);
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);
     expect(listSrc).not.toMatch(/sticky top-0 z-20/);
-    expect(listSrc).toMatch(/GUIDES_TOOLBAR_COLLAPSED_STORAGE_KEY/);
-    expect(listSrc).toMatch(/homebase\.clubdesk\.guides\.toolbar\.collapsed/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/homebase\.clubdesk\.guides\.toolbar\.filtersVisible/);
     expect(listSrc).toMatch(/clubdesk\.collapseToolbar/);
     expect(listSrc).toMatch(/clubdesk\.expandToolbar/);

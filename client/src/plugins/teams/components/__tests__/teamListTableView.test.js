@@ -21,7 +21,7 @@ describe('TeamList table view wiring', () => {
     expect(listSrc).toMatch(/toolbarCollapsed/);
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);
     expect(listSrc).not.toMatch(/sticky top-0 z-20/);
-    expect(listSrc).toMatch(/TEAMS_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/teams\.collapseToolbar/);
     expect(listSrc).toMatch(/teams\.expandToolbar/);
     expect(listSrc).not.toMatch(/useQuickContextPreview/);

@@ -1,13 +1,13 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 
-import { Button, BUTTON_COLOR_TRANSITION_CLASS } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { isSubmenuOpen as computeSubmenuOpen } from '@/core/navigation/collapsibleState';
 import type { NavCategory, NavPage } from '@/core/navigation/navTypes';
-import { SectionCategoryIcon, SubtleSectionHeading } from '@/core/ui/DetailSection';
+import { SubtleSectionHeading } from '@/core/ui/DetailSection';
+import { CollapsedCategoryFlyout } from '@/core/ui/sidebar/CollapsedCategoryFlyout';
 import { NavItem } from '@/core/ui/sidebar/NavItem';
-import { cn } from '@/lib/utils';
 
 export type SidebarNavContentProps = {
   navCategories: NavCategory[];
@@ -22,8 +22,6 @@ export type SidebarNavContentProps = {
   collapsed?: boolean;
   /** Category that contains the current page (collapsed rail highlight). */
   activeCategoryId?: string | null;
-  /** When collapsed, clicking a category expands the sidebar and opens that section. */
-  onCollapsedCategorySelect?: (categoryId: string) => void;
   /** Optional DOM id for aria-controls (desktop permanent rail only — avoid duplicates with Sheet). */
   navId?: string;
 };
@@ -39,36 +37,37 @@ export const SidebarNavContent = React.memo(function SidebarNavContent({
   onCategoryOpenChange,
   collapsed = false,
   activeCategoryId = null,
-  onCollapsedCategorySelect,
   navId,
 }: SidebarNavContentProps) {
+  const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
+
+  const handleFlyoutOpenChange = useCallback((categoryId: string, open: boolean) => {
+    setOpenCategoryId((prev) => {
+      if (open) {
+        return categoryId;
+      }
+      // Delayed leave-close from A must not clear a newer open flyout for B.
+      return prev === categoryId ? null : prev;
+    });
+  }, []);
+
   if (collapsed) {
     return (
       <div
         id={navId}
         className="flex flex-1 flex-col items-center gap-2 overflow-y-auto px-2 pt-2 pb-4"
       >
-        {navCategories.map((category) => {
-          const isActive = category.id === activeCategoryId;
-          return (
-            <button
-              key={category.id}
-              type="button"
-              title={category.title}
-              aria-label={category.title}
-              aria-current={isActive ? 'true' : undefined}
-              className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-full',
-                BUTTON_COLOR_TRANSITION_CLASS,
-                'hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                isActive ? 'bg-primary/10' : undefined,
-              )}
-              onClick={() => onCollapsedCategorySelect?.(category.id)}
-            >
-              <SectionCategoryIcon icon={category.icon} />
-            </button>
-          );
-        })}
+        {navCategories.map((category) => (
+          <CollapsedCategoryFlyout
+            key={category.id}
+            category={category}
+            currentPage={currentPage}
+            activeCategoryId={activeCategoryId}
+            isOpen={openCategoryId === category.id}
+            onOpenChange={(open) => handleFlyoutOpenChange(category.id, open)}
+            onNavigate={onNavigate}
+          />
+        ))}
       </div>
     );
   }

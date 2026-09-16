@@ -53,6 +53,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -85,30 +86,7 @@ import { FileView } from './FileView';
 type SortField = FileSortField;
 type SortOrder = FileSortOrder;
 
-const FILES_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.files.toolbar.collapsed';
 const FILES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.files.toolbar.filtersVisible';
-
-function readFilesToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(FILES_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeFilesToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(FILES_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'name', labelKey: 'files.sort.name' },
@@ -169,7 +147,7 @@ export const FileList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<FileListFilterSelection>([]);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readFilesToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     FILES_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -191,14 +169,6 @@ export const FileList: React.FC = () => {
     (inlineForm || inlinePanelView) && currentFile != null
       ? currentFile.id
       : (previewFile?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeFilesToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

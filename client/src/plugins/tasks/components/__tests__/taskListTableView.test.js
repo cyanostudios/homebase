@@ -21,7 +21,7 @@ describe('TaskList table view wiring', () => {
     expect(listSrc).toMatch(/toolbarCollapsed/);
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);
     expect(listSrc).not.toMatch(/sticky top-0 z-20/);
-    expect(listSrc).toMatch(/TASKS_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/tasks\.collapseToolbar/);
     expect(listSrc).toMatch(/tasks\.expandToolbar/);
     expect(listSrc).not.toMatch(/rounded-xl border border-border\/40 bg-white/);

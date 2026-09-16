@@ -20,7 +20,7 @@ describe('FileList table view wiring', () => {
     expect(listSrc).toMatch(/toolbarCollapsed/);
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);
     expect(listSrc).not.toMatch(/sticky top-0 z-20/);
-    expect(listSrc).toMatch(/FILES_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/files\.collapseToolbar/);
     expect(listSrc).toMatch(/files\.expandToolbar/);
     expect(listSrc).not.toMatch(/useQuickContextPreview/);

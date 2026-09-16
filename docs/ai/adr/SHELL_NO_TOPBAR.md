@@ -15,7 +15,7 @@ The fixed TopBar (brand, breadcrumbs, mobile hamburger, phone/pad user menu) con
 3. **Floating phone/pad controls** — `MobileShellControls` (`z-40`, `lg:hidden`): Menu (top-left, hidden while sheet open) and `MobileUserMenu` (top-right). Desktop keeps `AppRightSidebar` for account/settings.
 4. **Top inset** — `MainLayout` applies `MOBILE_SHELL_TOP_INSET_CLASS` (`pt-14`) on `main` for phone and pad so content clears floating controls.
 5. **Z-index** — sidebar `z-30` (edge collapse control may overlap content gutter); floating chrome / bottom bar `z-40`; Sheet/dialogs `z-50`.
-6. **Desktop collapse** — left sidebar can collapse to an icon rail (`LEFT_SIDEBAR_COLLAPSED_WIDTH_PX` = 72): brand logo only + category icons; edge `RoundIconLabelButton` (`ChevronLeft`/`ChevronRight`, `size="xs"`, top of rail) toggles expand/collapse (persisted in `localStorage` key `homebase.leftSidebar.collapsed`). `id="left-sidebar-nav"` is set only on the permanent desktop rail (`navId`), not the phone/pad Sheet. Phone/pad overlay Sheet is unchanged.
+6. **Desktop collapse** — left sidebar can collapse to an icon rail (`LEFT_SIDEBAR_COLLAPSED_WIDTH_PX` = 72): brand logo only + category icons. Collapsed categories use `CollapsedCategoryFlyout` (hover 150ms or click → Radix `DropdownMenu` `side=right`; navigate without expanding). Edge `RoundIconLabelButton` (`ChevronLeft`/`ChevronRight`, `size="xs"`, top of rail) is the sole expand/collapse control (persisted in `localStorage` key `homebase.leftSidebar.collapsed`). `id="left-sidebar-nav"` is set only on the permanent desktop rail (`navId`), not the phone/pad Sheet. Phone/pad overlay Sheet is unchanged (full expanded nav).
 
 ## Consequences
 

@@ -4,6 +4,14 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-16 – Collapsed sidebar category flyout + global list toolbar
+
+**Typ:** enhancement / UI  
+**Scope:** `CollapsedCategoryFlyout`, `SidebarNavContent`, `Sidebar`, `listToolbarLayout`, `usePersistedToolbarCollapsed`, 18 mail-layout list consumers, tests  
+**QA:** Approved (2026-09-16). **Security:** N/A (client-only prefs + nav). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** In desktop collapsed left rail, hover or click on a category icon opens a Sort-style dropdown of that category’s plugins (submenu parents = labels + leaf destinations only). Selecting a plugin navigates without expanding the sidebar; chevron remains the sole expand control. List toolbar collapse (Menu button) is now one shared preference `homebase.listToolbar.collapsed` across all lists that had the toggle, with one-time any-collapsed-wins migration from legacy per-plugin keys.
+
 ## 2026-09-16 – Clubdesk Guides mail-layout cleanup (Price List parity)
 
 **Typ:** enhancement / UI  
@@ -895,7 +903,7 @@ Files: `ContactLinkedItemsSection.tsx`, `ContactQuickContextPanel.tsx`, `Contact
 **Beteende (verifierat i kod)**
 
 - Expanded `252px` / collapsed `72px`; `MainLayout` padding följer bredden
-- Collapsed: endast brand-logo + `SectionCategoryIcon` per kategori; klick på kategori expanderar och öppnar sektionen
+- Collapsed: brand-logo + `CollapsedCategoryFlyout` per kategori (hover 150ms eller klick → Radix `DropdownMenu` `side=right`, Sort-dropdown-chrome); val navigerar utan att expandera sidomenyn; endast kant-chevron expanderar (**superseded 2026-09-16** — se entry ovan)
 - Toggle: `ChevronLeft` / `ChevronRight`, `size="xs"`, `expandOnHover={false}`, högst upp på kanten (`top-1`, `translate-x-1/2`), vit bg / blå hover
 - `id="left-sidebar-nav"` endast på permanent desktop-rail via `navId` (inte mobil Sheet)
 

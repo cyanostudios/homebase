@@ -47,6 +47,7 @@ import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActio
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -73,30 +74,7 @@ import { PulseProvidersRouting, type PulseProvidersRoutingCategory } from './Pul
 import { PulseProvidersStatisticsView } from './PulseProvidersStatisticsView';
 import { PulseSettingsForm } from './PulseSettingsForm';
 
-const PULSES_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.pulses.toolbar.collapsed';
 const PULSES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.pulses.toolbar.filtersVisible';
-
-function readPulsesToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(PULSES_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writePulsesToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(PULSES_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: PulseProviderSortField; labelKey: string }[] = [
   { value: 'providerKey', labelKey: 'pulses.colProvider' },
@@ -158,7 +136,7 @@ export const PulseProvidersList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<PulseProviderSortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<PulseProvidersListFilterSelection>([]);
   const [previewProvider, setPreviewProvider] = useState<PulseProviderSettings | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readPulsesToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     PULSES_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -180,14 +158,6 @@ export const PulseProvidersList: React.FC = () => {
     (inlineForm || inlinePanelView) && currentPulse != null
       ? currentPulse.providerKey
       : (previewProvider?.providerKey ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writePulsesToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

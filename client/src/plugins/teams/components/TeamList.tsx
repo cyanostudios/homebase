@@ -57,6 +57,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -92,30 +93,7 @@ type SortField = TeamSortField;
 type SortOrder = TeamSortOrder;
 type GenderFilter = 'all' | TeamGender;
 
-const TEAMS_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.teams.toolbar.collapsed';
 const TEAMS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.teams.toolbar.filtersVisible';
-
-function readTeamsToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(TEAMS_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeTeamsToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(TEAMS_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'name', labelKey: 'teams.table.name' },
@@ -187,7 +165,7 @@ export function TeamList() {
     resolveVisibleTeamTableColumns(null),
   );
   const [previewTeam, setPreviewTeam] = useState<Team | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readTeamsToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     TEAMS_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -209,14 +187,6 @@ export function TeamList() {
     (inlineForm || inlinePanelView) && currentTeam != null
       ? currentTeam.id
       : (previewTeam?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeTeamsToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

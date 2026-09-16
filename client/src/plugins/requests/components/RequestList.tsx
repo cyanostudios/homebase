@@ -57,6 +57,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -97,30 +98,7 @@ type TeamFilter = 'all' | 'unlinked';
 type SortField = RequestSortField;
 type SortOrder = RequestSortOrder;
 
-const REQUESTS_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.requests.toolbar.collapsed';
 const REQUESTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.requests.toolbar.filtersVisible';
-
-function readRequestsToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(REQUESTS_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeRequestsToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(REQUESTS_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'updated_at', labelKey: 'common.updated' },
@@ -196,7 +174,7 @@ export function RequestList() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [previewRequest, setPreviewRequest] = useState<Request | null>(null);
   const [recentlyQuickAddedId, setRecentlyQuickAddedId] = useState<string | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readRequestsToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     REQUESTS_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -218,14 +196,6 @@ export function RequestList() {
     (inlineForm || inlinePanelView) && currentRequest != null
       ? currentRequest.id
       : (previewRequest?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeRequestsToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

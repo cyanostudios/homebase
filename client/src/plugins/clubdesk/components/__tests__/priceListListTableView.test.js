@@ -20,7 +20,7 @@ describe('PriceListList table view wiring', () => {
     expect(listSrc).toMatch(/toolbarCollapsed/);
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);
     expect(listSrc).not.toMatch(/sticky top-0 z-20/);
-    expect(listSrc).toMatch(/PRICE_LIST_TOOLBAR_COLLAPSED_STORAGE_KEY/);
+    expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/clubdesk\.priceList\.collapseToolbar/);
     expect(listSrc).toMatch(/clubdesk\.priceList\.expandToolbar/);
     expect(listSrc).toMatch(/renderFilterChips/);

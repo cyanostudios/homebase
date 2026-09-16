@@ -63,6 +63,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
@@ -102,30 +103,7 @@ import { ContactView } from './ContactView';
 type SortField = ContactSortField;
 type SortOrder = ContactSortOrder;
 
-const CONTACTS_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.contacts.toolbar.collapsed';
 const CONTACTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.contacts.toolbar.filtersVisible';
-
-function readContactsToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(CONTACTS_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeContactsToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(CONTACTS_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'name', labelKey: 'contacts.table.name' },
@@ -212,7 +190,7 @@ export const ContactList: React.FC = () => {
   const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('tags');
   const [selectionMode, setSelectionMode] = useState(false);
   const [previewContact, setPreviewContact] = useState<Contact | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readContactsToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     CONTACTS_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -234,14 +212,6 @@ export const ContactList: React.FC = () => {
     (inlineForm || inlinePanelView) && currentContact != null
       ? currentContact.id
       : (previewContact?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeContactsToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;

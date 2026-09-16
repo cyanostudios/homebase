@@ -52,6 +52,7 @@ import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
@@ -95,30 +96,7 @@ import { MatchView } from './MatchView';
 type SortField = MatchSortField;
 type SortOrder = MatchSortOrder;
 
-const MATCHES_TOOLBAR_COLLAPSED_STORAGE_KEY = 'homebase.matches.toolbar.collapsed';
 const MATCHES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.matches.toolbar.filtersVisible';
-
-function readMatchesToolbarCollapsed(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    return window.localStorage.getItem(MATCHES_TOOLBAR_COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeMatchesToolbarCollapsed(collapsed: boolean): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(MATCHES_TOOLBAR_COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'start_time', labelKey: 'matches.timeLabel' },
@@ -191,7 +169,7 @@ export function MatchList() {
     resolveVisibleMatchTableColumns(null),
   );
   const [previewMatch, setPreviewMatch] = useState<Match | null>(null);
-  const [toolbarCollapsed, setToolbarCollapsed] = useState(readMatchesToolbarCollapsed);
+  const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     MATCHES_FILTERS_VISIBLE_STORAGE_KEY,
   );
@@ -213,14 +191,6 @@ export function MatchList() {
     (inlineForm || inlinePanelView) && currentMatch != null
       ? currentMatch.id
       : (previewMatch?.id ?? null);
-
-  const toggleToolbarCollapsed = useCallback(() => {
-    setToolbarCollapsed((prev) => {
-      const next = !prev;
-      writeMatchesToolbarCollapsed(next);
-      return next;
-    });
-  }, []);
 
   const updateToolbarToggleBox = useCallback(() => {
     const el = pageShellRef.current;
