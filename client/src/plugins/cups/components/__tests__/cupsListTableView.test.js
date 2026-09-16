@@ -92,7 +92,7 @@ describe('CupsList table view wiring', () => {
     );
     expect(listSrc).toMatch(/CupsStatisticsView/);
     expect(viewSrc).toMatch(/stacked\?: boolean/);
-    expect(viewSrc).toMatch(/gridClassName={stacked \? 'grid-cols-1'/);
+    expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
   });
 
   test('desktop create/edit renders CupForm in the detail column', () => {

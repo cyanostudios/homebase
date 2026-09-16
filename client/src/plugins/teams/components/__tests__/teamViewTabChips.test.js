@@ -36,7 +36,7 @@ describe('TeamView detail tab chips', () => {
     expect(qcSrc).toMatch(/teams\.seriesTeamCount/);
     expect(qcSrc).toMatch(/team\.age_group/);
     // Meta + tabs both sit under the title row in the header block
-    expect(qcSrc).toMatch(/\{identityHeader\}[\s\S]*\{fullHeaderMeta\}[\s\S]*\{headerBelow/);
+    expect(qcSrc).toMatch(/TeamDetailHeaderMenus[\s\S]*\{fullHeaderMetaLine\}[\s\S]*\{headerBelow/);
   });
 
   test('large chip tokens are removed from shared styles', () => {
