@@ -62,20 +62,22 @@ Theme color `#7c3bed` matches CSS `--brand`. Chrome/Safari: **Lägg till på hem
 
 ## Production deploy checklist (ops — only after explicit release)
 
+Canonical prod URL: **`https://clubdesk.livesolutions.se`**.
+
 Separate Railway service (not Homebase Node). Pattern: [`docs/PUBLIC_APP_TEMPLATE.md`](../docs/PUBLIC_APP_TEMPLATE.md).
 
-1. Canonical HTTPS domain → `APP_PUBLIC_URL` (replace `example.se` placeholders).
-2. Consciously accept ADR residuals **IC-1** / **SP-1** before go-live.
-3. Publish Clubdesk content (`publication_status = published`).
-4. Confirm `docker/Caddyfile` routes `/guide/`, `/price-list/`, `/swish/`, `/kontakt/` (not `/instruction/`).
-5. New Railway service: **Root Directory** = `public-clubdesk`, Dockerfile builder.
-6. Vars: `APP_DB_URL` = **tenant** Neon (never main `DATABASE_URL`), `APP_PUBLIC_URL`, `APP_ALLOWED_ORIGINS`.
-7. Custom domain + TLS; healthcheck `/api/health.php`.
-8. Verify health, `/api/items.php`, sitemap, SSR guide/price-list, phone PWA install.
-9. On Homebase API: `PUBLIC_CLUBDESK_URL` (+ optional `PUBLIC_CLUBDESK_USER_ID` / `_EMAIL` for Node companion).
-10. Plugin access for tenant; log out/in admin.
-
-**No prod deploy is part of the PWA code change** — run this list only when you decide to release.
+1. Residuals **IC-1** / **SP-1** TPM-accepted at release (2026-09-17).
+2. Publish Clubdesk content (`publication_status = published`) — tenant currently may have zero published rows until admin publishes.
+3. Confirm `docker/Caddyfile` routes `/guide/`, `/price-list/`, `/swish/`, `/kontakt/` (not `/instruction/`).
+4. New Railway service: **Root Directory** = `public-clubdesk`, Dockerfile builder, branch `main`.
+5. Vars (paste from local gitignored helpers `.env.railway.clubdesk-site` / `.env.railway.clubdesk-homebase`):
+   - `APP_DB_URL` = **tenant** Neon (never main `DATABASE_URL`)
+   - `APP_PUBLIC_URL=https://clubdesk.livesolutions.se`
+   - `APP_ALLOWED_ORIGINS=https://clubdesk.livesolutions.se`
+6. Custom domain `clubdesk.livesolutions.se` + TLS (DNS CNAME → Railway); healthcheck `/api/health.php`.
+7. Verify health, `/api/items.php`, sitemap, SSR guide/price-list, phone PWA install.
+8. On Homebase API: `PUBLIC_CLUBDESK_URL=https://clubdesk.livesolutions.se`, `PUBLIC_CLUBDESK_USER_ID=3` (or `_EMAIL=mario.nasr@sorgenfriff.se`).
+9. Plugin access for tenant (enabled for mario.nasr@sorgenfriff.se on prod); log out/in admin.
 
 ## Notes
 
@@ -85,4 +87,4 @@ Separate Railway service (not Homebase Node). Pattern: [`docs/PUBLIC_APP_TEMPLAT
 - Visual design: request-form-inspired listing shell (Poppins, violet); see [`docs/PUBLIC_APP_DESIGN.md`](../docs/PUBLIC_APP_DESIGN.md) + ADR [`CLUBDESK_PUBLIC_COMPANION.md`](../docs/ai/adr/CLUBDESK_PUBLIC_COMPANION.md).
 - Cart is per-list `sessionStorage` (`clubdesk-cart:{slug}`); round **bin** button in the subheader mini-cart clears the current list and returns to the price-list view.
 - `public-instructions/` remains for the Instructions plugin; this site is Clubdesk-only.
-- Security residual **IC-1** (PHP reads without `user_id` filter; tenant via `APP_DB_URL`) — see ADR Security section; awaiting TPM acceptance.
+- Security residual **IC-1** (PHP reads without `user_id` filter; tenant via `APP_DB_URL`) — TPM-accepted at prod release 2026-09-17 (see ADR).

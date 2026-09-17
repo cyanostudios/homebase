@@ -24,6 +24,8 @@ bundle-stats.html
 .env.production
 .env.development
 .env.railway.resend
+.env.railway.clubdesk-site
+.env.railway.clubdesk-homebase
 
 # Ingest browser_fetch — Puppeteer-managed Chromium (npm run puppeteer:install-chrome)
 .cache/puppeteer/
