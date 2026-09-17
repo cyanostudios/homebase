@@ -790,7 +790,7 @@ export function CupsList() {
 
   if (cupsContentView === 'settings') {
     return (
-      <div className="plugin-cups min-h-full bg-background">
+      <div className="plugin-cups flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
         <div className="px-4 py-4 md:px-6">
           <CupsSettingsView
             selectedCategory={settingsCategory}
@@ -805,7 +805,7 @@ export function CupsList() {
 
   if (cupsContentView === 'statistics') {
     return (
-      <div className="plugin-cups min-h-full bg-background">
+      <div className="plugin-cups flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
         <div className="px-4 py-4 md:px-6">
           <CupsStatisticsView onClose={closeCupStatisticsView} />
         </div>
