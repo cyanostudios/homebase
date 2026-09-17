@@ -4,6 +4,14 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-17 – Public Clubdesk installable PWA (no offline)
+
+**Typ:** enhancement / public app  
+**Scope:** `public-clubdesk/` manifest, icons, PWA meta, Caddyfile SSR routes, README/ADR  
+**QA:** Approved (tests green 2026-09-17). **Security:** Installable-only (no SW); residuals **IC-1**/**SP-1** TPM-accepted at release. **Release:** code merged toward prod; Railway `public-clubdesk` service + custom domain configured by operator.
+
+**Sammanfattning:** Publik Clubdesk är installerbar (Add to Home Screen): `manifest.webmanifest` (`standalone`, theme `#7c3bed`), 192/512/180 icons, favicon SVG + `/favicon.ico` redirect. Meta på listing + alla SSR-sidor. **Ingen** service worker / offline-cache. Docker Caddyfile routar Clubdesk SSR (`/guide/`, `/price-list/`, `/swish/`, `/kontakt/`) i stället för mallens `/instruction/`. Ops-checklista i `public-clubdesk/README.md` för separat Railway-tjänst vid explicit release.
+
 ## 2026-09-16 – Garments person matrix: show jersey name, initials, number
 
 **Typ:** enhancement / UI  
