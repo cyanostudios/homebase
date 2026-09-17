@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/api/pdo_env.php';
 require_once __DIR__ . '/api/db_helpers.php';
 require_once __DIR__ . '/api/security_headers.php';
+require_once __DIR__ . '/api/pwa_head.php';
 applyPublicAppSecurityHeaders('html');
 
 function h(?string $value): string
@@ -185,6 +186,7 @@ foreach ($lines as $line) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title><?= h($title) ?></title>
     <meta name="description" content="<?= h($description) ?>" />
+<?php publicClubdeskPwaHeadTags(); ?>
     <meta name="robots" content="<?= $notFound ? 'noindex, follow' : 'index, follow' ?>" />
     <link rel="canonical" href="<?= h($canonical) ?>" />
     <meta property="og:locale" content="sv_SE" />

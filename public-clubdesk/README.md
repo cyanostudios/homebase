@@ -47,6 +47,36 @@ Requires `APP_DB_URL` (tenant Postgres). See `railway.env.example`. Edit content
 
 Bottom tabs: **Hem | Guides | Price list**. Info, Swish och Kontakt nås via rader på Hem (Kontakt endast när listan har rader).
 
+## PWA (installable)
+
+Installerbar utan offline-cache (ingen service worker):
+
+| Asset       | Path                                                                        |
+| ----------- | --------------------------------------------------------------------------- |
+| Manifest    | `/manifest.webmanifest` (`display: standalone`, `start_url: /`)             |
+| Icons       | `/icons/icon-192.png`, `/icons/icon-512.png`, `/icons/apple-touch-icon.png` |
+| Favicon     | `/favicon.svg` (`/favicon.ico` → 301)                                       |
+| Shared meta | `api/pwa_head.php` on SSR pages; same tags in `index.html`                  |
+
+Theme color `#7c3bed` matches CSS `--brand`. Chrome/Safari: **Lägg till på hemskärmen** på `http://localhost:3011` (HTTP OK lokalt; prod kräver HTTPS).
+
+## Production deploy checklist (ops — only after explicit release)
+
+Separate Railway service (not Homebase Node). Pattern: [`docs/PUBLIC_APP_TEMPLATE.md`](../docs/PUBLIC_APP_TEMPLATE.md).
+
+1. Canonical HTTPS domain → `APP_PUBLIC_URL` (replace `example.se` placeholders).
+2. Consciously accept ADR residuals **IC-1** / **SP-1** before go-live.
+3. Publish Clubdesk content (`publication_status = published`).
+4. Confirm `docker/Caddyfile` routes `/guide/`, `/price-list/`, `/swish/`, `/kontakt/` (not `/instruction/`).
+5. New Railway service: **Root Directory** = `public-clubdesk`, Dockerfile builder.
+6. Vars: `APP_DB_URL` = **tenant** Neon (never main `DATABASE_URL`), `APP_PUBLIC_URL`, `APP_ALLOWED_ORIGINS`.
+7. Custom domain + TLS; healthcheck `/api/health.php`.
+8. Verify health, `/api/items.php`, sitemap, SSR guide/price-list, phone PWA install.
+9. On Homebase API: `PUBLIC_CLUBDESK_URL` (+ optional `PUBLIC_CLUBDESK_USER_ID` / `_EMAIL` for Node companion).
+10. Plugin access for tenant; log out/in admin.
+
+**No prod deploy is part of the PWA code change** — run this list only when you decide to release.
+
 ## Notes
 
 - Only `publication_status = 'published'` rows are exposed for guides/price lists. `featured` controls Hem square cards only (not publication).

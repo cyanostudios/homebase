@@ -418,7 +418,8 @@ button {
   flex-direction: column;
   background: var(--bg);
   border-radius: 1.25rem 1.25rem 0 0;
-  padding: 1.25rem var(--page-pad) calc(var(--bottom-offset) + var(--bottom-bar-h) + 1.5rem);
+  padding: 1.25rem var(--page-pad)
+    calc(var(--bottom-offset) + var(--bottom-bar-h) + 1.5rem + env(safe-area-inset-bottom, 0px));
   min-height: 100%;
   box-shadow: none;
   overflow: hidden;
@@ -1063,7 +1064,7 @@ button {
 
 .bottom-bar {
   position: absolute;
-  bottom: var(--bottom-offset);
+  bottom: calc(var(--bottom-offset) + env(safe-area-inset-bottom, 0px));
   left: 50%;
   z-index: 40;
   width: calc(100% - 5rem);

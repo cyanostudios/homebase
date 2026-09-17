@@ -239,4 +239,64 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(js).toMatch(/groupItems\.map\(renderGuideOptionCard\)/);
     expect(js).not.toMatch(/data-filter-more/);
   });
+
+  test('PWA installable surface: manifest, icons, theme — no service worker', () => {
+    const manifest = JSON.parse(read('manifest.webmanifest'));
+    const caddy = read('docker/Caddyfile');
+    const pwaHead = read('api/pwa_head.php');
+    const swish = read('swish.php');
+    const kontakt = read('kontakt.php');
+
+    expect(manifest.name).toBe('Clubdesk');
+    expect(manifest.short_name).toBe('Clubdesk');
+    expect(manifest.start_url).toBe('/');
+    expect(manifest.display).toBe('standalone');
+    expect(manifest.theme_color).toBe('#7c3bed');
+    expect(manifest.background_color).toBe('#f9fafb');
+    expect(
+      manifest.icons.some((i) => i.src === '/icons/icon-192.png' && i.sizes === '192x192'),
+    ).toBe(true);
+    expect(
+      manifest.icons.some((i) => i.src === '/icons/icon-512.png' && i.sizes === '512x512'),
+    ).toBe(true);
+
+    expect(fs.existsSync(path.join(root, 'icons/icon-192.png'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'icons/icon-512.png'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'icons/apple-touch-icon.png'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'favicon.svg'))).toBe(true);
+
+    for (const surface of [html, guide, priceList, swish, kontakt]) {
+      expect(surface).toMatch(/theme-color|#7c3bed|publicClubdeskPwaHeadTags/);
+      expect(surface).not.toMatch(/serviceWorker|navigator\.serviceWorker|sw\.js/);
+    }
+
+    expect(html).toMatch(/rel="manifest"/);
+    expect(html).toMatch(/manifest\.webmanifest/);
+    expect(html).toMatch(/theme-color/);
+    expect(html).toMatch(/apple-touch-icon/);
+    expect(html).toMatch(/#7c3bed/);
+
+    for (const surface of [guide, priceList, swish, kontakt]) {
+      expect(surface).toMatch(/pwa_head\.php/);
+      expect(surface).toMatch(/publicClubdeskPwaHeadTags\(\)/);
+    }
+
+    expect(pwaHead).toMatch(/rel="manifest"/);
+    expect(pwaHead).toMatch(/manifest\.webmanifest/);
+    expect(pwaHead).toMatch(/theme-color/);
+    expect(pwaHead).toMatch(/apple-touch-icon/);
+    expect(pwaHead).toMatch(/#7c3bed/);
+    expect(pwaHead).toMatch(/publicClubdeskPwaHeadTags/);
+    expect(pwaHead).not.toMatch(/serviceWorker/);
+    expect(js).not.toMatch(/serviceWorker|navigator\.serviceWorker/);
+
+    expect(caddy).toMatch(/path \/guide \/guide\/\*/);
+    expect(caddy).toMatch(/path \/price-list \/price-list\/\*/);
+    expect(caddy).toMatch(/path \/swish \/swish\//);
+    expect(caddy).toMatch(/path \/kontakt \/kontakt\//);
+    expect(caddy).not.toMatch(/\/instruction/);
+    expect(caddy).toMatch(/favicon\.ico/);
+    expect(caddy).toMatch(/webmanifest/);
+    expect(router).toMatch(/favicon\.ico/);
+  });
 });

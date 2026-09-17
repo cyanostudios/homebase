@@ -2,11 +2,36 @@
 	root * /app
 	encode gzip
 
-	# Detail SSR — /instruction/:slug
-	@itemDetail path /instruction /instruction/*
+	# Browsers request /favicon.ico; keep SPA fallback from serving index.html as the icon.
+	handle /favicon.ico {
+		redir /favicon.svg permanent
+	}
 
-	handle @itemDetail {
-		rewrite * /instruction.php
+	# Guide SSR — /guide/:slug
+	@guideDetail path /guide /guide/*
+	handle @guideDetail {
+		rewrite * /guide.php
+		php_fastcgi 127.0.0.1:9000
+	}
+
+	# Price list SSR — /price-list/:slug
+	@priceListDetail path /price-list /price-list/*
+	handle @priceListDetail {
+		rewrite * /price-list.php
+		php_fastcgi 127.0.0.1:9000
+	}
+
+	# Org Swish SSR
+	@swishPage path /swish /swish/
+	handle @swishPage {
+		rewrite * /swish.php
+		php_fastcgi 127.0.0.1:9000
+	}
+
+	# Info contacts SSR
+	@kontaktPage path /kontakt /kontakt/
+	handle @kontaktPage {
+		rewrite * /kontakt.php
 		php_fastcgi 127.0.0.1:9000
 	}
 
@@ -21,12 +46,33 @@
 		php_fastcgi 127.0.0.1:9000
 	}
 
-	handle /instruction.php {
+	# Execute SSR PHP via FPM (do not expose raw sources via try_files).
+	handle /guide.php {
+		php_fastcgi 127.0.0.1:9000
+	}
+	handle /price-list.php {
+		php_fastcgi 127.0.0.1:9000
+	}
+	handle /swish.php {
+		php_fastcgi 127.0.0.1:9000
+	}
+	handle /kontakt.php {
 		php_fastcgi 127.0.0.1:9000
 	}
 
 	handle /router.php {
 		respond "Not Found" 404
+	}
+
+	# Long-lived cache for static assets (icons, manifest, CSS/JS).
+	@staticAssets path_regexp static_assets \.(css|js|svg|png|webp|jpe?g|woff2|ico|txt|webmanifest)$
+	handle @staticAssets {
+		header {
+			-X-Powered-By
+			X-Content-Type-Options "nosniff"
+			Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
+		}
+		file_server
 	}
 
 	handle {
@@ -38,6 +84,7 @@
 			Strict-Transport-Security "max-age=31536000; includeSubDomains"
 			X-Frame-Options "SAMEORIGIN"
 			Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://tagmanager.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https:; frame-src https://www.googletagmanager.com; form-action 'self'; upgrade-insecure-requests"
+			Cache-Control "no-cache"
 		}
 		try_files {path} /index.html
 		file_server

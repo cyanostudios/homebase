@@ -2,6 +2,10 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Clubdesk public installable PWA — docs sync (2026-09-17)
+
+ADR [`adr/CLUBDESK_PUBLIC_COMPANION.md`](adr/CLUBDESK_PUBLIC_COMPANION.md) decision **9** (manifest, icons, no SW) + Security note (IC-1/SP-1 oförändrade). README `public-clubdesk/` PWA + prod ops-checklista. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-17. **Local-first; ej prod-release.** Caddyfile SSR-rutter synkade med `router.php`.
+
 ## UI Hygiene overlay role (2026-09-16)
 
 Ny overlay-roll för städning av död/inaktuell UI: radera, göm inte, rör inte kärna som kräver refaktor. SSOT [`roles/ui-hygiene.md`](roles/ui-hygiene.md), Cursor-regel `role-ui-hygiene.mdc`, subagent `.cursor/agents/ui-hygiene.md`. Team Workflow: overlay efter Frontend, inte en nionde grind. Handover `Current Role` förblir `Frontend Developer` (inte ett nionde Workflow Runner-värde). TPM involveringsexempel + Frontend samarbete uppdaterade.
