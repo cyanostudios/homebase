@@ -1,19 +1,27 @@
-import { ArrowDown, ArrowUp, Plus, Search, Trash2, User } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Plus, Search, Trash2, User } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { buildDeleteMessage } from '@/core/utils/deleteUtils';
+import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_LIST_ITEM_HOVER_CLASS,
+  DETAIL_LIST_ITEM_TITLE_CLASS,
+  LINK_BUTTON_FONT_CLASS,
+  LINK_BUTTON_TEXT_IDLE_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
+import { QUICK_CONTEXT_LINK_TILE_CLASS } from '@/core/ui/QuickContextLinkTile';
+import { buildDeleteMessage } from '@/core/utils/deleteUtils';
+import { cn } from '@/lib/utils';
 import { contactsApi } from '@/plugins/contacts/api/contactsApi';
 import type { Contact } from '@/plugins/contacts/types/contacts';
-import { cn } from '@/lib/utils';
 
 import { clubdeskApi } from '../api/clubdeskApi';
 import type { ClubdeskInfoContact } from '../types/infoContact';
@@ -194,7 +202,22 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
   };
 
   return (
-    <div className="space-y-4">
+    <DetailSection
+      title={t('clubdesk.siteContent.cards.contacts')}
+      className="pt-0"
+      action={
+        <RoundIconLabelButton
+          type="button"
+          icon={Plus}
+          label={t('clubdesk.infoContacts.add')}
+          variant="soft"
+          size="xs"
+          alwaysExpanded
+          disabled={disabled || isLoading || isSaving}
+          onClick={() => setSelectedId('new')}
+        />
+      }
+    >
       <p className="text-sm text-muted-foreground">{t('clubdesk.infoContacts.help')}</p>
       {errorMessage ? (
         <p className="text-sm text-destructive" role="alert">
@@ -202,83 +225,93 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
         </p>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
         <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <Label className="text-xs text-muted-foreground">
-              {t('clubdesk.infoContacts.listTitle')}
-            </Label>
-            <RoundIconLabelButton
-              type="button"
-              icon={Plus}
-              label={t('clubdesk.infoContacts.add')}
-              variant="soft"
-              size="xs"
-              alwaysExpanded
-              disabled={disabled || isLoading || isSaving}
-              onClick={() => setSelectedId('new')}
-            />
-          </div>
-          <div className="space-y-1 rounded-lg border border-border p-1">
+          <Label className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+            {t('clubdesk.infoContacts.listTitle')}
+          </Label>
+          <ul className="space-y-2">
             {isLoading ? (
-              <p className="px-2 py-3 text-xs text-muted-foreground">{t('common.loading')}</p>
+              <li className={DETAIL_EMPTY_STATE_CLASS}>{t('common.loading')}</li>
             ) : rows.length === 0 ? (
-              <p className="px-2 py-3 text-xs text-muted-foreground">
-                {t('clubdesk.infoContacts.empty')}
-              </p>
+              <li className={DETAIL_EMPTY_STATE_CLASS}>{t('clubdesk.infoContacts.empty')}</li>
             ) : (
-              rows.map((row, index) => (
-                <div key={row.id} className="flex items-center gap-0.5">
-                  <button
-                    type="button"
+              rows.map((row, index) => {
+                const isSelected = selectedId === row.id;
+                return (
+                  <li
+                    key={row.id}
                     className={cn(
-                      'min-w-0 flex-1 rounded-md px-2 py-1.5 text-left text-xs',
-                      selectedId === row.id ? 'bg-accent font-medium' : 'hover:bg-muted/60',
+                      QUICK_CONTEXT_LINK_TILE_CLASS,
+                      'flex items-start gap-3',
+                      isSelected && 'bg-primary/10 ring-1 ring-border/70',
                     )}
-                    onClick={() => setSelectedId(row.id)}
                   >
-                    <span className="block truncate">{row.contact.displayName}</span>
-                  </button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={ArrowUp}
-                    className="h-7 w-7 px-0"
-                    disabled={isSaving || index === 0}
-                    aria-label={t('clubdesk.infoContacts.moveUp')}
-                    onClick={() => void moveRow(index, -1)}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={ArrowDown}
-                    className="h-7 w-7 px-0"
-                    disabled={isSaving || index === rows.length - 1}
-                    aria-label={t('clubdesk.infoContacts.moveDown')}
-                    onClick={() => void moveRow(index, 1)}
-                  />
-                </div>
-              ))
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => setSelectedId(row.id)}
+                    >
+                      <div className={DETAIL_LIST_ITEM_TITLE_CLASS}>{row.contact.displayName}</div>
+                      {row.blurb?.trim() ? (
+                        <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                          {row.blurb.trim()}
+                        </div>
+                      ) : null}
+                    </button>
+                    <div className="flex flex-shrink-0 flex-row items-center gap-1.5">
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={ArrowUp}
+                        label={t('clubdesk.infoContacts.moveUp')}
+                        variant="secondary"
+                        size="xs"
+                        expandOnHover={false}
+                        disabled={isSaving || index === 0}
+                        onClick={() => void moveRow(index, -1)}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={ArrowDown}
+                        label={t('clubdesk.infoContacts.moveDown')}
+                        variant="secondary"
+                        size="xs"
+                        expandOnHover={false}
+                        disabled={isSaving || index === rows.length - 1}
+                        onClick={() => void moveRow(index, 1)}
+                      />
+                    </div>
+                  </li>
+                );
+              })
             )}
-          </div>
+          </ul>
         </div>
 
-        <div className="space-y-4 rounded-lg border border-border p-4">
+        <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>{t('clubdesk.infoContacts.contact')}</Label>
             {linkedContact ? (
-              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <div
+                className={cn(
+                  QUICK_CONTEXT_LINK_TILE_CLASS,
+                  'flex items-center justify-between gap-3',
+                )}
+              >
                 <div className="flex min-w-0 items-center gap-2">
                   <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-xs font-medium">
+                  <span className={cn(DETAIL_LIST_ITEM_TITLE_CLASS, 'truncate')}>
                     {contactLabel(linkedContact)}
                   </span>
                 </div>
                 <button
                   type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground"
+                  className={cn(
+                    'text-xs',
+                    LINK_BUTTON_FONT_CLASS,
+                    LINK_BUTTON_TEXT_IDLE_CLASS,
+                    'hover:text-foreground',
+                  )}
                   disabled={disabled || isSaving}
                   onClick={() => {
                     setContactId('');
@@ -319,7 +352,10 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
                     <button
                       key={c.id}
                       type="button"
-                      className="flex w-full items-start rounded-lg px-2.5 py-2 text-left hover:bg-accent"
+                      className={cn(
+                        'flex w-full items-start rounded-lg px-2.5 py-2 text-left',
+                        DETAIL_LIST_ITEM_HOVER_CLASS,
+                      )}
                       onClick={() => {
                         setContactId(String(c.id));
                         setContactSearch(contactLabel(c));
@@ -327,7 +363,7 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
                       }}
                     >
                       <span className="min-w-0">
-                        <span className="block truncate text-xs font-medium">
+                        <span className="block truncate text-xs font-extrabold">
                           {contactLabel(c)}
                         </span>
                         {c.email ? (
@@ -358,26 +394,27 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button
+            <RoundIconLabelButton
               type="button"
-              size="sm"
+              icon={Check}
+              label={isSaving ? t('common.saving') : t('common.save')}
+              variant="success"
+              size="xs"
+              alwaysExpanded
               disabled={disabled || isLoading || isSaving || !isDirty || !contactId}
               onClick={() => void handleSave()}
-            >
-              {isSaving ? t('common.saving') : t('common.save')}
-            </Button>
+            />
             {selectedId && selectedId !== 'new' ? (
-              <Button
+              <RoundIconLabelButton
                 type="button"
-                variant="ghost"
-                size="sm"
                 icon={Trash2}
-                className="text-destructive"
+                label={t('common.delete')}
+                variant="dangerSoft"
+                size="xs"
+                alwaysExpanded
                 disabled={disabled || isSaving}
                 onClick={() => setShowDeleteConfirm(true)}
-              >
-                {t('common.delete')}
-              </Button>
+              />
             ) : null}
           </div>
         </div>
@@ -396,6 +433,6 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
         variant="danger"
         confirmDisabled={isSaving}
       />
-    </div>
+    </DetailSection>
   );
 }

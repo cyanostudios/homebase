@@ -1,17 +1,19 @@
-import { ArrowDown, ArrowUp, Banknote, Info, Tags } from 'lucide-react';
-import React, { useCallback, useMemo } from 'react';
+import { ArrowDown, ArrowUp, Info, Tags } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import {
   DETAIL_EMPTY_STATE_CLASS,
   DETAIL_INFO_ROW_CLASS,
+  DETAIL_LIST_ITEM_TITLE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
@@ -19,24 +21,38 @@ import {
   LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { QUICK_CONTEXT_LINK_TILE_CLASS } from '@/core/ui/QuickContextLinkTile';
 import { cn } from '@/lib/utils';
 
 import { useClubdesk } from '../hooks/useClubdesk';
-import type { ClubdeskPriceList } from '../types/priceList';
+import type { ClubdeskPriceList, ClubdeskPriceListItemCategory } from '../types/priceList';
 import { formatPriceListPrice } from '../utils/formatPriceListPrice';
 import { groupItemsByCategory } from '../utils/priceListItemOps';
 
 import { PriceListDetailHeaderMenus } from './PriceListDetailHeaderMenus';
 
-type PriceListViewTab = 'information' | 'items' | 'currency';
+type PriceListViewTab = 'information' | 'items';
 
-const PRICE_LIST_VIEW_TABS: PriceListViewTab[] = ['information', 'items', 'currency'];
+const PRICE_LIST_VIEW_TABS: PriceListViewTab[] = ['information', 'items'];
 
 function parsePriceListViewTab(value: string | null): PriceListViewTab {
   if (value && PRICE_LIST_VIEW_TABS.includes(value as PriceListViewTab)) {
     return value as PriceListViewTab;
   }
+  // Legacy ?tab=currency → Information (currency lives there now).
   return 'information';
+}
+
+function categoryNameKey(name: string | null | undefined): string {
+  return (name || '').trim().toLowerCase();
+}
+
+function sortPriceListCategories(
+  rows: ClubdeskPriceListItemCategory[],
+): ClubdeskPriceListItemCategory[] {
+  return [...rows].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name, 'sv'),
+  );
 }
 
 export function PriceListView({
@@ -68,15 +84,78 @@ export function PriceListView({
     },
     [setSearchParams],
   );
-  const { currentPriceList, reorderPriceListItems, priceListCategories, isSaving } = useClubdesk();
+  const {
+    currentPriceList,
+    reorderPriceListItems,
+    reorderPriceListCategories,
+    refreshPriceListCategories,
+    priceListCategories,
+    isSaving,
+  } = useClubdesk();
+  const [reorderingCategory, setReorderingCategory] = useState(false);
 
   const viewItem = priceList ?? currentPriceList;
 
-  const catalogOrder = useMemo(() => priceListCategories.map((c) => c.name), [priceListCategories]);
+  useEffect(() => {
+    if (!viewItem?.id) {
+      return;
+    }
+    void refreshPriceListCategories(viewItem.id).catch(() => {
+      /* keep existing catalog if refresh fails */
+    });
+  }, [viewItem?.id, refreshPriceListCategories]);
+
+  const sortedCatalog = useMemo(
+    () => sortPriceListCategories(priceListCategories),
+    [priceListCategories],
+  );
+
+  const catalogOrder = useMemo(() => sortedCatalog.map((c) => c.name), [sortedCatalog]);
+
+  const catalogByName = useMemo(() => {
+    const map = new Map<string, ClubdeskPriceListItemCategory>();
+    for (const row of sortedCatalog) {
+      map.set(categoryNameKey(row.name), row);
+    }
+    return map;
+  }, [sortedCatalog]);
 
   const groups = useMemo(
     () => groupItemsByCategory(viewItem?.items || [], catalogOrder),
     [viewItem?.items, catalogOrder],
+  );
+
+  const handleMoveCategory = useCallback(
+    async (categoryName: string, direction: -1 | 1) => {
+      if (!viewItem?.id) {
+        return;
+      }
+      const key = categoryNameKey(categoryName);
+      const index = sortedCatalog.findIndex((row) => categoryNameKey(row.name) === key);
+      if (index < 0) {
+        return;
+      }
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= sortedCatalog.length) {
+        return;
+      }
+      const next = [...sortedCatalog];
+      const tmp = next[index];
+      next[index] = next[nextIndex];
+      next[nextIndex] = tmp;
+      setReorderingCategory(true);
+      try {
+        await reorderPriceListCategories(
+          viewItem.id,
+          next.map((row) => String(row.id)),
+        );
+      } catch (err) {
+        console.error('Failed to reorder categories:', err);
+      } finally {
+        setReorderingCategory(false);
+      }
+    },
+    [reorderPriceListCategories, sortedCatalog, viewItem?.id],
   );
 
   const itemCount = viewItem?.items?.length ?? 0;
@@ -95,12 +174,6 @@ export function PriceListView({
         label: t('clubdesk.priceList.tabs.items'),
         icon: Tags,
         count: itemsCount,
-      },
-      {
-        id: 'currency' as const,
-        label: t('clubdesk.priceList.tabs.currency'),
-        icon: Banknote,
-        count: null as number | null,
       },
     ],
     [itemsCount, t],
@@ -187,6 +260,17 @@ export function PriceListView({
           </div>
         ) : null}
 
+        <div className="mb-3">
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">
+              {t('clubdesk.priceList.tabs.currency')}
+            </span>
+            <span className="font-mono font-extrabold text-foreground">
+              {viewItem.currency || 'SEK'}
+            </span>
+          </div>
+        </div>
+
         {viewItem.description ? (
           <div className="text-sm text-foreground">
             <RichTextContent content={viewItem.description} />
@@ -198,7 +282,7 @@ export function PriceListView({
     </Card>
   );
 
-  const itemsCard = (
+  const itemsEmptyCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
         title={t('clubdesk.priceList.tabs.items')}
@@ -207,92 +291,129 @@ export function PriceListView({
         subtleTitle
         className="p-6"
       >
-        {groups.length === 0 ? (
-          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('clubdesk.priceList.noItemsYet')}</p>
-        ) : (
-          <div className="space-y-6">
-            {groups.map((group) => (
-              <div key={group.category ?? '__uncategorized__'}>
-                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {group.category?.trim() ? group.category : t('clubdesk.priceList.uncategorized')}
-                </h4>
-                <ul className="space-y-2">
-                  {group.items.map((item, index) => (
-                    <li
-                      key={item.id ?? `${group.category}-${index}`}
-                      className="rounded-lg border border-border/50 p-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="min-w-0 flex-1 truncate text-sm font-medium">
-                          {item.title}
-                        </div>
-                        <div className="flex-shrink-0 font-mono text-sm font-semibold tabular-nums">
-                          {formatPriceListPrice(
-                            item.price,
-                            viewItem.currency || 'SEK',
-                            i18n.language,
-                          )}
-                        </div>
-                        <div className="flex flex-shrink-0 flex-row items-center gap-0.5">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            icon={ArrowUp}
-                            className="h-8 w-8 px-0"
-                            disabled={isSaving || index === 0}
-                            aria-label={t('clubdesk.priceList.moveItemUp')}
-                            onClick={() =>
-                              void reorderPriceListItems(viewItem, group.category, index, -1)
-                            }
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            icon={ArrowDown}
-                            className="h-8 w-8 px-0"
-                            disabled={isSaving || index === group.items.length - 1}
-                            aria-label={t('clubdesk.priceList.moveItemDown')}
-                            onClick={() =>
-                              void reorderPriceListItems(viewItem, group.category, index, 1)
-                            }
-                          />
-                        </div>
-                      </div>
-                      {item.description ? (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          <RichTextContent content={item.description} />
-                        </div>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        )}
+        <p className={DETAIL_EMPTY_STATE_CLASS}>{t('clubdesk.priceList.noItemsYet')}</p>
       </DetailSection>
     </Card>
   );
 
-  const currencyCard = (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('clubdesk.priceList.tabs.currency')}
-        icon={Banknote}
-        iconPlugin="clubdesk"
-        subtleTitle
-        className="p-6"
-      >
-        <div className={DETAIL_INFO_ROW_CLASS}>
-          <span className="font-mono font-extrabold text-foreground">
-            {viewItem.currency || 'SEK'}
-          </span>
-        </div>
-      </DetailSection>
-    </Card>
-  );
+  const categoryCards =
+    groups.length === 0
+      ? null
+      : groups.map((group) => {
+          const categoryLabel = group.category?.trim()
+            ? group.category
+            : t('clubdesk.priceList.uncategorized');
+          const catalogRow = group.category
+            ? catalogByName.get(categoryNameKey(group.category))
+            : undefined;
+          const catalogIndex = catalogRow
+            ? sortedCatalog.findIndex((row) => String(row.id) === String(catalogRow.id))
+            : -1;
+          const canReorderCategory = Boolean(catalogRow) && catalogIndex >= 0;
+
+          return (
+            <Card
+              key={group.category ?? '__uncategorized__'}
+              padding="none"
+              className={DETAIL_VIEW_CARD_CLASS}
+            >
+              <DetailSection
+                title={categoryLabel}
+                icon={Tags}
+                iconPlugin="clubdesk"
+                subtleTitle
+                className="p-6"
+                action={
+                  canReorderCategory ? (
+                    <div className="flex flex-shrink-0 flex-row items-center gap-1.5">
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={ArrowUp}
+                        label={t('clubdesk.priceList.moveCategoryUp', {
+                          name: categoryLabel,
+                        })}
+                        variant="secondary"
+                        size="xs"
+                        expandOnHover={false}
+                        disabled={isSaving || reorderingCategory || catalogIndex === 0}
+                        onClick={() => void handleMoveCategory(group.category!, -1)}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={ArrowDown}
+                        label={t('clubdesk.priceList.moveCategoryDown', {
+                          name: categoryLabel,
+                        })}
+                        variant="secondary"
+                        size="xs"
+                        expandOnHover={false}
+                        disabled={
+                          isSaving ||
+                          reorderingCategory ||
+                          catalogIndex === sortedCatalog.length - 1
+                        }
+                        onClick={() => void handleMoveCategory(group.category!, 1)}
+                      />
+                    </div>
+                  ) : undefined
+                }
+              >
+                <ul className="space-y-2">
+                  {group.items.map((item, index) => (
+                    <li
+                      key={item.id ?? `${group.category}-${index}`}
+                      className={cn(QUICK_CONTEXT_LINK_TILE_CLASS, 'flex items-start gap-3')}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className={DETAIL_LIST_ITEM_TITLE_CLASS}>{item.title}</div>
+                        {item.description ? (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            <RichTextContent content={item.description} />
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex-shrink-0 pt-0.5 font-mono text-sm font-semibold tabular-nums">
+                        {formatPriceListPrice(
+                          item.price,
+                          viewItem.currency || 'SEK',
+                          i18n.language,
+                        )}
+                      </div>
+                      <div className="flex flex-shrink-0 flex-row items-center gap-1.5">
+                        <RoundIconLabelButton
+                          type="button"
+                          icon={ArrowUp}
+                          label={t('clubdesk.priceList.moveItemUp')}
+                          variant="secondary"
+                          size="xs"
+                          expandOnHover={false}
+                          disabled={isSaving || reorderingCategory || index === 0}
+                          onClick={() =>
+                            void reorderPriceListItems(viewItem, group.category, index, -1)
+                          }
+                        />
+                        <RoundIconLabelButton
+                          type="button"
+                          icon={ArrowDown}
+                          label={t('clubdesk.priceList.moveItemDown')}
+                          variant="secondary"
+                          size="xs"
+                          expandOnHover={false}
+                          disabled={
+                            isSaving || reorderingCategory || index === group.items.length - 1
+                          }
+                          onClick={() =>
+                            void reorderPriceListItems(viewItem, group.category, index, 1)
+                          }
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </DetailSection>
+            </Card>
+          );
+        });
 
   return (
     <DetailLayout gridClassName="grid-cols-1">
@@ -303,8 +424,7 @@ export function PriceListView({
         </div>
       </Card>
       {activeTab === 'information' ? informationCard : null}
-      {activeTab === 'items' ? itemsCard : null}
-      {activeTab === 'currency' ? currencyCard : null}
+      {activeTab === 'items' ? (groups.length === 0 ? itemsEmptyCard : categoryCards) : null}
     </DetailLayout>
   );
 }
