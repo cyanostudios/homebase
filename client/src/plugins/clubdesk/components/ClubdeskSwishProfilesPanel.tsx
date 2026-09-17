@@ -1,9 +1,8 @@
-import { Download, Plus, Tag, Trash2, X } from 'lucide-react';
+import { Check, Download, Plus, Tag, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
@@ -20,8 +19,15 @@ import {
   QrCode,
   SWISH_MESSAGE_MAX_LENGTH,
 } from '@/core/qr';
+import { BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_LIST_ITEM_TITLE_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
+import { QUICK_CONTEXT_LINK_TILE_CLASS } from '@/core/ui/QuickContextLinkTile';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { cn } from '@/lib/utils';
 
@@ -35,8 +41,12 @@ type ApiErr = { message?: string; errors?: Array<{ field?: string; message?: str
 function formatApiError(err: unknown, fallback: string): string {
   const e = err as ApiErr;
   const fieldMsg = e?.errors?.[0]?.message;
-  if (fieldMsg) return fieldMsg;
-  if (typeof e?.message === 'string' && e.message) return e.message;
+  if (fieldMsg) {
+    return fieldMsg;
+  }
+  if (typeof e?.message === 'string' && e.message) {
+    return e.message;
+  }
   return fallback;
 }
 
@@ -67,8 +77,12 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
       setPriceLists(nextLists);
       if (nextProfiles.length > 0) {
         setSelectedId((prev) => {
-          if (prev === 'new') return prev;
-          if (prev && nextProfiles.some((p) => p.id === prev)) return prev;
+          if (prev === 'new') {
+            return prev;
+          }
+          if (prev && nextProfiles.some((p) => p.id === prev)) {
+            return prev;
+          }
           return nextProfiles[0].id;
         });
       } else {
@@ -107,8 +121,12 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
   const takenByOther = useMemo(() => {
     const taken = new Set<string>();
     for (const profile of profiles) {
-      if (selectedId && selectedId !== 'new' && profile.id === selectedId) continue;
-      for (const id of profile.priceListIds) taken.add(id);
+      if (selectedId && selectedId !== 'new' && profile.id === selectedId) {
+        continue;
+      }
+      for (const id of profile.priceListIds) {
+        taken.add(id);
+      }
     }
     return taken;
   }, [profiles, selectedId]);
@@ -129,7 +147,9 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
 
   const payloadResult = useMemo(() => {
     const trimmed = payee.trim();
-    if (!trimmed) return null;
+    if (!trimmed) {
+      return null;
+    }
     return buildSwishTypeCPayload({
       payee: trimmed,
       amount: null,
@@ -142,7 +162,9 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
     if (selectedId === 'new') {
       return Boolean(payee.trim() || message.trim() || priceListIds.length > 0);
     }
-    if (!selectedProfile) return false;
+    if (!selectedProfile) {
+      return false;
+    }
     const idsEqual =
       priceListIds.length === selectedProfile.priceListIds.length &&
       priceListIds.every((id) => selectedProfile.priceListIds.includes(id));
@@ -191,7 +213,9 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
   }, [message, payee, priceListIds, selectedId, t]);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!selectedId || selectedId === 'new') return;
+    if (!selectedId || selectedId === 'new') {
+      return;
+    }
     setShowDeleteConfirm(false);
     setIsSaving(true);
     setErrorMessage(null);
@@ -208,7 +232,9 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
   }, [profiles, selectedId, t]);
 
   const deleteDisplayName = useMemo(() => {
-    if (!selectedProfile) return undefined;
+    if (!selectedProfile) {
+      return undefined;
+    }
     const label = selectedProfile.message
       ? `${selectedProfile.payee} — ${selectedProfile.message}`
       : selectedProfile.payee;
@@ -216,7 +242,9 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
   }, [selectedProfile]);
 
   const handleDownloadQr = useCallback(async () => {
-    if (!payloadResult?.ok) return;
+    if (!payloadResult?.ok) {
+      return;
+    }
     setIsDownloading(true);
     try {
       const dataUrl = await generateQrDataUrl(payloadResult.value, { width: 512 });
@@ -232,9 +260,25 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
   }, [payloadResult, t]);
 
   const busy = disabled || isLoading || isSaving;
+  const isNew = selectedId === 'new';
 
   return (
-    <div className="space-y-4">
+    <DetailSection
+      title={t('clubdesk.siteContent.cards.swish')}
+      className="pt-0"
+      action={
+        <RoundIconLabelButton
+          type="button"
+          icon={Plus}
+          label={t('clubdesk.siteContent.swish.newProfile')}
+          variant="soft"
+          size="xs"
+          alwaysExpanded
+          disabled={busy || isNew}
+          onClick={() => setSelectedId('new')}
+        />
+      }
+    >
       <p className="text-sm text-muted-foreground">{t('clubdesk.siteContent.cards.swishHelp')}</p>
 
       {errorMessage ? (
@@ -243,191 +287,243 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Select
-          value={selectedId ?? undefined}
-          onValueChange={(value) => setSelectedId(value as string | 'new')}
-          disabled={busy}
-        >
-          <SelectTrigger className={cn(FORM_INPUT_CLASS, 'w-[min(100%,280px)]')}>
-            <SelectValue placeholder={t('clubdesk.siteContent.swish.selectProfile')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="new">{t('clubdesk.siteContent.swish.newProfile')}</SelectItem>
-            {profiles.map((profile) => (
-              <SelectItem key={profile.id} value={profile.id}>
-                {profile.payee}
-                {profile.message ? ` — ${profile.message}` : ''}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <RoundIconLabelButton
-          type="button"
-          icon={Plus}
-          label={t('clubdesk.siteContent.swish.newProfile')}
-          variant="soft"
-          size="xs"
-          alwaysExpanded
-          disabled={busy || selectedId === 'new'}
-          onClick={() => setSelectedId('new')}
-        />
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="clubdesk-swish-payee">{t('clubdesk.siteContent.swish.payee')}</Label>
-            <Input
-              id="clubdesk-swish-payee"
-              value={payee}
-              onChange={(e) => setPayee(e.target.value)}
-              placeholder={t('clubdesk.siteContent.swish.payeePlaceholder')}
-              disabled={busy}
-              autoComplete="off"
-              inputMode="tel"
-              className={FORM_INPUT_CLASS}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="clubdesk-swish-message">
-              {t('clubdesk.siteContent.swish.message')}
-            </Label>
-            <Input
-              id="clubdesk-swish-message"
-              value={message}
-              onChange={(e) => setMessage(e.target.value.slice(0, SWISH_MESSAGE_MAX_LENGTH))}
-              placeholder={t('clubdesk.siteContent.swish.messagePlaceholder')}
-              disabled={busy}
-              maxLength={SWISH_MESSAGE_MAX_LENGTH}
-              className={FORM_INPUT_CLASS}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('clubdesk.siteContent.swish.messageHint', { max: SWISH_MESSAGE_MAX_LENGTH })}
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-3">
-              <Label>{t('clubdesk.siteContent.swish.priceLists')}</Label>
-              <Select
-                value={listToAdd || '__add__'}
-                onValueChange={(value) => {
-                  if (value && value !== '__add__') {
-                    setPriceListIds((prev) => (prev.includes(value) ? prev : [...prev, value]));
-                    setListToAdd('');
-                  }
-                }}
-                disabled={busy || addableLists.length === 0}
-              >
-                <SelectTrigger className={cn(FORM_INPUT_CLASS, 'w-[180px]')}>
-                  <SelectValue placeholder={t('clubdesk.siteContent.swish.addPriceList')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__add__">
-                    {addableLists.length === 0
-                      ? t('clubdesk.siteContent.swish.noPriceLists')
-                      : t('clubdesk.siteContent.swish.addPriceList')}
-                  </SelectItem>
-                  {addableLists.map((list) => (
-                    <SelectItem key={list.id} value={list.id}>
-                      {list.title || list.slug}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {t('clubdesk.siteContent.swish.priceListsHint')}
-            </p>
-            {priceListIds.length > 0 ? (
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {priceListIds.map((id) => (
-                  <Badge
-                    key={id}
-                    className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-extrabold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                  >
-                    <Tag className="h-3 w-3" />
-                    {listTitleById.get(id) ?? id}
-                    <button
-                      type="button"
-                      className="rounded p-0.5 hover:bg-muted"
-                      disabled={busy}
-                      onClick={() => setPriceListIds((prev) => prev.filter((x) => x !== id))}
-                      aria-label={t('clubdesk.siteContent.swish.removePriceList', {
-                        name: listTitleById.get(id) ?? id,
-                      })}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+        <div className="space-y-2">
+          <Label className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+            {t('clubdesk.siteContent.swish.selectProfile')}
+          </Label>
+          <ul className="space-y-2">
+            {isLoading ? (
+              <li className={DETAIL_EMPTY_STATE_CLASS}>{t('common.loading')}</li>
+            ) : profiles.length === 0 && !isNew ? (
+              <li className={DETAIL_EMPTY_STATE_CLASS}>
+                {t('clubdesk.siteContent.swish.qrEmpty')}
+              </li>
             ) : (
-              <span className="mt-1 block text-xs text-muted-foreground">
-                {t('clubdesk.siteContent.swish.noLinkedLists')}
-              </span>
+              <>
+                {isNew ? (
+                  <li
+                    className={cn(
+                      QUICK_CONTEXT_LINK_TILE_CLASS,
+                      'bg-primary/10 ring-1 ring-border/70',
+                    )}
+                  >
+                    <div className={DETAIL_LIST_ITEM_TITLE_CLASS}>
+                      {t('clubdesk.siteContent.swish.newProfile')}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {t('clubdesk.siteContent.swish.payeePlaceholder')}
+                    </div>
+                  </li>
+                ) : null}
+                {profiles.map((profile) => {
+                  const isSelected = selectedId === profile.id;
+                  const linkedCount = profile.priceListIds.length;
+                  return (
+                    <li key={profile.id}>
+                      <button
+                        type="button"
+                        className={cn(
+                          QUICK_CONTEXT_LINK_TILE_CLASS,
+                          'w-full text-left',
+                          isSelected && 'bg-primary/10 ring-1 ring-border/70',
+                          !isSelected && 'hover:bg-muted/60',
+                        )}
+                        onClick={() => setSelectedId(profile.id)}
+                      >
+                        <div className={DETAIL_LIST_ITEM_TITLE_CLASS}>{profile.payee}</div>
+                        {profile.message?.trim() ? (
+                          <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                            {profile.message.trim()}
+                          </div>
+                        ) : null}
+                        {linkedCount > 0 ? (
+                          <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                            {t('clubdesk.siteContent.swish.priceLists')} · {linkedCount}
+                          </div>
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
+              </>
             )}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => void handleSave()}
-              disabled={busy || !isDirty || !payee.trim()}
-            >
-              {isSaving
-                ? t('clubdesk.siteContent.swish.saving')
-                : t('clubdesk.siteContent.swish.saveProfile')}
-            </Button>
-            {selectedId && selectedId !== 'new' ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                icon={Trash2}
-                className="text-destructive"
-                disabled={busy}
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                {t('clubdesk.siteContent.swish.deleteProfile')}
-              </Button>
-            ) : null}
-          </div>
+          </ul>
         </div>
 
-        <div className="flex flex-col items-start gap-3">
-          {payloadResult?.ok ? (
-            <>
-              <QrCode
-                value={payloadResult.value}
-                size={200}
-                alt={t('clubdesk.siteContent.swish.qrAlt')}
-                className={cn('rounded-md border border-border bg-white p-2')}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                icon={Download}
-                onClick={() => void handleDownloadQr()}
-                disabled={isDownloading || busy}
-              >
-                {isDownloading
-                  ? t('clubdesk.siteContent.swish.downloading')
-                  : t('clubdesk.siteContent.swish.download')}
-              </Button>
-            </>
-          ) : (
-            <div className="flex h-[200px] w-[200px] items-center justify-center rounded-md border border-dashed border-border bg-muted/30 px-3 text-center">
-              <p className="text-sm text-muted-foreground">
-                {payloadResult && !payloadResult.ok
-                  ? payloadResult.error
-                  : t('clubdesk.siteContent.swish.qrEmpty')}
-              </p>
+        <div className="space-y-4">
+          <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="clubdesk-swish-payee">
+                  {t('clubdesk.siteContent.swish.payee')}
+                </Label>
+                <Input
+                  id="clubdesk-swish-payee"
+                  value={payee}
+                  onChange={(e) => setPayee(e.target.value)}
+                  placeholder={t('clubdesk.siteContent.swish.payeePlaceholder')}
+                  disabled={busy}
+                  autoComplete="off"
+                  inputMode="tel"
+                  className={FORM_INPUT_CLASS}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="clubdesk-swish-message">
+                  {t('clubdesk.siteContent.swish.message')}
+                </Label>
+                <Input
+                  id="clubdesk-swish-message"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value.slice(0, SWISH_MESSAGE_MAX_LENGTH))}
+                  placeholder={t('clubdesk.siteContent.swish.messagePlaceholder')}
+                  disabled={busy}
+                  maxLength={SWISH_MESSAGE_MAX_LENGTH}
+                  className={FORM_INPUT_CLASS}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('clubdesk.siteContent.swish.messageHint', { max: SWISH_MESSAGE_MAX_LENGTH })}
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-3">
+                  <Label>{t('clubdesk.siteContent.swish.priceLists')}</Label>
+                  <Select
+                    value={listToAdd || '__add__'}
+                    onValueChange={(value) => {
+                      if (value && value !== '__add__') {
+                        setPriceListIds((prev) => (prev.includes(value) ? prev : [...prev, value]));
+                        setListToAdd('');
+                      }
+                    }}
+                    disabled={busy || addableLists.length === 0}
+                  >
+                    <SelectTrigger className={cn(FORM_INPUT_CLASS, 'w-[180px]')}>
+                      <SelectValue placeholder={t('clubdesk.siteContent.swish.addPriceList')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__add__">
+                        {addableLists.length === 0
+                          ? t('clubdesk.siteContent.swish.noPriceLists')
+                          : t('clubdesk.siteContent.swish.addPriceList')}
+                      </SelectItem>
+                      {addableLists.map((list) => (
+                        <SelectItem key={list.id} value={list.id}>
+                          {list.title || list.slug}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t('clubdesk.siteContent.swish.priceListsHint')}
+                </p>
+                {priceListIds.length > 0 ? (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {priceListIds.map((id) => (
+                      <Badge
+                        key={id}
+                        className={cn(
+                          BADGE_CHIP_CLASS,
+                          QC_STATUS_BADGE_COLORS.neutral,
+                          'flex items-center gap-1',
+                        )}
+                      >
+                        <Tag className="h-3 w-3" />
+                        {listTitleById.get(id) ?? id}
+                        <button
+                          type="button"
+                          className="rounded-full p-0.5 hover:bg-muted"
+                          disabled={busy}
+                          onClick={() => setPriceListIds((prev) => prev.filter((x) => x !== id))}
+                          aria-label={t('clubdesk.siteContent.swish.removePriceList', {
+                            name: listTitleById.get(id) ?? id,
+                          })}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className={cn('mt-1 block', DETAIL_EMPTY_STATE_CLASS)}>
+                    {t('clubdesk.siteContent.swish.noLinkedLists')}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <RoundIconLabelButton
+                  type="button"
+                  icon={Check}
+                  label={
+                    isSaving
+                      ? t('clubdesk.siteContent.swish.saving')
+                      : t('clubdesk.siteContent.swish.saveProfile')
+                  }
+                  variant="success"
+                  size="xs"
+                  alwaysExpanded
+                  onClick={() => void handleSave()}
+                  disabled={busy || !isDirty || !payee.trim()}
+                />
+                {selectedId && selectedId !== 'new' ? (
+                  <RoundIconLabelButton
+                    type="button"
+                    icon={Trash2}
+                    label={t('clubdesk.siteContent.swish.deleteProfile')}
+                    variant="dangerSoft"
+                    size="xs"
+                    alwaysExpanded
+                    disabled={busy}
+                    onClick={() => setShowDeleteConfirm(true)}
+                  />
+                ) : null}
+              </div>
             </div>
-          )}
+
+            <div
+              className={cn(
+                QUICK_CONTEXT_LINK_TILE_CLASS,
+                'flex flex-col items-center gap-3 self-start',
+              )}
+            >
+              {payloadResult?.ok ? (
+                <>
+                  <QrCode
+                    value={payloadResult.value}
+                    size={200}
+                    alt={t('clubdesk.siteContent.swish.qrAlt')}
+                    className="rounded-xl bg-white p-2 shadow-sm dark:bg-slate-950"
+                  />
+                  <RoundIconLabelButton
+                    type="button"
+                    icon={Download}
+                    label={
+                      isDownloading
+                        ? t('clubdesk.siteContent.swish.downloading')
+                        : t('clubdesk.siteContent.swish.download')
+                    }
+                    variant="secondary"
+                    size="xs"
+                    alwaysExpanded
+                    onClick={() => void handleDownloadQr()}
+                    disabled={isDownloading || busy}
+                  />
+                </>
+              ) : (
+                <div className="flex h-[200px] w-[200px] items-center justify-center px-3 text-center">
+                  <p className={DETAIL_EMPTY_STATE_CLASS}>
+                    {payloadResult && !payloadResult.ok
+                      ? payloadResult.error
+                      : t('clubdesk.siteContent.swish.qrEmpty')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -444,6 +540,6 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
         variant="danger"
         confirmDisabled={isSaving}
       />
-    </div>
+    </DetailSection>
   );
 }

@@ -4,13 +4,16 @@ import { useTranslation } from 'react-i18next';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Textarea } from '@/components/ui/textarea';
+import { DetailSection } from '@/core/ui/DetailSection';
+import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
+import { PLUGIN_PAGE_LIST_SHELL_CLASS } from '@/core/ui/pluginPageStyles';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
-import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
 import { clubdeskApi } from '../api/clubdeskApi';
@@ -28,10 +31,7 @@ function EditorFallback({ className }: { className?: string }) {
   return (
     <textarea
       disabled
-      className={cn(
-        'min-h-[160px] w-full resize-y rounded-md border border-input bg-muted/40 px-3 py-2 text-sm',
-        className,
-      )}
+      className={cn(FORM_TEXTAREA_CLASS, 'min-h-[160px] w-full resize-y', className)}
       placeholder="…"
     />
   );
@@ -99,6 +99,8 @@ export function ClubdeskInfoView() {
     homeContent !== initialHome ||
     infoContent !== initialInfo ||
     infoTitle !== initialInfoTitle;
+
+  const showSave = activeTab !== 'swish' && activeTab !== 'contacts' && isDirty;
 
   const shellCategories: PluginSettingsCategory[] = useMemo(
     () => [
@@ -202,32 +204,54 @@ export function ClubdeskInfoView() {
     }
   }, [homeContent, homeTitle, infoContent, infoTitle, t]);
 
-  return (
-    <div className="plugin-clubdesk min-h-full bg-background">
-      <div className="px-6 py-4">
-        <PluginSettingsPageShell
-          title={t('nav.clubdesk-info')}
-          subtitle={t('clubdesk.siteContent.subtitle')}
-          categories={shellCategories}
-          activeCategory={activeTab}
-          onCategoryChange={(id) => setActiveTab(id as InfoCardTab)}
-          saveAction={
-            activeTab !== 'swish' && activeTab !== 'contacts' && isDirty ? (
-              <SettingsHeaderSaveButton
-                onClick={handleSave}
-                isSaving={isSaving}
-                disabled={isLoading}
-              />
-            ) : null
-          }
-        >
-          {errorMessage && activeTab !== 'swish' && activeTab !== 'contacts' ? (
-            <p className="mb-4 text-sm text-destructive" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
+  const saveButton = showSave ? (
+    <SettingsHeaderSaveButton onClick={handleSave} isSaving={isSaving} disabled={isLoading} />
+  ) : null;
 
-          {activeTab === 'home' ? (
+  return (
+    <div
+      className={cn(
+        'plugin-clubdesk flex min-h-0 flex-1 flex-col overflow-y-auto',
+        PLUGIN_PAGE_LIST_SHELL_CLASS,
+      )}
+    >
+      <PluginSettingsPageShell
+        title={t('nav.clubdesk-info')}
+        subtitle={t('clubdesk.siteContent.subtitle')}
+        categories={shellCategories}
+        activeCategory={activeTab}
+        onCategoryChange={(id) => setActiveTab(id as InfoCardTab)}
+        saveAction={saveButton}
+      >
+        {/* Phone: page header is hidden; keep categories and Save reachable. */}
+        <div className="mb-4 flex flex-wrap items-center gap-1 md:hidden">
+          {shellCategories.map((category) => {
+            const isActive = activeTab === category.id;
+            return (
+              <RoundIconLabelButton
+                key={category.id}
+                type="button"
+                icon={category.icon}
+                label={category.label}
+                variant={isActive ? 'primary' : 'soft'}
+                alwaysExpanded
+                className="shrink-0"
+                aria-pressed={isActive}
+                onClick={() => setActiveTab(category.id as InfoCardTab)}
+              />
+            );
+          })}
+          {saveButton}
+        </div>
+
+        {errorMessage && activeTab !== 'swish' && activeTab !== 'contacts' ? (
+          <p className="mb-4 text-sm text-destructive" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        {activeTab === 'home' ? (
+          <DetailSection title={t('clubdesk.siteContent.cards.home')} className="pt-0">
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 {t('clubdesk.siteContent.cards.homeHelp')}
@@ -256,9 +280,11 @@ export function ClubdeskInfoView() {
                 />
               </div>
             </div>
-          ) : null}
+          </DetailSection>
+        ) : null}
 
-          {activeTab === 'info' ? (
+        {activeTab === 'info' ? (
+          <DetailSection title={t('clubdesk.siteContent.cards.info')} className="pt-0">
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 {t('clubdesk.siteContent.cards.infoHelp')}
@@ -290,13 +316,13 @@ export function ClubdeskInfoView() {
                 )}
               </div>
             </div>
-          ) : null}
+          </DetailSection>
+        ) : null}
 
-          {activeTab === 'contacts' ? <ClubdeskInfoContactsPanel disabled={isLoading} /> : null}
+        {activeTab === 'contacts' ? <ClubdeskInfoContactsPanel disabled={isLoading} /> : null}
 
-          {activeTab === 'swish' ? <ClubdeskSwishProfilesPanel disabled={isLoading} /> : null}
-        </PluginSettingsPageShell>
-      </div>
+        {activeTab === 'swish' ? <ClubdeskSwishProfilesPanel disabled={isLoading} /> : null}
+      </PluginSettingsPageShell>
     </div>
   );
 }
