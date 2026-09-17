@@ -130,4 +130,11 @@ describe('CupsList table view wiring', () => {
   test('cups plugin registry sets contentOwnsScroll', () => {
     expect(registrySrc).toMatch(/name: 'cups'[\s\S]*contentOwnsScroll: true/);
   });
+
+  test('settings and statistics mounts own a scrollport under contentOwnsScroll', () => {
+    expect(listSrc).toMatch(
+      /plugin-cups flex min-h-0 flex-1 flex-col overflow-y-auto bg-background/,
+    );
+    expect(listSrc).not.toMatch(/plugin-cups min-h-full bg-background/);
+  });
 });
