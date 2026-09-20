@@ -87,6 +87,7 @@ import {
   CupIngestImportResultDialog,
   type CupIngestImportResultVariant,
 } from './CupIngestImportResultDialog';
+import { CupIngestImportProgressDialog } from './CupIngestImportProgressDialog';
 import { CupIngestPickSourceDialog } from './CupIngestPickSourceDialog';
 import { CupForm } from './CupForm';
 import { CupListTable } from './CupListTable';
@@ -190,6 +191,7 @@ export function CupsList() {
     defaultId: '',
   });
   const [importRunning, setImportRunning] = useState(false);
+  const [importProgressLabel, setImportProgressLabel] = useState('');
   const [importResultOpen, setImportResultOpen] = useState(false);
   const [importResult, setImportResult] = useState<{
     variant: CupIngestImportResultVariant;
@@ -514,7 +516,7 @@ export function CupsList() {
   }, [getSettings]);
 
   const handleConfirmImportFromList = useCallback(
-    async (sourceId: string) => {
+    async (sourceId: string, sourceLabel: string) => {
       const allowedIds = pickImportSettings.allowedIds;
       if (allowedIds.length > 0 && !allowedIds.includes(String(sourceId))) {
         setPickImportOpen(false);
@@ -533,6 +535,8 @@ export function CupsList() {
         setImportResultOpen(true);
         return;
       }
+      setPickImportOpen(false);
+      setImportProgressLabel(sourceLabel);
       setImportRunning(true);
       try {
         const result = await importFromIngestSource(sourceId);
@@ -546,7 +550,6 @@ export function CupsList() {
             : errs.length > 0
               ? 'partial'
               : 'success';
-        setPickImportOpen(false);
         setImportResult({
           variant,
           parsed: result.parsed ?? 0,
@@ -561,7 +564,6 @@ export function CupsList() {
         });
         setImportResultOpen(true);
       } catch (error: unknown) {
-        setPickImportOpen(false);
         setImportResult({
           variant: 'error',
           parsed: 0,
@@ -577,6 +579,7 @@ export function CupsList() {
         setImportResultOpen(true);
       } finally {
         setImportRunning(false);
+        setImportProgressLabel('');
       }
     },
     [importFromIngestSource, pickImportSettings.allowedIds],
@@ -982,6 +985,8 @@ export function CupsList() {
             onConfirm={handleConfirmImportFromList}
             confirming={importRunning}
           />
+
+          <CupIngestImportProgressDialog isOpen={importRunning} sourceLabel={importProgressLabel} />
 
           {importResult && (
             <CupIngestImportResultDialog

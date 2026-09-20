@@ -1,13 +1,23 @@
-import { CheckCircle2, Circle, Clock, XCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  Calendar,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Minus,
+  XCircle,
+} from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
+import { DetailHeaderMetaRow } from '@/core/ui/DetailHeaderMenus';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
 import type { Task } from '../types/tasks';
@@ -30,6 +40,17 @@ function taskStatusIcon(status: string) {
       return XCircle;
     default:
       return Circle;
+  }
+}
+
+function taskPriorityIcon(priority: string) {
+  switch (priority) {
+    case 'High':
+      return ArrowUp;
+    case 'Low':
+      return ArrowDown;
+    default:
+      return Minus;
   }
 }
 
@@ -59,7 +80,11 @@ export function TaskQuickContextPanel({
     if (!display) {
       return null;
     }
-    return { text: display.text, className: display.badgeClassName };
+    return {
+      text: display.text,
+      className: display.badgeClassName,
+      urgency: display.urgency,
+    };
   }, [task.dueDate, task.status]);
 
   const updatedLabel = task.updatedAt
@@ -74,6 +99,9 @@ export function TaskQuickContextPanel({
 
   const statusLabel = formatStatusForDisplay(task.status);
   const StatusIcon = taskStatusIcon(task.status);
+  const PriorityIcon = taskPriorityIcon(task.priority);
+  const DueIcon =
+    dueBadge?.urgency === 'overdue' || dueBadge?.urgency === 'today' ? AlertCircle : Calendar;
 
   const titleLeading = (
     <div className="flex min-w-0 items-center gap-2">
@@ -90,38 +118,30 @@ export function TaskQuickContextPanel({
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
       <div className="px-4 py-5">
         <TaskDetailHeaderMenus task={task} leading={titleLeading} />
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <DetailHeaderMetaRow>
           {updatedLabel ? (
-            <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+            <p className="min-w-0 text-xs text-muted-foreground">
               {t('common.updated')} {updatedLabel}
             </p>
-          ) : (
-            <div className="min-w-0 flex-1" />
-          )}
-          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-            <Badge
-              className={cn(
-                'shrink-0',
-                BADGE_CHIP_CLASS,
-                TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS] ??
-                  TASK_STATUS_COLORS['not started'],
-              )}
-            >
-              {formatStatusForDisplay(task.status)}
-            </Badge>
-            <Badge
-              variant="outline"
-              className={cn(BADGE_CHIP_CLASS, TASK_PRIORITY_COLORS[task.priority])}
-            >
-              {task.priority}
-            </Badge>
-            {dueBadge ? (
-              <Badge variant="outline" className={cn(BADGE_CHIP_CLASS, dueBadge.className)}>
-                {dueBadge.text}
-              </Badge>
-            ) : null}
-          </div>
-        </div>
+          ) : null}
+          <StatusOutlineBadge
+            icon={StatusIcon}
+            className={
+              TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS] ??
+              TASK_STATUS_COLORS['not started']
+            }
+          >
+            {formatStatusForDisplay(task.status)}
+          </StatusOutlineBadge>
+          <StatusOutlineBadge icon={PriorityIcon} className={TASK_PRIORITY_COLORS[task.priority]}>
+            {task.priority}
+          </StatusOutlineBadge>
+          {dueBadge ? (
+            <StatusOutlineBadge icon={DueIcon} className={dueBadge.className}>
+              {dueBadge.text}
+            </StatusOutlineBadge>
+          ) : null}
+        </DetailHeaderMetaRow>
         {headerBelow ? <div className="mt-4">{headerBelow}</div> : null}
       </div>
     </Card>

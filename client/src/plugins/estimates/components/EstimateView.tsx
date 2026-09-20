@@ -1,4 +1,4 @@
-import { FileSpreadsheet, List, SlidersHorizontal, StickyNote } from 'lucide-react';
+import { FileSpreadsheet, History, List, SlidersHorizontal, StickyNote } from 'lucide-react';
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -9,8 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
+import {
+  DETAIL_HEADER_BELOW_MENUS_CLASS,
+  DETAIL_HEADER_CHIP_GAP_CLASS,
+} from '@/core/ui/DetailHeaderMenus';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import {
   DETAIL_EMPTY_STATE_CLASS,
@@ -37,9 +42,9 @@ interface EstimateViewProps {
   stacked?: boolean;
 }
 
-type EstimateViewTab = 'properties' | 'lines' | 'notes';
+type EstimateViewTab = 'properties' | 'lines' | 'notes' | 'activity';
 
-const ESTIMATE_VIEW_TABS: EstimateViewTab[] = ['properties', 'lines', 'notes'];
+const ESTIMATE_VIEW_TABS: EstimateViewTab[] = ['properties', 'lines', 'notes', 'activity'];
 
 function parseEstimateViewTab(value: string | null): EstimateViewTab {
   if (value && ESTIMATE_VIEW_TABS.includes(value as EstimateViewTab)) {
@@ -114,6 +119,12 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
         icon: StickyNote,
         count: null as number | null,
       },
+      {
+        id: 'activity' as const,
+        label: t('estimates.tabs.activity'),
+        icon: History,
+        count: null as number | null,
+      },
     ],
     [lineItemCount, t],
   );
@@ -173,6 +184,26 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <div className="px-4 py-5">
         <EstimateDetailHeaderMenus estimate={estimate} leading={titleLeading} />
+        {estimate.updatedAt ? (
+          <div
+            className={cn(
+              DETAIL_HEADER_BELOW_MENUS_CLASS,
+              'flex min-w-0 flex-wrap items-center',
+              DETAIL_HEADER_CHIP_GAP_CLASS,
+            )}
+          >
+            <p className="min-w-0 text-xs text-muted-foreground">
+              {t('common.updated')}{' '}
+              {new Date(estimate.updatedAt).toLocaleString(undefined, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </p>
+          </div>
+        ) : null}
         <div className="mt-4">{tabChips}</div>
       </div>
     </Card>
@@ -361,6 +392,17 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
       {activeTab === 'properties' ? propertiesContent : null}
       {activeTab === 'lines' ? linesContent : null}
       {activeTab === 'notes' ? notesContent : null}
+      {activeTab === 'activity' ? (
+        <DetailActivityLog
+          entityType="estimate"
+          entityId={estimate.id}
+          limit={30}
+          title={t('estimates.activity')}
+          showClearButton
+          refreshKey={String(estimate.updatedAt ?? estimate.id)}
+          systemId={formatDisplayNumber('estimates', estimate.id)}
+        />
+      ) : null}
     </>
   );
 

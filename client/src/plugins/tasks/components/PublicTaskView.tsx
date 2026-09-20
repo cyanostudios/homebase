@@ -1,11 +1,21 @@
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  Calendar,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Minus,
+  XCircle,
+} from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
-import { Badge } from '@/components/ui/badge';
-import { BADGE_CHIP_CLASS, DUE_DATE_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { DUE_DATE_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { RichTextContent } from '@/core/ui/RichTextContent';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { formatDateTime } from '@/core/utils/dateFormat';
 import { dedupeInFlightByKey } from '@/core/utils/dedupeInFlightByKey';
-import { cn } from '@/lib/utils';
 
 import { taskShareApi } from '../api/tasksApi';
 import {
@@ -18,6 +28,30 @@ import {
 
 interface PublicTaskViewProps {
   token: string;
+}
+
+function taskStatusIcon(status: string) {
+  switch (status) {
+    case 'in progress':
+      return Clock;
+    case 'completed':
+      return CheckCircle2;
+    case 'cancelled':
+      return XCircle;
+    default:
+      return Circle;
+  }
+}
+
+function taskPriorityIcon(priority: string) {
+  switch (priority) {
+    case 'High':
+      return ArrowUp;
+    case 'Low':
+      return ArrowDown;
+    default:
+      return Minus;
+  }
 }
 
 export function PublicTaskView({ token }: PublicTaskViewProps) {
@@ -100,36 +134,37 @@ export function PublicTaskView({ token }: PublicTaskViewProps) {
               Shared task · link expires {formatDateTime(task.shareValidUntil)}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Badge
-                variant="outline"
-                className={cn(BADGE_CHIP_CLASS, TASK_STATUS_COLORS[task.status] ?? '')}
+              <StatusOutlineBadge
+                icon={taskStatusIcon(task.status)}
+                className={TASK_STATUS_COLORS[task.status] ?? ''}
               >
                 {formatStatusForDisplay(task.status)}
-              </Badge>
-              <Badge
-                variant="outline"
-                className={cn(BADGE_CHIP_CLASS, TASK_PRIORITY_COLORS[task.priority] ?? '')}
+              </StatusOutlineBadge>
+              <StatusOutlineBadge
+                icon={taskPriorityIcon(task.priority)}
+                className={TASK_PRIORITY_COLORS[task.priority] ?? ''}
               >
                 {task.priority}
-              </Badge>
+              </StatusOutlineBadge>
               {dueDisplay ? (
-                <Badge
-                  variant="outline"
-                  className={cn(BADGE_CHIP_CLASS, dueDisplay.badgeClassName)}
+                <StatusOutlineBadge
+                  icon={
+                    dueDisplay.urgency === 'overdue' || dueDisplay.urgency === 'today'
+                      ? AlertCircle
+                      : Calendar
+                  }
+                  className={dueDisplay.badgeClassName}
                 >
                   {dueDisplay.text}
-                </Badge>
+                </StatusOutlineBadge>
               ) : task.dueDate ? (
-                <Badge
-                  variant="outline"
-                  className={cn(BADGE_CHIP_CLASS, DUE_DATE_BADGE_COLORS.muted)}
-                >
+                <StatusOutlineBadge icon={Calendar} className={DUE_DATE_BADGE_COLORS.muted}>
                   {new Date(task.dueDate).toLocaleDateString(undefined, {
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric',
                   })}
-                </Badge>
+                </StatusOutlineBadge>
               ) : null}
             </div>
           </div>

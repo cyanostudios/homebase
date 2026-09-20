@@ -2,6 +2,7 @@ import {
   Calculator,
   CreditCard,
   Eye,
+  History,
   Info,
   Link2,
   ListOrdered,
@@ -18,6 +19,7 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { EMPTY_ORGANIZATION, organizationApi } from '@/core/api/organizationApi';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SubtleSectionHeading } from '@/core/ui/DetailSection';
 import {
@@ -80,9 +82,15 @@ interface InvoiceViewProps {
   stacked?: boolean;
 }
 
-type InvoiceViewTab = 'information' | 'lines' | 'payments' | 'linked';
+type InvoiceViewTab = 'information' | 'lines' | 'payments' | 'linked' | 'activity';
 
-const INVOICE_VIEW_TABS: InvoiceViewTab[] = ['information', 'lines', 'payments', 'linked'];
+const INVOICE_VIEW_TABS: InvoiceViewTab[] = [
+  'information',
+  'lines',
+  'payments',
+  'linked',
+  'activity',
+];
 
 function parseInvoiceViewTab(value: string | null): InvoiceViewTab {
   if (value && INVOICE_VIEW_TABS.includes(value as InvoiceViewTab)) {
@@ -256,6 +264,12 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
       icon: Link2,
       count: null as number | null,
     },
+    {
+      id: 'activity' as const,
+      label: t('invoices.tabs.activity'),
+      icon: History,
+      count: null as number | null,
+    },
   ];
 
   const tabChips = (
@@ -339,7 +353,6 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
           subtleTitle
           className="p-6"
           collapsible
-          defaultOpen
         >
           {hasLineItems ? (
             <div className="space-y-1">
@@ -501,6 +514,17 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
       {activeTab === 'lines' ? linesCard : null}
       {activeTab === 'payments' ? paymentsCard : null}
       {activeTab === 'linked' ? linkedCard : null}
+      {activeTab === 'activity' ? (
+        <DetailActivityLog
+          entityType="invoice"
+          entityId={actualItem.id}
+          limit={30}
+          title={t('invoices.activity')}
+          showClearButton
+          refreshKey={String(actualItem.updatedAt ?? actualItem.id)}
+          systemId={formatDisplayNumber('invoices', actualItem.id)}
+        />
+      ) : null}
     </div>
   );
 

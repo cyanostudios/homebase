@@ -29,9 +29,9 @@ export const PLUGIN_PAGE_HEADER_ACTIONS_CLASS = 'flex shrink-0 items-center gap-
 /** Slightly smaller title on phone detail headers. */
 export const PLUGIN_PAGE_TITLE_MOBILE_CLASS = 'text-xl';
 
-/** Primary name/title field in edit forms — same scale as list title. */
+/** Primary name/title field in edit forms — same scale as list title; focus ring required (WCAG). */
 export const DETAIL_FORM_TITLE_INPUT_CLASS =
-  'h-auto min-h-11 border-0 bg-transparent px-0 text-2xl font-extrabold tracking-tight shadow-none focus-visible:ring-0 focus-visible:ring-offset-0';
+  'h-auto min-h-11 w-full border-0 bg-transparent px-0 text-2xl font-extrabold tracking-tight shadow-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0';
 
 export const PLUGIN_PAGE_SUBTITLE_CLASS = 'text-sm text-muted-foreground';
 

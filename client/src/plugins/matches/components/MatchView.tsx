@@ -1,4 +1,13 @@
-import { ExternalLink, Info, Link2, Search, SlidersHorizontal, Trash2, Users } from 'lucide-react';
+import {
+  ExternalLink,
+  History,
+  Info,
+  Link2,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  Users,
+} from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -16,6 +25,8 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import {
   DetailSection,
@@ -71,9 +82,15 @@ type AssignableContact = {
 
 type RelatedItem = { id: string | number; label: string; onOpen: () => void; pluginClass: string };
 
-type MatchViewTab = 'information' | 'properties' | 'contacts' | 'linked';
+type MatchViewTab = 'information' | 'properties' | 'contacts' | 'linked' | 'activity';
 
-const MATCH_VIEW_TABS: MatchViewTab[] = ['information', 'properties', 'contacts', 'linked'];
+const MATCH_VIEW_TABS: MatchViewTab[] = [
+  'information',
+  'properties',
+  'contacts',
+  'linked',
+  'activity',
+];
 
 function parseMatchViewTab(value: string | null): MatchViewTab {
   if (value && MATCH_VIEW_TABS.includes(value as MatchViewTab)) {
@@ -435,6 +452,12 @@ export function MatchView({ match: matchProp, item, stacked: _stacked = false }:
         icon: Link2,
         count: relatedSlotCount > 0 ? relatedSlotCount : null,
       },
+      {
+        id: 'activity' as const,
+        label: t('matches.tabs.activity'),
+        icon: History,
+        count: null as number | null,
+      },
     ],
     [t, contactCount, relatedSlotCount],
   );
@@ -681,6 +704,17 @@ export function MatchView({ match: matchProp, item, stacked: _stacked = false }:
           ) : null}
           {activeTab === 'contacts' ? contactsCard : null}
           {activeTab === 'linked' ? linkedCard : null}
+          {activeTab === 'activity' ? (
+            <DetailActivityLog
+              entityType="match"
+              entityId={match.id}
+              limit={30}
+              title={t('matches.activity')}
+              showClearButton
+              refreshKey={String(match.updated_at ?? match.id)}
+              systemId={formatDisplayNumber('matches', match.id)}
+            />
+          ) : null}
         </div>
       </DetailLayout>
 

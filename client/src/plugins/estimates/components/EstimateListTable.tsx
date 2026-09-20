@@ -122,9 +122,9 @@ export function EstimateListTable({
               </span>
               <Badge
                 className={cn(
+                  'shrink-0',
                   BADGE_CHIP_CLASS,
                   ESTIMATE_STATUS_COLORS[status as keyof typeof ESTIMATE_STATUS_COLORS],
-                  'h-4 shrink-0 px-1 py-0 text-[10px] font-normal leading-none',
                 )}
               >
                 {formatEstimateStatusForDisplay(status)}

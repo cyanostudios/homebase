@@ -27,10 +27,14 @@ describe('TaskView detail tab chips', () => {
     expect(viewSrc).toMatch(/'properties'/);
     expect(viewSrc).toMatch(/'assignees'/);
     expect(viewSrc).toMatch(/'linked'/);
+    expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
     expect(viewSrc).toMatch(/activeTab === 'properties'/);
     expect(viewSrc).toMatch(/activeTab === 'assignees'/);
     expect(viewSrc).toMatch(/activeTab === 'linked'/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
+    expect(viewSrc).toMatch(/DetailActivityLog/);
+    expect(viewSrc).toMatch(/entityType="task"/);
   });
 });

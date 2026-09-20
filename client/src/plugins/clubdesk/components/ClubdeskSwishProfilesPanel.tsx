@@ -1,8 +1,7 @@
-import { Check, Download, Plus, Tag, Trash2, X } from 'lucide-react';
+import { Check, Download, Plus, QrCode as QrCodeIcon, Tag, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
@@ -19,9 +18,10 @@ import {
   QrCode,
   SWISH_MESSAGE_MAX_LENGTH,
 } from '@/core/qr';
-import { BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import {
   DETAIL_EMPTY_STATE_CLASS,
   DETAIL_LIST_ITEM_TITLE_CLASS,
@@ -35,6 +35,8 @@ import { clubdeskApi } from '../api/clubdeskApi';
 import type { ClubdeskPriceList } from '../types/priceList';
 import { swishLockMaskForAmount } from '../types/siteContent';
 import type { ClubdeskSwishProfile } from '../types/swishProfile';
+
+import { ClubdeskPublicVisibleSwitch } from './ClubdeskPublicVisibleSwitch';
 
 type ApiErr = { message?: string; errors?: Array<{ field?: string; message?: string }> };
 
@@ -50,7 +52,17 @@ function formatApiError(err: unknown, fallback: string): string {
   return fallback;
 }
 
-export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean }) {
+type ClubdeskSwishProfilesPanelProps = {
+  disabled?: boolean;
+  publicVisible?: boolean;
+  onPublicVisibleChange?: (next: boolean) => void;
+};
+
+export function ClubdeskSwishProfilesPanel({
+  disabled,
+  publicVisible = true,
+  onPublicVisibleChange,
+}: ClubdeskSwishProfilesPanelProps) {
   const { t } = useTranslation();
   const [profiles, setProfiles] = useState<ClubdeskSwishProfile[]>([]);
   const [priceLists, setPriceLists] = useState<ClubdeskPriceList[]>([]);
@@ -265,7 +277,20 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
   return (
     <DetailSection
       title={t('clubdesk.siteContent.cards.swish')}
+      icon={QrCodeIcon}
+      iconPlugin="clubdesk"
       className="pt-0"
+      subtleTitle
+      titleAside={
+        onPublicVisibleChange ? (
+          <ClubdeskPublicVisibleSwitch
+            id="clubdesk-swish-visible"
+            checked={publicVisible}
+            onCheckedChange={onPublicVisibleChange}
+            disabled={busy}
+          />
+        ) : null
+      }
       action={
         <RoundIconLabelButton
           type="button"
@@ -279,8 +304,6 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
         />
       }
     >
-      <p className="text-sm text-muted-foreground">{t('clubdesk.siteContent.cards.swishHelp')}</p>
-
       {errorMessage ? (
         <p className="text-sm text-destructive" role="alert">
           {errorMessage}
@@ -423,19 +446,13 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
                 {priceListIds.length > 0 ? (
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {priceListIds.map((id) => (
-                      <Badge
-                        key={id}
-                        className={cn(
-                          BADGE_CHIP_CLASS,
-                          QC_STATUS_BADGE_COLORS.neutral,
-                          'flex items-center gap-1',
-                        )}
-                      >
-                        <Tag className="h-3 w-3" />
-                        {listTitleById.get(id) ?? id}
+                      <span key={id} className="inline-flex items-center gap-1">
+                        <StatusOutlineBadge icon={Tag} className={QC_STATUS_BADGE_COLORS.neutral}>
+                          {listTitleById.get(id) ?? id}
+                        </StatusOutlineBadge>
                         <button
                           type="button"
-                          className="rounded-full p-0.5 hover:bg-muted"
+                          className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                           disabled={busy}
                           onClick={() => setPriceListIds((prev) => prev.filter((x) => x !== id))}
                           aria-label={t('clubdesk.siteContent.swish.removePriceList', {
@@ -444,7 +461,7 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
                         >
                           <X className="h-3 w-3" />
                         </button>
-                      </Badge>
+                      </span>
                     ))}
                   </div>
                 ) : (

@@ -1,11 +1,24 @@
 import { nextListTableSort } from '@/core/list/listViewMode';
 
 import {
+  compareGarmentListsByField,
   compareInventoryByField,
   isGarmentAscDefaultField,
   isInventoryAscDefaultField,
 } from '../garmentListSort';
-import type { InventoryItem } from '../../types/garments';
+import type { GarmentList, InventoryItem } from '../../types/garments';
+
+function list(partial: Partial<GarmentList> & Pick<GarmentList, 'id' | 'name'>): GarmentList {
+  return {
+    teamId: null,
+    checkboxColumns: [],
+    persons: [],
+    personCount: 0,
+    createdAt: '',
+    updatedAt: '',
+    ...partial,
+  };
+}
 
 function item(
   partial: Partial<InventoryItem> & Pick<InventoryItem, 'id' | 'articleName'>,
@@ -32,9 +45,23 @@ function item(
 describe('garmentListSort', () => {
   it('defaults name/article strings to ascending', () => {
     expect(isGarmentAscDefaultField('name')).toBe(true);
+    expect(isGarmentAscDefaultField('teamId')).toBe(true);
     expect(isGarmentAscDefaultField('personCount')).toBe(false);
     expect(isInventoryAscDefaultField('articleName')).toBe(true);
     expect(isInventoryAscDefaultField('brand')).toBe(true);
+  });
+
+  it('sorts lists by team label with empty last', () => {
+    const names = new Map([
+      ['1', 'Alpha'],
+      ['2', 'Beta'],
+    ]);
+    const a = list({ id: 'a', name: 'A', teamId: '2' });
+    const b = list({ id: 'b', name: 'B', teamId: '1' });
+    const none = list({ id: 'c', name: 'C', teamId: null });
+    expect(compareGarmentListsByField(a, b, 'teamId', 'asc', names)).toBeGreaterThan(0);
+    expect(compareGarmentListsByField(none, a, 'teamId', 'asc', names)).toBeGreaterThan(0);
+    expect(compareGarmentListsByField(a, none, 'teamId', 'desc', names)).toBeLessThan(0);
   });
 
   it('defaults quantity magnitude to descending (highest first)', () => {

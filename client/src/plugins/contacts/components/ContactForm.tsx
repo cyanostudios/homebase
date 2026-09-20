@@ -49,11 +49,12 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { DETAIL_FORM_TITLE_INPUT_CLASS } from '@/core/ui/pluginPageStyles';
 import {
-  FORM_INPUT_CLASS,
+  FORM_GHOST_INPUT_CLASS,
+  FORM_GHOST_PROP_CONTROL_CLASS,
+  FORM_GHOST_READONLY_CLASS,
+  FORM_GHOST_SELECT_CLASS,
+  FORM_GHOST_TEXTAREA_CLASS,
   FORM_INPUT_ERROR_CLASS,
-  FORM_INPUT_READONLY_CLASS,
-  FORM_PROP_CONTROL_CLASS,
-  FORM_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -67,8 +68,9 @@ import {
 } from '../utils/contactInvoiceReference';
 
 import { ContactSettingsForm } from './ContactSettingsForm';
+/** Same label language as ContactView (`DETAIL_FIELD_LABEL_CLASS`). */
 const FACT_LABEL_CLASS =
-  'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
+  'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500';
 interface ContactPerson {
   id: string;
   name: string;
@@ -510,7 +512,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                   onChange={(e) => updateField('contactNumber', e.target.value)}
                   placeholder="e.g. 01"
                   className={cn(
-                    FORM_INPUT_CLASS,
+                    FORM_GHOST_INPUT_CLASS,
                     getFieldError('contactNumber') && FORM_INPUT_ERROR_CLASS,
                   )}
                   required
@@ -522,7 +524,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                   value={formData.contactNumber}
                   readOnly
                   placeholder="Assigned on save"
-                  className={cn(FORM_INPUT_CLASS, FORM_INPUT_READONLY_CLASS)}
+                  className={cn(FORM_GHOST_INPUT_CLASS, FORM_GHOST_READONLY_CLASS)}
                 />
               )}
               {getFieldError('contactNumber') ? (
@@ -541,7 +543,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                   id="companyType"
                   value={formData.companyType}
                   onChange={(e) => updateField('companyType', e.target.value)}
-                  className={FORM_INPUT_CLASS}
+                  className={FORM_GHOST_SELECT_CLASS}
                 >
                   {COMPANY_TYPE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -561,7 +563,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                   value={formData.personalNumber}
                   onChange={(e) => updateField('personalNumber', e.target.value)}
                   className={cn(
-                    FORM_INPUT_CLASS,
+                    FORM_GHOST_INPUT_CLASS,
                     getFieldError('personalNumber') && FORM_INPUT_ERROR_CLASS,
                   )}
                 />
@@ -579,7 +581,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                     type="text"
                     value={formData.organizationNumber}
                     onChange={(e) => updateField('organizationNumber', e.target.value)}
-                    className={FORM_INPUT_CLASS}
+                    className={FORM_GHOST_INPUT_CLASS}
                   />
                 </div>
                 <div>
@@ -591,7 +593,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                     type="text"
                     value={formData.vatNumber}
                     onChange={(e) => updateField('vatNumber', e.target.value)}
-                    className={FORM_INPUT_CLASS}
+                    className={FORM_GHOST_INPUT_CLASS}
                   />
                 </div>
               </>
@@ -608,7 +610,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                 value={formData.email}
                 onChange={(e) => updateField('email', e.target.value)}
                 className={cn(
-                  FORM_INPUT_CLASS,
+                  FORM_GHOST_INPUT_CLASS,
                   getFieldError('email') &&
                     'ring-1 ring-yellow-500 focus:ring-yellow-500 focus-visible:ring-yellow-500',
                 )}
@@ -624,7 +626,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                 type="text"
                 value={formData.website}
                 onChange={(e) => updateField('website', e.target.value)}
-                className={FORM_INPUT_CLASS}
+                className={FORM_GHOST_INPUT_CLASS}
               />
             </div>
             <div>
@@ -637,7 +639,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => updateField('phone', e.target.value)}
-                className={FORM_INPUT_CLASS}
+                className={FORM_GHOST_INPUT_CLASS}
               />
             </div>
             <div>
@@ -650,7 +652,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                 type="tel"
                 value={formData.phone2}
                 onChange={(e) => updateField('phone2', e.target.value)}
-                className={FORM_INPUT_CLASS}
+                className={FORM_GHOST_INPUT_CLASS}
               />
             </div>
           </div>
@@ -665,7 +667,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
               value={formData.notes}
               onChange={(e) => updateField('notes', e.target.value)}
               rows={4}
-              className={FORM_TEXTAREA_CLASS}
+              className={FORM_GHOST_TEXTAREA_CLASS}
             />
           </div>
         </div>
@@ -708,7 +710,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       <NativeSelect
                         value={address.type}
                         onChange={(e) => updateAddress(address.id, 'type', e.target.value)}
-                        className={FORM_INPUT_CLASS}
+                        className={FORM_GHOST_SELECT_CLASS}
                       >
                         <option value="Main Office">Main Office</option>
                         <option value="Billing Address">Billing Address</option>
@@ -724,7 +726,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                         type="email"
                         value={address.email}
                         onChange={(e) => updateAddress(address.id, 'email', e.target.value)}
-                        className={FORM_INPUT_CLASS}
+                        className={FORM_GHOST_INPUT_CLASS}
                       />
                     </div>
                     <div className="sm:col-span-2">
@@ -732,7 +734,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       <Input
                         value={address.addressLine1}
                         onChange={(e) => updateAddress(address.id, 'addressLine1', e.target.value)}
-                        className={FORM_INPUT_CLASS}
+                        className={FORM_GHOST_INPUT_CLASS}
                       />
                     </div>
                     <div className="sm:col-span-2">
@@ -740,7 +742,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       <Input
                         value={address.addressLine2}
                         onChange={(e) => updateAddress(address.id, 'addressLine2', e.target.value)}
-                        className={FORM_INPUT_CLASS}
+                        className={FORM_GHOST_INPUT_CLASS}
                       />
                     </div>
                     <div>
@@ -748,7 +750,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       <Input
                         value={address.postalCode}
                         onChange={(e) => updateAddress(address.id, 'postalCode', e.target.value)}
-                        className={FORM_INPUT_CLASS}
+                        className={FORM_GHOST_INPUT_CLASS}
                       />
                     </div>
                     <div>
@@ -756,7 +758,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       <Input
                         value={address.city}
                         onChange={(e) => updateAddress(address.id, 'city', e.target.value)}
-                        className={FORM_INPUT_CLASS}
+                        className={FORM_GHOST_INPUT_CLASS}
                       />
                     </div>
                     <div>
@@ -764,7 +766,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       <Input
                         value={address.region}
                         onChange={(e) => updateAddress(address.id, 'region', e.target.value)}
-                        className={FORM_INPUT_CLASS}
+                        className={FORM_GHOST_INPUT_CLASS}
                       />
                     </div>
                     <div>
@@ -772,7 +774,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       <NativeSelect
                         value={address.country}
                         onChange={(e) => updateAddress(address.id, 'country', e.target.value)}
-                        className={FORM_INPUT_CLASS}
+                        className={FORM_GHOST_SELECT_CLASS}
                       >
                         <option value="Sweden">Sweden</option>
                         <option value="Norway">Norway</option>
@@ -838,7 +840,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                         id="taxRate"
                         value={formData.taxRate}
                         onChange={(e) => updateField('taxRate', e.target.value)}
-                        className={FORM_PROP_CONTROL_CLASS}
+                        className={FORM_GHOST_PROP_CONTROL_CLASS}
                       >
                         <option value="0">0% (Tax Free)</option>
                         <option value="6">6% (Reduced)</option>
@@ -856,7 +858,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       id="paymentTerms"
                       value={formData.paymentTerms}
                       onChange={(e) => updateField('paymentTerms', e.target.value)}
-                      className={FORM_PROP_CONTROL_CLASS}
+                      className={FORM_GHOST_PROP_CONTROL_CLASS}
                     >
                       <option value="0">Immediate</option>
                       <option value="15">15 days</option>
@@ -871,7 +873,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       id="currency"
                       value={formData.currency}
                       onChange={(e) => updateField('currency', e.target.value)}
-                      className={FORM_PROP_CONTROL_CLASS}
+                      className={FORM_GHOST_PROP_CONTROL_CLASS}
                     >
                       <option value="SEK">SEK (Kronor)</option>
                       <option value="EUR">EUR (Euro)</option>
@@ -888,7 +890,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                         id="fTax"
                         value={formData.fTax || 'yes'}
                         onChange={(e) => updateField('fTax', e.target.value)}
-                        className={FORM_PROP_CONTROL_CLASS}
+                        className={FORM_GHOST_PROP_CONTROL_CLASS}
                       >
                         <option value="yes">Yes</option>
                         <option value="no">No</option>
@@ -910,7 +912,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                         value={formData.isAssignable ? 'yes' : 'no'}
                         onValueChange={(value) => updateField('isAssignable', value === 'yes')}
                       >
-                        <SelectTrigger className={FORM_PROP_CONTROL_CLASS}>
+                        <SelectTrigger className={FORM_GHOST_PROP_CONTROL_CLASS}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -933,7 +935,9 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                         }}
                         disabled={addableTags.length === 0}
                       >
-                        <SelectTrigger className={cn(FORM_PROP_CONTROL_CLASS, 'sm:w-[160px]')}>
+                        <SelectTrigger
+                          className={cn(FORM_GHOST_PROP_CONTROL_CLASS, 'sm:w-[160px]')}
+                        >
                           <SelectValue placeholder="Add a tag..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -1078,7 +1082,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                                 onChange={(e) =>
                                   updateContactPerson(person.id, 'name', e.target.value)
                                 }
-                                className={FORM_INPUT_CLASS}
+                                className={FORM_GHOST_INPUT_CLASS}
                               />
                             </div>
                             <div>
@@ -1090,7 +1094,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                                 onChange={(e) =>
                                   updateContactPerson(person.id, 'title', e.target.value)
                                 }
-                                className={FORM_INPUT_CLASS}
+                                className={FORM_GHOST_INPUT_CLASS}
                               />
                             </div>
                             <div>
@@ -1103,7 +1107,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                                 onChange={(e) =>
                                   updateContactPerson(person.id, 'email', e.target.value)
                                 }
-                                className={FORM_INPUT_CLASS}
+                                className={FORM_GHOST_INPUT_CLASS}
                               />
                             </div>
                             <div>
@@ -1116,7 +1120,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                                 onChange={(e) =>
                                   updateContactPerson(person.id, 'phone', e.target.value)
                                 }
-                                className={FORM_INPUT_CLASS}
+                                className={FORM_GHOST_INPUT_CLASS}
                               />
                             </div>
                           </div>

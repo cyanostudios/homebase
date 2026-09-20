@@ -2,12 +2,15 @@ import { Shirt } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   SortableListTable,
   type SortableListTableColumn,
   type SortableListTableSelection,
 } from '@/core/ui/SortableListTable';
+import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import type { GarmentList } from '../types/garments';
 import type { GarmentSortField, GarmentSortOrder } from '../utils/garmentListSort';
@@ -28,6 +31,23 @@ export type GarmentListTableProps = {
   activeListId?: string | number | null;
 };
 
+function garmentListIdentityMeta(
+  item: GarmentList,
+  teamLabelById: Map<string, string>,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  const parts: string[] = [];
+  if (item.teamId != null && String(item.teamId).trim() !== '') {
+    const teamLabel = teamLabelById.get(String(item.teamId))?.trim();
+    if (teamLabel) {
+      parts.push(teamLabel);
+    }
+  }
+  const personCount = item.personCount ?? item.persons?.length ?? 0;
+  parts.push(t('garments.personCount', { count: personCount }));
+  return parts.join(' · ');
+}
+
 export function GarmentListTable({
   items,
   primarySort,
@@ -44,41 +64,54 @@ export function GarmentListTable({
   activeListId = null,
 }: GarmentListTableProps) {
   const { t } = useTranslation();
+  const enabledPlugins = useEnabledPlugins();
+  const hasTeams = enabledPlugins.has('teams');
+  const { teams } = useTeams();
+
+  const teamLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!hasTeams) {
+      return map;
+    }
+    for (const team of teams) {
+      map.set(String(team.id), formatTeamLabel(team) || team.name || '');
+    }
+    return map;
+  }, [hasTeams, teams]);
 
   const columns = useMemo(
     (): SortableListTableColumn<GarmentList, GarmentSortField>[] => [
       {
         field: 'name',
         header: t('garments.name'),
-        cell: (item) => (
-          <div className="flex min-w-0 items-center gap-1.5">
-            <span title={t('nav.garments-lists')} className="inline-flex shrink-0">
-              <SectionCategoryIcon
-                icon={Shirt}
-                className="h-6 w-6 bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 [&_svg]:h-3 [&_svg]:w-3"
-              />
-            </span>
-            <span
-              className="block min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
-              title={item.name || undefined}
-            >
-              {item.name || '—'}
-            </span>
-          </div>
-        ),
-      },
-      {
-        field: 'personCount',
-        header: t('garments.persons'),
-        className: 'hidden sm:table-cell',
-        cell: (item) => (
-          <span className="text-xs text-muted-foreground">
-            {item.personCount ?? item.persons?.length ?? 0}
-          </span>
-        ),
+        cell: (item) => {
+          const label = item.name?.trim() || '—';
+          const identityMeta = garmentListIdentityMeta(item, teamLabelById, t);
+          return (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={t('nav.garments-lists')} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={Shirt}
+                    className="h-6 w-6 bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 [&_svg]:h-3 [&_svg]:w-3"
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={label !== '—' ? label : undefined}
+                >
+                  {label}
+                </span>
+              </div>
+              <span className="min-w-0 truncate pl-7 text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                {identityMeta}
+              </span>
+            </div>
+          );
+        },
       },
     ],
-    [t],
+    [t, teamLabelById],
   );
 
   const selection: SortableListTableSelection | undefined = selectionEnabled

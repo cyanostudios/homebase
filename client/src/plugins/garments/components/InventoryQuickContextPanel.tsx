@@ -1,4 +1,4 @@
-import { Hash, Minus, Plus, ShoppingBag, Shirt, Tag } from 'lucide-react';
+import { Hash, Minus, Plus, ShoppingBag, Tag } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -12,12 +12,15 @@ import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_HEADER_BELOW_MENUS_CLASS,
+  DETAIL_HEADER_CHIP_GAP_CLASS,
+} from '@/core/ui/DetailHeaderMenus';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { FORM_COMPACT_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
-import { useGarments } from '../hooks/useGarments';
 import type { InventoryItem, InventoryVariant } from '../types/garments';
 import { findDuplicateVariantIndices } from '../utils/inventoryValidation';
 import {
@@ -27,6 +30,7 @@ import {
 } from '../utils/variantListStyles';
 
 import { InventoryDetailHeaderMenus } from './GarmentDetailHeaderMenus';
+import { InventoryListAssignmentCheckboxes } from './InventoryListAssignmentCheckboxes';
 
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
@@ -146,7 +150,6 @@ export function InventoryQuickContextPanel({
   quantitySaving?: boolean;
 }) {
   const { t } = useTranslation();
-  const { garmentLists } = useGarments();
   const updatedLabel = item.updatedAt
     ? new Date(item.updatedAt).toLocaleString(undefined, {
         day: 'numeric',
@@ -160,10 +163,6 @@ export function InventoryQuickContextPanel({
   const description = item.description?.trim() || '';
   const variants = item.variants || [];
   const duplicateVariantIndices = useMemo(() => findDuplicateVariantIndices(variants), [variants]);
-  const assignedLists = useMemo(() => {
-    const ids = new Set((item.assignedListIds ?? []).map(String));
-    return garmentLists.filter((list) => ids.has(String(list.id)));
-  }, [garmentLists, item.assignedListIds]);
 
   const titleLeading = (
     <div className="flex min-w-0 items-center gap-2">
@@ -183,15 +182,22 @@ export function InventoryQuickContextPanel({
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
       <div className="border-b border-border/50 px-4 py-5">
         <InventoryDetailHeaderMenus item={item} leading={titleLeading} />
+        {updatedLabel ? (
+          <div
+            className={cn(
+              DETAIL_HEADER_BELOW_MENUS_CLASS,
+              'flex min-w-0 flex-wrap items-center',
+              DETAIL_HEADER_CHIP_GAP_CLASS,
+            )}
+          >
+            <p className="min-w-0 text-xs text-muted-foreground">
+              {t('common.updated')} {updatedLabel}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <div className="min-w-0 space-y-4 overflow-x-hidden px-4 py-4">
-        {updatedLabel ? (
-          <p className="text-xs text-muted-foreground">
-            {t('common.updated')} {updatedLabel}
-          </p>
-        ) : null}
-
         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
           <div>
             <div className={FACT_LABEL_CLASS}>
@@ -267,25 +273,7 @@ export function InventoryQuickContextPanel({
           </div>
         ) : null}
 
-        {assignedLists.length > 0 ? (
-          <div>
-            <div className={FACT_LABEL_CLASS}>
-              <Shirt className="h-3 w-3" />
-              {t('garments.assignToLists')}
-            </div>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {assignedLists.map((list) => (
-                <Badge
-                  key={list.id}
-                  variant="outline"
-                  className="rounded-md border-border/60 bg-primary/5 text-xs font-extrabold text-primary"
-                >
-                  {list.name || '—'}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        ) : null}
+        <InventoryListAssignmentCheckboxes itemId={item.id} embedded />
 
         {description ? (
           <div>

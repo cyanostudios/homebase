@@ -118,9 +118,9 @@ export function InvoiceListTable({
               </span>
               <Badge
                 className={cn(
+                  'shrink-0',
                   INVOICE_STATUS_BADGE_CLASS,
                   INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
-                  'h-4 shrink-0 px-1 py-0 text-[10px] font-normal leading-none',
                 )}
               >
                 {formatInvoiceStatusForDisplay(status)}

@@ -1,6 +1,15 @@
+import {
+  AlertCircle,
+  CheckCircle2,
+  Circle,
+  CircleDollarSign,
+  FileText,
+  Send,
+  XCircle,
+  type LucideIcon,
+} from 'lucide-react';
 import React from 'react';
 
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -8,7 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
+import {
+  BADGE_CHIP_CLASS,
+  BADGE_SELECT_ITEM_CLASS,
+  QC_INVOICE_STATUS_BADGE_COLORS,
+} from '@/core/ui/badgeStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
 export const INVOICE_STATUS_OPTIONS = [
@@ -20,18 +34,12 @@ export const INVOICE_STATUS_OPTIONS = [
   'canceled',
 ] as const;
 
-/** Platform status badge fills (Estimates / Tasks pattern). Pair with `INVOICE_STATUS_BADGE_CLASS`. */
+/** Platform status badge colors. Pair with `INVOICE_STATUS_BADGE_CLASS`. */
 export const INVOICE_STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
-  sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
-  partially_paid:
-    'bg-amber-50/50 text-amber-700 dark:text-amber-300 border-amber-100/50 font-medium',
-  paid: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
-  overdue: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
-  canceled: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
+  ...QC_INVOICE_STATUS_BADGE_COLORS,
 };
 
-/** Platform badge shell (Response due / BADGE_CHIP_CLASS). */
+/** Platform badge shell (inline label / BADGE_CHIP_CLASS). */
 export const INVOICE_STATUS_BADGE_CLASS = BADGE_CHIP_CLASS;
 
 export function formatInvoiceStatusForDisplay(status: string): string {
@@ -42,6 +50,25 @@ export function formatInvoiceStatusForDisplay(status: string): string {
     return 'Partially paid';
   }
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function invoiceStatusIcon(status: string): LucideIcon {
+  switch (status) {
+    case 'sent':
+      return Send;
+    case 'partially_paid':
+      return CircleDollarSign;
+    case 'paid':
+      return CheckCircle2;
+    case 'overdue':
+      return AlertCircle;
+    case 'canceled':
+      return XCircle;
+    case 'draft':
+      return FileText;
+    default:
+      return Circle;
+  }
 }
 
 interface InvoiceStatusSelectProps {
@@ -63,6 +90,7 @@ export function InvoiceStatusSelect({
   filled = false,
 }: InvoiceStatusSelectProps) {
   const status = invoice.status || 'draft';
+  const StatusIcon = invoiceStatusIcon(status);
 
   const selectEl = (
     <Select value={status} onValueChange={onStatusChange}>
@@ -76,31 +104,24 @@ export function InvoiceStatusSelect({
         )}
       >
         <SelectValue placeholder="Select status">
-          <Badge
-            variant="outline"
-            className={cn(
-              'flex items-center',
-              compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
-              INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
-            )}
+          <StatusOutlineBadge
+            icon={StatusIcon}
+            compact={compact}
+            className={INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft}
           >
             {formatInvoiceStatusForDisplay(status)}
-          </Badge>
+          </StatusOutlineBadge>
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
         {INVOICE_STATUS_OPTIONS.map((option) => (
-          <SelectItem
-            key={option}
-            value={option}
-            className="rounded-md py-2 text-xs focus:bg-accent"
-          >
-            <Badge
-              variant="outline"
-              className={cn(BADGE_CHIP_CLASS, INVOICE_STATUS_COLORS[option])}
+          <SelectItem key={option} value={option} className={BADGE_SELECT_ITEM_CLASS}>
+            <StatusOutlineBadge
+              icon={invoiceStatusIcon(option)}
+              className={INVOICE_STATUS_COLORS[option]}
             >
               {formatInvoiceStatusForDisplay(option)}
-            </Badge>
+            </StatusOutlineBadge>
           </SelectItem>
         ))}
       </SelectContent>

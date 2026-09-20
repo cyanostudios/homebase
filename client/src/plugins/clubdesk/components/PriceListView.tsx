@@ -1,18 +1,31 @@
-import { ArrowDown, ArrowUp, Info, Tags } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  FilePenLine,
+  History,
+  Info,
+  SlidersHorizontal,
+  Star,
+  Tags,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { DetailHeaderMetaRow } from '@/core/ui/DetailHeaderMenus';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { RichTextContent } from '@/core/ui/RichTextContent';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import {
   DETAIL_EMPTY_STATE_CLASS,
-  DETAIL_INFO_ROW_CLASS,
   DETAIL_LIST_ITEM_TITLE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -25,15 +38,20 @@ import { QUICK_CONTEXT_LINK_TILE_CLASS } from '@/core/ui/QuickContextLinkTile';
 import { cn } from '@/lib/utils';
 
 import { useClubdesk } from '../hooks/useClubdesk';
-import type { ClubdeskPriceList, ClubdeskPriceListItemCategory } from '../types/priceList';
+import type {
+  ClubdeskPriceList,
+  ClubdeskPriceListItemCategory,
+  PublicationStatus,
+} from '../types/priceList';
 import { formatPriceListPrice } from '../utils/formatPriceListPrice';
 import { groupItemsByCategory } from '../utils/priceListItemOps';
 
+import { ClubdeskPublicationPropertiesFields } from './ClubdeskPublicationPropertiesFields';
 import { PriceListDetailHeaderMenus } from './PriceListDetailHeaderMenus';
 
-type PriceListViewTab = 'information' | 'items';
+type PriceListViewTab = 'information' | 'properties' | 'items' | 'activity';
 
-const PRICE_LIST_VIEW_TABS: PriceListViewTab[] = ['information', 'items'];
+const PRICE_LIST_VIEW_TABS: PriceListViewTab[] = ['information', 'properties', 'items', 'activity'];
 
 function parsePriceListViewTab(value: string | null): PriceListViewTab {
   if (value && PRICE_LIST_VIEW_TABS.includes(value as PriceListViewTab)) {
@@ -91,6 +109,9 @@ export function PriceListView({
     refreshPriceListCategories,
     priceListCategories,
     isSaving,
+    updatePriceListPublicationStatus,
+    updatePriceListFeatured,
+    validationErrors,
   } = useClubdesk();
   const [reorderingCategory, setReorderingCategory] = useState(false);
 
@@ -170,10 +191,22 @@ export function PriceListView({
         count: null as number | null,
       },
       {
+        id: 'properties' as const,
+        label: t('clubdesk.priceList.tabs.properties'),
+        icon: SlidersHorizontal,
+        count: null as number | null,
+      },
+      {
         id: 'items' as const,
         label: t('clubdesk.priceList.tabs.items'),
         icon: Tags,
         count: itemsCount,
+      },
+      {
+        id: 'activity' as const,
+        label: t('clubdesk.priceList.tabs.activity'),
+        icon: History,
+        count: null as number | null,
       },
     ],
     [itemsCount, t],
@@ -210,11 +243,35 @@ export function PriceListView({
     </div>
   );
 
+  const handlePublicationStatusChange = useCallback(
+    (status: PublicationStatus) => {
+      if (!viewItem) {
+        return;
+      }
+      void updatePriceListPublicationStatus(viewItem, status);
+    },
+    [updatePriceListPublicationStatus, viewItem],
+  );
+
+  const handleFeaturedChange = useCallback(
+    (featured: boolean) => {
+      if (!viewItem) {
+        return;
+      }
+      void updatePriceListFeatured(viewItem, featured);
+    },
+    [updatePriceListFeatured, viewItem],
+  );
+
   if (!viewItem) {
     return null;
   }
 
   const isPublished = viewItem.publicationStatus === 'published';
+  const isFeatured = viewItem.featured === true;
+  const blockingValidationErrors = validationErrors.filter(
+    (error) => !String(error.message || '').includes('Warning'),
+  );
 
   const titleLeading = (
     <div className="flex min-w-0 items-center gap-2">
@@ -238,38 +295,21 @@ export function PriceListView({
         className="p-6"
         subtleTitle
       >
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <Badge
-            variant={isPublished ? 'default' : 'secondary'}
-            className={cn(
-              'text-[10px] font-extrabold',
-              isPublished &&
-                'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200',
-            )}
-          >
-            {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
-          </Badge>
-          {viewItem.slug ? (
-            <span className="font-mono text-xs text-muted-foreground">/{viewItem.slug}</span>
-          ) : null}
-        </div>
-
         {!isPublished ? (
           <div className={cn(DETAIL_NOTE_CALLOUT_CLASS, 'mb-3 text-xs text-muted-foreground')}>
             {t('clubdesk.priceList.notVisiblePublic')}
           </div>
         ) : null}
 
-        <div className="mb-3">
-          <div className={DETAIL_INFO_ROW_CLASS}>
-            <span className="text-slate-500 dark:text-slate-400">
-              {t('clubdesk.priceList.tabs.currency')}
-            </span>
-            <span className="font-mono font-extrabold text-foreground">
-              {viewItem.currency || 'SEK'}
-            </span>
-          </div>
-        </div>
+        {viewItem.featuredImageUrl ? (
+          <img
+            src={viewItem.featuredImageUrl}
+            alt=""
+            width={300}
+            height={300}
+            className="mb-4 h-[300px] w-[300px] max-w-full rounded-lg object-cover"
+          />
+        ) : null}
 
         {viewItem.description ? (
           <div className="text-sm text-foreground">
@@ -280,6 +320,43 @@ export function PriceListView({
         )}
       </DetailSection>
     </Card>
+  );
+
+  const propertiesCard = (
+    <div className="space-y-4">
+      {blockingValidationErrors.length > 0 ? (
+        <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
+          <div className="text-sm font-medium text-destructive">{t('common.cannotSave')}</div>
+          <ul className="mt-2 list-inside list-disc text-sm text-destructive/90">
+            {blockingValidationErrors.map((error) => (
+              <li key={`${error.field}-${error.message}`}>{error.message}</li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('clubdesk.priceList.properties')}
+          icon={SlidersHorizontal}
+          iconPlugin="clubdesk"
+          subtleTitle
+          className="p-6"
+        >
+          <ClubdeskPublicationPropertiesFields
+            values={{
+              publicationStatus: viewItem.publicationStatus,
+              featured: viewItem.featured === true,
+              slug: viewItem.slug,
+              currency: viewItem.currency,
+            }}
+            showCurrency
+            onPublicationStatusChange={handlePublicationStatusChange}
+            onFeaturedChange={handleFeaturedChange}
+            disabled={isSaving}
+          />
+        </DetailSection>
+      </Card>
+    </div>
   );
 
   const itemsEmptyCard = (
@@ -420,11 +497,43 @@ export function PriceListView({
       <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
         <div className="border-b border-border/50 px-4 py-5">
           <PriceListDetailHeaderMenus priceList={viewItem} leading={titleLeading} />
+          <DetailHeaderMetaRow>
+            {viewItem.slug ? (
+              <span className="min-w-0 font-mono text-xs text-muted-foreground">
+                /{viewItem.slug}
+              </span>
+            ) : null}
+            <StatusOutlineBadge
+              icon={isPublished ? CheckCircle2 : FilePenLine}
+              className={
+                isPublished ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.muted
+              }
+            >
+              {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
+            </StatusOutlineBadge>
+            {isFeatured ? (
+              <StatusOutlineBadge icon={Star} className={QC_STATUS_BADGE_COLORS.success}>
+                {t('clubdesk.featuredShort')}
+              </StatusOutlineBadge>
+            ) : null}
+          </DetailHeaderMetaRow>
           <div className="mt-4">{tabChips}</div>
         </div>
       </Card>
       {activeTab === 'information' ? informationCard : null}
+      {activeTab === 'properties' ? propertiesCard : null}
       {activeTab === 'items' ? (groups.length === 0 ? itemsEmptyCard : categoryCards) : null}
+      {activeTab === 'activity' ? (
+        <DetailActivityLog
+          entityType="clubdesk"
+          entityId={viewItem.id}
+          limit={30}
+          title={t('clubdesk.activity')}
+          showClearButton
+          refreshKey={String(viewItem.updatedAt ?? viewItem.id)}
+          systemId={formatDisplayNumber('clubdesk', viewItem.id)}
+        />
+      ) : null}
     </DetailLayout>
   );
 }

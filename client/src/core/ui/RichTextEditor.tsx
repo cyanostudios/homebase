@@ -141,6 +141,11 @@ interface RichTextEditorProps {
   onChange: (html: string, mentions: MentionRecord[]) => void;
   placeholder?: string;
   className?: string;
+  /**
+   * `default` — bordered card chrome (dialogs / legacy).
+   * `ghost` — transparent shell matching detail view body (Notes edit).
+   */
+  variant?: 'default' | 'ghost';
 }
 
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({
@@ -148,6 +153,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   onChange,
   placeholder = 'Write something…',
   className,
+  variant = 'default',
 }) => {
   // Load contacts once for the mention suggestions
   const [, setContacts] = useState<any[]>([]);
@@ -367,12 +373,21 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   return (
     <div
       className={cn(
-        'border border-input rounded-md bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+        variant === 'ghost'
+          ? 'rounded-sm border-0 bg-transparent shadow-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-0'
+          : 'rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
         className,
       )}
     >
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-input bg-muted/30 rounded-t-md">
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-0.5 px-2 py-1.5',
+          variant === 'ghost'
+            ? 'rounded-none border-b border-border/40 bg-transparent'
+            : 'rounded-t-md border-b border-input bg-muted/30',
+        )}
+      >
         {groups.map((group, gi) => (
           <React.Fragment key={group[0]?.title ?? `group-${gi}`}>
             {gi > 0 && <div className="w-px h-4 bg-border mx-1" />}
@@ -393,8 +408,16 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       </div>
 
-      {/* Editor area */}
-      <EditorContent editor={editor} className="rich-text-editor px-3 py-3 min-h-[200px] text-sm" />
+      {/* Editor area — ghost matches RichTextContent body scale */}
+      <EditorContent
+        editor={editor}
+        className={cn(
+          'rich-text-editor',
+          variant === 'ghost'
+            ? 'min-h-[200px] px-0 py-3 text-sm leading-relaxed'
+            : 'min-h-[200px] px-3 py-3 text-sm',
+        )}
+      />
     </div>
   );
 };

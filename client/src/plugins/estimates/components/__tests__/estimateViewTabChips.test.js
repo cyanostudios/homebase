@@ -25,10 +25,14 @@ describe('EstimateView detail tab chips', () => {
     expect(viewSrc).toMatch(/'properties'/);
     expect(viewSrc).toMatch(/'lines'/);
     expect(viewSrc).toMatch(/'notes'/);
+    expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'properties'/);
     expect(viewSrc).toMatch(/activeTab === 'lines'/);
     expect(viewSrc).toMatch(/activeTab === 'notes'/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
+    expect(viewSrc).toMatch(/DetailActivityLog/);
+    expect(viewSrc).toMatch(/entityType="estimate"/);
   });
 
   test('notes tab always renders with empty state', () => {

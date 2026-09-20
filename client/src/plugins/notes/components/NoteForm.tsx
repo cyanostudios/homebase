@@ -9,12 +9,14 @@ import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
+import { DETAIL_FORM_TITLE_INPUT_CLASS } from '@/core/ui/pluginPageStyles';
+import { FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   DETAIL_ENTITY_LINK_TRIGGER_CLASS,
+  DETAIL_FIELD_LABEL_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 const RichTextEditor = React.lazy(() =>
@@ -257,7 +259,9 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
           >
             <div>
               <div className="mb-1 flex items-center justify-between gap-3">
-                <Label htmlFor="note-title">{t('notes.title')}</Label>
+                <Label htmlFor="note-title" className={DETAIL_FIELD_LABEL_CLASS}>
+                  {t('notes.title')}
+                </Label>
                 <label
                   htmlFor="note-show-title-in-content"
                   className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground"
@@ -278,7 +282,11 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
                 value={formData.title}
                 onChange={(e) => updateField('title', e.target.value)}
                 placeholder={t('notes.titlePlaceholder')}
-                className={cn(FORM_INPUT_CLASS, getFieldError('title') && FORM_INPUT_ERROR_CLASS)}
+                className={cn(
+                  DETAIL_FORM_TITLE_INPUT_CLASS,
+                  'w-full',
+                  getFieldError('title') && FORM_INPUT_ERROR_CLASS,
+                )}
                 required
               />
               {getFieldError('title') && (
@@ -288,11 +296,11 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
               )}
             </div>
             <div>
-              <Label className="mb-1">{t('notes.content')}</Label>
+              <Label className={cn(DETAIL_FIELD_LABEL_CLASS, 'mb-1')}>{t('notes.content')}</Label>
               <React.Suspense
                 fallback={
                   <textarea
-                    className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    className="min-h-[120px] w-full border-0 bg-transparent px-0 py-2 text-sm leading-relaxed"
                     disabled
                   />
                 }
@@ -301,6 +309,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
                   value={formData.content}
                   onChange={handleContentChange}
                   placeholder={t('notes.contentPlaceholder')}
+                  variant="ghost"
                   className={cn(getFieldError('content') && FORM_INPUT_ERROR_CLASS)}
                 />
               </React.Suspense>

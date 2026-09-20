@@ -1,7 +1,7 @@
+import { CheckCircle2, Circle, FileText, Send, XCircle, type LucideIcon } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -9,8 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
-import { cn } from '@/lib/utils';
+import { BADGE_SELECT_ITEM_CLASS } from '@/core/ui/badgeStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 
 import {
   ESTIMATE_STATUS_COLORS,
@@ -26,41 +26,52 @@ interface EstimateStatusSelectProps {
   hideInlineLabel?: boolean;
 }
 
+function estimateStatusIcon(status: string): LucideIcon {
+  switch (status) {
+    case 'sent':
+      return Send;
+    case 'accepted':
+      return CheckCircle2;
+    case 'rejected':
+      return XCircle;
+    case 'draft':
+      return FileText;
+    default:
+      return Circle;
+  }
+}
+
 export function EstimateStatusSelect({
   estimate,
   onStatusChange,
   hideInlineLabel,
 }: EstimateStatusSelectProps) {
   const { t } = useTranslation();
+  const StatusIcon = estimateStatusIcon(estimate.status);
+
   const select = (
     <Select value={estimate.status} onValueChange={onStatusChange}>
       <SelectTrigger className="h-9 w-[180px] bg-background border-border/50 hover:bg-accent/50 transition-colors shadow-none rounded-md px-2 text-xs">
         <SelectValue placeholder="Select status">
-          <Badge
-            variant="outline"
-            className={cn(
-              'flex items-center',
-              BADGE_CHIP_CLASS,
-              ESTIMATE_STATUS_COLORS[estimate.status as keyof typeof ESTIMATE_STATUS_COLORS],
-            )}
+          <StatusOutlineBadge
+            icon={StatusIcon}
+            className={
+              ESTIMATE_STATUS_COLORS[estimate.status as keyof typeof ESTIMATE_STATUS_COLORS]
+            }
           >
             {formatEstimateStatusForDisplay(estimate.status)}
-          </Badge>
+          </StatusOutlineBadge>
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[180px]">
         {ESTIMATE_STATUS_OPTIONS.map((status) => (
-          <SelectItem
-            key={status}
-            value={status}
-            className="py-2 focus:bg-accent rounded-md text-xs"
-          >
-            <Badge
-              variant="outline"
-              className={cn(BADGE_CHIP_CLASS, ESTIMATE_STATUS_COLORS[status])}
+          <SelectItem key={status} value={status} className={BADGE_SELECT_ITEM_CLASS}>
+            <StatusOutlineBadge
+              icon={estimateStatusIcon(status)}
+              className={ESTIMATE_STATUS_COLORS[status]}
             >
               {formatEstimateStatusForDisplay(status)}
-            </Badge>
+            </StatusOutlineBadge>
           </SelectItem>
         ))}
       </SelectContent>

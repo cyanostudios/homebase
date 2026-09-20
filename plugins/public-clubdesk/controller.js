@@ -125,6 +125,50 @@ class PublicClubdeskController {
       return res.status(500).json({ error: 'Failed to fetch site content' });
     }
   }
+
+  /**
+   * Org name + logo from main-DB tenants.organization (Settings → Profile).
+   * Does not require the tenant pool.
+   */
+  async getBranding(req, res) {
+    try {
+      let ownerUserId = req.publicClubdeskOwnerUserId;
+      if (!ownerUserId) {
+        const { resolvePublicClubdeskUserId } = require('./resolveOwner');
+        ownerUserId = await resolvePublicClubdeskUserId();
+      }
+      if (!ownerUserId) {
+        return res.status(503).json({ error: 'Public clubdesk not configured' });
+      }
+
+      const ServiceManager = require('../../server/core/ServiceManager');
+      const TenantContextService = require('../../server/core/services/tenant/TenantContextService');
+      const {
+        OrganizationService,
+      } = require('../../server/core/services/organization/OrganizationService');
+
+      const mainPool = ServiceManager.getMainPool();
+      if (!mainPool) {
+        return res.status(503).json({ error: 'Public clubdesk not configured' });
+      }
+
+      const tenantContext = await new TenantContextService().getTenantContextByUserId(ownerUserId);
+      let name = '';
+      let logoUrl = '';
+      if (tenantContext?.tenantId) {
+        const organizationService = new OrganizationService(mainPool);
+        const organization = await organizationService.getOrganization(tenantContext.tenantId);
+        name = organization.name || '';
+        const rawLogo = String(organization.logoUrl || '').trim();
+        logoUrl = /^https?:\/\//i.test(rawLogo) ? rawLogo : '';
+      }
+
+      return res.json({ name, logoUrl });
+    } catch (error) {
+      Logger.error('Get public clubdesk branding failed', error);
+      return res.status(500).json({ error: 'Failed to fetch branding' });
+    }
+  }
 }
 
 module.exports = PublicClubdeskController;

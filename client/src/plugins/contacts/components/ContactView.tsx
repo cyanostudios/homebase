@@ -1,6 +1,7 @@
 import {
   Globe,
   Hash,
+  History,
   Info,
   Link2,
   Mail,
@@ -32,6 +33,8 @@ import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -63,7 +66,13 @@ interface ContactViewProps {
   stacked?: boolean;
 }
 
-type ContactViewTab = 'information' | 'properties' | 'addresses' | 'persons' | 'linked';
+type ContactViewTab =
+  | 'information'
+  | 'properties'
+  | 'addresses'
+  | 'persons'
+  | 'linked'
+  | 'activity';
 
 const CONTACT_VIEW_TABS: ContactViewTab[] = [
   'information',
@@ -71,6 +80,7 @@ const CONTACT_VIEW_TABS: ContactViewTab[] = [
   'addresses',
   'persons',
   'linked',
+  'activity',
 ];
 
 function parseContactViewTab(value: string | null): ContactViewTab {
@@ -208,6 +218,12 @@ export const ContactView = React.memo(function ContactView({
         id: 'linked' as const,
         label: t('contacts.tabs.linked'),
         icon: Link2,
+        count: null as number | null,
+      },
+      {
+        id: 'activity' as const,
+        label: t('contacts.tabs.activity'),
+        icon: History,
         count: null as number | null,
       },
     ],
@@ -660,6 +676,17 @@ export const ContactView = React.memo(function ContactView({
           {activeTab === 'addresses' ? addressesCard : null}
           {activeTab === 'persons' ? personsCard : null}
           {activeTab === 'linked' ? linkedCard : null}
+          {activeTab === 'activity' ? (
+            <DetailActivityLog
+              entityType="contact"
+              entityId={contact.id}
+              limit={30}
+              title={t('contacts.activity')}
+              showClearButton
+              refreshKey={String(contact.updatedAt ?? contact.id)}
+              systemId={formatDisplayNumber('contacts', contact.id)}
+            />
+          ) : null}
         </div>
       </DetailLayout>
 

@@ -6,18 +6,19 @@
 
 **Canonical references (copy, do not invent):**
 
-| Area                        | Primary reference                                                                                                                                                               |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **List header (canonical)** | `client/src/plugins/contacts/components/ContactList.tsx` — Select/Clear, `BulkActionRoundBar`, `RoundExpandableSearch`                                                          |
-| Quick context (mail-layout) | `client/src/plugins/contacts/components/ContactQuickContextPanel.tsx` — full-only header card in `*View`                                                                        |
-| Full QC with domain facts   | `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx` — used from `GarmentView`, not a list aside                                                             |
-| List wiring (mail-layout)   | `client/src/plugins/contacts/components/ContactList.tsx` (also Cups / Slots for table chrome)                                                                                   |
-| **Full detail (canonical)** | `client/src/plugins/contacts/components/ContactView.tsx` — 2-col layout, header menus, always-visible Addresses + Contact Persons (empty states), no Information/Activity cards |
-| Detail header menus         | `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx` (thin wrapper) + `client/src/core/ui/DetailHeaderMenus.tsx`                                               |
-| List page shell             | `PLUGIN_PAGE_LIST_SHELL_CLASS` in `client/src/core/ui/pluginPageStyles.ts` (`overflow-x-clip`, not `hidden`)                                                                    |
-| Provider list (search-only) | `client/src/plugins/ai-providers/components/AIProvidersList.tsx` — `RoundExpandableSearch` in header, no Select                                                                 |
-| Shared tokens               | `client/src/core/ui/detailViewCardStyles.ts`                                                                                                                                    |
-| Preview hook (legacy)       | `client/src/core/hooks/useQuickContextPreview.ts` — **do not use for new mail-layout lists**                                                                                    |
+| Area                        | Primary reference                                                                                                                                                                                                                                  |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **List header (canonical)** | `client/src/plugins/contacts/components/ContactList.tsx` — Select/Clear, `BulkActionRoundBar`, `RoundExpandableSearch`                                                                                                                             |
+| Quick context (mail-layout) | `client/src/plugins/contacts/components/ContactQuickContextPanel.tsx` — full-only header card in `*View`                                                                                                                                           |
+| Full QC with domain facts   | `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx` — used from `GarmentView`, not a list aside                                                                                                                                |
+| List wiring (mail-layout)   | `client/src/plugins/contacts/components/ContactList.tsx` (also Cups / Slots for table chrome)                                                                                                                                                      |
+| **Full detail (canonical)** | `client/src/plugins/contacts/components/ContactView.tsx` — 2-col layout, header menus, always-visible Addresses + Contact Persons (empty states), no system Information card; **Activity** as last URL tab (`?tab=activity`) + `DetailActivityLog` |
+| Activity log (shared)       | `client/src/core/ui/DetailActivityLog.tsx` — last detail tab when the view has tab chips; otherwise a stack card (e.g. `SlotView.tsx`)                                                                                                             |
+| Detail header menus         | `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx` (thin wrapper) + `client/src/core/ui/DetailHeaderMenus.tsx`                                                                                                                  |
+| List page shell             | `PLUGIN_PAGE_LIST_SHELL_CLASS` in `client/src/core/ui/pluginPageStyles.ts` (`overflow-x-clip`, not `hidden`)                                                                                                                                       |
+| Provider list (search-only) | `client/src/plugins/ai-providers/components/AIProvidersList.tsx` — `RoundExpandableSearch` in header, no Select                                                                                                                                    |
+| Shared tokens               | `client/src/core/ui/detailViewCardStyles.ts`                                                                                                                                                                                                       |
+| Preview hook (legacy)       | `client/src/core/hooks/useQuickContextPreview.ts` — **do not use for new mail-layout lists**                                                                                                                                                       |
 
 **Read alongside:**
 
@@ -52,7 +53,7 @@ Quick Context Panel (*QuickContextPanel variant="list")  ← sticky aside
 DetailPanel / *View (variant="full")
 ```
 
-Delete, Duplicate, and Export belong in the **full view header menus** (`DetailHeaderMenus`), not in the quick context panel or sidebar cards. Full views do **not** render the system Information card (ID/Created/Updated) or `DetailActivityLog` in the layout (canonical Contacts pattern).
+Delete, Duplicate, and Export belong in the **full view header menus** (`DetailHeaderMenus`), not in the quick context panel or sidebar cards. Full views do **not** render the system Information card (ID/Created/Updated). Plugins that log entity changes must show **`DetailActivityLog`** on full view — as the **last** URL tab `activity` when the view uses tab chips, otherwise as a **stack card** in the detail column (§2 Activity).
 
 ---
 
@@ -93,7 +94,7 @@ Header actions come from `*DetailHeaderMenus` (`leading={titleLeading}`). There 
 Card (DETAIL_VIEW_CARD_CLASS, flex-col; natural height — no max-h / no internal scroll)
 └── Header (px-4 py-5)
       *DetailHeaderMenus (leading = icon + title)
-      optional updated + badges row
+      optional meta row (type / counts / updated first; badges last)
       optional headerBelow
 ```
 
@@ -227,7 +228,7 @@ Full view renders inside core `DetailPanel` (wired by `AppContent` + `pluginRegi
 ```tsx
 <DetailLayout
   leftSidebar={/* identity + properties + description (full *QuickContextPanel) */}
-  sidebar={/* optional: related entities / domain cards only — no QuickActions, Export, Information, Activity */}
+  sidebar={/* optional: related entities / domain cards only — no QuickActions, Export, Information; Activity lives on main stack or activity tab (§2) */}
 >
   {/* optional main column: primary working content (e.g. variants, linked items) */}
 </DetailLayout>
@@ -239,7 +240,7 @@ Full view renders inside core `DetailPanel` (wired by `AppContent` + `pluginRegi
 | `children` (main) | Primary working content when a third column is needed |
 | `sidebar`         | Optional domain/relations cards only (when needed)    |
 
-**Detail header menus (platform):** full-view **Actions / Export** (and plugin-specific extras like Contacts **Time log**) live in the detail **panel title** slot via `pluginContext.getPanelTitle` → `DetailHeaderMenus` (or a thin `*DetailHeaderMenus` wrapper). Do **not** put Quick Actions / Export as sidebar cards. Do **not** render the system **Information** card (ID/Created/Updated) or **`DetailActivityLog`** in full view — canonical pattern matches Contacts. Sticky preview belongs on the **list** quick-context aside only.
+**Detail header menus (platform):** full-view **Actions / Export** (and plugin-specific extras like Contacts **Time log**) live in the detail **panel title** slot via `pluginContext.getPanelTitle` → `DetailHeaderMenus` (or a thin `*DetailHeaderMenus` wrapper). Do **not** put Quick Actions / Export as sidebar cards. Do **not** render the system **Information** card (ID/Created/Updated). **`DetailActivityLog`** is **required** on full view for plugins with entity activity logging — see §2 Activity (tab or stack; not a legacy sidebar metadata card). Sticky preview belongs on the **list** quick-context aside only.
 
 Desktop columns share the same top edge (`items-start`). On phone, column 3 (`sidebar` / `rightSidebar`) stacks last via `order-*`.
 
@@ -262,11 +263,11 @@ Do **not** put primary content properties only in the right sidebar — see §6 
 
 **Contacts full view (canonical):** Always render **Addresses** and **Contact Persons** cards (column 1, after Quick Context). When empty, show the shared muted empty message (`DETAIL_EMPTY_STATE_CLASS` / `contacts.noAddresses` / `contacts.noContactPersons`) — do not omit the cards.
 
-**Notes / Tasks / Requests full detail (header card):** Title/actions live in the QuickContext card (`*DetailHeaderMenus` + optional `headerBelow`). There is **no** list-side QC for these plugins. Primary body (content, properties, assignees, attachments) lives in `*View`, not as QC `children` on a list preview.
+**Notes / Tasks / Requests full detail (header card):** Title/actions live in the QuickContext card (`*DetailHeaderMenus` + optional `headerBelow` for URL tab chips). There is **no** list-side QC for these plugins. Primary body (content, linked mentions, attachments, activity) lives in `*View` tab panels, not as QC `children`.
 
 **Attachments (shared):** Use `FileAttachmentsSection` (`DetailSection` + `subtleTitle` + Paperclip, `iconPlugin="files"`). Attachment rows use `FileIdentityCell` (same identity as Files list name column). Empty/loading: `DETAIL_EMPTY_STATE_CLASS`.
 
-**Tasks / Requests status · priority · due chips:** Select triggers share `BADGE_SELECT_TRIGGER_CLASS` + `BADGE_CHIP_*` fills. Tasks due labels/colors go through `formatTaskDueDisplay` / `DUE_DATE_*` in `badgeStyles` + `tasks.ts`. Requests **response-due** urgency stays on `RESPONSE_DUE_URGENCY_COLORS` (SLA days control), not `DUE_DATE_*`.
+**Tasks / Requests status · priority · due chips:** Use inline labels via `StatusOutlineBadge` / `BADGE_CHIP_*` + `QC_STATUS_BADGE_COLORS` / `DUE_DATE_*` — Lucide icon + extrabold colored text only (**no** fill, border, fixed height, or padding). Select triggers share `BADGE_SELECT_TRIGGER_CLASS` (rounded trigger chrome is OK on selects; value content stays icon+label). Tasks due labels/colors go through `formatTaskDueDisplay` / `DUE_DATE_*` in `badgeStyles` + `tasks.ts`. Requests **response-due** urgency stays on `RESPONSE_DUE_URGENCY_COLORS` (SLA days control), not `DUE_DATE_*`.
 
 **Requests column order (verified):** Left (`leftSidebar`) = QC/header+description → submitted details (if any) → submitter → **Properties**. Right (main) = **Attachments** → assignee → team. View and form match.
 
@@ -274,16 +275,29 @@ Do **not** put primary content properties only in the right sidebar — see §6 
 
 Match quick context: initials avatar (`h-11 w-11`) + `text-lg font-semibold` title inside a card header with `border-b border-border/50 px-4 py-3`.
 
+### Activity (entity audit log)
+
+Use **`DetailActivityLog`** (`client/src/core/ui/DetailActivityLog.tsx`) on full **view** when the backend exposes the standard entity activity pattern (same props as existing views: `entityType`, `entityId`, `limit={30}`, `showClearButton`, `refreshKey` from `updatedAt`/id).
+
+| Placement                                     | When                                                                              | Verified examples                                                                                                                                                                                                                                                                  |
+| --------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Last URL tab** `activity` (`?tab=activity`) | View uses URL tab chips (`?tab=…`, e.g. `CONTACT_VIEW_TABS` in `ContactView.tsx`) | contacts, tasks, requests, invoices, estimates, matches, teams, cups (`entityType="cup"`), ingest, clubdesk guides + price lists (`entityType="clubdesk"`), notes — e.g. `ContactView.tsx`, `TaskView.tsx`, `NoteView.tsx`, `CupView.tsx`, `ClubdeskView.tsx`, `PriceListView.tsx` |
+| **Stack card** on the detail column           | View has **no** tab chips                                                         | slots, instructions — e.g. `SlotView.tsx`, `InstructionView.tsx`                                                                                                                                                                                                                   |
+
+Render the log only inside the **activity** tab panel when using tabs; do **not** duplicate it on other tabs. Do **not** mount `DetailActivityLog` in the optional `sidebar` column as system metadata — it belongs in the main stack or the activity tab.
+
+**Forms:** create/edit layouts that already had sidebar `DetailActivityLog` stay as-is; new work follows the same **view** rule above.
+
 ### Sidebar order (when `sidebar` is used)
 
-Full views follow the **Contacts canonical layout**: Actions / Export / plugin extras in **header menus** (§4); **no** system Information card; **no** `DetailActivityLog`.
+Full views follow the **Contacts canonical layout**: Actions / Export / plugin extras in **header menus** (§4); **no** system Information card; **Activity** via §2 (tab or stack).
 
 When a plugin still passes `sidebar`, limit it to **domain content** only, for example:
 
 1. **Related entities** — mentions, assignees, links (`QuickContextLinkTile` when applicable)
 2. **Domain sections** — plugin-specific cards (not system metadata)
 
-Do **not** add sidebar QuickActions, ExportOptions, system Information (ID/Created/Updated), or DetailActivityLog to new work. Legacy sidebar quick-action cards are deprecated (§4).
+Do **not** add sidebar QuickActions, ExportOptions, or system Information (ID/Created/Updated) to new work. Legacy sidebar quick-action cards are deprecated (§4).
 
 **Guides exception:** domain sections under `guides.information.*` (costs, generated languages) are **domain fields**, not the system Information card — they may remain in Guides full view.
 
@@ -295,7 +309,7 @@ Sidebar spacing: `space-y-4` (Contacts/inventory) or `space-y-6` — stay consis
 - [ ] All content cards use `DETAIL_VIEW_CARD_CLASS`
 - [ ] Actions / Export in `DetailHeaderMenus` via `getPanelTitle` — **not** sidebar QuickActions / Export cards
 - [ ] **No** system Information card (ID/Created/Updated) in layout
-- [ ] **No** `DetailActivityLog` in layout
+- [ ] **`DetailActivityLog`** on full view when entity activity is logged — last tab `activity` or stack card (§2 Activity)
 - [ ] Delete / Duplicate dialogs live in the view or header-menu wrapper (see §5)
 
 ---
@@ -306,32 +320,54 @@ Sidebar spacing: `space-y-4` (Contacts/inventory) or `space-y-6` — stay consis
 
 ### Shared rules
 
-| Rule                                 | Detail                                                                                                                                                                             |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Same `DetailLayout`                  | Same column structure as view (main + optional sidebar)                                                                                                                            |
-| Same card tokens                     | `DETAIL_VIEW_CARD_CLASS` per section                                                                                                                                               |
-| Same section titles/icons/order      | Details, variants, description, etc.                                                                                                                                               |
-| No bleed shell                       | No `md:-mx-6`, no extra outer padding — content sits in DetailPanel (`px-2 sm:px-3` phone / `px-6` pad/desktop)                                                                    |
-| No `PANEL_MAX_WIDTH` on form main    | Avoid constraining create/edit differently from view                                                                                                                               |
-| No nested max-h scroll in form cards | Phone/desktop: form cards grow with content (same as view); page scroll only — do not use `max-h-[calc(100vh-…)]` + inner `overflow-y-auto` on identity cards                      |
-| Edit sidebar                         | Prefer Contacts-class pattern: **2 columns** (`leftSidebar` content + main properties); **no** system Information / Activity in edit or view. Keep tokens/Save-Cancel rules below. |
-| Create                               | Same chrome as edit when the plugin uses 2-column edit (e.g. Contacts, Invoices); otherwise single column OK                                                                       |
-| Field grids on phone                 | Prefer `grid-cols-1 … sm:grid-cols-2` / `md:grid-cols-2` so edit matches view stacking                                                                                             |
+| Rule                                 | Detail                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Same `DetailLayout`                  | Same column structure as view (main + optional sidebar)                                                                                                                                                                                                                                                  |
+| Same card tokens                     | `DETAIL_VIEW_CARD_CLASS` per section                                                                                                                                                                                                                                                                     |
+| Same section titles/icons/order      | Details, variants, description, etc.                                                                                                                                                                                                                                                                     |
+| No bleed shell                       | No `md:-mx-6`, no extra outer padding — content sits in DetailPanel (`px-2 sm:px-3` phone / `px-6` pad/desktop)                                                                                                                                                                                          |
+| No `PANEL_MAX_WIDTH` on form main    | Avoid constraining create/edit differently from view                                                                                                                                                                                                                                                     |
+| No nested max-h scroll in form cards | Phone/desktop: form cards grow with content (same as view); page scroll only — do not use `max-h-[calc(100vh-…)]` + inner `overflow-y-auto` on identity cards                                                                                                                                            |
+| Edit sidebar                         | Prefer Contacts-class pattern: **2 columns** (`leftSidebar` content + main properties); **no** system Information card in edit or view. **View:** Activity per §2. **Edit/create:** keep existing sidebar `DetailActivityLog` only where the plugin already had it. Keep tokens/Save-Cancel rules below. |
+| Create                               | Same chrome as edit when the plugin uses 2-column edit (e.g. Contacts, Invoices); otherwise single column OK                                                                                                                                                                                             |
+| Field grids on phone                 | Prefer `grid-cols-1 … sm:grid-cols-2` / `md:grid-cols-2` so edit matches view stacking                                                                                                                                                                                                                   |
 
-### Filled form fields (required)
+### Form field chrome (required)
 
-**Source of truth:** `client/src/core/ui/formFieldStyles.ts` (invoice edit is the visual reference).
+**Source of truth:** `client/src/core/ui/formFieldStyles.ts`.
 
-Apply filled, borderless chrome on plugin **create/edit** and **plugin-settings** data fields, and on **dense in-plugin editors** (spreadsheet/matrix cells, compact QC quantity steppers). Do **not** change shadcn `Input` / `Textarea` / `NativeSelect` defaults — apply tokens via `className`.
+Two families — do **not** replace one with the other globally:
 
-| Token                                                    | Use on                                                                                                                                               |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FORM_INPUT_CLASS`                                       | `Input`, `NativeSelect`, `SelectTrigger` in form/settings cards; also standard edit fields in dense list-detail blocks (e.g. garments `PersonBlock`) |
-| `FORM_PROP_CONTROL_CLASS`                                | Narrow property-row controls (`max-w-[180px]`)                                                                                                       |
-| `FORM_TEXTAREA_CLASS`                                    | `Textarea`                                                                                                                                           |
-| `FORM_COMPACT_INPUT_CLASS` / `FORM_COMPACT_SELECT_CLASS` | Dense rows: invoice line items, garment variants, garments `PersonMatrix` cells, inventory QC quantity, similar compact grids                        |
-| `FORM_INPUT_ERROR_CLASS`                                 | Validation — combine with `cn(FORM_INPUT_CLASS, error && FORM_INPUT_ERROR_CLASS)` (not `border-red-500`; borders are invisible with `border-0`)      |
-| `FORM_INPUT_READONLY_CLASS`                              | Read-only filled controls                                                                                                                            |
+| Family                     | When                                                                                                                                                                                                         | Tokens                                                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ghost** (view-matched)   | Plugin **detail** create/edit **fact fields** (label + value grids that mirror `*View`) — Contacts canonical; Notes title uses `DETAIL_FORM_TITLE_INPUT_CLASS`, body editor `RichTextEditor variant="ghost"` | `FORM_GHOST_INPUT_CLASS`, `FORM_GHOST_SELECT_CLASS`, `FORM_GHOST_PROP_CONTROL_CLASS`, `FORM_GHOST_TEXTAREA_CLASS`, `FORM_GHOST_READONLY_CLASS` |
+| **Filled** (compact muted) | Plugin **settings**, **dense** in-plugin editors (invoice lines, PersonMatrix, inventory steppers), and plugins not yet migrated to ghost                                                                    | `FORM_INPUT_CLASS`, `FORM_PROP_CONTROL_CLASS`, `FORM_TEXTAREA_CLASS`, `FORM_COMPACT_*`                                                         |
+
+Do **not** change shadcn `Input` / `Textarea` / `NativeSelect` defaults — apply tokens via `className`. Do **not** change `FORM_INPUT_CLASS` to look like ghost (would regress settings / matrices).
+
+**Ghost rules:** typography matches `DETAIL_FIELD_VALUE_CLASS` (`text-base font-extrabold`); transparent (no `bg-muted` box); **visible focus ring** (WCAG); empty fields keep placeholders; validation via `FORM_INPUT_ERROR_CLASS` (ring). Selects keep a visible chevron/affordance. No autosize-on-keystroke, no contenteditable for fact fields, no always-on-edit.
+
+```tsx
+import {
+  FORM_GHOST_INPUT_CLASS,
+  FORM_GHOST_SELECT_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+} from '@/core/ui/formFieldStyles';
+
+<Input className={cn(FORM_GHOST_INPUT_CLASS, getFieldError('email') && FORM_INPUT_ERROR_CLASS)} />
+<NativeSelect className={FORM_GHOST_SELECT_CLASS}>…</NativeSelect>
+```
+
+**Filled tokens (settings / dense):**
+
+| Token                                                    | Use on                                                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `FORM_INPUT_CLASS`                                       | Settings cards; dense list-detail blocks (e.g. garments `PersonBlock`) until migrated                              |
+| `FORM_PROP_CONTROL_CLASS`                                | Narrow filled property-row controls (`max-w-[180px]`)                                                              |
+| `FORM_TEXTAREA_CLASS`                                    | Settings / dense `Textarea`                                                                                        |
+| `FORM_COMPACT_INPUT_CLASS` / `FORM_COMPACT_SELECT_CLASS` | Dense rows: invoice line items, garment variants, garments `PersonMatrix` cells, inventory QC quantity             |
+| `FORM_INPUT_ERROR_CLASS`                                 | Validation — combine with filled **or** ghost tokens (not `border-red-500`; borders are invisible with `border-0`) |
+| `FORM_INPUT_READONLY_CLASS`                              | Read-only **filled** controls                                                                                      |
 
 ```tsx
 import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
@@ -340,15 +376,13 @@ import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS, FORM_TEXTAREA_CLASS } from '@
 <Textarea className={FORM_TEXTAREA_CLASS} />
 ```
 
-**Exceptions (do not force filled chrome):**
+**Other exceptions (do not force filled or ghost):**
 
-- Hero title: `DETAIL_FORM_TITLE_INPUT_CLASS` (contacts / garments)
+- Hero title: `DETAIL_FORM_TITLE_INPUT_CLASS` (contacts / garments / notes title) — focus ring required
 - Most dialogs (`*Dialog.tsx`), list search (`RoundExpandableSearch`), public forms — keep default bordered shadcn chrome
 - **Documented dense-dialog exception:** garments `GarmentPersonImportDialog` tag `NativeSelect` uses `FORM_COMPACT_SELECT_CLASS` for parity with PersonMatrix density
-- Rich text editors (apply `FORM_INPUT_ERROR_CLASS` for errors only when needed)
-- Duplicate/warning emphasis on filled fields: use **ring** (e.g. amber), not `border-*` (invisible with `border-0`)
-
-Same tokens apply to plugin **settings** forms/views with text fields.
+- Rich text: Notes edit uses `variant="ghost"`; other surfaces may keep default bordered chrome; errors via `FORM_INPUT_ERROR_CLASS`
+- Duplicate/warning emphasis: use **ring** (e.g. amber), not `border-*` (invisible with `border-0`)
 
 ### Date pickers (required)
 
@@ -405,7 +439,8 @@ Same tokens apply to plugin **settings** forms/views with text fields.
 ### Checklist — Form sync
 
 - [ ] Side-by-side compare with `*View.tsx`: same cards, order, tokens
-- [ ] Form/settings data fields use `FORM_*` from `formFieldStyles.ts` (not ad-hoc `h-9`/`h-10` bordered inputs)
+- [ ] Detail fact fields use `FORM_GHOST_*` (Contacts-class) or documented filled exception — not ad-hoc `h-9`/`h-10` bordered inputs
+- [ ] Settings / dense grids still use `FORM_*` filled / compact tokens
 - [ ] Date-only fields use shared `DatePicker` (not `type="date"`); date+time use `DateTimePicker`
 - [ ] Inline Save/Cancel present; window globals **absent**
 - [ ] Button size `h-9 text-xs px-3`; Save uses green primary classes above
@@ -482,6 +517,8 @@ flex items-start justify-between gap-6
 Shared primitive: `client/src/core/ui/DetailHeaderMenus.tsx`. Plugin wrappers (e.g. `ContactDetailHeaderMenus`, `TaskDetailHeaderMenus`) supply actions/export/extra menus + dialogs. Wire via `Provider.getPanelTitle` in view mode; `PanelTitles` prefers non-string React nodes **before** the mobile “blank title” early-return.
 
 **Layout (all breakpoints):** trigger buttons (`Actions` / `Export` / extras) stay on the first row and may scroll horizontally when needed. When a menu is open, its action pills **always** render on the **row below** the triggers (`justify-end`, `size="xs"` / `text-xs` — same density as Contacts `BulkActionRoundBar`). Do **not** render submenu pills inline beside the active trigger.
+
+**Spacing:** use shared `DETAIL_HEADER_CHIP_GAP_CLASS` (`gap-1.5`) for trigger buttons, submenu pills, and trigger↔submenu. Title/`leading` ↔ triggers stays `gap-3`. Meta/badge rows under the menus use the same chip gap plus `DETAIL_HEADER_BELOW_MENUS_CLASS` (`mt-1.5`), with type / counts / **updated first** and **badges last** on that row (Tasks / Requests / Notes / Matches / Invoices / Inventory / Teams / Files / Estimates). Use `DetailHeaderMetaRow` / `DetailHeaderMetaDot` for separators.
 
 **Optional `leading`:** identity (name / invoice # / title) on the same row as the triggers, left side (`min-w-0 flex-1`). Used in mail-layout full QC card headers where there is no separate panel title. Edit remains under Actions (no standalone Edit beside menus).
 
@@ -719,7 +756,7 @@ Keys in **both** `client/src/i18n/locales/en.json` and `sv.json`.
 }
 ```
 
-`information` / `activity` keys are optional — full views no longer render system Information or Activity log cards (Contacts canonical). Domain keys (e.g. `guides.information.*`) are separate.
+`information` keys stay unused for the removed system Information card. Provide **`activity`** (and `*.tabs.activity` when using tab chips) when the view renders `DetailActivityLog` (§2). Domain keys (e.g. `guides.information.*`) are separate.
 
 ### Quick context
 
@@ -775,7 +812,7 @@ Walk in order. No “probably OK” — verify in the running app.
 - [ ] Duplicate opens name dialog; after confirm: panel closes, green list row
 - [ ] Green highlight survives list refresh; clears when opening another item
 - [ ] **No** system Information card (ID/Created/Updated) in layout
-- [ ] **No** `DetailActivityLog` in layout
+- [ ] **`DetailActivityLog`** present on full view when applicable — last tab `activity` or stack card (§2 Activity)
 
 ### View / edit sync
 

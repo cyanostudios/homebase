@@ -40,6 +40,7 @@
     "showColumn": "Visa kolumnen {{column}}",
     "updated": "Uppdaterad",
     "created": "Skapad",
+    "id": "ID",
     "selectSlot": "Välj slot",
     "unselectSlot": "Avmarkera slot",
     "discard": "Kasta",
@@ -455,7 +456,8 @@
       "properties": "Egenskaper",
       "contacts": "Kontakter",
       "linked": "Länkat",
-      "linkedEmpty": "Inga slots kopplade till den här matchen än."
+      "linkedEmpty": "Inga slots kopplade till den här matchen än.",
+      "activity": "Aktivitet"
     },
     "relatedSlots": "Slots",
     "noRelatedSlots": "Inga slots kopplade till den här matchen än",
@@ -467,6 +469,10 @@
     "apiBaseUrl": "API-bas-URL",
     "importNow": "Importera nu",
     "importing": "Importerar...",
+    "importingTitle": "Importerar…",
+    "importingFrom": "Importerar från {{name}}…",
+    "importingFromFallback": "Importerar matcher från Fogis API…",
+    "importingHint": "Det kan ta en stund. Låt det här fönstret vara öppet.",
     "importDone": "{{imported}} importerade, {{updated}} uppdaterade.",
     "importError": "Kunde inte importera matcher. Kontrollera API-nyckel och lag-ID.",
     "noYet": "Inga matcher ännu",
@@ -617,7 +623,8 @@
       "properties": "Egenskaper",
       "addresses": "Adresser",
       "persons": "Kontaktpersoner",
-      "linked": "Kopplat"
+      "linked": "Kopplat",
+      "activity": "Aktivitet"
     },
     "relatedTeams": "Lag",
     "relatedTasks": "Uppgifter",
@@ -804,7 +811,8 @@
       "properties": "Egenskaper",
       "assignees": "Ansvariga",
       "linked": "Kopplat",
-      "linkedEmpty": "Inga nämnda kontakter ännu."
+      "linkedEmpty": "Inga nämnda kontakter ännu.",
+      "activity": "Aktivitet"
     },
     "quickEditDiscardMessage": "Du har osparade ändringar i status, prioritet, förfallodatum eller ansvariga. Vill du kasta dem?",
     "assignee": "Ansvarig",
@@ -912,6 +920,13 @@
     "mentionedContacts": "Nämnda kontakter",
     "openContact": "Öppna kontakt",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "linked": "Länkade",
+      "linkedEmpty": "Inga nämnda kontakter ännu.",
+      "files": "Filer",
+      "activity": "Aktivitet"
+    },
     "quickActions": "Snabbåtgärder",
     "exportOptions": "Exportalternativ",
     "activity": "Aktivitet",
@@ -972,7 +987,8 @@
       "lines": "Rader",
       "payments": "Betalningar",
       "linked": "Länkade",
-      "linkedEmpty": "Ingen länkad kontakt ännu."
+      "linkedEmpty": "Ingen länkad kontakt ännu.",
+      "activity": "Aktivitet"
     },
     "quickActions": "Snabbåtgärder",
     "exportOptions": "Exportalternativ",
@@ -1161,7 +1177,8 @@
       "properties": "Egenskaper",
       "lines": "Rader",
       "notes": "Anteckningar",
-      "notesEmpty": "Inga anteckningar ännu."
+      "notesEmpty": "Inga anteckningar ännu.",
+      "activity": "Aktivitet"
     },
     "quickInfo": {
       "items": "Rader",
@@ -1247,6 +1264,7 @@
       "information": "Information",
       "excerpt": "Utdrag",
       "runs": "Hämtningshistorik",
+      "activity": "Aktivitet",
       "excerptEmpty": "Inget utdrag ännu. Kör en hämtning för att se senaste resultatet."
     },
     "lastFetch": "Senast hämtad",
@@ -1451,8 +1469,11 @@
     "information": "Information",
     "tabs": {
       "information": "Information",
-      "steps": "Steg"
+      "properties": "Egenskaper",
+      "steps": "Steg",
+      "activity": "Aktivitet"
     },
+    "guideProperties": "Guideegenskaper",
     "quickActions": "Snabbåtgärder",
     "activity": "Aktivitet",
     "notVisiblePublic": "Syns inte på kiosken",
@@ -1518,9 +1539,12 @@
     "priceList": {
       "tabs": {
         "information": "Information",
+        "properties": "Egenskaper",
         "items": "Artiklar",
-        "currency": "Valuta"
+        "currency": "Valuta",
+        "activity": "Aktivitet"
       },
+      "properties": "Prislistegenskaper",
       "listDescription": "Skapa och hantera prislistor för clubdesk-kiosken.",
       "searchPlaceholder": "Sök bland {{count}} prislistor...",
       "noMatch": "Inga träffar",
@@ -1598,19 +1622,22 @@
     "siteContent": {
       "subtitle": "Texter och kort för den publika Clubdesk-appen.",
       "editorPlaceholder": "Skriv innehåll…",
+      "emptyBody": "Inget innehåll ännu. Öppna Åtgärder och välj Redigera för att lägga till text.",
       "infoTitle": "Rubrik",
       "infoTitlePlaceholder": "t.ex. Om appen",
       "homeTitlePlaceholder": "t.ex. Välkommen",
       "infoBody": "Text",
+      "infoVisible": "Visa i den publika appen",
+      "infoVisibleHint": "När den är av är Om-genvägen och Om-sidan dolda i Clubdesk-appen.",
       "loadFailed": "Kunde inte ladda innehållet.",
       "saveFailed": "Kunde inte spara innehållet. Försök igen.",
       "cards": {
         "home": "Hem",
         "homeDescription": "Introtext på startsidan",
         "homeHelp": "Rubrik och text visas ovanför genvägarna på Hem-fliken (enkel text, utan formatering).",
-        "info": "Info",
-        "infoDescription": "Text på Info-fliken",
-        "infoHelp": "Rubrik och text visas på Info-fliken i den publika appen.",
+        "info": "Om",
+        "infoDescription": "Text på Om-fliken",
+        "infoHelp": "Rubrik och text visas på Om-fliken i den publika appen.",
         "contacts": "Kontakt",
         "contactsDescription": "Kontaktlista på Hem och /kontakt/",
         "contactsHelp": "Välj kontakter från Contacts och skriv en kort text. Syns på Hem och egen Kontakt-sida när listan inte är tom.",
@@ -2663,6 +2690,12 @@
     "listDescription": "Hantera cuper, synlighet och import från ingest.",
     "addCup": "Lägg till cup",
     "importFromIngest": "Importera från Ingest",
+    "importingTitle": "Importerar…",
+    "importingFrom": "Importerar från {{name}}…",
+    "importingFromProgress": "Importerar från {{name}} ({{current}} av {{total}})…",
+    "importingFromFallback": "Importerar från Ingest…",
+    "importingSourceFallback": "källa",
+    "importingHint": "Det kan ta en stund. Låt det här fönstret vara öppet.",
     "searchPlaceholder": "Sök cuper ({{count}})",
     "sort": "Sortera",
     "sortAsc": "Stigande",
@@ -2696,11 +2729,13 @@
     "propertySanctioned": "Sanktionerad",
     "propertyFeatured": "Utvald",
     "cupProperties": "Egenskaper",
+    "activity": "Aktivitet",
     "tabs": {
       "information": "Information",
       "properties": "Egenskaper",
       "ratings": "Betyg",
-      "ingest": "Ingest"
+      "ingest": "Ingest",
+      "activity": "Aktivitet"
     },
     "quickEditDiscardMessage": "Du har osparade ändringar i cup-egenskaper. Vill du kasta dem?",
     "heroImageView": "Hjältebild (publik sajt)",
@@ -2887,7 +2922,8 @@
       "requests": "Ärenden",
       "matches": "Matcher",
       "statistics": "Statistik",
-      "garments": "Kläder"
+      "garments": "Kläder",
+      "activity": "Aktivitet"
     },
     "externalTeam": "Kopplat FOGIS-lag",
     "externalTeamPlaceholder": "Välj FOGIS-lag",
@@ -3250,7 +3286,12 @@
       "statusMixAria": "Andel aktiva, avslutade och avbrutna ärenden"
     },
     "quickContext": {
-      "title": "Snabbkontext"
+      "eyebrow": "Valt ärende",
+      "title": "Snabbkontext",
+      "openFullProfile": "Öppna hela ärendet",
+      "mentionsHint": "Klicka för att öppna",
+      "readMore": "Läs mer",
+      "showLess": "Visa mindre"
     },
     "dashboardOpen": "{{count}} öppna",
     "dashboardExternal": "{{count}} externa",
@@ -3342,7 +3383,8 @@
       "information": "Information",
       "properties": "Egenskaper",
       "assignees": "Tilldelade",
-      "files": "Filer"
+      "files": "Filer",
+      "activity": "Aktivitet"
     },
     "settings": {
       "title": "Ärendeinställningar",
@@ -3375,14 +3417,6 @@
       "intakeStepSubtitle": "Storlekar och tröjuppgifter hjälper oss förbereda klädlistan.",
       "intakeNameHint": "Namn på personen i klädlistan",
       "contactStepPrefillHint": "Används om vi behöver nå dig"
-    },
-    "quickContext": {
-      "eyebrow": "Valt ärende",
-      "title": "Snabbkontext",
-      "openFullProfile": "Öppna hela ärendet",
-      "mentionsHint": "Klicka för att öppna",
-      "readMore": "Läs mer",
-      "showLess": "Visa mindre"
     },
     "responseDue": {
       "label": "Svarsdatum",
@@ -3856,6 +3890,7 @@
     "settingsInventorySubtitle": "Hantera taggar, tabellkolumner och importera lagerartiklar.",
     "settingsLists": "Listor – Inställningar",
     "settingsListsSubtitle": "Hantera personmatriskolumner för varje klädlista.",
+    "configurePersonColumns": "Personkolumner",
     "tags": "Taggar",
     "noTags": "Inga taggar",
     "noTagsYet": "Inga taggar ännu.",
@@ -3890,7 +3925,7 @@
       "customColumnsListHint": "Välj vilken klädlista som ska konfigureras.",
       "customColumnsListPlaceholder": "Välj en lista",
       "identityColumns": "Identitetskolumner",
-      "identityColumnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja. Namn är alltid synligt. Lag, tröjnamn, initialer och nummer är på som standard.",
+      "identityColumnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja. Namn är alltid synligt.",
       "importDescription": "Importera lagerartiklar från CSV eller Excel."
     }
   }

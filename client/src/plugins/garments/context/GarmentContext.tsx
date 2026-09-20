@@ -40,7 +40,10 @@ export interface GarmentContextType {
 
   openGarmentsInventory: () => void;
   openGarmentsLists: () => void;
-  openGarmentsSettings: (returnView?: 'lists' | 'inventory') => void;
+  /** Open Lists or Inventory settings. Optional listId preselects that list for person-matrix columns. */
+  openGarmentsSettings: (returnView?: 'lists' | 'inventory', listId?: string | null) => void;
+  /** List id to preselect in Lists settings (person-matrix column prefs). */
+  settingsListsInitialListId: string | null;
   closeGarmentsSettingsView: () => void;
 
   assignInventoryItemToList: (listId: string, itemId: string) => Promise<boolean>;
@@ -153,6 +156,7 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   openGarmentsInventory: () => {},
   openGarmentsLists: () => {},
   openGarmentsSettings: () => {},
+  settingsListsInitialListId: null,
   closeGarmentsSettingsView: () => {},
   assignInventoryItemToList: async () => false,
   unassignInventoryItemFromList: async () => false,

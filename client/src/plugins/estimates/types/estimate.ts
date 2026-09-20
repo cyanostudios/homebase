@@ -1,3 +1,5 @@
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+
 export interface ValidationError {
   field: string;
   message: string;
@@ -53,10 +55,10 @@ export const REJECTION_REASONS: StatusReason[] = [
 export const ESTIMATE_STATUS_OPTIONS = ['draft', 'sent', 'accepted', 'rejected'] as const;
 
 export const ESTIMATE_STATUS_COLORS = {
-  draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
-  sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
-  accepted: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
-  rejected: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
+  draft: QC_STATUS_BADGE_COLORS.neutral,
+  sent: QC_STATUS_BADGE_COLORS.info,
+  accepted: QC_STATUS_BADGE_COLORS.success,
+  rejected: QC_STATUS_BADGE_COLORS.danger,
 } as const;
 
 export function formatEstimateStatusForDisplay(status: string): string {

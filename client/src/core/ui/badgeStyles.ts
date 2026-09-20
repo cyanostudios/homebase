@@ -1,35 +1,43 @@
-/** Standard plugin/list badge chip — Response due shell: pill, borderless, weight 800. */
-export const BADGE_CHIP_CLASS = 'border-0 rounded-full h-5 px-2 text-xs font-extrabold';
+/**
+ * Status badges — read-only inline label (icon + extrabold text in semantic color).
+ * No chip chrome: no fill, border, fixed height, or padding.
+ */
 
-/** Compact Response due–style chip (10px). */
+/** Standard status label (QC meta, lists, selects). */
+export const BADGE_CHIP_CLASS =
+  'inline-flex items-center gap-1 border-0 bg-transparent p-0 h-auto text-xs font-extrabold tracking-wide leading-none [&_svg]:block [&_svg]:size-3.5 [&_svg]:shrink-0';
+
+/** Compact status label (dense tables). */
 export const BADGE_CHIP_COMPACT_CLASS =
-  'border-0 rounded-full h-5 px-1.5 text-[10px] font-extrabold';
+  'inline-flex items-center gap-0.5 border-0 bg-transparent p-0 h-auto text-[10px] font-extrabold tracking-wide leading-none [&_svg]:block [&_svg]:size-3 [&_svg]:shrink-0';
 
-/** Compact pill badge text — 10px, weight 800. */
-export const BADGE_PILL_TEXT_CLASS = 'text-[10px] font-extrabold';
+/** Compact badge text — 10px, extrabold. */
+export const BADGE_PILL_TEXT_CLASS = 'text-[10px] font-extrabold tracking-wide';
 
-/** Compact pill badge shell (status dots, yes/no pills). */
-export const BADGE_PILL_CLASS = `inline-flex items-center rounded-full px-2 py-0.5 ${BADGE_PILL_TEXT_CLASS}`;
+/** Compact badge shell (yes/no, dense meta). */
+export const BADGE_PILL_CLASS = `inline-flex items-center gap-1 border-0 bg-transparent p-0 h-auto ${BADGE_PILL_TEXT_CLASS} leading-none [&_svg]:size-3 [&_svg]:shrink-0`;
 
-/** Meta badge on QuickContext link tiles (linked section) — 10px original size, weight 800. */
+/** Meta badge on QuickContext link tiles. */
 export const LINKED_TILE_META_BADGE_CLASS =
-  'inline-flex h-4 max-w-full shrink items-center truncate rounded-full border-0 px-1.5 py-0 leading-none !text-[10px] !font-extrabold';
+  'inline-flex max-w-full shrink items-center gap-1 truncate border-0 bg-transparent p-0 h-auto leading-none !text-[10px] !font-extrabold tracking-wide [&_svg]:size-3 [&_svg]:shrink-0';
 
-/** Badge chip in linked-section preview dialogs — 10px original size, weight 800. */
+/** Badge in linked-section preview dialogs. */
 export const LINKED_SECTION_BADGE_CLASS =
-  'inline-flex items-center rounded-full border-0 px-2 py-0.5 !text-[10px] !font-extrabold leading-none';
+  'inline-flex items-center gap-1 border-0 bg-transparent p-0 h-auto !text-[10px] !font-extrabold tracking-wide leading-none [&_svg]:size-3 [&_svg]:shrink-0';
 
 /**
- * Quick-context status badge fills (Requests palette): solid bg + extrabold chip.
- * Prefer these over washed select-trigger colors (50% opacity fills, font-medium).
+ * Color tokens — text (+ icon via currentColor) only.
+ * Pair with BADGE_CHIP_*.
  */
 export const QC_STATUS_BADGE_COLORS = {
-  neutral: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  info: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  success: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  danger: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  muted: 'bg-muted text-muted-foreground',
+  neutral: 'text-slate-700 dark:text-slate-300',
+  info: 'text-blue-700 dark:text-blue-300',
+  success: 'text-emerald-800 dark:text-emerald-300',
+  danger: 'text-red-700 dark:text-red-300',
+  warning: 'text-amber-800 dark:text-amber-300',
+  muted: 'text-muted-foreground',
+  purple: 'text-violet-700 dark:text-violet-300',
+  orange: 'text-orange-800 dark:text-orange-200',
 } as const;
 
 export const QC_TASK_STATUS_BADGE_COLORS: Record<string, string> = {
@@ -54,19 +62,24 @@ export const QC_TEAM_STATUS_BADGE_COLORS: Record<string, string> = {
   break: QC_STATUS_BADGE_COLORS.neutral,
 };
 
+export const QC_PRIORITY_BADGE_COLORS: Record<string, string> = {
+  Low: QC_STATUS_BADGE_COLORS.neutral,
+  Medium: 'text-orange-500 dark:text-orange-400',
+  High: QC_STATUS_BADGE_COLORS.danger,
+};
+
 /**
- * Calendar / SLA due chips (Tasks due + Requests response-due).
- * Solid fills + pair with BADGE_CHIP_* (no washed /50 or font-medium baked in).
+ * Calendar / SLA due badges (Tasks due + Requests response-due).
  */
 export const DUE_DATE_BADGE_COLORS = {
-  overdue: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
-  today: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200',
-  soon: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-  later: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
-  muted: 'bg-muted text-muted-foreground',
+  overdue: QC_STATUS_BADGE_COLORS.danger,
+  today: QC_STATUS_BADGE_COLORS.orange,
+  soon: QC_STATUS_BADGE_COLORS.warning,
+  later: QC_STATUS_BADGE_COLORS.success,
+  muted: QC_STATUS_BADGE_COLORS.muted,
 } as const;
 
-/** Meta-row text tones matching DUE_DATE_BADGE_COLORS (list cards without chip shell). */
+/** Meta-row text tones matching DUE_DATE_BADGE_COLORS (list cards without badge shell). */
 export const DUE_DATE_TEXT_COLORS = {
   overdue: 'text-destructive font-extrabold',
   today: 'text-orange-600 dark:text-orange-400 font-extrabold',
@@ -77,4 +90,10 @@ export const DUE_DATE_TEXT_COLORS = {
 
 /** Status/priority Select trigger chrome — same in Tasks + Requests. */
 export const BADGE_SELECT_TRIGGER_CLASS =
-  'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50';
+  // Keep SelectValue as flex (do not use line-clamp-* — it resets display to block and
+  // leaves content stuck to the top of the tall trigger).
+  'h-9 rounded-full border-border/50 bg-transparent px-2.5 py-0 text-xs leading-none shadow-none transition-colors hover:bg-accent/50 focus:ring-offset-0 [&>span]:!flex [&>span]:min-w-0 [&>span]:flex-1 [&>span]:items-center [&>span]:gap-1 [&>span]:overflow-hidden [&>span]:whitespace-nowrap [&>span]:leading-none [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:self-center';
+
+/** SelectItem when showing StatusOutlineBadge (icon + label). */
+export const BADGE_SELECT_ITEM_CLASS =
+  'rounded-md py-2 text-xs leading-none focus:bg-accent data-[highlighted]:bg-accent [&>span:last-child]:inline-flex [&>span:last-child]:items-center [&>span:last-child]:leading-none';

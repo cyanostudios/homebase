@@ -1,7 +1,7 @@
 import { Mail } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
+import { BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -27,9 +27,7 @@ import {
 } from '../utils/mailProvidersTableColumns';
 
 function enabledBadgeClass(enabled: boolean) {
-  return enabled
-    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+  return enabled ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.neutral;
 }
 
 function mailProviderIdentityMeta(

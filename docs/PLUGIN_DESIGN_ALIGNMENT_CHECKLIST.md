@@ -449,16 +449,17 @@ const { recentlyDuplicatedMyPluginId } = useMyPlugin();
 
 ### Typografitokens – inga undantag
 
-| Element                           | Klass                                                                                                                   |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Sektionrubrik-ikon-container      | `h-7 w-7 flex items-center justify-center rounded-md bg-muted/80 text-muted-foreground`                                 |
-| Sektionsrubrik-text               | `text-sm font-semibold text-foreground`                                                                                 |
-| Ramad rad-wrapper                 | `rounded-lg border border-border p-4` **eller** `DETAIL_PROP_ROW_CLASS` (Contacts/Invoices)                             |
-| Property-label                    | `text-sm font-medium` **eller** muted fact label (`DETAIL_FIELD_LABEL_CLASS` / lokal `FACT_LABEL_CLASS`)                |
-| Property-kontroll (edit/settings) | `FORM_PROP_CONTROL_CLASS` / `FORM_INPUT_CLASS` från `@/core/ui/formFieldStyles` (filled: `h-7`, `border-0`, `bg-muted`) |
-| Meta/hjälptext i rad              | `text-[11px] text-muted-foreground`                                                                                     |
+| Element                              | Klass                                                                                                    |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Sektionrubrik-ikon-container         | `h-7 w-7 flex items-center justify-center rounded-md bg-muted/80 text-muted-foreground`                  |
+| Sektionsrubrik-text                  | `text-sm font-semibold text-foreground`                                                                  |
+| Ramad rad-wrapper                    | `rounded-lg border border-border p-4` **eller** `DETAIL_PROP_ROW_CLASS` (Contacts/Invoices)              |
+| Property-label                       | `text-sm font-medium` **eller** muted fact label (`DETAIL_FIELD_LABEL_CLASS` / lokal `FACT_LABEL_CLASS`) |
+| Property-kontroll (edit detail fact) | `FORM_GHOST_PROP_CONTROL_CLASS` / `FORM_GHOST_SELECT_CLASS` (view-matched; transparent)                  |
+| Property-kontroll (settings / dense) | `FORM_PROP_CONTROL_CLASS` / `FORM_INPUT_CLASS` (filled: `h-7`, `border-0`, `bg-muted`)                   |
+| Meta/hjälptext i rad                 | `text-[11px] text-muted-foreground`                                                                      |
 
-**Form/settings data fields:** use shared filled tokens (`formFieldStyles.ts`). Do **not** invent ad-hoc `h-9`/`h-10` bordered inputs on plugin forms. Dense in-plugin editors (e.g. garments PersonMatrix / PersonBlock / inventory QC quantity) use the same `FORM_*` / `FORM_COMPACT_*` tokens. Dialogs and list search keep default shadcn chrome unless a documented dense-dialog exception applies (see `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` §3).
+**Form data fields:** Contacts-class **detail** create/edit fact fields use shared **ghost** tokens (`FORM_GHOST_*` in `formFieldStyles.ts`) so edit matches view value typography. Plugin **settings** and dense in-plugin editors (e.g. garments PersonMatrix / PersonBlock / inventory QC quantity) use filled `FORM_*` / `FORM_COMPACT_*`. Do **not** invent ad-hoc `h-9`/`h-10` bordered inputs on plugin forms. Dialogs and list search keep default shadcn chrome unless a documented dense-dialog exception applies (see `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` §3).
 
 **Date-only fields:** shared `DatePicker` (`@/core/ui/DatePicker`) — not native `type="date"`. Date+time: `DateTimePicker` with `variant="filled"` in forms. See `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` §3 _Date pickers_.
 

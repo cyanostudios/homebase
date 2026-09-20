@@ -362,7 +362,7 @@ SQL;
 }
 
 /**
- * Site content cards for public home + info tabs (never swish).
+ * Site content cards for public home + info (+ contacts/swish visibility shells).
  */
 function publicAppSiteContentSql(): string
 {
@@ -372,7 +372,54 @@ SELECT DISTINCT ON (card_key)
   content,
   meta
 FROM clubdesk_site_content
-WHERE card_key IN ('home', 'info')
+WHERE card_key IN ('home', 'info', 'contacts', 'swish')
 ORDER BY card_key, updated_at DESC NULLS LAST, id DESC
 SQL;
+}
+
+/**
+ * Whether a site-content card is public (meta.visible !== false).
+ * Missing row / missing key / legacy rows ⇒ visible.
+ *
+ * @param 'home'|'info'|'contacts'|'swish' $cardKey
+ */
+function publicAppCardVisible(PDO $pdo, string $cardKey): bool
+{
+    $allowed = ['home', 'info', 'contacts', 'swish'];
+    if (!in_array($cardKey, $allowed, true)) {
+        return true;
+    }
+
+    try {
+        $stmt = $pdo->prepare(
+            <<<SQL
+SELECT meta
+FROM clubdesk_site_content
+WHERE card_key = :card_key
+ORDER BY updated_at DESC NULLS LAST, id DESC
+LIMIT 1
+SQL
+        );
+        $stmt->execute(['card_key' => $cardKey]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return true;
+        }
+        $meta = $row['meta'] ?? null;
+        if (is_string($meta)) {
+            $decoded = json_decode($meta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($meta)) {
+            return true;
+        }
+
+        return !array_key_exists('visible', $meta) || $meta['visible'] !== false;
+    } catch (Throwable $e) {
+        // Table missing on older tenants — treat as visible (legacy).
+        if (str_contains($e->getMessage(), 'clubdesk_site_content')) {
+            return true;
+        }
+        throw $e;
+    }
 }

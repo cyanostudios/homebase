@@ -10,7 +10,14 @@ import { cn } from '@/lib/utils';
 
 import { useGarments } from '../hooks/useGarments';
 
-export function InventoryListAssignmentCheckboxes({ itemId }: { itemId?: string }) {
+export function InventoryListAssignmentCheckboxes({
+  itemId,
+  embedded = false,
+}: {
+  itemId?: string;
+  /** Skip outer Card when already inside another detail card (e.g. Quick Context). */
+  embedded?: boolean;
+}) {
   const { t } = useTranslation();
   const { garmentLists, inventoryItems, assignInventoryItemToList, unassignInventoryItemFromList } =
     useGarments();
@@ -84,7 +91,6 @@ export function InventoryListAssignmentCheckboxes({ itemId }: { itemId?: string 
         setErrorMessage(t('garments.assignAllListsFailed', { count: failed }));
       }
     }
-
     setBusyKey(null);
   }, [
     allListsAssigned,
@@ -98,77 +104,99 @@ export function InventoryListAssignmentCheckboxes({ itemId }: { itemId?: string 
     unassignedLists,
   ]);
 
+  const body = (
+    <>
+      {!embedded ? (
+        <p className="mb-3 text-xs text-muted-foreground">{t('garments.inventoryInListsHint')}</p>
+      ) : null}
+
+      {!itemId ? (
+        <p className="text-sm text-muted-foreground">{t('garments.assignToListsSaveFirst')}</p>
+      ) : null}
+
+      {errorMessage ? (
+        <p role="status" className="mb-3 text-sm text-destructive">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      {itemId && garmentLists.length === 0 ? (
+        <p className={DETAIL_EMPTY_STATE_CLASS}>{t('garments.noListsYet')}</p>
+      ) : null}
+
+      {itemId && garmentLists.length > 0 ? (
+        <ul className="space-y-1.5">
+          <li className="border-b border-border/50 pb-2">
+            <label
+              className={cn(
+                'flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm',
+                assignAllBusy && 'cursor-wait opacity-60',
+              )}
+            >
+              <Checkbox
+                checked={allListsAssigned}
+                indeterminate={someListsAssigned}
+                disabled={assignAllBusy}
+                onChange={() => void toggleAllLists()}
+                aria-label={t('garments.assignToAllLists')}
+              />
+              <span className="font-semibold text-foreground">
+                {t('garments.assignToAllLists')}
+              </span>
+              {assignAllBusy ? (
+                <span className="text-xs text-muted-foreground">{t('common.saving')}</span>
+              ) : null}
+            </label>
+          </li>
+          {garmentLists.map((list) => {
+            const assigned = assignedListIds.has(String(list.id));
+            const key = `${itemId}:${list.id}`;
+            const rowBusy = busyKey === key;
+            return (
+              <li key={list.id}>
+                <label
+                  className={cn(
+                    'flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm',
+                    (rowBusy || assignAllBusy) && 'cursor-wait opacity-60',
+                  )}
+                >
+                  <Checkbox
+                    checked={assigned}
+                    disabled={rowBusy || assignAllBusy}
+                    onChange={() => void toggleAssignment(list.id, assigned)}
+                    aria-label={`${item?.articleName ?? t('garments.articleName')} — ${list.name}`}
+                  />
+                  <span className="truncate">{list.name || '—'}</span>
+                  {busyKey === key ? (
+                    <span className="text-xs text-muted-foreground">{t('common.saving')}</span>
+                  ) : null}
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div>
+        <div className="mb-1.5 flex items-center gap-1.5">
+          <Package className="h-3 w-3 text-slate-400" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+            {t('garments.assignToLists')}
+          </span>
+        </div>
+        {body}
+      </div>
+    );
+  }
+
   return (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection title={t('garments.assignToLists')} icon={Package} subtleTitle className="p-4">
-        <p className="mb-3 text-xs text-muted-foreground">{t('garments.inventoryInListsHint')}</p>
-
-        {!itemId ? (
-          <p className="text-sm text-muted-foreground">{t('garments.assignToListsSaveFirst')}</p>
-        ) : null}
-
-        {errorMessage ? (
-          <p role="status" className="mb-3 text-sm text-destructive">
-            {errorMessage}
-          </p>
-        ) : null}
-
-        {itemId && garmentLists.length === 0 ? (
-          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('garments.noListsYet')}</p>
-        ) : null}
-
-        {itemId && garmentLists.length > 0 ? (
-          <ul className="space-y-1.5">
-            <li className="border-b border-border/50 pb-2">
-              <label
-                className={cn(
-                  'flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm',
-                  assignAllBusy && 'cursor-wait opacity-60',
-                )}
-              >
-                <Checkbox
-                  checked={allListsAssigned}
-                  indeterminate={someListsAssigned}
-                  disabled={assignAllBusy}
-                  onChange={() => void toggleAllLists()}
-                  aria-label={t('garments.assignToAllLists')}
-                />
-                <span className="font-semibold text-foreground">
-                  {t('garments.assignToAllLists')}
-                </span>
-                {assignAllBusy ? (
-                  <span className="text-xs text-muted-foreground">{t('common.saving')}</span>
-                ) : null}
-              </label>
-            </li>
-            {garmentLists.map((list) => {
-              const assigned = assignedListIds.has(String(list.id));
-              const key = `${itemId}:${list.id}`;
-              const rowBusy = busyKey === key;
-              return (
-                <li key={list.id}>
-                  <label
-                    className={cn(
-                      'flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm',
-                      (rowBusy || assignAllBusy) && 'cursor-wait opacity-60',
-                    )}
-                  >
-                    <Checkbox
-                      checked={assigned}
-                      disabled={rowBusy || assignAllBusy}
-                      onChange={() => void toggleAssignment(list.id, assigned)}
-                      aria-label={`${item?.articleName ?? t('garments.articleName')} — ${list.name}`}
-                    />
-                    <span className="truncate">{list.name || '—'}</span>
-                    {busyKey === key ? (
-                      <span className="text-xs text-muted-foreground">{t('common.saving')}</span>
-                    ) : null}
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
+        {body}
       </DetailSection>
     </Card>
   );

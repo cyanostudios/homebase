@@ -20,6 +20,7 @@ import { ListTableSortIcon } from '@/core/ui/ListTableSortIcon';
 import { FORM_COMPACT_INPUT_CLASS, FORM_COMPACT_SELECT_CLASS } from '@/core/ui/formFieldStyles';
 import { createSerialLatestQueue } from '@/core/utils/serialLatestQueue';
 import type { SerialLatestSettle } from '@/core/utils/serialLatestQueue';
+import { formatDate } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
@@ -194,7 +195,7 @@ function matrixSelectTriggerClass(hasValue: boolean): string {
   return cn(MATRIX_SELECT_TRIGGER_CLASS, hasValue && '[&>span]:font-medium [&>span]:text-primary');
 }
 
-type PersonMatrixSortField = 'name' | 'team' | 'jerseyNumber';
+type PersonMatrixSortField = 'name' | 'team' | 'jerseyNumber' | 'createdAt';
 
 const MATRIX_HEADER_BASE = 'text-xs font-black leading-tight text-slate-400 dark:text-slate-500';
 
@@ -220,6 +221,12 @@ function comparePersonsByField(
   order: 'asc' | 'desc',
   teams: Team[] = [],
 ): number {
+  if (field === 'createdAt') {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return order === 'asc' ? aTime - bTime : bTime - aTime;
+  }
+
   const av =
     field === 'name'
       ? String(a.name ?? '')
@@ -463,11 +470,22 @@ export function PersonMatrix({
     if (readOnly) {
       return;
     }
-    const current = person.teamId ?? null;
-    if (nextTeamId === current) {
+    const current =
+      person.teamId != null && String(person.teamId).trim() !== '' ? String(person.teamId) : null;
+    const next = nextTeamId != null && String(nextTeamId).trim() !== '' ? String(nextTeamId) : null;
+    if (next === current) {
       return;
     }
-    await updatePerson(list.id, person.id, personFieldPayload(person, { teamId: nextTeamId }));
+    // Optimistic so soft-preview Select does not snap back while the PUT is in flight.
+    patchPersonLocal(list.id, person.id, { teamId: next });
+    const saved = await updatePerson(
+      list.id,
+      person.id,
+      personFieldPayload(person, { teamId: next }),
+    );
+    if (!saved) {
+      patchPersonLocal(list.id, person.id, { teamId: current });
+    }
   };
 
   const saveCtSize = async (person: GarmentPerson, itemId: string, raw: string) => {
@@ -687,20 +705,35 @@ export function PersonMatrix({
                         className={cn(
                           'border-r border-border bg-primary/5 px-3 py-2 text-left',
                           MATRIX_HEADER_BASE,
-                          'cursor-pointer select-none hover:bg-primary/10',
                         )}
-                        onClick={() => handleHeaderSort('name')}
                         aria-sort={
-                          primarySort === 'name'
+                          primarySort === 'name' || primarySort === 'createdAt'
                             ? sortOrder === 'asc'
                               ? 'ascending'
                               : 'descending'
                             : 'none'
                         }
                       >
-                        <div className="flex items-center gap-2 leading-4">
-                          <span>{t('garments.personName')}</span>
-                          <ListTableSortIcon active={primarySort === 'name'} order={sortOrder} />
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            type="button"
+                            className="flex cursor-pointer items-center gap-2 leading-4 select-none hover:text-foreground"
+                            onClick={() => handleHeaderSort('name')}
+                          >
+                            <span>{t('garments.personName')}</span>
+                            <ListTableSortIcon active={primarySort === 'name'} order={sortOrder} />
+                          </button>
+                          <button
+                            type="button"
+                            className="flex cursor-pointer items-center gap-1 text-[10px] font-semibold leading-tight text-slate-400 select-none hover:text-foreground dark:text-slate-500"
+                            onClick={() => handleHeaderSort('createdAt')}
+                          >
+                            <span>{t('common.created')}</span>
+                            <ListTableSortIcon
+                              active={primarySort === 'createdAt'}
+                              order={sortOrder}
+                            />
+                          </button>
                         </div>
                       </th>
                     );
@@ -866,12 +899,13 @@ export function PersonMatrix({
                     <tr className="border-b border-border/60 hover:bg-muted/20">
                       {matrixIdentityColumnIds.map((columnId) => {
                         if (columnId === 'name') {
+                          const createdLabel = formatDate(person.createdAt);
                           return (
                             <td
                               key={columnId}
                               className="border-r border-border bg-background px-1 py-1.5"
                             >
-                              <div className="flex min-w-0 items-center gap-0.5">
+                              <div className="flex min-w-0 items-start gap-0.5">
                                 {showGarmentColumns ? (
                                   <button
                                     type="button"
@@ -889,38 +923,45 @@ export function PersonMatrix({
                                 ) : null}
                                 <span
                                   className={cn(
-                                    'h-2 w-2 shrink-0 rounded-full',
+                                    'mt-2.5 h-2 w-2 shrink-0 rounded-full',
                                     personCompletionDotClass(completionStatus),
                                   )}
                                   title={completionLabel}
                                   aria-label={completionLabel}
                                 />
-                                {isEditing ? (
-                                  <Input
-                                    value={editDraft.name ?? ''}
-                                    onChange={(e) =>
-                                      setEditDraft((prev) => ({ ...prev, name: e.target.value }))
-                                    }
-                                    aria-label={t('garments.personName')}
-                                    className={cn(
-                                      MATRIX_INPUT_CLASS,
-                                      'min-w-0 flex-1',
-                                      jerseyDup && MATRIX_AMBER_RING_CLASS,
-                                    )}
-                                  />
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="min-w-0 flex-1 truncate px-1 text-left text-sm font-medium hover:underline"
-                                    onClick={() => {
-                                      if (showGarmentColumns) {
-                                        toggleExpanded(person.id);
+                                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                  {isEditing ? (
+                                    <Input
+                                      value={editDraft.name ?? ''}
+                                      onChange={(e) =>
+                                        setEditDraft((prev) => ({ ...prev, name: e.target.value }))
                                       }
-                                    }}
-                                  >
-                                    {person.name || '—'}
-                                  </button>
-                                )}
+                                      aria-label={t('garments.personName')}
+                                      className={cn(
+                                        MATRIX_INPUT_CLASS,
+                                        'min-w-0 flex-1',
+                                        jerseyDup && MATRIX_AMBER_RING_CLASS,
+                                      )}
+                                    />
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="min-w-0 truncate px-1 text-left text-sm font-medium hover:underline"
+                                      onClick={() => {
+                                        if (showGarmentColumns) {
+                                          toggleExpanded(person.id);
+                                        }
+                                      }}
+                                    >
+                                      {person.name || '—'}
+                                    </button>
+                                  )}
+                                  {createdLabel ? (
+                                    <span className="min-w-0 truncate px-1 text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                                      {createdLabel}
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
                             </td>
                           );
@@ -971,7 +1012,11 @@ export function PersonMatrix({
                                 </Select>
                               ) : (
                                 <Select
-                                  value={person.teamId ?? '__none__'}
+                                  value={
+                                    person.teamId != null && String(person.teamId).trim() !== ''
+                                      ? String(person.teamId)
+                                      : '__none__'
+                                  }
                                   onValueChange={(value) =>
                                     void saveTeamField(person, value === '__none__' ? null : value)
                                   }
@@ -1537,7 +1582,14 @@ export function PublicPersonMatrix({ list }: { list: GarmentList }) {
                 <React.Fragment key={person.id}>
                   <tr className="border-b border-border/60">
                     <td className="border-r border-border bg-background px-3 py-1.5 text-sm font-medium">
-                      {person.name || '—'}
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="truncate">{person.name || '—'}</span>
+                        {formatDate(person.createdAt) ? (
+                          <span className="truncate text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                            {formatDate(person.createdAt)}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="border-r border-border/50 px-1 py-1.5 text-center text-xs">
                       {person.jerseyName?.trim() || '—'}

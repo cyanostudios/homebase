@@ -143,6 +143,21 @@ describe('TaskList table view wiring', () => {
     expect(quickContextSrc).toMatch(/TaskDetailHeaderMenus/);
   });
 
+  test('share task is offered under Export without requiring panelMode view', () => {
+    const providerSrc = fs.readFileSync(
+      path.join(__dirname, '../../context/TaskProvider.tsx'),
+      'utf8',
+    );
+    const shareBlockSrc = fs.readFileSync(path.join(__dirname, '../TaskShareBlock.tsx'), 'utf8');
+    const shareActions = providerSrc.slice(
+      providerSrc.indexOf('const shareDetailActions = useMemo'),
+      providerSrc.indexOf('const getPanelSubtitle'),
+    );
+    expect(shareActions).not.toMatch(/panelMode !== 'view'/);
+    expect(shareActions).toMatch(/tasks\.shareTask/);
+    expect(shareBlockSrc).toMatch(/syncTaskShareForTask/);
+  });
+
   test('full view persists status priority and due date immediately', () => {
     expect(viewSrc).toMatch(/buildTaskListQuickFieldsSavePayload\(task, \{ status: newStatus \}/);
     expect(viewSrc).toMatch(
@@ -150,6 +165,16 @@ describe('TaskList table view wiring', () => {
     );
     expect(viewSrc).toMatch(/buildTaskListQuickFieldsSavePayload\(task, \{ dueDate: newDate \}/);
     expect(viewSrc).toMatch(/await saveTask\(/);
+  });
+
+  test('full view scopes quick-edit draft to the open task id', () => {
+    const providerSrc = fs.readFileSync(
+      path.join(__dirname, '../../context/TaskProvider.tsx'),
+      'utf8',
+    );
+    expect(viewSrc).toMatch(/quickEditFieldsForTask\(quickEditDraft, task\?\.id\)/);
+    expect(viewSrc).toMatch(/setQuickEditField\(task\.id, 'status'/);
+    expect(providerSrc).toMatch(/String\(prev\.taskId\) === String\(idToUpdate\)/);
   });
 
   test('full view shows status priority and due badges together', () => {

@@ -26,15 +26,25 @@ describe('CupView detail tab chips', () => {
     expect(viewSrc).toMatch(/'properties'/);
     expect(viewSrc).toMatch(/'ratings'/);
     expect(viewSrc).toMatch(/'ingest'/);
+    expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
     expect(viewSrc).toMatch(/activeTab === 'properties'/);
     expect(viewSrc).toMatch(/activeTab === 'ratings'/);
     expect(viewSrc).toMatch(/activeTab === 'ingest'/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
   });
 
   test('information section title uses i18n tab key', () => {
     expect(viewSrc).toMatch(/t\('cups\.tabs\.information'\)/);
     expect(viewSrc).not.toMatch(/title="Cup information"/);
+  });
+
+  test('activity tab renders DetailActivityLog when selected', () => {
+    expect(viewSrc).toMatch(/'activity'/);
+    expect(viewSrc).toMatch(/cups\.tabs\.activity/);
+    expect(viewSrc).toMatch(/DetailActivityLog/);
+    expect(viewSrc).toMatch(/entityType="cup"/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
   });
 });

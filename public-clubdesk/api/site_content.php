@@ -81,7 +81,7 @@ function publicClubdeskIsBlankHtml(string $html): bool
 try {
     $cacheTtl = (int) (getenv('APP_CACHE_TTL') ?: 0);
     $cacheEnabled = $cacheTtl > 0 && function_exists('apcu_fetch') && filter_var(ini_get('apc.enabled'), FILTER_VALIDATE_BOOLEAN);
-    $cacheKey = 'public_clubdesk_site_content_v1';
+    $cacheKey = 'public_clubdesk_site_content_v3';
 
     if ($cacheEnabled) {
         $cached = apcu_fetch($cacheKey, $ok);
@@ -97,7 +97,9 @@ try {
     $pdo = getPdoFromEnv();
     $payload = [
         'home' => ['contentHtml' => '', 'title' => ''],
-        'info' => ['contentHtml' => '', 'title' => ''],
+        'info' => ['contentHtml' => '', 'title' => '', 'visible' => true],
+        'contacts' => ['visible' => true],
+        'swish' => ['visible' => true],
     ];
 
     try {
@@ -105,10 +107,6 @@ try {
         $rows = $stmt->fetchAll();
         foreach ($rows as $row) {
             $key = (string) ($row['card_key'] ?? '');
-            if ($key !== 'home' && $key !== 'info') {
-                continue;
-            }
-            $sanitized = publicClubdeskSanitizeHtml((string) ($row['content'] ?? ''));
             $meta = $row['meta'] ?? null;
             if (is_string($meta)) {
                 $decoded = json_decode($meta, true);
@@ -117,9 +115,35 @@ try {
             if (!is_array($meta)) {
                 $meta = [];
             }
+
+            if ($key === 'contacts' || $key === 'swish') {
+                $visible = !array_key_exists('visible', $meta) || $meta['visible'] !== false;
+                $payload[$key] = ['visible' => $visible];
+                continue;
+            }
+
+            if ($key !== 'home' && $key !== 'info') {
+                continue;
+            }
+            $sanitized = publicClubdeskSanitizeHtml((string) ($row['content'] ?? ''));
             $title = trim(strip_tags(str_ireplace('&nbsp;', ' ', (string) ($meta['title'] ?? ''))));
             if (mb_strlen($title) > 255) {
                 $title = mb_substr($title, 0, 255);
+            }
+            if ($key === 'info') {
+                $visible = !array_key_exists('visible', $meta) || $meta['visible'] !== false;
+                $payload['info'] = $visible
+                    ? [
+                        'contentHtml' => publicClubdeskIsBlankHtml($sanitized) ? '' : $sanitized,
+                        'title' => $title,
+                        'visible' => true,
+                    ]
+                    : [
+                        'contentHtml' => '',
+                        'title' => '',
+                        'visible' => false,
+                    ];
+                continue;
             }
             $payload[$key] = [
                 'contentHtml' => publicClubdeskIsBlankHtml($sanitized) ? '' : $sanitized,

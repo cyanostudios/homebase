@@ -16,6 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
@@ -34,9 +36,14 @@ import type { IngestSource } from '../types/ingest';
 
 import { IngestSourceDetailHeaderMenus } from './IngestSourceDetailHeaderMenus';
 
-type IngestSourceViewTab = 'information' | 'excerpt' | 'runs';
+type IngestSourceViewTab = 'information' | 'excerpt' | 'runs' | 'activity';
 
-const INGEST_SOURCE_VIEW_TABS: IngestSourceViewTab[] = ['information', 'excerpt', 'runs'];
+const INGEST_SOURCE_VIEW_TABS: IngestSourceViewTab[] = [
+  'information',
+  'excerpt',
+  'runs',
+  'activity',
+];
 
 function parseIngestSourceViewTab(value: string | null): IngestSourceViewTab {
   if (value && INGEST_SOURCE_VIEW_TABS.includes(value as IngestSourceViewTab)) {
@@ -109,6 +116,12 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
         label: t('ingest.tabs.runs'),
         icon: History,
         count: runsCount,
+      },
+      {
+        id: 'activity' as const,
+        label: t('ingest.tabs.activity'),
+        icon: History,
+        count: null as number | null,
       },
     ],
     [runsCount, t],
@@ -320,6 +333,17 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
       {activeTab === 'information' ? informationCard : null}
       {activeTab === 'excerpt' ? excerptCard : null}
       {activeTab === 'runs' ? runsCard : null}
+      {activeTab === 'activity' ? (
+        <DetailActivityLog
+          entityType="ingest"
+          entityId={source.id}
+          limit={30}
+          title={t('ingest.activity')}
+          showClearButton
+          refreshKey={String(source.updatedAt ?? source.id)}
+          systemId={formatDisplayNumber('ingest', source.id)}
+        />
+      ) : null}
     </DetailLayout>
   );
 };

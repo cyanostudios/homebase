@@ -3,7 +3,7 @@ const { Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 const PUBLIC_CARD_KEYS = ['home', 'info'];
-const ALL_CARD_KEYS = ['home', 'info', 'swish'];
+const ALL_CARD_KEYS = ['home', 'info', 'contacts', 'swish'];
 const MAX_HTML_LENGTH = 100000;
 
 class SiteContentModel {
@@ -43,15 +43,15 @@ class SiteContentModel {
     const key = String(cardKey ?? '').trim();
     if (!ALL_CARD_KEYS.includes(key)) {
       throw new AppError('Invalid card key', 400, AppError.CODES.VALIDATION_ERROR, [
-        { field: 'cardKey', message: 'cardKey must be home, info, or swish' },
+        { field: 'cardKey', message: 'cardKey must be home, info, contacts, or swish' },
       ]);
     }
     return key;
   }
 
   normalizeContentForKey(cardKey, content) {
-    if (cardKey === 'swish') {
-      // Swish Type C data lives in clubdesk_swish_profiles — card is UI shell only.
+    if (cardKey === 'swish' || cardKey === 'contacts') {
+      // Profiles / contact rows live in dedicated tables — cards are visibility shells.
       return '';
     }
     const html = content == null ? '' : String(content);
@@ -64,11 +64,19 @@ class SiteContentModel {
   }
 
   /**
-   * Swish card no longer stores Type C fields (see swish profiles API).
-   * @returns {{}}
+   * Visibility-only meta for shell cards (contacts / swish).
+   * @returns {{ visible: boolean }}
    */
-  normalizeSwishMeta(_meta) {
-    return {};
+  normalizeVisibilityMeta(meta) {
+    if (meta == null) {
+      return { visible: true };
+    }
+    if (typeof meta !== 'object' || Array.isArray(meta)) {
+      throw new AppError('meta must be an object', 400, AppError.CODES.VALIDATION_ERROR, [
+        { field: 'meta', message: 'meta must be an object' },
+      ]);
+    }
+    return { visible: meta.visible !== false };
   }
 
   /**
@@ -76,8 +84,8 @@ class SiteContentModel {
    * @param {unknown} meta
    */
   normalizeMetaForKey(cardKey, meta) {
-    if (cardKey === 'swish') {
-      return this.normalizeSwishMeta(meta);
+    if (cardKey === 'swish' || cardKey === 'contacts') {
+      return this.normalizeVisibilityMeta(meta);
     }
 
     if (meta == null) {
@@ -94,14 +102,22 @@ class SiteContentModel {
         .replace(/<[^>]*>/g, '')
         .trim()
         .slice(0, 255);
-      return title ? { title } : {};
+      const out = {};
+      if (title) {
+        out.title = title;
+      }
+      // Info card: explicit public visibility (default true when omitted on read).
+      if (cardKey === 'info') {
+        out.visible = meta.visible !== false;
+      }
+      return out;
     }
 
     return {};
   }
 
   /**
-   * @returns {Promise<Record<'home'|'info'|'swish', object>>}
+   * @returns {Promise<Record<'home'|'info'|'contacts'|'swish', object>>}
    */
   async getAll(req) {
     const db = Database.get(req);
@@ -153,7 +169,7 @@ class SiteContentModel {
   }
 
   /**
-   * Batch upsert home / info / swish cards.
+   * Batch upsert home / info / contacts / swish cards.
    * @param {Array<{ cardKey: string, content?: string, meta?: object }>} cards
    */
   async upsertMany(req, cards) {

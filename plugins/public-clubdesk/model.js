@@ -341,7 +341,7 @@ class PublicClubdeskModel {
   }
 
   /**
-   * Public home + info cards only (never swish).
+   * Public home + info HTML, plus contacts/swish visibility flags.
    * @param {import('pg').Pool} pool
    * @param {number} ownerUserId
    */
@@ -351,20 +351,23 @@ class PublicClubdeskModel {
         SELECT card_key, content, meta
         FROM clubdesk_site_content
         WHERE user_id = $1
-          AND card_key IN ('home', 'info')
+          AND card_key IN ('home', 'info', 'contacts', 'swish')
       `,
       [ownerUserId],
     );
 
     const payload = {
       home: { contentHtml: '', title: '' },
-      info: { contentHtml: '', title: '' },
+      info: { contentHtml: '', title: '', visible: true },
+      contacts: { visible: true },
+      swish: { visible: true },
     };
+
+    const readVisible = (meta) =>
+      !(meta && typeof meta === 'object' && !Array.isArray(meta)) || meta.visible !== false;
 
     for (const row of result.rows) {
       const key = String(row.card_key);
-      if (key !== 'home' && key !== 'info') continue;
-      const sanitized = this.sanitizePublicHtml(row.content);
       let meta = row.meta;
       if (typeof meta === 'string') {
         try {
@@ -373,6 +376,14 @@ class PublicClubdeskModel {
           meta = {};
         }
       }
+
+      if (key === 'contacts' || key === 'swish') {
+        payload[key] = { visible: readVisible(meta) };
+        continue;
+      }
+      if (key !== 'home' && key !== 'info') continue;
+
+      const sanitized = this.sanitizePublicHtml(row.content);
       const rawTitle =
         meta && typeof meta === 'object' && !Array.isArray(meta) ? String(meta.title ?? '') : '';
       const title = rawTitle
@@ -380,6 +391,17 @@ class PublicClubdeskModel {
         .replace(/&nbsp;/gi, ' ')
         .trim()
         .slice(0, 255);
+      if (key === 'info') {
+        const visible = readVisible(meta);
+        payload.info = visible
+          ? {
+              contentHtml: this.isBlankHtml(sanitized) ? '' : sanitized,
+              title,
+              visible: true,
+            }
+          : { contentHtml: '', title: '', visible: false };
+        continue;
+      }
       payload[key] = {
         contentHtml: this.isBlankHtml(sanitized) ? '' : sanitized,
         title,

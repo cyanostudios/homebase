@@ -26,10 +26,12 @@ describe('IngestSourceView detail tab chips', () => {
     expect(viewSrc).toMatch(/'information'/);
     expect(viewSrc).toMatch(/'excerpt'/);
     expect(viewSrc).toMatch(/'runs'/);
+    expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
     expect(viewSrc).toMatch(/activeTab === 'excerpt'/);
     expect(viewSrc).toMatch(/activeTab === 'runs'/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
   });
 
   test('information section title uses i18n tab key', () => {
@@ -44,5 +46,13 @@ describe('IngestSourceView detail tab chips', () => {
   test('runs tab chip shows count when runs exist', () => {
     expect(viewSrc).toMatch(/runsCount/);
     expect(viewSrc).toMatch(/ingestRuns\.length > 0/);
+  });
+
+  test('activity tab renders DetailActivityLog when selected', () => {
+    expect(viewSrc).toMatch(/'activity'/);
+    expect(viewSrc).toMatch(/ingest\.tabs\.activity/);
+    expect(viewSrc).toMatch(/DetailActivityLog/);
+    expect(viewSrc).toMatch(/entityType="ingest"/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
   });
 });

@@ -4,6 +4,7 @@ const PublicClubdeskController = require('./controller');
 const config = require('./plugin.config');
 const ServiceManager = require('../../server/core/ServiceManager');
 const { publicEndpointLimiter } = require('../../server/core/middleware/rateLimit');
+const { resolvePublicClubdeskUserId } = require('./resolveOwner');
 
 /** @type {import('pg').Pool | null} */
 let cachedPool = null;
@@ -11,55 +12,6 @@ let cachedPool = null;
 let cachedOwnerUserId = null;
 /** @type {Promise<{ pool: import('pg').Pool, ownerUserId: number } | null> | null} */
 let poolInitPromise = null;
-
-/**
- * Which Homebase user's tenant DB the public clubdesk API reads.
- * Prefer explicit numeric id; otherwise resolve email on the main DB.
- * @returns {Promise<number | null>}
- */
-async function resolvePublicClubdeskUserId() {
-  const rawId = process.env.PUBLIC_CLUBDESK_USER_ID;
-  if (rawId && String(rawId).trim() !== '') {
-    const n = parseInt(String(rawId).trim(), 10);
-    if (!Number.isNaN(n) && n > 0) {
-      return n;
-    }
-  }
-
-  const email = process.env.PUBLIC_CLUBDESK_USER_EMAIL;
-  if (email && String(email).trim() !== '') {
-    try {
-      const main = ServiceManager.getMainPool();
-      if (!main) {
-        console.warn(
-          'public-clubdesk: ServiceManager.getMainPool() unavailable; cannot resolve email',
-        );
-        return null;
-      }
-      const { rows } = await main.query(
-        'SELECT id FROM users WHERE lower(email) = lower($1) LIMIT 1',
-        [String(email).trim()],
-      );
-      if (rows.length) {
-        const id = Number(rows[0].id);
-        if (Number.isFinite(id) && id > 0) {
-          console.log(
-            `public-clubdesk: resolved PUBLIC_CLUBDESK_USER_EMAIL=${String(email).trim()} → user_id=${id}`,
-          );
-          return id;
-        }
-      }
-      console.warn(
-        `public-clubdesk: no user found for PUBLIC_CLUBDESK_USER_EMAIL=${String(email).trim()}`,
-      );
-    } catch (e) {
-      console.error('public-clubdesk: email lookup failed', e?.message || e);
-    }
-    return null;
-  }
-
-  return null;
-}
 
 async function ensurePublicClubdeskPool() {
   if (cachedPool && cachedOwnerUserId) {
@@ -136,6 +88,7 @@ function initializePublicClubdeskPlugin(_context) {
   router.get('/price-lists', (req, res) => controller.listPriceLists(req, res));
   router.get('/price-lists/:slugOrId', (req, res) => controller.getPriceList(req, res));
   router.get('/site-content', (req, res) => controller.getSiteContent(req, res));
+  router.get('/branding', (req, res) => controller.getBranding(req, res));
 
   return {
     config,
@@ -157,3 +110,4 @@ function __resetPublicClubdeskPoolForTests() {
 module.exports = initializePublicClubdeskPlugin;
 module.exports.__resetPublicClubdeskPoolForTests = __resetPublicClubdeskPoolForTests;
 module.exports.shutdownPublicClubdeskPool = shutdownPublicClubdeskPool;
+module.exports.resolvePublicClubdeskUserId = resolvePublicClubdeskUserId;

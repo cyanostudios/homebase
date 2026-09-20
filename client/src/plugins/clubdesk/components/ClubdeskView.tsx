@@ -1,15 +1,30 @@
-import { ArrowDown, ArrowUp, Info, ListOrdered } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  FilePenLine,
+  History,
+  Info,
+  ListOrdered,
+  SlidersHorizontal,
+  Star,
+  Tag,
+} from 'lucide-react';
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router-dom';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { pathToNavPage } from '@/core/routing/routeMap';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { DetailHeaderMetaRow } from '@/core/ui/DetailHeaderMenus';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { RichTextContent } from '@/core/ui/RichTextContent';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import {
   DETAIL_EMPTY_STATE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
@@ -22,9 +37,10 @@ import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
 import { useClubdesk } from '../hooks/useClubdesk';
-import type { Clubdesk } from '../types/clubdesk';
+import type { Clubdesk, PublicationStatus } from '../types/clubdesk';
 
 import { ClubdeskDetailHeaderMenus } from './ClubdeskDetailHeaderMenus';
+import { ClubdeskPublicationPropertiesFields } from './ClubdeskPublicationPropertiesFields';
 import { PriceListView } from './PriceListView';
 
 interface ClubdeskViewProps {
@@ -42,9 +58,14 @@ export const ClubdeskView: React.FC<ClubdeskViewProps> = (props) => {
   return <ClubdeskGuideView {...props} />;
 };
 
-type ClubdeskGuideViewTab = 'information' | 'steps';
+type ClubdeskGuideViewTab = 'information' | 'properties' | 'steps' | 'activity';
 
-const CLUBDESK_GUIDE_VIEW_TABS: ClubdeskGuideViewTab[] = ['information', 'steps'];
+const CLUBDESK_GUIDE_VIEW_TABS: ClubdeskGuideViewTab[] = [
+  'information',
+  'properties',
+  'steps',
+  'activity',
+];
 
 function parseClubdeskGuideViewTab(value: string | null): ClubdeskGuideViewTab {
   if (value && CLUBDESK_GUIDE_VIEW_TABS.includes(value as ClubdeskGuideViewTab)) {
@@ -75,7 +96,13 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item, stacke
     },
     [setSearchParams],
   );
-  const { reorderClubdeskSteps, isSaving } = useClubdesk();
+  const {
+    reorderClubdeskSteps,
+    isSaving,
+    updateClubdeskPublicationStatus,
+    updateClubdeskFeatured,
+    validationErrors,
+  } = useClubdesk();
 
   const steps = viewItem?.steps || [];
   const stepsCount = steps.length > 0 ? steps.length : null;
@@ -89,10 +116,22 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item, stacke
         count: null as number | null,
       },
       {
+        id: 'properties' as const,
+        label: t('clubdesk.tabs.properties'),
+        icon: SlidersHorizontal,
+        count: null as number | null,
+      },
+      {
         id: 'steps' as const,
         label: t('clubdesk.tabs.steps'),
         icon: ListOrdered,
         count: stepsCount,
+      },
+      {
+        id: 'activity' as const,
+        label: t('clubdesk.tabs.activity'),
+        icon: History,
+        count: null as number | null,
       },
     ],
     [stepsCount, t],
@@ -129,11 +168,35 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item, stacke
     </div>
   );
 
+  const handlePublicationStatusChange = useCallback(
+    (status: PublicationStatus) => {
+      if (!viewItem) {
+        return;
+      }
+      void updateClubdeskPublicationStatus(viewItem, status);
+    },
+    [updateClubdeskPublicationStatus, viewItem],
+  );
+
+  const handleFeaturedChange = useCallback(
+    (featured: boolean) => {
+      if (!viewItem) {
+        return;
+      }
+      void updateClubdeskFeatured(viewItem, featured);
+    },
+    [updateClubdeskFeatured, viewItem],
+  );
+
   if (!viewItem) {
     return null;
   }
 
   const isPublished = viewItem.publicationStatus === 'published';
+  const isFeatured = viewItem.featured === true;
+  const blockingValidationErrors = validationErrors.filter(
+    (error) => !String(error.message || '').includes('Warning'),
+  );
 
   const titleLeading = (
     <div className="flex min-w-0 items-center gap-2">
@@ -157,27 +220,6 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item, stacke
         className="p-6"
         subtleTitle
       >
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <Badge
-            variant={isPublished ? 'default' : 'secondary'}
-            className={cn(
-              'text-[10px] font-extrabold',
-              isPublished &&
-                'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200',
-            )}
-          >
-            {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
-          </Badge>
-          {viewItem.category ? (
-            <Badge variant="outline" className="text-[10px] font-extrabold">
-              {viewItem.category}
-            </Badge>
-          ) : null}
-          {viewItem.slug ? (
-            <span className="font-mono text-xs text-muted-foreground">/{viewItem.slug}</span>
-          ) : null}
-        </div>
-
         {!isPublished ? (
           <div className={cn(DETAIL_NOTE_CALLOUT_CLASS, 'mb-3 text-xs text-muted-foreground')}>
             {t('clubdesk.notVisiblePublic')}
@@ -203,6 +245,43 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item, stacke
         )}
       </DetailSection>
     </Card>
+  );
+
+  const propertiesCard = (
+    <div className="space-y-4">
+      {blockingValidationErrors.length > 0 ? (
+        <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
+          <div className="text-sm font-medium text-destructive">{t('common.cannotSave')}</div>
+          <ul className="mt-2 list-inside list-disc text-sm text-destructive/90">
+            {blockingValidationErrors.map((error) => (
+              <li key={`${error.field}-${error.message}`}>{error.message}</li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('clubdesk.guideProperties')}
+          icon={SlidersHorizontal}
+          iconPlugin="clubdesk"
+          subtleTitle
+          className="p-6"
+        >
+          <ClubdeskPublicationPropertiesFields
+            values={{
+              publicationStatus: viewItem.publicationStatus,
+              featured: viewItem.featured === true,
+              slug: viewItem.slug,
+              category: viewItem.category,
+            }}
+            showCategory
+            onPublicationStatusChange={handlePublicationStatusChange}
+            onFeaturedChange={handleFeaturedChange}
+            disabled={isSaving}
+          />
+        </DetailSection>
+      </Card>
+    </div>
   );
 
   const stepsCard = (
@@ -276,11 +355,48 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item, stacke
       <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
         <div className="border-b border-border/50 px-4 py-5">
           <ClubdeskDetailHeaderMenus clubdesk={viewItem} leading={titleLeading} />
+          <DetailHeaderMetaRow>
+            {viewItem.slug ? (
+              <span className="min-w-0 font-mono text-xs text-muted-foreground">
+                /{viewItem.slug}
+              </span>
+            ) : null}
+            {viewItem.category ? (
+              <StatusOutlineBadge icon={Tag} className={QC_STATUS_BADGE_COLORS.neutral}>
+                {viewItem.category}
+              </StatusOutlineBadge>
+            ) : null}
+            <StatusOutlineBadge
+              icon={isPublished ? CheckCircle2 : FilePenLine}
+              className={
+                isPublished ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.muted
+              }
+            >
+              {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
+            </StatusOutlineBadge>
+            {isFeatured ? (
+              <StatusOutlineBadge icon={Star} className={QC_STATUS_BADGE_COLORS.success}>
+                {t('clubdesk.featuredShort')}
+              </StatusOutlineBadge>
+            ) : null}
+          </DetailHeaderMetaRow>
           <div className="mt-4">{tabChips}</div>
         </div>
       </Card>
       {activeTab === 'information' ? informationCard : null}
+      {activeTab === 'properties' ? propertiesCard : null}
       {activeTab === 'steps' ? stepsCard : null}
+      {activeTab === 'activity' ? (
+        <DetailActivityLog
+          entityType="clubdesk"
+          entityId={viewItem.id}
+          limit={30}
+          title={t('clubdesk.activity')}
+          showClearButton
+          refreshKey={String(viewItem.updatedAt ?? viewItem.id)}
+          systemId={formatDisplayNumber('clubdesk', viewItem.id)}
+        />
+      ) : null}
     </DetailLayout>
   );
 };

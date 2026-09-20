@@ -1,3 +1,4 @@
+import { Inbox } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -8,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BADGE_SELECT_TRIGGER_CLASS } from '@/core/ui/badgeStyles';
+import { BADGE_SELECT_ITEM_CLASS, BADGE_SELECT_TRIGGER_CLASS } from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 import { useRequests } from '../hooks/useRequests';
@@ -20,6 +21,21 @@ interface RequestTypeSelectProps {
   hideInlineLabel?: boolean;
   /** Smaller trigger for inline lists / quick context. */
   compact?: boolean;
+}
+
+function TypeLabel({ typeKey, compact = false }: { typeKey: string; compact?: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <span
+      className={cn(
+        'inline-flex min-w-0 items-center gap-1 truncate text-muted-foreground',
+        compact ? 'text-[10px]' : 'text-xs',
+      )}
+    >
+      <Inbox className={cn('shrink-0', compact ? 'size-3' : 'size-3.5')} aria-hidden />
+      <span className="min-w-0 truncate">{getTypeLabel(typeKey, t)}</span>
+    </span>
+  );
 }
 
 export function RequestTypeSelect({
@@ -49,19 +65,13 @@ export function RequestTypeSelect({
         )}
       >
         <SelectValue placeholder={t('requests.form.requestType')}>
-          <span className={cn('truncate font-extrabold', compact ? 'text-[10px]' : 'text-xs')}>
-            {getTypeLabel(request.requestType, t)}
-          </span>
+          <TypeLabel typeKey={request.requestType} compact={compact} />
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
         {options.map((typeKey) => (
-          <SelectItem
-            key={typeKey}
-            value={typeKey}
-            className="rounded-md py-2 text-xs focus:bg-accent"
-          >
-            {getTypeLabel(typeKey, t)}
+          <SelectItem key={typeKey} value={typeKey} className={BADGE_SELECT_ITEM_CLASS}>
+            <TypeLabel typeKey={typeKey} />
           </SelectItem>
         ))}
       </SelectContent>

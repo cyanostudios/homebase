@@ -69,12 +69,12 @@ describe('SiteContentModel', () => {
     );
   });
 
-  test('upsert swish forces empty content and ignores Type C meta', async () => {
+  test('upsert swish forces empty content and stores visible meta', async () => {
     const query = jest.fn().mockResolvedValue([
       {
         card_key: 'swish',
         content: '',
-        meta: {},
+        meta: { visible: true },
         updated_at: null,
       },
     ]);
@@ -87,9 +87,30 @@ describe('SiteContentModel', () => {
       meta: { payee: '070-123 45 67', amount: 100, message: 'Faktura 1' },
     });
     expect(card.content).toBe('');
-    expect(card.meta).toEqual({});
+    expect(card.meta).toEqual({ visible: true });
     expect(query.mock.calls[0][1][2]).toBe('');
-    expect(query.mock.calls[0][1][3]).toBe('{}');
+    expect(query.mock.calls[0][1][3]).toBe(JSON.stringify({ visible: true }));
+  });
+
+  test('upsert contacts stores visible false', async () => {
+    const query = jest.fn().mockResolvedValue([
+      {
+        card_key: 'contacts',
+        content: '',
+        meta: { visible: false },
+        updated_at: null,
+      },
+    ]);
+    Database.get.mockReturnValue({
+      getUserId: () => 7,
+      query,
+    });
+    const card = await model.upsert({}, 'contacts', {
+      content: 'ignored',
+      meta: { visible: false },
+    });
+    expect(card.content).toBe('');
+    expect(card.meta).toEqual({ visible: false });
   });
 
   test('upsertMany rejects duplicate cardKey', async () => {
@@ -113,7 +134,7 @@ describe('SiteContentModel', () => {
       {
         card_key: 'info',
         content: '<p>Body</p>',
-        meta: { title: 'Om appen' },
+        meta: { title: 'Om appen', visible: true },
         updated_at: null,
       },
     ]);
@@ -125,8 +146,29 @@ describe('SiteContentModel', () => {
       content: '<p>Body</p>',
       meta: { title: '  Om appen  ' },
     });
-    expect(card.meta).toEqual({ title: 'Om appen' });
-    expect(query.mock.calls[0][1][3]).toBe(JSON.stringify({ title: 'Om appen' }));
+    expect(card.meta).toEqual({ title: 'Om appen', visible: true });
+    expect(query.mock.calls[0][1][3]).toBe(JSON.stringify({ title: 'Om appen', visible: true }));
+  });
+
+  test('upsert info stores visible false in meta', async () => {
+    const query = jest.fn().mockResolvedValue([
+      {
+        card_key: 'info',
+        content: '<p>Body</p>',
+        meta: { title: 'Hemlig', visible: false },
+        updated_at: null,
+      },
+    ]);
+    Database.get.mockReturnValue({
+      getUserId: () => 7,
+      query,
+    });
+    const card = await model.upsert({}, 'info', {
+      content: '<p>Body</p>',
+      meta: { title: 'Hemlig', visible: false },
+    });
+    expect(card.meta).toEqual({ title: 'Hemlig', visible: false });
+    expect(query.mock.calls[0][1][3]).toBe(JSON.stringify({ title: 'Hemlig', visible: false }));
   });
 
   test('upsert home stores title in meta', async () => {

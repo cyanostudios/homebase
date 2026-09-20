@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
+import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 import { TASK_STATUS_COLORS, formatStatusForDisplay } from '@/plugins/tasks/types/tasks';
 
@@ -33,10 +34,7 @@ export function DashboardTasksWidget({ has, tasks }: DashboardDataProps) {
               <div className="flex min-w-0 items-center gap-2">
                 <Badge
                   variant="outline"
-                  className={cn(
-                    'h-5 shrink-0 px-1.5 text-[10px] font-extrabold',
-                    TASK_STATUS_COLORS[task.status],
-                  )}
+                  className={cn('shrink-0', BADGE_CHIP_CLASS, TASK_STATUS_COLORS[task.status])}
                 >
                   {formatStatusForDisplay(task.status)}
                 </Badge>

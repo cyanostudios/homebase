@@ -1,10 +1,10 @@
+import { AlertCircle, Calendar } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
 import type { Request } from '../types/requests';
@@ -69,15 +69,13 @@ export function RequestResponseDueControl({
 
   const control = (
     <div className={cn('flex flex-wrap items-center justify-end gap-2', compact && 'gap-1.5')}>
-      <Badge
-        variant="outline"
-        className={cn(
-          compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
-          RESPONSE_DUE_URGENCY_COLORS[urgency],
-        )}
+      <StatusOutlineBadge
+        icon={urgency === 'red' ? AlertCircle : Calendar}
+        compact={compact}
+        className={RESPONSE_DUE_URGENCY_COLORS[urgency]}
       >
         {statusLabel}
-      </Badge>
+      </StatusOutlineBadge>
       <div className="flex items-center gap-1">
         <Input
           type="number"

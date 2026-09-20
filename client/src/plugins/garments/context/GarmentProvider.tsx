@@ -380,10 +380,16 @@ export function GarmentProvider({
   }, [navigate]);
 
   const settingsReturnViewRef = useRef<'lists' | 'inventory'>('inventory');
+  const [settingsListsInitialListId, setSettingsListsInitialListId] = useState<string | null>(null);
 
   const openGarmentsSettings = useCallback(
-    (returnView: 'lists' | 'inventory' = 'inventory') => {
+    (returnView: 'lists' | 'inventory' = 'inventory', listId: string | null = null) => {
       settingsReturnViewRef.current = returnView;
+      setSettingsListsInitialListId(
+        returnView === 'lists' && listId != null && String(listId).trim() !== ''
+          ? String(listId)
+          : null,
+      );
       setRecentlyDuplicatedInventoryId(null);
       setRecentlyDuplicatedListId(null);
       setIsGarmentPanelOpen(false);
@@ -399,6 +405,7 @@ export function GarmentProvider({
   );
 
   const closeGarmentsSettingsView = useCallback(() => {
+    setSettingsListsInitialListId(null);
     setGarmentsContentView(settingsReturnViewRef.current);
   }, []);
 
@@ -924,14 +931,26 @@ export function GarmentProvider({
         const person = await garmentsApi.updatePerson(listId, personId, data);
         if (updateLocalState) {
           setCurrentGarment((prev) => {
-            if (!prev || prev.id !== listId || !prev.persons) {
+            if (!prev || String(prev.id) !== String(listId) || !prev.persons) {
               return prev;
             }
             return {
               ...prev,
-              persons: prev.persons.map((p) => (p.id === person.id ? person : p)),
+              persons: prev.persons.map((p) => (String(p.id) === String(person.id) ? person : p)),
             };
           });
+          // Soft preview reads persons from garmentLists — keep both in sync (same as ct-sizes).
+          setGarmentLists((prev) =>
+            prev.map((list) => {
+              if (String(list.id) !== String(listId) || !list.persons) {
+                return list;
+              }
+              return {
+                ...list,
+                persons: list.persons.map((p) => (String(p.id) === String(person.id) ? person : p)),
+              };
+            }),
+          );
         }
         return person;
       } catch (err) {
@@ -1354,6 +1373,7 @@ export function GarmentProvider({
       openGarmentsInventory,
       openGarmentsLists,
       openGarmentsSettings,
+      settingsListsInitialListId,
       closeGarmentsSettingsView,
       assignInventoryItemToList,
       unassignInventoryItemFromList,
@@ -1420,6 +1440,7 @@ export function GarmentProvider({
       openGarmentsInventory,
       openGarmentsLists,
       openGarmentsSettings,
+      settingsListsInitialListId,
       closeGarmentsSettingsView,
       assignInventoryItemToList,
       unassignInventoryItemFromList,

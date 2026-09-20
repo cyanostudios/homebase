@@ -24,6 +24,7 @@ import {
   CupIngestImportResultDialog,
   type CupIngestImportResultVariant,
 } from './CupIngestImportResultDialog';
+import { CupIngestImportProgressDialog } from './CupIngestImportProgressDialog';
 import { CupFallbackPhotosSettings } from './CupFallbackPhotosSettings';
 
 export type CupsSettingsCategory = 'appearance' | 'import';
@@ -59,6 +60,11 @@ export function CupsSettingsView({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{
+    label: string;
+    current: number;
+    total: number;
+  } | null>(null);
   const [importResultOpen, setImportResultOpen] = useState(false);
   const [importResult, setImportResult] = useState<{
     variant: CupIngestImportResultVariant;
@@ -186,7 +192,17 @@ export function CupsSettingsView({
     if (!allowedIngestSourceIds.length) {
       return;
     }
+    const total = allowedIngestSourceIds.length;
+    const labelFor = (sourceId: string) => {
+      const source = ingestSources.find((s) => String(s.id) === String(sourceId));
+      return source?.name || source?.sourceUrl || sourceId;
+    };
     setIsImporting(true);
+    setImportProgress({
+      label: labelFor(allowedIngestSourceIds[0]),
+      current: 1,
+      total,
+    });
     try {
       let totalParsed = 0;
       let totalCreated = 0;
@@ -197,7 +213,13 @@ export function CupsSettingsView({
       let totalHardDeleted = 0;
       const errors: string[] = [];
 
-      for (const sourceId of allowedIngestSourceIds) {
+      for (let i = 0; i < allowedIngestSourceIds.length; i += 1) {
+        const sourceId = allowedIngestSourceIds[i];
+        setImportProgress({
+          label: labelFor(sourceId),
+          current: i + 1,
+          total,
+        });
         try {
           const result = await importFromIngestSource(sourceId);
           totalParsed += result.parsed || 0;
@@ -236,8 +258,9 @@ export function CupsSettingsView({
       setImportResultOpen(true);
     } finally {
       setIsImporting(false);
+      setImportProgress(null);
     }
-  }, [allowedIngestSourceIds, importFromIngestSource]);
+  }, [allowedIngestSourceIds, importFromIngestSource, ingestSources]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">Loading settings...</div>;
@@ -385,6 +408,13 @@ export function CupsSettingsView({
           </DetailSection>
         )}
       </PluginSettingsPageShell>
+
+      <CupIngestImportProgressDialog
+        isOpen={isImporting}
+        sourceLabel={importProgress?.label}
+        current={importProgress?.current}
+        total={importProgress?.total}
+      />
 
       {importResult && (
         <CupIngestImportResultDialog

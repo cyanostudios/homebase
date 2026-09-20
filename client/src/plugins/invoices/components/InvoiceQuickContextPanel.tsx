@@ -5,6 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
+import {
+  DETAIL_HEADER_BELOW_MENUS_CLASS,
+  DETAIL_HEADER_CHIP_GAP_CLASS,
+} from '@/core/ui/DetailHeaderMenus';
 import { DETAIL_FIELD_VALUE_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
@@ -79,9 +83,9 @@ export function InvoiceQuickContextPanel({
         <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 font-mono')}>{numberLabel}</h3>
         <Badge
           className={cn(
+            'shrink-0',
             INVOICE_STATUS_BADGE_CLASS,
             INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
-            'h-5 shrink-0 px-1.5 py-0 text-[11px] font-normal leading-none',
           )}
         >
           {formatInvoiceStatusForDisplay(status)}
@@ -119,16 +123,23 @@ export function InvoiceQuickContextPanel({
     >
       <div className="border-b border-border/50 px-4 py-5">
         <InvoiceDetailHeaderMenus invoice={invoice} leading={titleLeading} />
+        {updatedLabel ? (
+          <div
+            className={cn(
+              DETAIL_HEADER_BELOW_MENUS_CLASS,
+              'flex min-w-0 flex-wrap items-center',
+              DETAIL_HEADER_CHIP_GAP_CLASS,
+            )}
+          >
+            <p className="min-w-0 text-xs text-muted-foreground">
+              {t('common.updated')} {updatedLabel}
+            </p>
+          </div>
+        ) : null}
         {headerBelow ? <div className="mt-4">{headerBelow}</div> : null}
       </div>
 
       <div className="space-y-4 px-4 py-4">
-        {updatedLabel ? (
-          <p className="text-xs text-muted-foreground">
-            {t('common.updated')} {updatedLabel}
-          </p>
-        ) : null}
-
         <div className="grid grid-cols-1 gap-y-3 md:grid-cols-2 md:gap-x-4">
           <div>
             <div className={FACT_LABEL_CLASS}>

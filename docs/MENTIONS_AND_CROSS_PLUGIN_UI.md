@@ -70,7 +70,7 @@ Used in view/detail panels to render text with mentions as clickable or grayed-o
 ## Plugin usage
 
 - **NoteForm / TaskForm:** Import `MentionTextarea` from `@/core/ui/MentionTextarea`. Use `value`, `onChange(value, mentions)`, and optional `placeholder` / `rows` / `className`. Store `mentions` with the entity (note/task).
-- **NoteView / TaskView:** Import `MentionContent` from `@/core/ui/MentionContent`. Pass `content`, `mentions` (e.g. `note.mentions` or `task.mentions`), and `onMentionClick`. The callback should refresh data if needed, fetch the contact, close the current panel, and open the contact view (e.g. using `useContacts().openContactForView`).
+- **NoteView / TaskView:** Import `RichTextContent` (mentions handled inside). Pass `content`, `mentions` (e.g. `note.mentions` or `task.mentions`), and `onMentionClick`. Prefer opening `ContactQuickInfoDialog` from the click handler; Open contact → close current panel and `navigate('/contacts/…')`.
 
 No plugin should implement its own mention input or rendering logic; use these core components only.
 
@@ -104,7 +104,7 @@ Name click on assignment rows (teams/tasks/slots/notes/estimates) opens `Assignm
 
 **Private contacts (PII):** For `contactType === 'private'`, ContactView/Form show **personal number** (not organization number); F-tax is hidden; tax rate is forced to `0` on save via `applyContactTypeFieldRules`. Personal number is tenant-visible PII by design.
 
-**Notes `NoteView`:** Full detail merges title/actions + rich content into one QuickContext card (`variant="full"` + children). Mentions render as a separate card under attachments (not in a sidebar). Name / `@`-mention opens shared `ContactQuickInfoDialog` (copy email/phone + Open contact → `navigate('/contacts/…')`). TeamView’s `ResponsibleContactDialog` wraps the same dialog. Attachments use shared `FileAttachmentsSection` when the files plugin is enabled.
+**Notes `NoteView`:** Full detail uses mail-layout QuickContext header (`headerBelow` URL tab chips) with tab panels for content, linked mentions, files (when enabled), and activity. Mentions render in the **Linked** tab. Name / `@`-mention opens shared `ContactQuickInfoDialog` (copy email/phone + Open contact → `navigate('/contacts/…')`). TeamView’s `ResponsibleContactDialog` wraps the same dialog. Attachments use shared `FileAttachmentsSection` on the **Files** tab when the files plugin is enabled.
 
 `SlotsProvider` syncs its list via `syncSharedSlots` whenever `slots` changes. **MatchView** reads related slots from `useSlotsContext().slots` filtered by `match_id` (no separate `GET /api/slots`).
 

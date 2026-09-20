@@ -1,4 +1,13 @@
-import { Download, Globe, Info, RotateCcw, SlidersHorizontal, Star, Trophy } from 'lucide-react';
+import {
+  Download,
+  Globe,
+  History,
+  Info,
+  RotateCcw,
+  SlidersHorizontal,
+  Star,
+  Trophy,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -6,6 +15,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
@@ -27,9 +38,9 @@ import { CupDetailHeaderMenus } from './CupDetailHeaderMenus';
 import { CupPropertiesFields } from './CupPropertiesFields';
 import { CupRatings } from './CupRatings';
 
-type CupViewTab = 'information' | 'properties' | 'ratings' | 'ingest';
+type CupViewTab = 'information' | 'properties' | 'ratings' | 'ingest' | 'activity';
 
-const CUP_VIEW_TABS: CupViewTab[] = ['information', 'properties', 'ratings', 'ingest'];
+const CUP_VIEW_TABS: CupViewTab[] = ['information', 'properties', 'ratings', 'ingest', 'activity'];
 
 function parseCupViewTab(value: string | null): CupViewTab {
   if (value && CUP_VIEW_TABS.includes(value as CupViewTab)) {
@@ -153,6 +164,12 @@ export function CupView({
         id: 'ingest' as const,
         label: t('cups.tabs.ingest'),
         icon: Download,
+        count: null as number | null,
+      },
+      {
+        id: 'activity' as const,
+        label: t('cups.tabs.activity'),
+        icon: History,
         count: null as number | null,
       },
     ],
@@ -386,6 +403,17 @@ export function CupView({
         {activeTab === 'properties' ? propertiesCard : null}
         {activeTab === 'ratings' ? <CupRatings cupId={current.id} /> : null}
         {activeTab === 'ingest' ? ingestCard : null}
+        {activeTab === 'activity' ? (
+          <DetailActivityLog
+            entityType="cup"
+            entityId={current.id}
+            limit={30}
+            title={t('cups.activity')}
+            showClearButton
+            refreshKey={String(current.updated_at ?? current.id)}
+            systemId={formatDisplayNumber('cups', current.id)}
+          />
+        ) : null}
       </DetailLayout>
       <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}

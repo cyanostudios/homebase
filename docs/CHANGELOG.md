@@ -4,6 +4,191 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-20 – Ghost fact fields in Contacts / Notes edit
+
+**Typ:** enhancement / UI  
+**Scope:** `formFieldStyles.ts` (`FORM_GHOST_*`), `ContactForm`, `NoteForm`, `RichTextEditor` (`variant="ghost"`), `DETAIL_FORM_TITLE_INPUT_CLASS` focus ring, view guide §3, design checklist, UX standards  
+**QA:** Scoped tests `formFieldStyles.test.js` + Contacts/Notes source checks. **Security:** N/A (chrome-only; no contenteditable / always-on-edit). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Detail create/edit fact fields in Contacts (and Notes title/body) use transparent **ghost** chrome matching view typography (`DETAIL_FIELD_VALUE_CLASS`) instead of compact muted `FORM_INPUT_CLASS` boxes. Filled tokens stay for settings and dense grids. Notes editor supports `variant="ghost"`. Explicit Edit + unsaved guard unchanged.
+
+---
+
+## 2026-09-20 – Clubdesk guides: Properties tab
+
+**Typ:** enhancement / UI  
+**Scope:** `ClubdeskView`, `ClubdeskPublicationPropertiesFields`, `clubdesk.tabs.properties` / `guideProperties` i18n  
+**QA:** Pending. **Security:** N/A (existing update APIs). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Guide full detail har en egen **Properties**-flik (`?tab=properties`) mellan Information och Steps. Där bor publiceringsstatus och featured (omedelbar save via befintliga provider-API:er), plus kategori och slug som läsrad. Featured-chip syns även i header-meta när utvald.
+
+---
+
+## 2026-09-20 – Clubdesk price lists: Properties tab
+
+**Typ:** enhancement / UI  
+**Scope:** `PriceListView`, `ClubdeskPublicationPropertiesFields`, `clubdesk.priceList.tabs.properties` i18n  
+**QA:** Pending. **Security:** N/A (existing update APIs). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Price list full detail speglar Guides: **Properties**-flik mellan Information och Items med publiceringsstatus, featured, valuta och slug. Valuta flyttad från Information-kortet. Featured-chip i header-meta när utvald.
+
+---
+
+## 2026-09-20 – Tasks: scope quick-edit draft by task id
+
+**Typ:** bugfix / UI  
+**Scope:** `taskListSave.ts` (`TaskQuickEditDraft.taskId`, `quickEditFieldsForTask`), `TaskProvider`, `TaskContext`, `TaskView`  
+**QA:** Godkänt (scoped 2026-09-20). **Security:** N/A (client draft only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Soft preview sparade en global `quickEditDraft` som inte rensades när `currentTask` saknades, så status/prio/due läckte till nästa valda task. Draft scopas nu med `taskId`; overlay appliceras bara vid match; draft rensas efter lyckad save även utan öppet panel.
+
+---
+
+## 2026-09-20 – Teams: remove Team details sidebar card
+
+**Typ:** UI polish  
+**Scope:** `TeamView`  
+**QA:** Godkänt (scoped 2026-09-20). **Security:** N/A. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Sidebar-kortet **Team details** / Lagdetaljer (åldersgrupp + spelformat) borttaget från full detail. Samma fakta syns redan i QuickContext header-meta under titeln.
+
+---
+
+## 2026-09-20 – Notes: URL tab chips on full detail
+
+**Typ:** enhancement / UI  
+**Scope:** `NoteView`, `NoteQuickContextPanel`, `notes.tabs.*` i18n, `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`, `MENTIONS_AND_CROSS_PLUGIN_UI.md`  
+**QA:** Godkänt (scoped 2026-09-20). **Security:** Godkänt / N/A för ny attackyta (UI-only; Gate 5 2026-09-20). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Notes full detail följer samma flikmönster som Tasks/Requests: chip-rad under QuickContext (`?tab=`), paneler för **Information** (innehåll + share), **Linked** (nämnda kontakter), **Files** (när files-plugin är på) och **Activity** (sista fliken). Content ligger inte längre som QC-`children`. **Supersedes** tidigare Notes-placering som Activity stack-kort (se restore-entry nedan).
+
+---
+
+## 2026-09-20 – DetailActivityLog: always expanded (no collapse)
+
+**Typ:** UI polish  
+**Scope:** `DetailActivityLog`  
+**QA:** Pending (carryover WT). **Security:** N/A. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Activity-kortet är alltid synligt (ingen Collapsible). `defaultOpen` borttaget. Activity visar även system-ID (t.ex. `TSK-12`) som tidigare låg på Information-kortet; created syns redan i loggraderna.
+
+---
+
+## 2026-09-20 – Detail views: restore Activity (tab or stack)
+
+**Typ:** enhancement / UI  
+**Scope:** `DetailActivityLog`, entity `*View` (tasks, contacts, requests, invoices, estimates, matches, teams, cups, ingest, clubdesk guides/price lists, notes, slots, instructions); `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`  
+**QA:** Pending (carryover WT; Notes-delen ingår i Notes tabs Godkänt 2026-09-20). **Security:** N/A (existing activity API). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Entity **Activity** är tillbaka på full detail view. Delad komponent: `client/src/core/ui/DetailActivityLog.tsx`. Plugins med URL-tabbar har **`activity` som sista chip** (`?tab=activity`) och visar loggen i tabpanelen. Plugins utan tabbar (slots, instructions) har `DetailActivityLog` som **stack-kort** i detail-kolumnen. **Notes** hade tillfälligt stack-kort vid restore; **superseded 2026-09-20** — Notes använder nu URL-tabbar (se Notes tabs-entry). System-**Informations**-kort (ID/Created/Updated) i layouten är fortfarande borttaget (Contacts-kanon). Formulär som redan hade sidebar-activity är oförändrade. Tidigare regel “inga DetailActivityLog på full view” är upphävd.
+
+---
+
+## 2026-09-20 – Tasks: restore Share in soft preview
+
+**Typ:** bugfix / UI  
+**Scope:** `TaskProvider` shareDetailActions, `TaskShareBlock`  
+**QA:** Pending (carryover WT). **Security:** N/A (existing share flow). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Share task försvann i mail-layout soft preview eftersom `exportShareActions` bara fylldes när `panelMode === 'view'`. Share under **Export** syns igen utan den gate; `TaskShareBlock` synkar aktiv länk per task-id.
+
+---
+
+## 2026-09-18 – Garments: list meta + restore table column toggles
+
+**Typ:** enhancement / UI  
+**Scope:** `GarmentListTable`, Lists/Inventory settings, person-matrix identity prefs, inventory `tableColumns`  
+**QA:** Pending. **Security:** N/A (UI prefs). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:**
+
+- **Listor-index:** Lag och personantal visas som meta under namnet (inte egna kolumner).
+- **Person-matris (tabellen i en lista):** Identity-växlar (Lag, tröjnamn, …) via `personMatrixIdentityByList` under Personkolumner. Från en öppen lista: **Personkolumner** i header-menyn öppnar samma inställning med listan förvald. Skapad-datum visas som meta under personnamnet; sortering via **Skapad** under Namn-rubriken (ingen egen kolumn).
+- **Lager:** Inställningar → Tabellkolumner återställd; `resolveVisibleInventoryTableColumns` läser prefs igen. Inventory↔list-koppling ägs per artikel (**Visa i listor**); samma växlar syns nu i inventory Quick Context (inte bara full vy/redigera).
+- **Person team:** `updatePerson` synkar även `garmentLists` (som ct-sizes) så Lag-kolumnen i soft preview behåller sparat lag; optimistic `patchPersonLocal` undviker snap-back.
+
+---
+
+## 2026-09-18 – Clubdesk badges as borderless text labels
+
+**Typ:** enhancement / UI  
+**Scope:** Clubdesk guides + price lists list/detail; Swish linked-list chips  
+**QA:** Pending. **Security:** N/A (UI tokens only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Clubdesk admin använder samma borderless status-labels som Tasks/Requests (`StatusOutlineBadge` + `QC_*`): publicerad/utkast med ikon, kategori som Tag-label. I guide-/prisliste-detail ligger status under rubriken (`DetailHeaderMetaRow`), inte i Informations-kortet. Publik Clubdesk har inga status-badges (oförändrad).
+
+---
+
+## 2026-09-18 – Matches API import progress dialog
+
+**Typ:** enhancement / UI  
+**Scope:** `MatchApiImportProgressDialog`, `MatchSettingsView`; i18n  
+**QA:** Approved 2026-09-18. **Security:** N/A (UI busy dialog). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Matches **Importera nu** visar samma typ av icke-stängbar progress-dialog som Cups ingest-import (spinner + “Importerar från …” + hint) medan Fogis API-importen körs.
+
+---
+
+## 2026-09-18 – Status badges as borderless text labels
+
+**Typ:** enhancement / UI  
+**Scope:** `badgeStyles.ts`, `StatusOutlineBadge`, Tasks/Requests/Teams/Matches QC + list badges; standards; PLUGIN_VIEW  
+**QA:** Approved 2026-09-18 (efter docs-sync rework). **Security:** N/A (UI tokens only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Status-/meta-badges är inline labels: Lucide-ikon + extrabold färgad text (`BADGE_CHIP_*` / `StatusOutlineBadge`) — **ingen** fill, border, fast höjd eller padding. Färger via `QC_*` / `DUE_DATE_*`. Select-triggers använder `BADGE_SELECT_TRIGGER_CLASS` (egen chrome; värde = samma ikon+label; `SelectValue` flex, ingen `line-clamp`). Meta-rad: typ/räknare/updated först, badges sist (`DetailHeaderMetaRow`).
+
+---
+
+## 2026-09-18 – Status tags (badges ≠ action pills) — superseded
+
+**Typ:** enhancement / UI differentiation (superseded same day by borderless text labels above)  
+**Scope:** `badgeStyles.ts`, `Badge` base, Tasks/Requests/Invoices/Estimates/Teams/Guides/Cups color maps; standards  
+**QA:** Approved 2026-09-18 (then revised). **Security:** N/A (UI tokens only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Tidigare status tags (`rounded-md`, soft `/10` fill + ring) ersattes samma dag av borderless text labels enligt ovan.
+
+---
+
+## 2026-09-18 – DetailHeaderMenus chip spacing (all plugins)
+
+**Typ:** enhancement / UI density  
+**Scope:** `DetailHeaderMenus`, plugin page header chrome, Tasks/Requests QC badge row; settings header submenu  
+**QA:** Approved 2026-09-18 (same WT pass). **Security:** N/A. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Enhetligt `gap-1.5` mellan Actions/Export-triggers, submenypiller och meta-badges (`DETAIL_HEADER_CHIP_GAP_CLASS` + `DETAIL_HEADER_BELOW_MENUS_CLASS`). Minskar tidigare `gap-2.5` / `gap-3 md:gap-5` / `gap-1`-mix. Meta-rad under Actions: typ/räknare/`Updated` först, **badges sist** (Tasks, Requests, Teams, Matches m.fl.).
+
+---
+
+## 2026-09-18 – Clubdesk Info: Om/About, view→edit, public visibility, Account Profile branding; Cups import progress
+
+**Typ:** enhancement / bugfix / public app + admin UI  
+**Scope:** Clubdesk Info (admin + `public-clubdesk` / `plugins/public-clubdesk`), Cups ingest progress dialog + settings scroll; i18n; README/ADR  
+**QA:** Approved 2026-09-18 (rework after 2026-09-17 Underkänt; badge/UI WT same day). **Security:** Approved 2026-09-18 (Gate 5 reaffirmerad samma dag) — residuals **BR-1** / **CACHE-1** for TPM at release; **IC-1** TPM-accepted 2026-09-17. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:**
+
+### Admin Clubdesk → Info
+
+- Nav-knappen heter **Info**; fliken/kortet i vyn heter **Om** (sv) / **About** (en) (`cards.info`); route/API-nyckel `info` oförändrad.
+- **Hem** och **Om** öppnas i view-läge med Actions → **Redigera** (Notes-mönster); Avbryt / flikbyte discardar osparade title/body-utkast; global `registerUnsavedChangesChecker('clubdesk-info')`.
+- **Visa i den publika appen** (`meta.visible`) på Om, Kontakt och Swish (batch-save via site-content).
+- **Bugfix:** save failade på alla Info-flikar — klienten batch-sparar `contacts`, men PUT `/site-content` validerade bara `home|info|swish` (max 3) och DB CHECK saknade `contacts`. Route tillåter nu 1–4 kort inkl. `contacts`; migration **161** + `npm run migrate:clubdesk-site-content-contacts-card`.
+
+### Publik app
+
+- Hem-rader respekterar `info` / `contacts` / `swish` `visible`.
+- När dold: SSR `/swish/` och `/kontakt/` visar tom “är dold”-yta utan payee/PII; `GET /api/info_contacts.php` → `items: []`; sitemap utelämnar `/info/` och `/swish/` när dolda; Om blankas i `site_content` (befintligt).
+- Header logo + namn från **Account Profile** (`tenants.organization`) via `GET /api/branding.php` (PHP: main-DB lokalt eller proxy `APP_HOMEBASE_API_URL`) och Node `GET /api/public/clubdesk/branding`.
+
+### Cups
+
+- Import visar icke-dismissible progress-dialog (`CupIngestImportProgressDialog`) från list + settings.
+- Settings/statistics scrollport under `contentOwnsScroll` (flex `min-h-0` + `overflow-y-auto`) — committad fix `ddbcfeaa` ingår i samma arbetsyta.
+
+**Kod (urval):** `ClubdeskInfoView.tsx`, `ClubdeskPublicVisibleSwitch.tsx`, `siteContentModel.js`, `publicAppCardVisible` / `swish.php` / `kontakt.php` / `info_contacts.php` / `sitemap.php`, `branding_helpers.php`, `plugins/public-clubdesk` branding + site-content visibility, `CupIngestImportProgressDialog.tsx`, `public-clubdesk/README.md`, ADR `CLUBDESK_PUBLIC_COMPANION.md`.
+
+**Begränsningar:** Prislista-cart-Swish (profilkopplad) styrs **inte** av site-content `swish.visible`. Branding-proxy kräver korrekt `APP_HOMEBASE_API_URL` + `PUBLIC_CLUBDESK_USER_ID` i prod. Residualer **BR-1** (ops URL), **CACHE-1** (APCu TTL efter hide), **IC-1** (tenant isolation) — se ADR.
+
 ## 2026-09-17 – Public Clubdesk installable PWA (no offline)
 
 **Typ:** enhancement / public app  

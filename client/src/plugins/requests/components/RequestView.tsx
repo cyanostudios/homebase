@@ -3,6 +3,7 @@ import {
   ClipboardList,
   ExternalLink,
   FileText,
+  History,
   Info,
   Mail,
   Phone,
@@ -20,6 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
@@ -78,9 +81,15 @@ interface RequestViewProps {
   stacked?: boolean;
 }
 
-type RequestViewTab = 'information' | 'properties' | 'assignees' | 'files';
+type RequestViewTab = 'information' | 'properties' | 'assignees' | 'files' | 'activity';
 
-const REQUEST_VIEW_TABS: RequestViewTab[] = ['information', 'properties', 'assignees', 'files'];
+const REQUEST_VIEW_TABS: RequestViewTab[] = [
+  'information',
+  'properties',
+  'assignees',
+  'files',
+  'activity',
+];
 
 function parseRequestViewTab(value: string | null): RequestViewTab {
   if (value && REQUEST_VIEW_TABS.includes(value as RequestViewTab)) {
@@ -253,6 +262,12 @@ export function RequestView({
         count: null,
       });
     }
+    next.push({
+      id: 'activity',
+      label: t('requests.tabs.activity'),
+      icon: History,
+      count: null,
+    });
     return next;
   }, [assigneeCount, hasFilesPlugin, t]);
 
@@ -585,6 +600,17 @@ export function RequestView({
           {activeTab === 'properties' ? propertiesCard : null}
           {activeTab === 'assignees' ? assigneesCard : null}
           {activeTab === 'files' ? filesCard : null}
+          {activeTab === 'activity' ? (
+            <DetailActivityLog
+              entityType="request"
+              entityId={request.id}
+              limit={30}
+              title={t('requests.activity')}
+              showClearButton
+              refreshKey={String(request.updated_at ?? request.id)}
+              systemId={formatDisplayNumber('requests', request.id)}
+            />
+          ) : null}
         </div>
       </DetailLayout>
 

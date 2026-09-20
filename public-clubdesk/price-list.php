@@ -5,6 +5,7 @@ require_once __DIR__ . '/api/pdo_env.php';
 require_once __DIR__ . '/api/db_helpers.php';
 require_once __DIR__ . '/api/security_headers.php';
 require_once __DIR__ . '/api/pwa_head.php';
+require_once __DIR__ . '/api/branding_helpers.php';
 applyPublicAppSecurityHeaders('html');
 
 function h(?string $value): string
@@ -205,6 +206,7 @@ foreach ($lines as $line) {
     <a class="skip-link" href="#main">Hoppa till innehåll</a>
 
     <div class="app-shell">
+<?php publicAppRenderTopBar(); ?>
 <?php if ($item && !$notFound): ?>
 <?php
     $listTitle = (string) ($item['name'] ?? 'Prislista');

@@ -1,11 +1,21 @@
-import { Circle, CheckCircle2, Clock, Flag, XCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  Calendar,
+  Circle,
+  CheckCircle2,
+  Clock,
+  Flag,
+  Minus,
+  XCircle,
+} from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
 
-import { Badge } from '@/components/ui/badge';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +37,30 @@ import {
   type TaskTableColumnId,
   resolveVisibleTaskTableColumns,
 } from '../utils/taskTableColumns';
+
+function taskStatusIcon(status: string) {
+  switch (status) {
+    case 'in progress':
+      return Clock;
+    case 'completed':
+      return CheckCircle2;
+    case 'cancelled':
+      return XCircle;
+    default:
+      return Circle;
+  }
+}
+
+function taskPriorityIcon(priority: string) {
+  switch (priority) {
+    case 'High':
+      return ArrowUp;
+    case 'Low':
+      return ArrowDown;
+    default:
+      return Minus;
+  }
+}
 
 /** SortableListTable field union — assignee/team are display-only (not sortable). */
 type TaskTableField = TaskSortField | 'assignedTo' | 'assignedTeam';
@@ -60,22 +94,9 @@ const TASK_STATUS_ICON_SHELL_CLASS: Record<TaskStatus, string> = {
 
 const TASK_PRIORITY_ICON_SHELL_CLASS: Record<TaskPriority, string> = {
   Low: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
-  Medium: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200',
+  Medium: 'bg-orange-100 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400',
   High: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
 };
-
-function taskStatusIcon(status: TaskStatus) {
-  switch (status) {
-    case 'in progress':
-      return Clock;
-    case 'completed':
-      return CheckCircle2;
-    case 'cancelled':
-      return XCircle;
-    default:
-      return Circle;
-  }
-}
 
 export function TaskListTable({
   tasks,
@@ -156,23 +177,24 @@ export function TaskListTable({
         field: 'status',
         header: t('tasks.propertyStatus'),
         cell: (task: Task) => (
-          <Badge
-            className={cn(
-              BADGE_CHIP_CLASS,
-              TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS],
-            )}
+          <StatusOutlineBadge
+            icon={taskStatusIcon(task.status)}
+            className={TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS]}
           >
             {formatStatusForDisplay(task.status)}
-          </Badge>
+          </StatusOutlineBadge>
         ),
       },
       priority: {
         field: 'priority',
         header: t('tasks.propertyPriority'),
         cell: (task: Task) => (
-          <Badge className={cn(BADGE_CHIP_CLASS, TASK_PRIORITY_COLORS[task.priority])}>
+          <StatusOutlineBadge
+            icon={taskPriorityIcon(task.priority)}
+            className={TASK_PRIORITY_COLORS[task.priority]}
+          >
             {task.priority}
-          </Badge>
+          </StatusOutlineBadge>
         ),
       },
       dueDate: {
@@ -195,10 +217,12 @@ export function TaskListTable({
               </span>
             );
           }
+          const DueIcon =
+            display.urgency === 'overdue' || display.urgency === 'today' ? AlertCircle : Calendar;
           return (
-            <Badge className={cn(BADGE_CHIP_COMPACT_CLASS, display.badgeClassName)}>
+            <StatusOutlineBadge icon={DueIcon} compact className={display.badgeClassName}>
               {display.text}
-            </Badge>
+            </StatusOutlineBadge>
           );
         },
       },

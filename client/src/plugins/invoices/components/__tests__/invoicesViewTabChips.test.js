@@ -27,10 +27,14 @@ describe('InvoicesView detail tab chips', () => {
     expect(viewSrc).toMatch(/'lines'/);
     expect(viewSrc).toMatch(/'payments'/);
     expect(viewSrc).toMatch(/'linked'/);
+    expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
     expect(viewSrc).toMatch(/activeTab === 'lines'/);
     expect(viewSrc).toMatch(/activeTab === 'payments'/);
     expect(viewSrc).toMatch(/activeTab === 'linked'/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
+    expect(viewSrc).toMatch(/DetailActivityLog/);
+    expect(viewSrc).toMatch(/entityType="invoice"/);
   });
 });

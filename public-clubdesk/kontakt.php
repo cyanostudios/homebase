@@ -5,6 +5,7 @@ require_once __DIR__ . '/api/pdo_env.php';
 require_once __DIR__ . '/api/db_helpers.php';
 require_once __DIR__ . '/api/security_headers.php';
 require_once __DIR__ . '/api/pwa_head.php';
+require_once __DIR__ . '/api/branding_helpers.php';
 applyPublicAppSecurityHeaders('html');
 
 function h(?string $value): string
@@ -41,13 +42,17 @@ function kontaktDisplayName(array $row): string
 $baseUrl = siteBaseUrl();
 $contacts = [];
 $loadError = false;
+$contactsVisible = true;
 
 try {
     $pdo = getPdoFromEnv();
-    $sql = publicAppInfoContactsSql($pdo);
-    if ($sql !== null) {
-        $stmt = $pdo->query($sql);
-        $contacts = $stmt->fetchAll();
+    $contactsVisible = publicAppCardVisible($pdo, 'contacts');
+    if ($contactsVisible) {
+        $sql = publicAppInfoContactsSql($pdo);
+        if ($sql !== null) {
+            $stmt = $pdo->query($sql);
+            $contacts = $stmt->fetchAll();
+        }
     }
 } catch (Throwable $e) {
     $loadError = true;
@@ -55,9 +60,11 @@ try {
 
 $hasContacts = count($contacts) > 0;
 $title = 'Kontakt';
-$description = $hasContacts
-    ? 'Kontaktpersoner för föreningen.'
-    : 'Inga kontakter publicerade ännu.';
+$description = !$contactsVisible
+    ? 'Kontaktsidan är dold.'
+    : ($hasContacts
+        ? 'Kontaktpersoner för föreningen.'
+        : 'Inga kontakter publicerade ännu.');
 $canonical = $baseUrl . '/kontakt/';
 
 $jsonLd = [
@@ -92,6 +99,7 @@ $jsonLd = [
     <a class="skip-link" href="#main">Hoppa till innehåll</a>
 
     <div class="app-shell app-shell--guide">
+<?php publicAppRenderTopBar(); ?>
       <header class="guide-header">
         <div class="guide-header__copy">
           <h1 class="guide-header__title"><?= h($title) ?></h1>
@@ -106,7 +114,9 @@ $jsonLd = [
 
       <main id="main" class="app-main no-scrollbar">
         <div class="home-sheet kontakt-sheet">
-<?php if ($loadError): ?>
+<?php if (!$contactsVisible): ?>
+          <div class="empty-state empty-state--inset">Kontakt är dold</div>
+<?php elseif ($loadError): ?>
           <div class="empty-state empty-state--inset">Kunde inte hämta kontakter just nu.</div>
 <?php elseif (!$hasContacts): ?>
           <div class="empty-state empty-state--inset">Inga kontakter är tillagda ännu.</div>

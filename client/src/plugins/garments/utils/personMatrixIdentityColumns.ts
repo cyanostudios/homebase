@@ -14,8 +14,8 @@ export type PersonMatrixIdentityColumnId = (typeof PERSON_MATRIX_IDENTITY_COLUMN
 const helpers = createTableColumnsHelpers({
   columnIds: PERSON_MATRIX_IDENTITY_COLUMN_IDS,
   requiredColumnId: 'name',
-  /** Team stays hidden; jersey name / initials / number are visible by default. */
-  defaultHidden: ['team'],
+  /** All identity columns visible by default (including team / jersey / initials / number). */
+  defaultHidden: [],
 });
 
 export const DEFAULT_PERSON_MATRIX_IDENTITY_COLUMNS = helpers.DEFAULT;
@@ -42,17 +42,19 @@ export function normalizePersonMatrixIdentityByList(raw: unknown): PersonMatrixI
   return result;
 }
 
-/** Always code defaults — identity column prefs were removed from settings. */
 export function resolveVisiblePersonMatrixIdentityColumns(
-  _settings: { personMatrixIdentityByList?: unknown } | null | undefined,
-  _listId: string,
+  settings: { personMatrixIdentityByList?: unknown } | null | undefined,
+  listId: string,
 ): PersonMatrixIdentityColumnId[] {
-  return helpers.resolveVisible(null);
+  const byList = normalizePersonMatrixIdentityByList(settings?.personMatrixIdentityByList);
+  const pref = normalizePersonMatrixIdentityColumns(byList[listId]);
+  return pref.order.filter((id) => !pref.hidden.includes(id));
 }
 
 export function getPersonMatrixIdentityPrefForList(
-  _settings: { personMatrixIdentityByList?: unknown } | null | undefined,
-  _listId: string,
+  settings: { personMatrixIdentityByList?: unknown } | null | undefined,
+  listId: string,
 ): PersonMatrixIdentityColumnsPref {
-  return normalizePersonMatrixIdentityColumns(null);
+  const byList = normalizePersonMatrixIdentityByList(settings?.personMatrixIdentityByList);
+  return normalizePersonMatrixIdentityColumns(byList[listId]);
 }

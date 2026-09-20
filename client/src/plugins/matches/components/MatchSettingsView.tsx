@@ -21,6 +21,8 @@ import { matchesApi } from '../api/matchesApi';
 import { MATCHES_SETTINGS_KEY } from '../utils/matchColumnCount';
 import { resolveMatchDefaultHomeTeam } from '../utils/matchDefaultHomeTeam';
 
+import { MatchApiImportProgressDialog } from './MatchApiImportProgressDialog';
+
 const DEFAULT_API_BASE_URL = 'https://forening-api.svenskfotboll.se';
 const MASKED_API_KEY = '••••••••';
 
@@ -32,6 +34,18 @@ interface MatchSettingsViewProps {
   /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
+}
+
+function importSourceLabelFromBaseUrl(baseUrl: string): string {
+  const trimmed = baseUrl.trim();
+  if (!trimmed) {
+    return '';
+  }
+  try {
+    return new URL(trimmed).host || trimmed;
+  } catch {
+    return trimmed;
+  }
 }
 
 export function MatchSettingsView({
@@ -55,6 +69,7 @@ export function MatchSettingsView({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgressLabel, setImportProgressLabel] = useState('');
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
@@ -136,6 +151,7 @@ export function MatchSettingsView({
 
   const handleImport = useCallback(async () => {
     setIsImporting(true);
+    setImportProgressLabel(importSourceLabelFromBaseUrl(apiBaseUrl || DEFAULT_API_BASE_URL));
     setImportMessage(null);
     setImportError(null);
     try {
@@ -153,90 +169,97 @@ export function MatchSettingsView({
       setImportError(t('matches.importError'));
     } finally {
       setIsImporting(false);
+      setImportProgressLabel('');
     }
-  }, [t]);
+  }, [apiBaseUrl, t]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('matches.loading')}</div>;
   }
 
   return (
-    <PluginSettingsPageShell
-      title={t('matches.settingsMatches')}
-      subtitle={t('matches.settingsSubtitle')}
-      categories={categories}
-      activeCategory={activeCategory}
-      onCategoryChange={(id) => setActiveCategory(id as MatchSettingsCategory)}
-      onClose={onClose}
-      onSave={isDirty ? () => void handleSave() : undefined}
-      isSaving={isSaving}
-      saveAction={
-        isDirty ? (
-          <SettingsHeaderSaveButton
-            onClick={() => void handleSave()}
-            isSaving={isSaving}
-            label={t('matches.save')}
-            savingLabel={t('matches.saving')}
-          />
-        ) : null
-      }
-    >
-      {activeCategory === 'api' && (
-        <DetailSection title={t('matches.apiSettings')} className="pt-0">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="matches-default-home-team">{t('matches.defaultHomeTeamLabel')}</Label>
-              <Input
-                id="matches-default-home-team"
-                value={defaultHomeTeam}
-                onChange={(e) => setDefaultHomeTeam(e.target.value)}
-                placeholder={t('matches.defaultHomeTeamPlaceholder')}
-                maxLength={255}
-                className={FORM_INPUT_CLASS}
-              />
-              <p className="text-sm text-muted-foreground">{t('matches.defaultHomeTeamHelp')}</p>
+    <>
+      <PluginSettingsPageShell
+        title={t('matches.settingsMatches')}
+        subtitle={t('matches.settingsSubtitle')}
+        categories={categories}
+        activeCategory={activeCategory}
+        onCategoryChange={(id) => setActiveCategory(id as MatchSettingsCategory)}
+        onClose={onClose}
+        onSave={isDirty ? () => void handleSave() : undefined}
+        isSaving={isSaving}
+        saveAction={
+          isDirty ? (
+            <SettingsHeaderSaveButton
+              onClick={() => void handleSave()}
+              isSaving={isSaving}
+              label={t('matches.save')}
+              savingLabel={t('matches.saving')}
+            />
+          ) : null
+        }
+      >
+        {activeCategory === 'api' && (
+          <DetailSection title={t('matches.apiSettings')} className="pt-0">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="matches-default-home-team">
+                  {t('matches.defaultHomeTeamLabel')}
+                </Label>
+                <Input
+                  id="matches-default-home-team"
+                  value={defaultHomeTeam}
+                  onChange={(e) => setDefaultHomeTeam(e.target.value)}
+                  placeholder={t('matches.defaultHomeTeamPlaceholder')}
+                  maxLength={255}
+                  className={FORM_INPUT_CLASS}
+                />
+                <p className="text-sm text-muted-foreground">{t('matches.defaultHomeTeamHelp')}</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="matches-api-base-url">{t('matches.apiBaseUrl')}</Label>
+                <Input
+                  id="matches-api-base-url"
+                  value={apiBaseUrl}
+                  onChange={(e) => setApiBaseUrl(e.target.value)}
+                  placeholder={DEFAULT_API_BASE_URL}
+                  className={FORM_INPUT_CLASS}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="matches-api-key">{t('matches.apiKey')}</Label>
+                <Input
+                  id="matches-api-key"
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={hasStoredApiKey ? MASKED_API_KEY : t('matches.apiKeyPlaceholder')}
+                  className={FORM_INPUT_CLASS}
+                />
+                <p className="text-xs text-muted-foreground">{t('matches.apiKeyHint')}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <RoundIconLabelButton
+                  type="button"
+                  icon={CloudDownload}
+                  label={isImporting ? t('matches.importing') : t('matches.importNow')}
+                  variant="secondary"
+                  size="xs"
+                  alwaysExpanded
+                  disabled={isImporting || !hasStoredApiKey}
+                  onClick={() => void handleImport()}
+                />
+              </div>
+              {importMessage ? (
+                <p className="text-sm text-emerald-700 dark:text-emerald-400">{importMessage}</p>
+              ) : null}
+              {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="matches-api-base-url">{t('matches.apiBaseUrl')}</Label>
-              <Input
-                id="matches-api-base-url"
-                value={apiBaseUrl}
-                onChange={(e) => setApiBaseUrl(e.target.value)}
-                placeholder={DEFAULT_API_BASE_URL}
-                className={FORM_INPUT_CLASS}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="matches-api-key">{t('matches.apiKey')}</Label>
-              <Input
-                id="matches-api-key"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={hasStoredApiKey ? MASKED_API_KEY : t('matches.apiKeyPlaceholder')}
-                className={FORM_INPUT_CLASS}
-              />
-              <p className="text-xs text-muted-foreground">{t('matches.apiKeyHint')}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <RoundIconLabelButton
-                type="button"
-                icon={CloudDownload}
-                label={isImporting ? t('matches.importing') : t('matches.importNow')}
-                variant="secondary"
-                size="xs"
-                alwaysExpanded
-                disabled={isImporting || !hasStoredApiKey}
-                onClick={() => void handleImport()}
-              />
-            </div>
-            {importMessage ? (
-              <p className="text-sm text-emerald-700 dark:text-emerald-400">{importMessage}</p>
-            ) : null}
-            {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
-          </div>
-        </DetailSection>
-      )}
-    </PluginSettingsPageShell>
+          </DetailSection>
+        )}
+      </PluginSettingsPageShell>
+
+      <MatchApiImportProgressDialog isOpen={isImporting} sourceLabel={importProgressLabel} />
+    </>
   );
 }

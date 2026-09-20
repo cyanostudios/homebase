@@ -1,4 +1,4 @@
-import { FileText, Info, Link2, SlidersHorizontal, Users } from 'lucide-react';
+import { FileText, History, Info, Link2, SlidersHorizontal, Users } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -6,6 +6,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
@@ -30,7 +32,7 @@ import {
 } from '@/plugins/contacts/types/contacts';
 
 import { useTasks } from '../hooks/useTasks';
-import { buildTaskListQuickFieldsSavePayload } from '../utils/taskListSave';
+import { buildTaskListQuickFieldsSavePayload, quickEditFieldsForTask } from '../utils/taskListSave';
 
 import { TaskAssignedTeamSelect } from './TaskAssignedTeamSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
@@ -46,9 +48,15 @@ interface TaskViewProps {
   stacked?: boolean;
 }
 
-type TaskViewTab = 'information' | 'properties' | 'assignees' | 'linked';
+type TaskViewTab = 'information' | 'properties' | 'assignees' | 'linked' | 'activity';
 
-const TASK_VIEW_TABS: TaskViewTab[] = ['information', 'properties', 'assignees', 'linked'];
+const TASK_VIEW_TABS: TaskViewTab[] = [
+  'information',
+  'properties',
+  'assignees',
+  'linked',
+  'activity',
+];
 
 function parseTaskViewTab(value: string | null): TaskViewTab {
   if (value && TASK_VIEW_TABS.includes(value as TaskViewTab)) {
@@ -117,36 +125,41 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
     setViewingContact(contact);
   };
 
+  // Only merge draft fields that belong to this task (soft preview shares one global draft).
+  const scopedQuickEdit = useMemo(
+    () => quickEditFieldsForTask(quickEditDraft, task?.id),
+    [quickEditDraft, task?.id],
+  );
+
+  const displayTask = React.useMemo(
+    () => (task ? { ...task, ...(scopedQuickEdit || {}) } : null),
+    [task, scopedQuickEdit],
+  );
+
   const handleStatusChange = async (newStatus: string) => {
     if (!task?.id) {
       return;
     }
-    setQuickEditField('status', newStatus);
+    setQuickEditField(task.id, 'status', newStatus);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
     await saveTask(
-      buildTaskListQuickFieldsSavePayload(task, { status: newStatus }, quickEditDraft),
+      buildTaskListQuickFieldsSavePayload(task, { status: newStatus }, scopedQuickEdit),
       task.id,
     );
   };
-
-  // Display task merges saved task with quick-edit draft (status, priority, dueDate, assignee)
-  const displayTask = React.useMemo(
-    () => (task ? { ...task, ...(quickEditDraft || {}) } : null),
-    [task, quickEditDraft],
-  );
 
   const handlePriorityChange = async (newPriority: string) => {
     if (!task?.id) {
       return;
     }
-    setQuickEditField('priority', newPriority);
+    setQuickEditField(task.id, 'priority', newPriority);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
     await saveTask(
-      buildTaskListQuickFieldsSavePayload(task, { priority: newPriority }, quickEditDraft),
+      buildTaskListQuickFieldsSavePayload(task, { priority: newPriority }, scopedQuickEdit),
       task.id,
     );
   };
@@ -155,12 +168,12 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
     if (!task?.id) {
       return;
     }
-    setQuickEditField('dueDate', newDate);
+    setQuickEditField(task.id, 'dueDate', newDate);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
     await saveTask(
-      buildTaskListQuickFieldsSavePayload(task, { dueDate: newDate }, quickEditDraft),
+      buildTaskListQuickFieldsSavePayload(task, { dueDate: newDate }, scopedQuickEdit),
       task.id,
     );
   };
@@ -170,12 +183,12 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
       return;
     }
     // Optimistic UI via draft; persist immediately (same as list status/priority).
-    setQuickEditField('assignedToIds', newAssigneeIds);
+    setQuickEditField(task.id, 'assignedToIds', newAssigneeIds);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
     await saveTask(
-      buildTaskListQuickFieldsSavePayload(task, { assignedToIds: newAssigneeIds }, quickEditDraft),
+      buildTaskListQuickFieldsSavePayload(task, { assignedToIds: newAssigneeIds }, scopedQuickEdit),
       task.id,
     );
   };
@@ -184,11 +197,11 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
     if (!task?.id) {
       return;
     }
-    setQuickEditField('teamId', teamId);
+    setQuickEditField(task.id, 'teamId', teamId);
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
-    await saveTask(buildTaskListQuickFieldsSavePayload(task, { teamId }, quickEditDraft), task.id);
+    await saveTask(buildTaskListQuickFieldsSavePayload(task, { teamId }, scopedQuickEdit), task.id);
   };
 
   const blockingValidationErrors = validationErrors.filter(
@@ -235,6 +248,12 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
         label: t('tasks.tabs.linked'),
         icon: Link2,
         count: uniqueMentions.length > 0 ? uniqueMentions.length : null,
+      },
+      {
+        id: 'activity' as const,
+        label: t('tasks.tabs.activity'),
+        icon: History,
+        count: null as number | null,
       },
     ],
     [assigneeCount, t, uniqueMentions.length],
@@ -425,6 +444,17 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
           {activeTab === 'properties' ? propertiesCard : null}
           {activeTab === 'assignees' ? assigneesCard : null}
           {activeTab === 'linked' ? linkedCard : null}
+          {activeTab === 'activity' ? (
+            <DetailActivityLog
+              entityType="task"
+              entityId={task.id}
+              limit={30}
+              title={t('tasks.activity')}
+              showClearButton
+              refreshKey={String(task.updatedAt ?? task.id)}
+              systemId={formatDisplayNumber('tasks', task.id)}
+            />
+          ) : null}
         </div>
       </DetailLayout>
 

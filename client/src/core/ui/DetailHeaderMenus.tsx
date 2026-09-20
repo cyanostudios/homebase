@@ -47,11 +47,68 @@ export type DetailHeaderMenusProps = {
   className?: string;
 };
 
+/**
+ * Shared chip rhythm for Actions/Export triggers, open submenu pills, and
+ * meta badges under the menus (Tasks/Requests QC). Keep these in sync.
+ */
+export const DETAIL_HEADER_CHIP_GAP_CLASS = 'gap-1.5';
+
+/** Vertical space from open submenu (or closed triggers) to the meta/badge row. */
+export const DETAIL_HEADER_BELOW_MENUS_CLASS = 'mt-1.5';
+
+/** Gap between meta-row items (updated / type / status badges). */
+export const DETAIL_HEADER_META_GAP_CLASS = 'gap-2';
+
+/** Middot between meta-row items. */
+export function DetailHeaderMetaDot() {
+  return (
+    <span className="select-none text-[10px] leading-none text-muted-foreground/50" aria-hidden>
+      ·
+    </span>
+  );
+}
+
+/**
+ * Meta row under Actions: updated/type first, badges last, with middot separators.
+ * Null/false children are skipped.
+ */
+export function DetailHeaderMetaRow({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const items = React.Children.toArray(children);
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className={cn(
+        DETAIL_HEADER_BELOW_MENUS_CLASS,
+        'flex min-w-0 flex-wrap items-center',
+        DETAIL_HEADER_META_GAP_CLASS,
+        className,
+      )}
+    >
+      {items.map((child, index) => (
+        <React.Fragment key={index}>
+          {index > 0 ? <DetailHeaderMetaDot /> : null}
+          {child}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
 const DETAIL_HEADER_TRIGGER_ROW_CLASS =
   // py/pr keep absolute count badges inside the scrollport (overflow-x-auto forces y-clip).
-  'flex shrink-0 items-center gap-2.5 overflow-x-auto py-1.5 pr-1.5 no-scrollbar scroll-smooth';
+  `flex shrink-0 items-center ${DETAIL_HEADER_CHIP_GAP_CLASS} overflow-x-auto py-1.5 pr-1.5 no-scrollbar scroll-smooth`;
 
-const DETAIL_HEADER_SUBMENU_CLASS = 'flex min-w-0 flex-wrap items-center justify-end gap-1';
+const DETAIL_HEADER_SUBMENU_CLASS = `flex min-w-0 flex-wrap items-center justify-end ${DETAIL_HEADER_CHIP_GAP_CLASS}`;
 
 function DetailHeaderActionPills({ actions }: { actions: DetailHeaderMenuAction[] }) {
   return (
@@ -138,7 +195,7 @@ export function DetailHeaderMenus({
 
   return (
     <>
-      <div className={cn('flex min-w-0 flex-col gap-3 md:gap-5', className)}>
+      <div className={cn('flex min-w-0 flex-col', DETAIL_HEADER_CHIP_GAP_CLASS, className)}>
         <div className="flex min-w-0 items-center gap-3">
           {leading ? <div className="min-w-0 flex-1">{leading}</div> : null}
           <div className={DETAIL_HEADER_TRIGGER_ROW_CLASS}>

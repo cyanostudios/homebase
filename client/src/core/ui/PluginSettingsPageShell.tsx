@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
+import { DETAIL_HEADER_CHIP_GAP_CLASS } from '@/core/ui/DetailHeaderMenus';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { useMobileBarOverride } from '@/core/ui/MobileActionsContext';
 import {
@@ -129,7 +130,7 @@ export function PluginSettingsPageShell({
   return (
     <div className={cn('space-y-4', className)}>
       <div className={PLUGIN_PAGE_HEADER_CLASS}>
-        <div className="flex min-w-0 flex-1 flex-col md:gap-5">
+        <div className={cn('flex min-w-0 flex-1 flex-col', DETAIL_HEADER_CHIP_GAP_CLASS)}>
           <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
             <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{title}</h2>
             {showCategoryButtons
@@ -151,7 +152,11 @@ export function PluginSettingsPageShell({
               : null}
           </div>
           {headerSubmenu ? (
-            <div className="flex min-w-0 flex-wrap items-center gap-1">{headerSubmenu}</div>
+            <div
+              className={cn('flex min-w-0 flex-wrap items-center', DETAIL_HEADER_CHIP_GAP_CLASS)}
+            >
+              {headerSubmenu}
+            </div>
           ) : null}
         </div>
         {showHeaderActions ? (

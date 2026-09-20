@@ -3,6 +3,10 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
+import {
+  DETAIL_HEADER_BELOW_MENUS_CLASS,
+  DETAIL_HEADER_CHIP_GAP_CLASS,
+} from '@/core/ui/DetailHeaderMenus';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
@@ -16,6 +20,15 @@ import { FileDetailHeaderMenus } from './FileDetailHeaderMenus';
 
 export function FileQuickContextPanel({ file }: { file: FileItem }) {
   const { t } = useTranslation();
+  const updatedLabel = file.updatedAt
+    ? new Date(file.updatedAt).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
 
   const titleLeading = (
     <div className="flex min-w-0 items-center gap-2">
@@ -35,6 +48,19 @@ export function FileQuickContextPanel({ file }: { file: FileItem }) {
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
       <div className="border-b border-border/50 px-4 py-3">
         <FileDetailHeaderMenus file={file} leading={titleLeading} />
+        {updatedLabel ? (
+          <div
+            className={cn(
+              DETAIL_HEADER_BELOW_MENUS_CLASS,
+              'flex min-w-0 flex-wrap items-center',
+              DETAIL_HEADER_CHIP_GAP_CLASS,
+            )}
+          >
+            <p className="min-w-0 text-xs text-muted-foreground">
+              {t('common.updated')} {updatedLabel}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <div className="min-w-0 space-y-4 overflow-x-hidden px-4 py-4">

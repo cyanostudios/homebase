@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, Plus, Search, Trash2, User } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Plus, Search, Trash2, User, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -26,6 +26,8 @@ import type { Contact } from '@/plugins/contacts/types/contacts';
 import { clubdeskApi } from '../api/clubdeskApi';
 import type { ClubdeskInfoContact } from '../types/infoContact';
 
+import { ClubdeskPublicVisibleSwitch } from './ClubdeskPublicVisibleSwitch';
+
 type ApiErr = { message?: string; errors?: Array<{ field?: string; message?: string }> };
 
 function formatApiError(err: unknown, fallback: string): string {
@@ -40,7 +42,17 @@ function contactLabel(c: Pick<Contact, 'id' | 'companyName' | 'email' | 'phone'>
   return (c.companyName || '').trim() || `Kontakt ${c.id}`;
 }
 
-export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) {
+type ClubdeskInfoContactsPanelProps = {
+  disabled?: boolean;
+  publicVisible?: boolean;
+  onPublicVisibleChange?: (next: boolean) => void;
+};
+
+export function ClubdeskInfoContactsPanel({
+  disabled,
+  publicVisible = true,
+  onPublicVisibleChange,
+}: ClubdeskInfoContactsPanelProps) {
   const { t } = useTranslation();
   const [rows, setRows] = useState<ClubdeskInfoContact[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -204,7 +216,20 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
   return (
     <DetailSection
       title={t('clubdesk.siteContent.cards.contacts')}
+      icon={Users}
+      iconPlugin="clubdesk"
       className="pt-0"
+      subtleTitle
+      titleAside={
+        onPublicVisibleChange ? (
+          <ClubdeskPublicVisibleSwitch
+            id="clubdesk-contacts-visible"
+            checked={publicVisible}
+            onCheckedChange={onPublicVisibleChange}
+            disabled={disabled || isLoading}
+          />
+        ) : null
+      }
       action={
         <RoundIconLabelButton
           type="button"
@@ -218,7 +243,6 @@ export function ClubdeskInfoContactsPanel({ disabled }: { disabled?: boolean }) 
         />
       }
     >
-      <p className="text-sm text-muted-foreground">{t('clubdesk.infoContacts.help')}</p>
       {errorMessage ? (
         <p className="text-sm text-destructive" role="alert">
           {errorMessage}
