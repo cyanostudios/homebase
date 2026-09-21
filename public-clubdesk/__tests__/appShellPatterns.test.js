@@ -315,6 +315,8 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(fs.existsSync(path.join(root, 'icons/icon-192.png'))).toBe(true);
     expect(fs.existsSync(path.join(root, 'icons/icon-512.png'))).toBe(true);
     expect(fs.existsSync(path.join(root, 'icons/apple-touch-icon.png'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'icons/favicon-32.png'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'icons/favicon-48.png'))).toBe(true);
     expect(fs.existsSync(path.join(root, 'favicon.svg'))).toBe(true);
 
     for (const surface of [html, guide, priceList, swish, kontakt]) {
@@ -326,6 +328,7 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(html).toMatch(/manifest\.webmanifest/);
     expect(html).toMatch(/theme-color/);
     expect(html).toMatch(/apple-touch-icon/);
+    expect(html).toMatch(/favicon-32\.png/);
     expect(html).toMatch(/#7c3bed/);
 
     for (const surface of [guide, priceList, swish, kontakt]) {
@@ -337,6 +340,7 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(pwaHead).toMatch(/manifest\.webmanifest/);
     expect(pwaHead).toMatch(/theme-color/);
     expect(pwaHead).toMatch(/apple-touch-icon/);
+    expect(pwaHead).toMatch(/favicon-32\.png/);
     expect(pwaHead).toMatch(/#7c3bed/);
     expect(pwaHead).toMatch(/publicClubdeskPwaHeadTags/);
     expect(pwaHead).not.toMatch(/serviceWorker/);

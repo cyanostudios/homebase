@@ -2,9 +2,9 @@
 	root * /app
 	encode gzip
 
-	# Browsers request /favicon.ico; keep SPA fallback from serving index.html as the icon.
+	# Browsers request /favicon.ico; prefer PNG so tabs show the mark reliably.
 	handle /favicon.ico {
-		redir /favicon.svg permanent
+		redir /icons/favicon-32.png permanent
 	}
 
 	# Guide SSR — /guide/:slug

@@ -57,7 +57,7 @@ Installerbar utan offline-cache (ingen service worker):
 | ----------- | --------------------------------------------------------------------------- |
 | Manifest    | `/manifest.webmanifest` (`display: standalone`, `start_url: /`)             |
 | Icons       | `/icons/icon-192.png`, `/icons/icon-512.png`, `/icons/apple-touch-icon.png` |
-| Favicon     | `/favicon.svg` (`/favicon.ico` → 301)                                       |
+| Favicon     | `/favicon.svg` + PNG `/icons/favicon-32.png` ( `/favicon.ico` → PNG )       |
 | Shared meta | `api/pwa_head.php` on SSR pages; same tags in `index.html`                  |
 
 Theme color `#7c3bed` matches CSS `--brand`. Chrome/Safari: **Lägg till på hemskärmen** på `http://localhost:3011` (HTTP OK lokalt; prod kräver HTTPS).
