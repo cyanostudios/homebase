@@ -111,7 +111,7 @@ export const InstructionList: React.FC = () => {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openInstructionPanel(null)),
-    onSettings: () => openInstructionSettings(),
+    onSettings: () => attemptNavigation(() => openInstructionSettings()),
   });
 
   const { searchTerm, setSearchTerm } = usePersistedListSearch('instructions');
@@ -323,7 +323,7 @@ export const InstructionList: React.FC = () => {
                     icon={Settings}
                     label={t('common.settings')}
                     variant="soft"
-                    onClick={() => openInstructionSettings()}
+                    onClick={() => attemptNavigation(() => openInstructionSettings())}
                   />
                   {sortedInstructions.length > 0 ? (
                     selectionMode ? (

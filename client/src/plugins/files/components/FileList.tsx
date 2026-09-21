@@ -127,7 +127,7 @@ export const FileList: React.FC = () => {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openFilePanel(null)),
-    onSettings: () => openFileSettings(),
+    onSettings: () => attemptNavigation(() => openFileSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -682,7 +682,7 @@ export const FileList: React.FC = () => {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={() => openFileSettings()}
+                      onClick={() => attemptNavigation(() => openFileSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle

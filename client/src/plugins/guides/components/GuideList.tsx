@@ -95,7 +95,7 @@ export const GuideList: React.FC = () => {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openGuidePanel(null)),
-    onSettings: () => openGuideSettings(),
+    onSettings: () => attemptNavigation(() => openGuideSettings()),
   });
 
   const { searchTerm, setSearchTerm } = usePersistedListSearch('guides');
@@ -297,7 +297,7 @@ export const GuideList: React.FC = () => {
                     icon={Settings}
                     label={t('common.settings')}
                     variant="soft"
-                    onClick={() => openGuideSettings()}
+                    onClick={() => attemptNavigation(() => openGuideSettings())}
                   />
                   {filteredAndSorted.length > 0 ? (
                     selectionMode ? (

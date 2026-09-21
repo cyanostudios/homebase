@@ -27,6 +27,9 @@ describe('ghost fact-field edit chrome (Contacts + Notes)', () => {
     expect(contactForm).not.toMatch(/\bFORM_INPUT_CLASS\b/);
     expect(contactForm).not.toMatch(/\bFORM_PROP_CONTROL_CLASS\b/);
     expect(contactForm).toMatch(/DETAIL_FORM_TITLE_INPUT_CLASS/);
+    expect(contactForm).toMatch(/bg-muted\/40|FORM_FIELD_GHOST_CHROME|FORM_GHOST_INPUT_CLASS/);
+    expect(contactForm).toMatch(/syncNotesTextareaHeight/);
+    expect(contactForm).toMatch(/syncTextareaHeight/);
   });
 
   test('NoteForm uses title token + ghost rich text, not filled title input', () => {

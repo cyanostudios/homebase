@@ -20,6 +20,7 @@ import {
 import {
   BADGE_CHIP_CLASS,
   BADGE_SELECT_ITEM_CLASS,
+  BADGE_SELECT_TRIGGER_CLASS,
   QC_INVOICE_STATUS_BADGE_COLORS,
 } from '@/core/ui/badgeStyles';
 import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
@@ -78,8 +79,6 @@ interface InvoiceStatusSelectProps {
   hideInlineLabel?: boolean;
   /** Smaller trigger for inline lists. */
   compact?: boolean;
-  /** Prototype: borderless muted control (invoice edit properties). */
-  filled?: boolean;
 }
 
 export function InvoiceStatusSelect({
@@ -87,7 +86,6 @@ export function InvoiceStatusSelect({
   onStatusChange,
   hideInlineLabel = false,
   compact = false,
-  filled = false,
 }: InvoiceStatusSelectProps) {
   const status = invoice.status || 'draft';
   const StatusIcon = invoiceStatusIcon(status);
@@ -96,11 +94,8 @@ export function InvoiceStatusSelect({
     <Select value={status} onValueChange={onStatusChange}>
       <SelectTrigger
         className={cn(
-          'rounded-md px-2 text-xs shadow-none transition-colors',
-          filled
-            ? 'h-7 w-[180px] border-0 bg-muted hover:bg-muted/80 focus:ring-1 focus:ring-ring focus:ring-offset-0'
-            : 'border-border/50 bg-background hover:bg-accent/50',
-          !filled && (compact ? 'h-8 min-h-8 w-[130px] sm:h-7' : 'h-9 w-[180px]'),
+          BADGE_SELECT_TRIGGER_CLASS,
+          compact ? 'h-7 w-[130px]' : 'h-9 w-full sm:w-[180px]',
         )}
       >
         <SelectValue placeholder="Select status">

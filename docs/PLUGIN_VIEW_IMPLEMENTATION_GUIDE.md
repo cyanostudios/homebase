@@ -338,14 +338,20 @@ Sidebar spacing: `space-y-4` (Contacts/inventory) or `space-y-6` — stay consis
 
 Two families — do **not** replace one with the other globally:
 
-| Family                     | When                                                                                                                                                                                                         | Tokens                                                                                                                                         |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Ghost** (view-matched)   | Plugin **detail** create/edit **fact fields** (label + value grids that mirror `*View`) — Contacts canonical; Notes title uses `DETAIL_FORM_TITLE_INPUT_CLASS`, body editor `RichTextEditor variant="ghost"` | `FORM_GHOST_INPUT_CLASS`, `FORM_GHOST_SELECT_CLASS`, `FORM_GHOST_PROP_CONTROL_CLASS`, `FORM_GHOST_TEXTAREA_CLASS`, `FORM_GHOST_READONLY_CLASS` |
-| **Filled** (compact muted) | Plugin **settings**, **dense** in-plugin editors (invoice lines, PersonMatrix, inventory steppers), and plugins not yet migrated to ghost                                                                    | `FORM_INPUT_CLASS`, `FORM_PROP_CONTROL_CLASS`, `FORM_TEXTAREA_CLASS`, `FORM_COMPACT_*`                                                         |
+| Family                     | When                                                                                                                                                                                                                               | Tokens                                                                                                                                         |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ghost** (view-matched)   | Plugin **detail** create/edit **fact fields** (label + value grids that mirror `*View`) — Contacts canonical; Notes/Tasks title + `RichTextEditor variant="ghost"`; Requests/Tasks ghost textareas via `FORM_GHOST_TEXTAREA_CLASS` | `FORM_GHOST_INPUT_CLASS`, `FORM_GHOST_SELECT_CLASS`, `FORM_GHOST_PROP_CONTROL_CLASS`, `FORM_GHOST_TEXTAREA_CLASS`, `FORM_GHOST_READONLY_CLASS` |
+| **Filled** (compact muted) | Plugin **settings**, **dense** in-plugin editors (invoice lines, PersonMatrix, inventory steppers), and plugins not yet migrated to ghost                                                                                          | `FORM_INPUT_CLASS`, `FORM_PROP_CONTROL_CLASS`, `FORM_TEXTAREA_CLASS`, `FORM_COMPACT_*`                                                         |
 
 Do **not** change shadcn `Input` / `Textarea` / `NativeSelect` defaults — apply tokens via `className`. Do **not** change `FORM_INPUT_CLASS` to look like ghost (would regress settings / matrices).
 
-**Ghost rules:** typography matches `DETAIL_FIELD_VALUE_CLASS` (`text-base font-extrabold`); transparent (no `bg-muted` box); **visible focus ring** (WCAG); empty fields keep placeholders; validation via `FORM_INPUT_ERROR_CLASS` (ring). Selects keep a visible chevron/affordance. No autosize-on-keystroke, no contenteditable for fact fields, no always-on-edit.
+**Ghost rules:** typography matches `DETAIL_FIELD_VALUE_CLASS` (`text-base font-extrabold`) for **single-line** fact inputs/selects; **soft light-blue idle surface** (`bg-primary/10`) so edit mode is visible without compact filled chrome; **visible focus ring** (WCAG); empty fields keep placeholders; validation via `FORM_INPUT_ERROR_CLASS` (ring). Selects keep a visible chevron/affordance. Hero title and Notes/Tasks `RichTextEditor variant="ghost"` use the same soft idle surface. Multi-line ghost textareas (`FORM_GHOST_TEXTAREA_CLASS`) use **normal** `text-sm` weight (like view body/description), with `field-sizing-content` / height sync so the control **grows with text** (no inner scroll). No contenteditable for fact fields, no always-on-edit.
+
+**Contacts create/edit tabs:** `ContactForm` uses the **same URL `?tab=` shell** as `ContactView` (`information` | `addresses` | `persons` | `linked` | `activity`). Properties is **not** a separate chip — it is card #2 on the Information tab (below the main info card). Legacy `?tab=properties` maps to `information`. View→Edit preserves the active tab when it is editable (`useItemUrl.navigateToItem` keeps `window.location.search`). Editable tabs: information, addresses, persons. **Linked and Activity** stay visible in the chip row but are **greyed out / disabled** in edit (view-only); if the URL is on those tabs when entering edit, the form redirects to information. Validation errors on a hidden editable tab show a destructive dot on that chip. Create uses the same shell (starts on information). Do **not** reintroduce the 2-column `leftSidebar` form stack for Contacts.
+
+**Information + Properties merge (all Contacts-class plugins that had both):** When a plugin previously had both chips, keep a single **Information** chip. Render the former Properties body as the second card under Information (below description / main info). Same rule for View and Form. **Requests:** on Information, order is Description → (optional Submitted details) → **Properties** → **Submitter**. Do **not** apply this merge to Estimates (Properties is the first/only “facts” tab there, not a pair with Information).
+
+**Notes / Tasks / Requests create/edit tabs (same pattern):** `NoteForm`, `TaskForm`, and `RequestForm` reuse their View `?tab=` chips. Linked and/or Activity chips stay visible but **disabled** in edit; non-editable tab URLs redirect to the first editable tab. Notes focus mode (edit only) portals the editor into a **viewport-centered** overlay — see `UI_AND_UX_STANDARDS_V3.md` (Notes focus mode).
 
 ```tsx
 import {
@@ -378,10 +384,11 @@ import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS, FORM_TEXTAREA_CLASS } from '@
 
 **Other exceptions (do not force filled or ghost):**
 
-- Hero title: `DETAIL_FORM_TITLE_INPUT_CLASS` (contacts / garments / notes title) — focus ring required
+- Hero title: `DETAIL_FORM_TITLE_INPUT_CLASS` (contacts / garments / notes / tasks / requests title) — focus ring required
 - Most dialogs (`*Dialog.tsx`), list search (`RoundExpandableSearch`), public forms — keep default bordered shadcn chrome
 - **Documented dense-dialog exception:** garments `GarmentPersonImportDialog` tag `NativeSelect` uses `FORM_COMPACT_SELECT_CLASS` for parity with PersonMatrix density
-- Rich text: Notes edit uses `variant="ghost"`; other surfaces may keep default bordered chrome; errors via `FORM_INPUT_ERROR_CLASS`
+- Rich text: Notes and Tasks edit use `RichTextEditor variant="ghost"`; other surfaces may keep default bordered chrome; errors via `FORM_INPUT_ERROR_CLASS`
+- Height sync helper: `client/src/core/ui/syncTextareaHeight.ts` (Contacts notes; Requests description / intake comment / internal notes)
 - Duplicate/warning emphasis: use **ring** (e.g. amber), not `border-*` (invisible with `border-0`)
 
 ### Date pickers (required)
@@ -518,7 +525,7 @@ Shared primitive: `client/src/core/ui/DetailHeaderMenus.tsx`. Plugin wrappers (e
 
 **Layout (all breakpoints):** trigger buttons (`Actions` / `Export` / extras) stay on the first row and may scroll horizontally when needed. When a menu is open, its action pills **always** render on the **row below** the triggers (`justify-end`, `size="xs"` / `text-xs` — same density as Contacts `BulkActionRoundBar`). Do **not** render submenu pills inline beside the active trigger.
 
-**Spacing:** use shared `DETAIL_HEADER_CHIP_GAP_CLASS` (`gap-1.5`) for trigger buttons, submenu pills, and trigger↔submenu. Title/`leading` ↔ triggers stays `gap-3`. Meta/badge rows under the menus use the same chip gap plus `DETAIL_HEADER_BELOW_MENUS_CLASS` (`mt-1.5`), with type / counts / **updated first** and **badges last** on that row (Tasks / Requests / Notes / Matches / Invoices / Inventory / Teams / Files / Estimates). Use `DetailHeaderMetaRow` / `DetailHeaderMetaDot` for separators.
+**Spacing:** use shared `DETAIL_HEADER_CHIP_GAP_CLASS` (`gap-1.5`) for trigger buttons, submenu pills, and trigger↔submenu. Title/`leading` ↔ triggers stays `gap-3`. Meta/badge rows under the menus use the same chip gap plus `DETAIL_HEADER_BELOW_MENUS_CLASS` (`mt-1.5`), with type / counts / **updated first** and **badges last** on that row (Tasks / Notes / Matches / Invoices / Inventory / Teams / Files / Estimates). **Requests exception (verified):** source Internal/External is the **first** meta badge in `RequestQuickContextPanel`, then type / status / priority / response-due. Use `DetailHeaderMetaRow` / `DetailHeaderMetaDot` for separators.
 
 **Optional `leading`:** identity (name / invoice # / title) on the same row as the triggers, left side (`min-w-0 flex-1`). Used in mail-layout full QC card headers where there is no separate panel title. Edit remains under Actions (no standalone Edit beside menus).
 
@@ -639,9 +646,10 @@ Clear `recentlyDuplicated*Id` in every `open*ForView` / `open*ForEdit` / `open*P
 
 ### 5.3 Unsaved changes — `ConfirmDialog` (`variant="warning"`)
 
-- Form: `useUnsavedChanges` + dirty tracking.
-- Global discard dialog is owned by `AppContent`; plugin must register dirty state correctly.
-- Local form confirm (optional, garments-style) for cancel with pending edits also uses `variant="warning"`.
+- Form: `useUnsavedChanges` + dirty tracking for field state.
+- Global discard dialog is owned by `AppContent`. Aligned mail-layout create/edit forms register `() => true` while mounted so **list row, plugin settings, left sidebar, and right-rail Settings** always confirm leave (same dialog as Close) — not only when dirty. Verified callers include Contacts, Notes, Tasks, Requests, Matches, Cups, Teams, Guides, Clubdesk, PriceList, Ingest, Estimates, Invoices, Slots, Garments (incl. inventory), Instructions, Files. Close uses `attemptAction(..., { force: true })`. Right-rail Settings goes through `attemptNavigation` in `AppRightSidebar`. **Limit:** client UX only (browser tab close / hard refresh skips the prompt); not server access control.
+- **`ConfirmDialog` confirm race:** Confirm must **not** invoke `onCancel` when the dialog closes after confirm (`AlertDialog` fires `onOpenChange(false)`). Implementation uses a `confirmingRef` so Discard / leave confirm runs the pending action once. Do **not** remove that guard.
+- Local form confirm (optional, garments-style) for cancel with pending edits also uses `variant="warning"`. Inventory edit Discard should call the shared discard path once and return to view (not double-`onCancel` that closes the panel).
 
 ### 5.4 Bulk delete — `BulkDeleteModal`
 
@@ -818,7 +826,8 @@ Walk in order. No “probably OK” — verify in the running app.
 
 - [ ] Edit uses same card order and tokens as view
 - [ ] Inline Save (green) / Cancel; no window form globals
-- [ ] Dirty navigate shows unsaved warning
+- [ ] Create/edit leave via list, settings, left sidebar, or right-rail Settings shows discard confirm (aligned mail-layout forms: always while form open via `() => true`)
+- [ ] Discard confirm runs once (ConfirmDialog confirm must not clear pending via `onOpenChange`)
 - [ ] Cancel in edit returns to view (or closes create) per context rules
 
 ### List defaults
@@ -864,15 +873,15 @@ Walk in order. No “probably OK” — verify in the running app.
 | `client/src/components/ui/round-icon-label-button.tsx`                       | Base round pill button                                                                                                       |
 | `client/src/plugins/contacts/components/ContactList.tsx`                     | Canonical list header: Select/Clear, BulkActionRoundBar, RoundExpandableSearch                                               |
 | `client/src/plugins/contacts/components/ContactDetailHeaderMenus.tsx`        | Contacts view: Actions / Export / Time log in panel title                                                                    |
-| `client/src/plugins/contacts/components/ContactView.tsx`                     | Canonical full view (2-col; always Addresses + Contact Persons; no Information/Activity cards)                               |
+| `client/src/plugins/contacts/components/ContactView.tsx`                     | Canonical full view (2-col; Information tab + Addresses/Persons; no system ID/Created card; Activity tab)                    |
 | `client/src/plugins/ai-providers/components/AIProvidersList.tsx`             | Provider list: search-only header (no Select)                                                                                |
 | `client/src/core/ui/PanelTitles.tsx`                                         | `createPanelTitles`; view React nodes before mobile blank; create/edit/settings prefer plugin `getPanelTitle` when non-empty |
 | `client/src/core/ui/MainLayout.tsx` / `SidebarBrand` / `MobileShellControls` | App shell without TopBar; brand in sidebar; floating phone/pad Menu + account                                                |
 | `client/src/plugins/contacts/components/ContactQuickContextPanel.tsx`        | Mail-layout full-only QC (header card + optional `headerBelow`)                                                              |
-| `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx`      | Full-view QC with facts/variants (from `GarmentView`, not list aside)                                                        |
+| `client/src/plugins/garments/components/GarmentView.tsx`                     | Inventory delegates to tabbed `InventoryQuickContextPanel`; lists PersonMatrix                                               |
+| `client/src/plugins/garments/components/GarmentForm.tsx`                     | Inventory create/edit same `?tab=` shell as view (Activity greyed); list form separate                                       |
+| `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx`      | Full inventory detail with `?tab=` chips + meta row                                                                          |
 | `client/src/plugins/garments/components/GarmentList.tsx`                     | Mail-layout inventory/lists table (no sticky QC)                                                                             |
-| `client/src/plugins/garments/components/GarmentView.tsx`                     | Full inventory detail; header menus; no Information/Activity                                                                 |
-| `client/src/plugins/garments/components/GarmentForm.tsx`                     | Form chrome, variant delete confirm, unsaved warning                                                                         |
 | `client/src/plugins/garments/context/GarmentProvider.tsx`                    | `usePluginDuplicate`, `getDeleteMessage`, panel open helpers                                                                 |
 | `client/src/plugins/tasks/components/TaskQuickContextPanel.tsx`              | Full-only task header card (`TaskDetailHeaderMenus`)                                                                         |
 | `client/src/plugins/matches/components/MatchQuickContextPanel.tsx`           | Full-only match header card                                                                                                  |
@@ -881,7 +890,7 @@ Walk in order. No “probably OK” — verify in the running app.
 | `client/src/core/keyboard/keyboardHandlers.ts`                               | List ArrowUp/Down + Space → row click (not `openForView`)                                                                    |
 | `client/src/core/ui/SortableListTable.tsx`                                   | Shared table; `tabIndex={0}` + `data-list-item` when clickable                                                               |
 | `client/src/core/ui/detailViewCardStyles.ts`                                 | Shared class tokens                                                                                                          |
-| `client/src/core/ui/ConfirmDialog.tsx`                                       | Danger / warning confirms                                                                                                    |
+| `client/src/core/ui/ConfirmDialog.tsx`                                       | Danger / warning confirms; confirm must not call `onCancel` via `onOpenChange`                                               |
 | `client/src/core/ui/DuplicateDialog.tsx`                                     | Rename-on-duplicate dialog                                                                                                   |
 | `client/src/core/ui/BulkDeleteModal.tsx`                                     | Multi-select delete                                                                                                          |
 | `client/src/core/ui/DetailLayout.tsx`                                        | Multi-column detail shell                                                                                                    |

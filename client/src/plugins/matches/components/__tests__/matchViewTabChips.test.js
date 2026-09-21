@@ -24,13 +24,14 @@ describe('MatchView detail tab chips', () => {
     expect(viewSrc).toMatch(/useSearchParams/);
     expect(viewSrc).toMatch(/parseMatchViewTab/);
     expect(viewSrc).toMatch(/'information'/);
-    expect(viewSrc).toMatch(/'properties'/);
+    expect(viewSrc).toMatch(/value === 'properties'/); // legacy ?tab=properties → information
     expect(viewSrc).toMatch(/'contacts'/);
     expect(viewSrc).toMatch(/'linked'/);
     expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
-    expect(viewSrc).toMatch(/activeTab === 'properties'/);
+    expect(viewSrc).toMatch(/activeTab === 'information'[\s\S]*MatchPropertiesCard/);
+    expect(viewSrc).not.toMatch(/activeTab === 'properties'/);
     expect(viewSrc).toMatch(/activeTab === 'contacts'/);
     expect(viewSrc).toMatch(/activeTab === 'linked'/);
     expect(viewSrc).toMatch(/activeTab === 'activity'/);

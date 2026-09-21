@@ -166,6 +166,8 @@ export function MatchProvider({
       setValidationErrors([]);
       onCloseOtherPanels();
       if (match) {
+        const slug = buildSlug(match, matches, matchSlugNameField);
+        matchesDeepLinkPathSyncedRef.current = `/matches/${slug}`;
         navigateToItem(match, matches, matchSlugNameField);
       }
     },
@@ -182,6 +184,8 @@ export function MatchProvider({
       setIsMatchPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      const slug = buildSlug(match, matches, matchSlugNameField);
+      matchesDeepLinkPathSyncedRef.current = `/matches/${slug}`;
       navigateToItem(match, matches, matchSlugNameField);
     },
     [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches, setValidationErrors],

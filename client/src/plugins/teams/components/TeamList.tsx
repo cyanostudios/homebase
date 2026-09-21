@@ -141,7 +141,7 @@ export function TeamList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openTeamPanel(null)),
-    onSettings: openTeamSettings,
+    onSettings: () => attemptNavigation(() => openTeamSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -769,7 +769,7 @@ export function TeamList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={openTeamSettings}
+                      onClick={() => attemptNavigation(() => openTeamSettings())}
                     />
                     <ExpandableIconButton
                       icon={BarChart2}

@@ -145,7 +145,7 @@ export function RequestList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openRequestPanel(null)),
-    onSettings: openRequestSettings,
+    onSettings: () => attemptNavigation(() => openRequestSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -769,7 +769,7 @@ export function RequestList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={openRequestSettings}
+                      onClick={() => attemptNavigation(() => openRequestSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle

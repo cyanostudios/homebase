@@ -46,9 +46,9 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import {
-  FORM_INPUT_CLASS,
+  FORM_GHOST_INPUT_CLASS,
   FORM_INPUT_ERROR_CLASS,
-  FORM_TEXTAREA_CLASS,
+  FORM_GHOST_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
 const RichTextEditor = React.lazy(() =>
   import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
@@ -113,15 +113,8 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
       reorderInstructionCategories,
       deleteInstructionCategory,
     } = useInstructions();
-    const {
-      isDirty,
-      showWarning,
-      markDirty,
-      markClean,
-      attemptAction,
-      confirmDiscard,
-      cancelDiscard,
-    } = useUnsavedChanges();
+    const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+      useUnsavedChanges();
     const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
       useGlobalNavigationGuard();
 
@@ -191,9 +184,9 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
 
     useEffect(() => {
       const formKey = `instruction-form-${instruction?.id || 'new'}`;
-      registerUnsavedChangesChecker(formKey, () => isDirty);
+      registerUnsavedChangesChecker(formKey, () => true);
       return () => unregisterUnsavedChangesChecker(formKey);
-    }, [isDirty, instruction, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+    }, [instruction, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
     const resetForm = useCallback(() => {
       setFormData({
@@ -251,7 +244,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
     }, [formData, onSave, markClean, instruction, resetForm, isCurrentlySubmitting]);
 
     const handleCancel = useCallback(() => {
-      attemptAction(() => onCancel());
+      attemptAction(() => onCancel(), { force: true });
     }, [attemptAction, onCancel]);
 
     useImperativeHandle(
@@ -570,7 +563,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                         onChange={(e) => updateField('title', e.target.value)}
                         placeholder={t('instructions.titlePlaceholder')}
                         className={cn(
-                          FORM_INPUT_CLASS,
+                          FORM_GHOST_INPUT_CLASS,
                           getFieldError('title') && FORM_INPUT_ERROR_CLASS,
                         )}
                         required
@@ -592,7 +585,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                         }}
                         placeholder={t('instructions.slugPlaceholder')}
                         className={cn(
-                          FORM_INPUT_CLASS,
+                          FORM_GHOST_INPUT_CLASS,
                           getFieldError('slug') && FORM_INPUT_ERROR_CLASS,
                         )}
                       />
@@ -612,7 +605,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                         onChange={(e) => updateField('description', e.target.value)}
                         rows={4}
                         placeholder={t('instructions.descriptionPlaceholder')}
-                        className={FORM_TEXTAREA_CLASS}
+                        className={FORM_GHOST_TEXTAREA_CLASS}
                       />
                     </div>
                     <div>
@@ -624,7 +617,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                         value={formData.featuredImageUrl ?? ''}
                         onChange={(e) => updateField('featuredImageUrl', e.target.value)}
                         placeholder="https://"
-                        className={FORM_INPUT_CLASS}
+                        className={FORM_GHOST_INPUT_CLASS}
                       />
                       {formData.featuredImageUrl ? (
                         <img
@@ -644,7 +637,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                           updateField('publicationStatus', value as PublicationStatus)
                         }
                       >
-                        <SelectTrigger id="instruction-status" className={FORM_INPUT_CLASS}>
+                        <SelectTrigger id="instruction-status" className={FORM_GHOST_INPUT_CLASS}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -758,7 +751,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                       value={newCategoryName}
                       onChange={(e) => setNewCategoryName(e.target.value)}
                       placeholder={t('instructions.addInstructionCategoryPlaceholder')}
-                      className={FORM_INPUT_CLASS}
+                      className={FORM_GHOST_INPUT_CLASS}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -864,7 +857,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                               onChange={(e) => updateStep(index, { title: e.target.value })}
                               placeholder={t('instructions.stepTitlePlaceholder')}
                               className={cn(
-                                FORM_INPUT_CLASS,
+                                FORM_GHOST_INPUT_CLASS,
                                 getFieldError(`steps.${index}.title`) && FORM_INPUT_ERROR_CLASS,
                               )}
                             />
@@ -891,7 +884,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                               value={step.imageUrl ?? ''}
                               onChange={(e) => updateStep(index, { imageUrl: e.target.value })}
                               placeholder={t('instructions.stepImagePlaceholder')}
-                              className={FORM_INPUT_CLASS}
+                              className={FORM_GHOST_INPUT_CLASS}
                             />
                             {step.imageUrl ? (
                               <img
@@ -993,7 +986,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
               <Select value={moveToCategory} onValueChange={setMoveToCategory}>
                 <SelectTrigger
                   id="instruction-move-category"
-                  className={cn('mt-1', FORM_INPUT_CLASS)}
+                  className={cn('mt-1', FORM_GHOST_INPUT_CLASS)}
                 >
                   <SelectValue />
                 </SelectTrigger>

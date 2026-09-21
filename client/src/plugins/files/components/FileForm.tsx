@@ -7,10 +7,13 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
+import { FORM_GHOST_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
 import { useFiles } from '../hooks/useFiles';
@@ -38,6 +41,19 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   const isEdit = !!currentItem;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+    useUnsavedChanges();
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
+    useGlobalNavigationGuard();
+
+  useEffect(() => {
+    if (panelMode === 'settings') {
+      return;
+    }
+    const formKey = `file-form-${currentItem?.id || 'new'}`;
+    registerUnsavedChangesChecker(formKey, () => true);
+    return () => unregisterUnsavedChangesChecker(formKey);
+  }, [currentItem?.id, panelMode, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   const getErrors = useCallback(
     (field: string) =>
@@ -62,6 +78,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
       setName('');
     }
     clearValidationErrors();
+    markClean();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, currentItem?.name]);
 
@@ -153,8 +170,8 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   const handleCancel = useCallback(() => {
     // Core cancel-from-edit calls openForView; files has no full view and openFileForView
     // opens edit — so cancel must close the panel directly.
-    closeFilePanel();
-  }, [closeFilePanel]);
+    attemptAction(() => closeFilePanel(), { force: true });
+  }, [attemptAction, closeFilePanel]);
 
   useImperativeHandle(
     ref,
@@ -219,11 +236,15 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
+                    markDirty();
                     if (hasAnyError) {
                       clearValidationErrors();
                     }
                   }}
-                  className={cn(FORM_INPUT_CLASS, nameErrors.length && FORM_INPUT_ERROR_CLASS)}
+                  className={cn(
+                    FORM_GHOST_INPUT_CLASS,
+                    nameErrors.length && FORM_INPUT_ERROR_CLASS,
+                  )}
                   placeholder="document.pdf"
                 />
                 {nameErrors.length > 0 ? (
@@ -233,6 +254,19 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
             </DetailSection>
           </Card>
         </DetailLayout>
+        <ConfirmDialog
+          isOpen={showWarning}
+          title={t('dialog.unsavedChanges')}
+          message={t('dialog.discardAndReturn')}
+          confirmText={t('dialog.discardChanges')}
+          cancelText={t('dialog.continueEditing')}
+          onConfirm={() => {
+            confirmDiscard();
+            closeFilePanel();
+          }}
+          onCancel={cancelDiscard}
+          variant="warning"
+        />
       </div>
     );
   }
@@ -349,6 +383,20 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
           </DetailSection>
         </Card>
       </DetailLayout>
+
+      <ConfirmDialog
+        isOpen={showWarning}
+        title={t('dialog.unsavedChanges')}
+        message={isEdit ? t('dialog.discardAndReturn') : t('dialog.discardAndClose')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
+        onConfirm={() => {
+          confirmDiscard();
+          closeFilePanel();
+        }}
+        onCancel={cancelDiscard}
+        variant="warning"
+      />
     </div>
   );
 });

@@ -1,6 +1,7 @@
-import { ArrowDown, ArrowUp, Check, Info, Plus, Tags, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, History, Info, Plus, Tags, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -26,16 +27,19 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
-  FORM_INPUT_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+} from '@/core/ui/detailViewCardStyles';
+import {
+  FORM_GHOST_INPUT_CLASS,
   FORM_INPUT_ERROR_CLASS,
-  FORM_TEXTAREA_CLASS,
+  FORM_GHOST_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { slugify } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -104,9 +108,62 @@ function formDataFromPriceList(priceList: ClubdeskPriceList | null): ClubdeskPri
   };
 }
 
+type PriceListFormTab = 'information' | 'items' | 'activity';
+
+const PRICE_LIST_FORM_TABS: PriceListFormTab[] = ['information', 'items', 'activity'];
+
+const PRICE_LIST_FORM_EDIT_DISABLED_TABS: ReadonlySet<PriceListFormTab> = new Set(['activity']);
+
+function parsePriceListFormTab(value: string | null): PriceListFormTab {
+  if (value === 'properties') {
+    return 'information';
+  }
+  if (value && PRICE_LIST_FORM_TABS.includes(value as PriceListFormTab)) {
+    return value as PriceListFormTab;
+  }
+  return 'information';
+}
+
 export const PriceListForm = React.forwardRef<PanelFormHandle, { stacked?: boolean }>(
   function PriceListForm({ stacked = false }, ref) {
     const { t } = useTranslation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = parsePriceListFormTab(searchParams.get('tab'));
+    const setActiveTab = useCallback(
+      (tab: PriceListFormTab, replace = false) => {
+        if (PRICE_LIST_FORM_EDIT_DISABLED_TABS.has(tab)) {
+          return;
+        }
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            if (tab === 'information') {
+              next.delete('tab');
+            } else {
+              next.set('tab', tab);
+            }
+            return next;
+          },
+          { replace },
+        );
+      },
+      [setSearchParams],
+    );
+
+    useEffect(() => {
+      if (!PRICE_LIST_FORM_EDIT_DISABLED_TABS.has(activeTab)) {
+        return;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('tab');
+          return next;
+        },
+        { replace: true },
+      );
+    }, [activeTab, setSearchParams]);
+
     const {
       currentPriceList,
       validationErrors,
@@ -121,15 +178,8 @@ export const PriceListForm = React.forwardRef<PanelFormHandle, { stacked?: boole
       deletePriceListCategory,
     } = useClubdesk();
     const priceList = currentPriceList;
-    const {
-      isDirty,
-      showWarning,
-      markDirty,
-      markClean,
-      attemptAction,
-      confirmDiscard,
-      cancelDiscard,
-    } = useUnsavedChanges();
+    const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+      useUnsavedChanges();
     const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
       useGlobalNavigationGuard();
 
@@ -209,9 +259,9 @@ export const PriceListForm = React.forwardRef<PanelFormHandle, { stacked?: boole
 
     useEffect(() => {
       const formKey = `price-list-form-${priceList?.id || 'new'}`;
-      registerUnsavedChangesChecker(formKey, () => isDirty);
+      registerUnsavedChangesChecker(formKey, () => true);
       return () => unregisterUnsavedChangesChecker(formKey);
-    }, [isDirty, priceList, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+    }, [priceList, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
     const resetForm = useCallback(() => {
       setFormData(emptyPriceListFormData());
@@ -263,7 +313,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle, { stacked?: boole
     ]);
 
     const handleCancel = useCallback(() => {
-      attemptAction(() => closeClubdeskPanel());
+      attemptAction(() => closeClubdeskPanel(), { force: true });
     }, [attemptAction, closeClubdeskPanel]);
 
     useImperativeHandle(
@@ -513,53 +563,98 @@ export const PriceListForm = React.forwardRef<PanelFormHandle, { stacked?: boole
       markDirty();
     };
 
-    const formSidebar =
-      priceList && !stacked ? (
-        <div className="space-y-4">
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('clubdesk.information')}
-              icon={Info}
-              iconPlugin="clubdesk"
-              subtleTitle
-              className="p-4"
-              collapsible
+    const tabs = useMemo(
+      () => [
+        {
+          id: 'information' as const,
+          label: t('clubdesk.priceList.tabs.information'),
+          icon: Info,
+        },
+        {
+          id: 'items' as const,
+          label: t('clubdesk.priceList.tabs.items'),
+          icon: Tags,
+          count: formData.items.length > 0 ? formData.items.length : null,
+        },
+        {
+          id: 'activity' as const,
+          label: t('clubdesk.priceList.tabs.activity'),
+          icon: History,
+        },
+      ],
+      [formData.items.length, t],
+    );
+
+    const tabChips = (
+      <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+        {tabs.map((tab) => {
+          const TabIcon = tab.icon;
+          const isDisabled = PRICE_LIST_FORM_EDIT_DISABLED_TABS.has(tab.id);
+          const isActive = !isDisabled && activeTab === tab.id;
+          return (
+            <Button
+              key={tab.id}
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-pressed={isActive}
+              aria-disabled={isDisabled}
+              disabled={isDisabled}
+              title={
+                isDisabled
+                  ? t('clubdesk.tabUnavailableInEdit', {
+                      defaultValue: 'Available in view mode only',
+                    })
+                  : undefined
+              }
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                isDisabled && 'pointer-events-none opacity-40',
+              )}
             >
-              <div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">ID</span>
-                  <span className="font-mono font-extrabold text-foreground">
-                    {formatDisplayNumber('clubdesk', priceList.id)}
-                  </span>
-                </div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">{t('common.created')}</span>
-                  <span className="font-mono font-extrabold text-foreground">
-                    {priceList.createdAt ? new Date(priceList.createdAt).toLocaleDateString() : '—'}
-                  </span>
-                </div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">{t('common.updated')}</span>
-                  <span className="font-mono font-extrabold text-foreground">
-                    {priceList.updatedAt ? new Date(priceList.updatedAt).toLocaleDateString() : '—'}
-                  </span>
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
-          <DetailActivityLog
-            entityType="clubdesk"
-            entityId={priceList.id}
-            title={t('clubdesk.activity')}
-            refreshKey={priceList.updatedAt}
-          />
+              <TabIcon className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1.5">
+                {tab.label}
+                {'count' in tab && tab.count != null ? (
+                  <>
+                    {' '}
+                    <span className="tabular-nums font-semibold">({tab.count})</span>
+                  </>
+                ) : null}
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+
+    const formHeader = (
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+        <div className="px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="inline-flex shrink-0" aria-hidden>
+              <SectionCategoryIcon icon={Tags} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <Input
+                value={formData.title}
+                onChange={(e) => updateField('title', e.target.value)}
+                placeholder={t('clubdesk.priceList.titlePlaceholder')}
+                aria-label={t('clubdesk.priceList.title')}
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+          </div>
+          <div className="mt-4">{tabChips}</div>
         </div>
-      ) : undefined;
+      </Card>
+    );
 
     return (
       <>
         <div className="plugin-clubdesk">
-          <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
+          <DetailLayout gridClassName="grid-cols-1">
             <form
               className="space-y-4"
               onSubmit={(e) => {
@@ -567,6 +662,8 @@ export const PriceListForm = React.forwardRef<PanelFormHandle, { stacked?: boole
                 void handleSubmit();
               }}
             >
+              {formHeader}
+
               {hasBlockingErrors && (
                 <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
                   <div className="text-sm font-medium text-destructive">
@@ -582,281 +679,291 @@ export const PriceListForm = React.forwardRef<PanelFormHandle, { stacked?: boole
                 </Card>
               )}
 
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('clubdesk.priceList.card')}
-                  iconPlugin="clubdesk"
-                  className="p-6"
-                >
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="price-list-title">{t('clubdesk.priceList.title')}</Label>
-                      <Input
-                        id="price-list-title"
-                        value={formData.title}
-                        onChange={(e) => updateField('title', e.target.value)}
-                        placeholder={t('clubdesk.priceList.titlePlaceholder')}
-                        className={cn(
-                          FORM_INPUT_CLASS,
-                          getFieldError('title') && FORM_INPUT_ERROR_CLASS,
-                        )}
-                        required
-                      />
-                      {getFieldError('title') && (
-                        <p className="mt-1 text-sm text-destructive">
-                          {getFieldError('title')?.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="price-list-slug">{t('clubdesk.priceList.slug')}</Label>
-                      <Input
-                        id="price-list-slug"
-                        value={formData.slug || ''}
-                        onChange={(e) => {
-                          setSlugTouched(true);
-                          updateField('slug', e.target.value);
-                        }}
-                        placeholder={t('clubdesk.priceList.slugPlaceholder')}
-                        className={cn(
-                          FORM_INPUT_CLASS,
-                          getFieldError('slug') && FORM_INPUT_ERROR_CLASS,
-                        )}
-                      />
-                      {getFieldError('slug') && (
-                        <p className="mt-1 text-sm text-destructive">
-                          {getFieldError('slug')?.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="price-list-description">
-                        {t('clubdesk.priceList.description')}
-                      </Label>
-                      <Textarea
-                        id="price-list-description"
-                        value={formData.description ?? ''}
-                        onChange={(e) => updateField('description', e.target.value)}
-                        rows={4}
-                        placeholder={t('clubdesk.priceList.descriptionPlaceholder')}
-                        className={FORM_TEXTAREA_CLASS}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="price-list-currency">
-                        {t('clubdesk.priceList.currency')}
-                      </Label>
-                      <Input
-                        id="price-list-currency"
-                        value={formData.currency}
-                        onChange={(e) => updateField('currency', e.target.value.toUpperCase())}
-                        placeholder="SEK"
-                        className={cn(
-                          FORM_INPUT_CLASS,
-                          getFieldError('currency') && FORM_INPUT_ERROR_CLASS,
-                        )}
-                      />
-                      {getFieldError('currency') && (
-                        <p className="mt-1 text-sm text-destructive">
-                          {getFieldError('currency')?.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="price-list-status">{t('clubdesk.publicationStatus')}</Label>
-                      <Select
-                        value={formData.publicationStatus}
-                        onValueChange={(value) =>
-                          updateField('publicationStatus', value as PublicationStatus)
-                        }
-                      >
-                        <SelectTrigger id="price-list-status" className={FORM_INPUT_CLASS}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="draft">{t('clubdesk.status.draft')}</SelectItem>
-                          <SelectItem value="published">
-                            {t('clubdesk.status.published')}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <input
-                          id="price-list-featured"
-                          type="checkbox"
-                          checked={formData.featured === true}
-                          onChange={(e) => updateField('featured', e.target.checked)}
-                          className="h-4 w-4"
+              {activeTab === 'information' ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={t('clubdesk.priceList.card')}
+                    iconPlugin="clubdesk"
+                    className="p-6"
+                  >
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="price-list-title">{t('clubdesk.priceList.title')}</Label>
+                        <Input
+                          id="price-list-title"
+                          value={formData.title}
+                          onChange={(e) => updateField('title', e.target.value)}
+                          placeholder={t('clubdesk.priceList.titlePlaceholder')}
+                          className={cn(
+                            FORM_GHOST_INPUT_CLASS,
+                            getFieldError('title') && FORM_INPUT_ERROR_CLASS,
+                          )}
+                          required
                         />
-                        <Label htmlFor="price-list-featured" className="font-normal">
-                          {t('clubdesk.featured')}
-                        </Label>
+                        {getFieldError('title') && (
+                          <p className="mt-1 text-sm text-destructive">
+                            {getFieldError('title')?.message}
+                          </p>
+                        )}
                       </div>
-                      <p className="text-xs text-muted-foreground">{t('clubdesk.featuredHint')}</p>
-                    </div>
-                  </div>
-                </DetailSection>
-              </Card>
-
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('clubdesk.priceList.categoriesCard')}
-                  icon={Tags}
-                  iconPlugin="clubdesk"
-                  className="p-6"
-                >
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    {t('clubdesk.priceList.categoriesOrderHint')}
-                  </p>
-                  {categoryDeleteError && !categoryPendingDelete ? (
-                    <p className="mb-3 text-xs text-destructive" role="alert">
-                      {categoryDeleteError}
-                    </p>
-                  ) : null}
-                  <div className="mb-3 space-y-2">
-                    {orderedCategoryEntries.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        {t('clubdesk.priceList.noCategories')}
-                      </p>
-                    ) : (
-                      orderedCategoryEntries.map((entry, index) => (
-                        <div
-                          key={`${entry.id ?? 'local'}-${entry.name}`}
-                          className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/20 px-2 py-1.5"
+                      <div>
+                        <Label htmlFor="price-list-slug">{t('clubdesk.priceList.slug')}</Label>
+                        <Input
+                          id="price-list-slug"
+                          value={formData.slug || ''}
+                          onChange={(e) => {
+                            setSlugTouched(true);
+                            updateField('slug', e.target.value);
+                          }}
+                          placeholder={t('clubdesk.priceList.slugPlaceholder')}
+                          className={cn(
+                            FORM_GHOST_INPUT_CLASS,
+                            getFieldError('slug') && FORM_INPUT_ERROR_CLASS,
+                          )}
+                        />
+                        {getFieldError('slug') && (
+                          <p className="mt-1 text-sm text-destructive">
+                            {getFieldError('slug')?.message}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="price-list-description">
+                          {t('clubdesk.priceList.description')}
+                        </Label>
+                        <Textarea
+                          id="price-list-description"
+                          value={formData.description ?? ''}
+                          onChange={(e) => updateField('description', e.target.value)}
+                          rows={4}
+                          placeholder={t('clubdesk.priceList.descriptionPlaceholder')}
+                          className={FORM_GHOST_TEXTAREA_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="price-list-currency">
+                          {t('clubdesk.priceList.currency')}
+                        </Label>
+                        <Input
+                          id="price-list-currency"
+                          value={formData.currency}
+                          onChange={(e) => updateField('currency', e.target.value.toUpperCase())}
+                          placeholder="SEK"
+                          className={cn(
+                            FORM_GHOST_INPUT_CLASS,
+                            getFieldError('currency') && FORM_INPUT_ERROR_CLASS,
+                          )}
+                        />
+                        {getFieldError('currency') && (
+                          <p className="mt-1 text-sm text-destructive">
+                            {getFieldError('currency')?.message}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="price-list-status">{t('clubdesk.publicationStatus')}</Label>
+                        <Select
+                          value={formData.publicationStatus}
+                          onValueChange={(value) =>
+                            updateField('publicationStatus', value as PublicationStatus)
+                          }
                         >
-                          <span className="min-w-0 flex-1 truncate text-xs font-medium">
-                            {entry.name}
-                          </span>
-                          <div className="flex flex-shrink-0 items-center gap-0.5">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              icon={ArrowUp}
-                              className="h-7 w-7 px-0"
-                              disabled={reorderingCategory || deletingCategory || index === 0}
-                              aria-label={t('clubdesk.priceList.moveCategoryUp', {
-                                name: entry.name,
-                              })}
-                              onClick={() => void handleMoveCategory(index, -1)}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              icon={ArrowDown}
-                              className="h-7 w-7 px-0"
-                              disabled={
-                                reorderingCategory ||
-                                deletingCategory ||
-                                index === orderedCategoryEntries.length - 1
-                              }
-                              aria-label={t('clubdesk.priceList.moveCategoryDown', {
-                                name: entry.name,
-                              })}
-                              onClick={() => void handleMoveCategory(index, 1)}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              icon={Trash2}
-                              className="h-7 w-7 px-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                              aria-label={t('clubdesk.priceList.removeCategory', {
-                                name: entry.name,
-                              })}
-                              onClick={() => handleRequestDeleteCategory(entry.name)}
-                              disabled={deletingCategory || reorderingCategory}
-                            />
-                          </div>
+                          <SelectTrigger id="price-list-status" className={FORM_GHOST_INPUT_CLASS}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="draft">{t('clubdesk.status.draft')}</SelectItem>
+                            <SelectItem value="published">
+                              {t('clubdesk.status.published')}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <input
+                            id="price-list-featured"
+                            type="checkbox"
+                            checked={formData.featured === true}
+                            onChange={(e) => updateField('featured', e.target.checked)}
+                            className="h-4 w-4"
+                          />
+                          <Label htmlFor="price-list-featured" className="font-normal">
+                            {t('clubdesk.featured')}
+                          </Label>
                         </div>
-                      ))
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder={t('clubdesk.priceList.addCategoryPlaceholder')}
-                      className={FORM_INPUT_CLASS}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          void handleAddCategory();
-                        }
-                      }}
-                    />
-                    <RoundIconLabelButton
-                      type="button"
-                      icon={Plus}
-                      label={t('clubdesk.priceList.addCategory')}
-                      variant="soft"
-                      size="xs"
-                      alwaysExpanded
-                      onClick={() => void handleAddCategory()}
-                    />
-                  </div>
-                </DetailSection>
-              </Card>
+                        <p className="text-xs text-muted-foreground">
+                          {t('clubdesk.featuredHint')}
+                        </p>
+                      </div>
+                    </div>
+                  </DetailSection>
+                </Card>
+              ) : null}
 
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('clubdesk.priceList.itemsCard')}
-                  icon={Tags}
-                  iconPlugin="clubdesk"
-                  className="p-6"
-                >
-                  {getFieldError('items') ? (
-                    <p className="mb-3 text-sm text-destructive">
-                      {getFieldError('items')?.message}
+              {activeTab === 'information' ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={t('clubdesk.priceList.categoriesCard')}
+                    icon={Tags}
+                    iconPlugin="clubdesk"
+                    className="p-6"
+                  >
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      {t('clubdesk.priceList.categoriesOrderHint')}
                     </p>
-                  ) : null}
+                    {categoryDeleteError && !categoryPendingDelete ? (
+                      <p className="mb-3 text-xs text-destructive" role="alert">
+                        {categoryDeleteError}
+                      </p>
+                    ) : null}
+                    <div className="mb-3 space-y-2">
+                      {orderedCategoryEntries.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {t('clubdesk.priceList.noCategories')}
+                        </p>
+                      ) : (
+                        orderedCategoryEntries.map((entry, index) => (
+                          <div
+                            key={`${entry.id ?? 'local'}-${entry.name}`}
+                            className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/20 px-2 py-1.5"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                              {entry.name}
+                            </span>
+                            <div className="flex flex-shrink-0 items-center gap-0.5">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                icon={ArrowUp}
+                                className="h-7 w-7 px-0"
+                                disabled={reorderingCategory || deletingCategory || index === 0}
+                                aria-label={t('clubdesk.priceList.moveCategoryUp', {
+                                  name: entry.name,
+                                })}
+                                onClick={() => void handleMoveCategory(index, -1)}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                icon={ArrowDown}
+                                className="h-7 w-7 px-0"
+                                disabled={
+                                  reorderingCategory ||
+                                  deletingCategory ||
+                                  index === orderedCategoryEntries.length - 1
+                                }
+                                aria-label={t('clubdesk.priceList.moveCategoryDown', {
+                                  name: entry.name,
+                                })}
+                                onClick={() => void handleMoveCategory(index, 1)}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                icon={Trash2}
+                                className="h-7 w-7 px-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                                aria-label={t('clubdesk.priceList.removeCategory', {
+                                  name: entry.name,
+                                })}
+                                onClick={() => handleRequestDeleteCategory(entry.name)}
+                                disabled={deletingCategory || reorderingCategory}
+                              />
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder={t('clubdesk.priceList.addCategoryPlaceholder')}
+                        className={FORM_GHOST_INPUT_CLASS}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void handleAddCategory();
+                          }
+                        }}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={Plus}
+                        label={t('clubdesk.priceList.addCategory')}
+                        variant="soft"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => void handleAddCategory()}
+                      />
+                    </div>
+                  </DetailSection>
+                </Card>
+              ) : null}
 
-                  <PriceListItemsEditor
-                    items={formData.items}
-                    categoryOptions={categoryOptions}
-                    duplicatedIndexes={duplicatedItemIndexes}
-                    getTitleError={(index) => getFieldError(`items.${index}.title`)?.message}
-                    onAdd={addItem}
-                    onUpdate={updateItem}
-                    onDuplicate={copyItem}
-                    onRemove={removeItem}
-                    onMoveUp={(index) => moveItem(index, -1)}
-                    onMoveDown={(index) => moveItem(index, 1)}
-                  />
-                </DetailSection>
-              </Card>
+              {activeTab === 'items' ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={t('clubdesk.priceList.itemsCard')}
+                    icon={Tags}
+                    iconPlugin="clubdesk"
+                    className="p-6"
+                  >
+                    {getFieldError('items') ? (
+                      <p className="mb-3 text-sm text-destructive">
+                        {getFieldError('items')?.message}
+                      </p>
+                    ) : null}
 
-              <div className="flex justify-end gap-2 border-t border-border pt-4">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  icon={X}
-                  onClick={handleCancel}
-                  disabled={isCurrentlySubmitting}
-                  className="h-9 px-3 text-xs"
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  icon={Check}
-                  onClick={() => void handleSubmit()}
-                  disabled={hasBlockingErrors || isCurrentlySubmitting}
-                  className="h-9 px-3 text-xs bg-green-600 hover:bg-green-700 text-white border-none"
-                >
-                  {isCurrentlySubmitting
-                    ? t('common.saving')
-                    : panelMode === 'edit'
-                      ? t('common.update')
-                      : t('common.save')}
-                </Button>
-              </div>
+                    <PriceListItemsEditor
+                      items={formData.items}
+                      categoryOptions={categoryOptions}
+                      duplicatedIndexes={duplicatedItemIndexes}
+                      getTitleError={(index) => getFieldError(`items.${index}.title`)?.message}
+                      onAdd={addItem}
+                      onUpdate={updateItem}
+                      onDuplicate={copyItem}
+                      onRemove={removeItem}
+                      onMoveUp={(index) => moveItem(index, -1)}
+                      onMoveDown={(index) => moveItem(index, 1)}
+                    />
+                  </DetailSection>
+                </Card>
+              ) : null}
+
+              {!stacked ? (
+                <div className="flex justify-end gap-2 border-t border-border pt-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    icon={X}
+                    onClick={handleCancel}
+                    disabled={isCurrentlySubmitting}
+                    className="h-9 px-3 text-xs"
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    icon={Check}
+                    onClick={() => void handleSubmit()}
+                    disabled={hasBlockingErrors || isCurrentlySubmitting}
+                    className="h-9 px-3 text-xs bg-green-600 hover:bg-green-700 text-white border-none"
+                  >
+                    {isCurrentlySubmitting
+                      ? t('common.saving')
+                      : panelMode === 'edit'
+                        ? t('common.update')
+                        : t('common.save')}
+                  </Button>
+                </div>
+              ) : null}
             </form>
           </DetailLayout>
         </div>
@@ -908,7 +1015,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle, { stacked?: boole
               <Select value={moveToCategory} onValueChange={setMoveToCategory}>
                 <SelectTrigger
                   id="price-list-move-category"
-                  className={cn('mt-1', FORM_INPUT_CLASS)}
+                  className={cn('mt-1', FORM_GHOST_INPUT_CLASS)}
                 >
                   <SelectValue />
                 </SelectTrigger>

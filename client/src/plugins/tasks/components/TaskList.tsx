@@ -147,7 +147,7 @@ export function TaskList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openTaskPanel(null)),
-    onSettings: () => openTaskSettings(),
+    onSettings: () => attemptNavigation(() => openTaskSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -855,7 +855,7 @@ export function TaskList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={() => openTaskSettings()}
+                      onClick={() => attemptNavigation(() => openTaskSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle

@@ -58,16 +58,14 @@ export const ClubdeskView: React.FC<ClubdeskViewProps> = (props) => {
   return <ClubdeskGuideView {...props} />;
 };
 
-type ClubdeskGuideViewTab = 'information' | 'properties' | 'steps' | 'activity';
+type ClubdeskGuideViewTab = 'information' | 'steps' | 'activity';
 
-const CLUBDESK_GUIDE_VIEW_TABS: ClubdeskGuideViewTab[] = [
-  'information',
-  'properties',
-  'steps',
-  'activity',
-];
+const CLUBDESK_GUIDE_VIEW_TABS: ClubdeskGuideViewTab[] = ['information', 'steps', 'activity'];
 
 function parseClubdeskGuideViewTab(value: string | null): ClubdeskGuideViewTab {
+  if (value === 'properties') {
+    return 'information';
+  }
   if (value && CLUBDESK_GUIDE_VIEW_TABS.includes(value as ClubdeskGuideViewTab)) {
     return value as ClubdeskGuideViewTab;
   }
@@ -113,12 +111,6 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item, stacke
         id: 'information' as const,
         label: t('clubdesk.tabs.information'),
         icon: Info,
-        count: null as number | null,
-      },
-      {
-        id: 'properties' as const,
-        label: t('clubdesk.tabs.properties'),
-        icon: SlidersHorizontal,
         count: null as number | null,
       },
       {
@@ -384,7 +376,7 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item, stacke
         </div>
       </Card>
       {activeTab === 'information' ? informationCard : null}
-      {activeTab === 'properties' ? propertiesCard : null}
+      {activeTab === 'information' ? propertiesCard : null}
       {activeTab === 'steps' ? stepsCard : null}
       {activeTab === 'activity' ? (
         <DetailActivityLog

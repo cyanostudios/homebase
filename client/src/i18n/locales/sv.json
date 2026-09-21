@@ -485,7 +485,8 @@
       "view": "Vy",
       "viewDescription": "Standardlista eller rutnät för matcher.",
       "apiDescription": "Fogis API-bas-URL och nyckel."
-    }
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
   },
   "bulk": {
     "selected": "{{count}} valda",
@@ -616,6 +617,10 @@
     "actionInvoice": "Faktura",
     "exportOptions": "Exportalternativ",
     "activity": "Aktivitet",
+    "activityAfterSave": "Aktivitet visas efter att kontakten sparats.",
+    "linkedAfterSave": "Länkade objekt visas efter att kontakten sparats.",
+    "contactPersonsCompanyOnly": "Kontaktpersoner finns för företagskontakter.",
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge",
     "contactContent": "Kontaktinnehåll",
     "contactProperties": "Kontaktegenskaper",
     "tabs": {
@@ -814,6 +819,7 @@
       "linkedEmpty": "Inga nämnda kontakter ännu.",
       "activity": "Aktivitet"
     },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge",
     "quickEditDiscardMessage": "Du har osparade ändringar i status, prioritet, förfallodatum eller ansvariga. Vill du kasta dem?",
     "assignee": "Ansvarig",
     "noAssigneesYet": "Inga ansvariga ännu.",
@@ -927,6 +933,7 @@
       "files": "Filer",
       "activity": "Aktivitet"
     },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge",
     "quickActions": "Snabbåtgärder",
     "exportOptions": "Exportalternativ",
     "activity": "Aktivitet",
@@ -1311,7 +1318,8 @@
       "urlInvalid": "Ange en giltig URL",
       "fetchMethodInvalid": "Välj en giltig hämtningsmetod",
       "saveFailed": "Kunde inte spara källan"
-    }
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
   },
   "instructions": {
     "listDescription": "Skapa steg-för-steg-guider för personalen.",
@@ -1691,7 +1699,8 @@
       "deleteConfirmNamed": "Är du säker på att du vill ta bort \"{{name}}\" från listan?",
       "moveUp": "Flytta upp",
       "moveDown": "Flytta ner"
-    }
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
   },
   "guides": {
     "title": "Guider",
@@ -2806,7 +2815,8 @@
         "social": "Social",
         "other": "Övrigt"
       }
-    }
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
   },
   "teams": {
     "listDescription": "{{count}} lag registrerade · Säsong {{season}}",
@@ -3125,7 +3135,8 @@
       "overviewDescription": "Ordning på korten i varje lags översikt.",
       "venues": "Spelplatser",
       "venuesDescription": "Gemensamma träningsplatser för alla lag."
-    }
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
   },
   "dashboard": {
     "description": "Snabb överblick över dina aktiverade plugins—öppna ett nedan eller från sidomenyn.",
@@ -3386,6 +3397,7 @@
       "files": "Filer",
       "activity": "Aktivitet"
     },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge",
     "settings": {
       "title": "Ärendeinställningar",
       "typesSection": "Ärendetyper",
@@ -3927,6 +3939,15 @@
       "identityColumns": "Identitetskolumner",
       "identityColumnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja. Namn är alltid synligt.",
       "importDescription": "Importera lagerartiklar från CSV eller Excel."
-    }
+    },
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "variants": "Varianter",
+      "lists": "Listor",
+      "activity": "Aktivitet"
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge",
+    "activity": "Aktivitet"
   }
 }

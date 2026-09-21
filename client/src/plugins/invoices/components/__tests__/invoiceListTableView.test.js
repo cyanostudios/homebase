@@ -81,7 +81,8 @@ describe('InvoicesList table view wiring', () => {
     expect(tableSrc).toMatch(/activeInvoiceId/);
     expect(tableSrc).toMatch(/selectionEnabled/);
     expect(viewSrc).toMatch(/stacked\?: boolean/);
-    expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
+    expect(viewSrc).not.toMatch(/DetailLayout/);
+    expect(viewSrc).toMatch(/plugin-invoices/);
   });
 
   test('desktop detail card header shows InvoiceDetailHeaderMenus', () => {

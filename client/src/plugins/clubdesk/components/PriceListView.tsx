@@ -49,11 +49,14 @@ import { groupItemsByCategory } from '../utils/priceListItemOps';
 import { ClubdeskPublicationPropertiesFields } from './ClubdeskPublicationPropertiesFields';
 import { PriceListDetailHeaderMenus } from './PriceListDetailHeaderMenus';
 
-type PriceListViewTab = 'information' | 'properties' | 'items' | 'activity';
+type PriceListViewTab = 'information' | 'items' | 'activity';
 
-const PRICE_LIST_VIEW_TABS: PriceListViewTab[] = ['information', 'properties', 'items', 'activity'];
+const PRICE_LIST_VIEW_TABS: PriceListViewTab[] = ['information', 'items', 'activity'];
 
 function parsePriceListViewTab(value: string | null): PriceListViewTab {
+  if (value === 'properties') {
+    return 'information';
+  }
   if (value && PRICE_LIST_VIEW_TABS.includes(value as PriceListViewTab)) {
     return value as PriceListViewTab;
   }
@@ -188,12 +191,6 @@ export function PriceListView({
         id: 'information' as const,
         label: t('clubdesk.priceList.tabs.information'),
         icon: Info,
-        count: null as number | null,
-      },
-      {
-        id: 'properties' as const,
-        label: t('clubdesk.priceList.tabs.properties'),
-        icon: SlidersHorizontal,
         count: null as number | null,
       },
       {
@@ -521,7 +518,7 @@ export function PriceListView({
         </div>
       </Card>
       {activeTab === 'information' ? informationCard : null}
-      {activeTab === 'properties' ? propertiesCard : null}
+      {activeTab === 'information' ? propertiesCard : null}
       {activeTab === 'items' ? (groups.length === 0 ? itemsEmptyCard : categoryCards) : null}
       {activeTab === 'activity' ? (
         <DetailActivityLog

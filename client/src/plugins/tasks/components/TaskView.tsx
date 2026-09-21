@@ -48,17 +48,14 @@ interface TaskViewProps {
   stacked?: boolean;
 }
 
-type TaskViewTab = 'information' | 'properties' | 'assignees' | 'linked' | 'activity';
+type TaskViewTab = 'information' | 'assignees' | 'linked' | 'activity';
 
-const TASK_VIEW_TABS: TaskViewTab[] = [
-  'information',
-  'properties',
-  'assignees',
-  'linked',
-  'activity',
-];
+const TASK_VIEW_TABS: TaskViewTab[] = ['information', 'assignees', 'linked', 'activity'];
 
 function parseTaskViewTab(value: string | null): TaskViewTab {
+  if (value === 'properties') {
+    return 'information';
+  }
   if (value && TASK_VIEW_TABS.includes(value as TaskViewTab)) {
     return value as TaskViewTab;
   }
@@ -229,12 +226,6 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
         id: 'information' as const,
         label: t('tasks.tabs.information'),
         icon: Info,
-        count: null as number | null,
-      },
-      {
-        id: 'properties' as const,
-        label: t('tasks.tabs.properties'),
-        icon: SlidersHorizontal,
         count: null as number | null,
       },
       {
@@ -441,7 +432,8 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
           ) : null}
 
           {activeTab === 'information' ? informationCard : null}
-          {activeTab === 'properties' ? propertiesCard : null}
+
+          {activeTab === 'information' ? propertiesCard : null}
           {activeTab === 'assignees' ? assigneesCard : null}
           {activeTab === 'linked' ? linkedCard : null}
           {activeTab === 'activity' ? (

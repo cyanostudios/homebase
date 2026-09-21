@@ -206,4 +206,8 @@ describe('TaskList table view wiring', () => {
     expect(quickContextActionsSrc).toMatch(/QuickContextOpenFullFooter/);
     expect(quickContextActionsSrc).toMatch(/common\.openFullProfile/);
   });
+
+  test('list and settings leave edit via attemptNavigation', () => {
+    expect(listSrc).toMatch(/attemptNavigation\(\(\) => openTaskSettings\(\)\)/);
+  });
 });

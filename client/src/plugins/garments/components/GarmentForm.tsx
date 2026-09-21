@@ -1,8 +1,22 @@
-import { Copy, Info, Layers, Plus, SlidersHorizontal, Tag, Trash2, X } from 'lucide-react';
+import {
+  Copy,
+  History,
+  Info,
+  Layers,
+  List,
+  Plus,
+  ShoppingBag,
+  SlidersHorizontal,
+  Tag,
+  Trash2,
+  X,
+} from 'lucide-react';
 import React, { useState, useEffect, useCallback, useImperativeHandle, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,13 +33,19 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
+import {
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { DETAIL_FORM_TITLE_INPUT_CLASS } from '@/core/ui/pluginPageStyles';
 import {
-  FORM_INPUT_CLASS,
+  FORM_GHOST_INPUT_CLASS,
   FORM_INPUT_ERROR_CLASS,
-  FORM_TEXTAREA_CLASS,
+  FORM_GHOST_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
 import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -75,6 +95,36 @@ function emptyVariant(): InventoryVariantPayload {
   return { sku: '', audience: '', color: '', size: '', quantity: 0 };
 }
 
+type InventoryFormTab = 'information' | 'variants' | 'lists' | 'activity';
+
+const INVENTORY_FORM_TABS: InventoryFormTab[] = ['information', 'variants', 'lists', 'activity'];
+
+const INVENTORY_FORM_EDIT_DISABLED_TABS: ReadonlySet<InventoryFormTab> = new Set(['activity']);
+
+const INVENTORY_TAB_ERROR_FIELDS: Record<InventoryFormTab, string[]> = {
+  information: [
+    'description',
+    'comment',
+    'articleName',
+    'purchasePrice',
+    'recommendedPrice',
+    'salePrice',
+  ],
+  variants: ['variants'],
+  lists: [],
+  activity: [],
+};
+
+function parseInventoryFormTab(value: string | null): InventoryFormTab {
+  if (value === 'properties') {
+    return 'information';
+  }
+  if (value && INVENTORY_FORM_TABS.includes(value as InventoryFormTab)) {
+    return value as InventoryFormTab;
+  }
+  return 'information';
+}
+
 export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(function GarmentForm(
   {
     currentGarment: currentGarmentProp,
@@ -87,21 +137,51 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
   ref,
 ) {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseInventoryFormTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: InventoryFormTab, replace = false) => {
+      if (INVENTORY_FORM_EDIT_DISABLED_TABS.has(tab)) {
+        return;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'information') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace },
+      );
+    },
+    [setSearchParams],
+  );
+
+  useEffect(() => {
+    if (!INVENTORY_FORM_EDIT_DISABLED_TABS.has(activeTab)) {
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('tab');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [activeTab, setSearchParams]);
+
   const { getSettings, settingsVersion } = useApp();
   const { validationErrors, clearValidationErrors, panelKind, isSaving, currentInventoryItem } =
     useGarments();
   const enabledPlugins = useEnabledPlugins();
   const hasTeams = enabledPlugins.has('teams');
   const { teams } = useTeams();
-  const {
-    isDirty,
-    showWarning,
-    markDirty,
-    markClean,
-    attemptAction,
-    confirmDiscard,
-    cancelDiscard,
-  } = useUnsavedChanges();
+  const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+    useUnsavedChanges();
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
@@ -136,9 +216,9 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     : `garment-list-${currentList?.id || 'new'}`;
 
   useEffect(() => {
-    registerUnsavedChangesChecker(formKey, () => isDirty);
+    registerUnsavedChangesChecker(formKey, () => true);
     return () => unregisterUnsavedChangesChecker(formKey);
-  }, [isDirty, formKey, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+  }, [formKey, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   const resetForm = useCallback(() => {
     setListForm({ name: '', teamId: null });
@@ -249,7 +329,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
   ]);
 
   const handleCancel = useCallback(() => {
-    attemptAction(() => onCancel());
+    attemptAction(() => onCancel(), { force: true });
   }, [attemptAction, onCancel]);
 
   useImperativeHandle(
@@ -264,11 +344,10 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
   const handleDiscardChanges = () => {
     if (!(isInventory ? currentInventoryItem : currentList)) {
       resetForm();
-      setTimeout(() => confirmDiscard(), 0);
-    } else {
-      confirmDiscard();
-      onCancel();
     }
+    // pendingAction from handleCancel is already onCancel — do not call it twice
+    // (edit cancel returns to view; a second call would close the panel).
+    confirmDiscard();
   };
 
   const getFieldError = (field: string) => validationErrors.find((err) => err.field === field);
@@ -365,44 +444,45 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     ? currentInventoryItem
     : currentList;
 
-  const formSidebar = sidebarItem ? (
-    <div className="space-y-4">
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('garments.information')}
-          icon={Info}
-          subtleTitle
-          className="p-4"
-          collapsible
-        >
-          <div>
-            <div className={DETAIL_INFO_ROW_CLASS}>
-              <span className="text-slate-500 dark:text-slate-400">ID</span>
-              <span className="font-mono font-extrabold text-foreground">
-                {formatDisplayNumber('garments', sidebarItem.id)}
-              </span>
+  const formSidebar =
+    !isInventory && sidebarItem ? (
+      <div className="space-y-4">
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('garments.information')}
+            icon={Info}
+            subtleTitle
+            className="p-4"
+            collapsible
+          >
+            <div>
+              <div className={DETAIL_INFO_ROW_CLASS}>
+                <span className="text-slate-500 dark:text-slate-400">ID</span>
+                <span className="font-mono font-extrabold text-foreground">
+                  {formatDisplayNumber('garments', sidebarItem.id)}
+                </span>
+              </div>
+              {'createdAt' in sidebarItem && sidebarItem.createdAt ? (
+                <div className={DETAIL_INFO_ROW_CLASS}>
+                  <span className="text-slate-500 dark:text-slate-400">{t('common.created')}</span>
+                  <span className="font-mono font-extrabold text-foreground">
+                    {formatDate(sidebarItem.createdAt)}
+                  </span>
+                </div>
+              ) : null}
+              {'updatedAt' in sidebarItem && sidebarItem.updatedAt ? (
+                <div className={DETAIL_INFO_ROW_CLASS}>
+                  <span className="text-slate-500 dark:text-slate-400">{t('common.updated')}</span>
+                  <span className="font-mono font-extrabold text-foreground">
+                    {formatDate(sidebarItem.updatedAt)}
+                  </span>
+                </div>
+              ) : null}
             </div>
-            {'createdAt' in sidebarItem && sidebarItem.createdAt ? (
-              <div className={DETAIL_INFO_ROW_CLASS}>
-                <span className="text-slate-500 dark:text-slate-400">{t('common.created')}</span>
-                <span className="font-mono font-extrabold text-foreground">
-                  {formatDate(sidebarItem.createdAt)}
-                </span>
-              </div>
-            ) : null}
-            {'updatedAt' in sidebarItem && sidebarItem.updatedAt ? (
-              <div className={DETAIL_INFO_ROW_CLASS}>
-                <span className="text-slate-500 dark:text-slate-400">{t('common.updated')}</span>
-                <span className="font-mono font-extrabold text-foreground">
-                  {formatDate(sidebarItem.updatedAt)}
-                </span>
-              </div>
-            ) : null}
-          </div>
-        </DetailSection>
-      </Card>
-    </div>
-  ) : undefined;
+          </DetailSection>
+        </Card>
+      </div>
+    ) : undefined;
 
   const inventoryVariantTotal = (inventoryForm.variants || []).reduce(
     (sum, row) => sum + (Number(row.quantity) || 0),
@@ -413,244 +493,142 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     () => findDuplicateVariantIndices(inventoryForm.variants || []),
     [inventoryForm.variants],
   );
-  const articleInitials = (inventoryForm.articleName || '—').trim().slice(0, 2).toUpperCase();
 
-  const inventoryLeftSidebar = (
-    <div className="space-y-4">
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <div className="border-b border-border/50 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-sm font-semibold text-rose-800 dark:bg-rose-950/50 dark:text-rose-200"
-              aria-hidden
-            >
-              {articleInitials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <Input
-                id="garment-article"
-                value={inventoryForm.articleName}
-                onChange={(e) => updateInventoryField('articleName', e.target.value)}
-                placeholder={t('garments.articleName')}
-                className={cn(
-                  DETAIL_FORM_TITLE_INPUT_CLASS,
-                  getFieldError('articleName') && FORM_INPUT_ERROR_CLASS,
-                )}
-              />
-              {getFieldError('articleName') ? (
-                <p className="mt-1 text-sm text-destructive">
-                  {getFieldError('articleName')?.message}
-                </p>
+  const tabHasError = (tab: InventoryFormTab) =>
+    INVENTORY_TAB_ERROR_FIELDS[tab].some((field) =>
+      validationErrors.some((e) => e.field === field),
+    );
+
+  const inventoryTabs = useMemo(
+    () => [
+      { id: 'information' as const, label: t('garments.tabs.information'), icon: Info },
+      {
+        id: 'variants' as const,
+        label: t('garments.tabs.variants'),
+        icon: Layers,
+        count: inventoryVariantCount > 0 ? inventoryVariantCount : null,
+      },
+      { id: 'lists' as const, label: t('garments.tabs.lists'), icon: List },
+      { id: 'activity' as const, label: t('garments.tabs.activity'), icon: History },
+    ],
+    [inventoryVariantCount, t],
+  );
+
+  const inventoryTabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {inventoryTabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isDisabled = INVENTORY_FORM_EDIT_DISABLED_TABS.has(tab.id);
+        const isActive = !isDisabled && activeTab === tab.id;
+        const hasError = !isDisabled && tabHasError(tab.id);
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            aria-disabled={isDisabled}
+            disabled={isDisabled}
+            title={
+              isDisabled
+                ? t('garments.tabUnavailableInEdit', {
+                    defaultValue: 'Available in view mode only',
+                  })
+                : undefined
+            }
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              isDisabled && 'pointer-events-none opacity-40',
+            )}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span className="inline-flex items-center gap-1.5">
+              {tab.label}
+              {'count' in tab && tab.count != null ? (
+                <>
+                  {' '}
+                  <span className="tabular-nums font-semibold">({tab.count})</span>
+                </>
               ) : null}
-            </div>
-          </div>
-        </div>
-        <DetailSection
-          title={t('garments.details')}
-          icon={SlidersHorizontal}
-          subtleTitle
-          className="p-4"
-        >
-          <div className="space-y-3">
-            <div>
-              <Label htmlFor="garment-brand">{t('garments.brand')}</Label>
-              <Input
-                id="garment-brand"
-                value={inventoryForm.brand ?? ''}
-                onChange={(e) => updateInventoryField('brand', e.target.value)}
-                className={FORM_INPUT_CLASS}
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="garment-price">{t('garments.purchasePrice')}</Label>
-                <Input
-                  id="garment-price"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={inventoryForm.purchasePrice ?? ''}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    updateInventoryField('purchasePrice', raw === '' ? null : Number(raw));
-                  }}
-                  className={cn(
-                    FORM_INPUT_CLASS,
-                    getFieldError('purchasePrice') && FORM_INPUT_ERROR_CLASS,
-                  )}
+              {hasError ? (
+                <span
+                  className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-destructive"
+                  aria-label={t('common.error', { defaultValue: 'Error' })}
                 />
-                {getFieldError('purchasePrice') ? (
-                  <p className="mt-1 text-sm text-destructive">
-                    {getFieldError('purchasePrice')?.message}
-                  </p>
-                ) : null}
-              </div>
-              <div>
-                <Label htmlFor="garment-currency">{t('garments.currency')}</Label>
-                <Input
-                  id="garment-currency"
-                  value={inventoryForm.currency ?? 'SEK'}
-                  onChange={(e) => updateInventoryField('currency', e.target.value)}
-                  maxLength={10}
-                  className={FORM_INPUT_CLASS}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="garment-recommended-price">{t('garments.recommendedPrice')}</Label>
-                <Input
-                  id="garment-recommended-price"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={inventoryForm.recommendedPrice ?? ''}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    updateInventoryField('recommendedPrice', raw === '' ? null : Number(raw));
-                  }}
-                  className={cn(
-                    FORM_INPUT_CLASS,
-                    getFieldError('recommendedPrice') && FORM_INPUT_ERROR_CLASS,
-                  )}
-                />
-                {getFieldError('recommendedPrice') ? (
-                  <p className="mt-1 text-sm text-destructive">
-                    {getFieldError('recommendedPrice')?.message}
-                  </p>
-                ) : null}
-              </div>
-              <div>
-                <Label htmlFor="garment-sale-price">{t('garments.salePrice')}</Label>
-                <Input
-                  id="garment-sale-price"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={inventoryForm.salePrice ?? ''}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    updateInventoryField('salePrice', raw === '' ? null : Number(raw));
-                  }}
-                  className={cn(
-                    FORM_INPUT_CLASS,
-                    getFieldError('salePrice') && FORM_INPUT_ERROR_CLASS,
-                  )}
-                />
-                {getFieldError('salePrice') ? (
-                  <p className="mt-1 text-sm text-destructive">
-                    {getFieldError('salePrice')?.message}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="garment-material">{t('garments.material')}</Label>
-              <Input
-                id="garment-material"
-                value={inventoryForm.material ?? ''}
-                onChange={(e) => updateInventoryField('material', e.target.value)}
-                className={FORM_INPUT_CLASS}
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <span className="text-slate-500 dark:text-slate-400">
-                  {t('garments.totalQuantity')}
-                </span>
-                <div className="font-medium text-foreground">{inventoryVariantTotal}</div>
-              </div>
-              <div>
-                <span className="text-slate-500 dark:text-slate-400">
-                  {t('garments.variantCount')}
-                </span>
-                <div className="font-medium text-foreground">{inventoryVariantCount}</div>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="garment-description">{t('garments.description')}</Label>
-              <Textarea
-                id="garment-description"
-                value={inventoryForm.description ?? ''}
-                onChange={(e) => updateInventoryField('description', e.target.value)}
-                rows={4}
-                className={FORM_TEXTAREA_CLASS}
-              />
-            </div>
-            <div>
-              <Label htmlFor="garment-inv-comment">{t('garments.comment')}</Label>
-              <Textarea
-                id="garment-inv-comment"
-                value={inventoryForm.comment ?? ''}
-                onChange={(e) => updateInventoryField('comment', e.target.value)}
-                rows={3}
-                className={FORM_TEXTAREA_CLASS}
-              />
-            </div>
-            <div>
-              <Label>{t('garments.tags')}</Label>
-              <div className="mt-1.5 space-y-2">
-                <Select
-                  value={tagToAdd || '__add_tag__'}
-                  onValueChange={(value) => {
-                    if (value && value !== '__add_tag__') {
-                      addInventoryTag(value);
-                    }
-                  }}
-                  disabled={addableTags.length === 0}
-                >
-                  <SelectTrigger className={cn(FORM_INPUT_CLASS, 'sm:w-[220px]')}>
-                    <SelectValue placeholder={t('garments.addTagPlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__add_tag__">
-                      {addableTags.length === 0
-                        ? t('garments.noMoreTagsToAdd')
-                        : t('garments.addTagPlaceholder')}
-                    </SelectItem>
-                    {addableTags.map((item) => (
-                      <SelectItem key={item} value={item}>
-                        {item}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {formTags.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {formTags.map((item) => (
-                      <Badge
-                        key={item}
-                        className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-extrabold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                      >
-                        <Tag className="h-3 w-3" />
-                        {item}
-                        <button
-                          type="button"
-                          className="rounded p-0.5 hover:bg-muted"
-                          onClick={() => removeInventoryTag(item)}
-                          aria-label={t('garments.removeTagAria', { tag: item })}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground">{t('garments.noTags')}</span>
-                )}
-                {availableTags.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">{t('garments.tagsEmptyHint')}</p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
-      <InventoryListAssignmentCheckboxes itemId={currentInventoryItem?.id} />
+              ) : null}
+            </span>
+          </Button>
+        );
+      })}
     </div>
   );
 
-  const listDetailsCard = (
+  const inventoryFormHeader = (
+    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+      <div className="px-4 py-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="inline-flex shrink-0" aria-hidden>
+            <SectionCategoryIcon
+              icon={ShoppingBag}
+              className="h-8 w-8 bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200 [&_svg]:h-4 [&_svg]:w-4"
+            />
+          </span>
+          <div className="min-w-0 flex-1">
+            <Input
+              id="garment-article"
+              value={inventoryForm.articleName}
+              onChange={(e) => updateInventoryField('articleName', e.target.value)}
+              placeholder={t('garments.articleName')}
+              aria-label={t('garments.articleName')}
+              className={cn(
+                DETAIL_FORM_TITLE_INPUT_CLASS,
+                getFieldError('articleName') && FORM_INPUT_ERROR_CLASS,
+              )}
+            />
+            {getFieldError('articleName') ? (
+              <p className="mt-1 text-sm text-destructive">
+                {getFieldError('articleName')?.message}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="mt-4">{inventoryTabChips}</div>
+      </div>
+    </Card>
+  );
+
+  const inventoryInformationCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={t('garments.tabs.information')} icon={Info} subtleTitle className="p-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="garment-description">{t('garments.description')}</Label>
+            <Textarea
+              id="garment-description"
+              value={inventoryForm.description ?? ''}
+              onChange={(e) => updateInventoryField('description', e.target.value)}
+              rows={4}
+              className={FORM_GHOST_TEXTAREA_CLASS}
+            />
+          </div>
+          <div>
+            <Label htmlFor="garment-inv-comment">{t('garments.comment')}</Label>
+            <Textarea
+              id="garment-inv-comment"
+              value={inventoryForm.comment ?? ''}
+              onChange={(e) => updateInventoryField('comment', e.target.value)}
+              rows={3}
+              className={FORM_GHOST_TEXTAREA_CLASS}
+            />
+          </div>
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const inventoryPropertiesCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
         title={t('garments.details')}
@@ -658,46 +636,187 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
         subtleTitle
         className="p-6"
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div>
-            <Label htmlFor="garment-name">{t('garments.name')}</Label>
+            <Label htmlFor="garment-brand">{t('garments.brand')}</Label>
             <Input
-              id="garment-name"
-              value={listForm.name}
-              onChange={(e) => updateListField('name', e.target.value)}
-              className={cn(FORM_INPUT_CLASS, getFieldError('name') && FORM_INPUT_ERROR_CLASS)}
+              id="garment-brand"
+              value={inventoryForm.brand ?? ''}
+              onChange={(e) => updateInventoryField('brand', e.target.value)}
+              className={FORM_GHOST_INPUT_CLASS}
             />
-            {getFieldError('name') ? (
-              <p className="mt-1 text-sm text-destructive">{getFieldError('name')?.message}</p>
-            ) : null}
           </div>
-          {hasTeams ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <Label htmlFor="garment-team">{t('garments.team')}</Label>
+              <Label htmlFor="garment-price">{t('garments.purchasePrice')}</Label>
+              <Input
+                id="garment-price"
+                type="number"
+                min={0}
+                step="0.01"
+                value={inventoryForm.purchasePrice ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  updateInventoryField('purchasePrice', raw === '' ? null : Number(raw));
+                }}
+                className={cn(
+                  FORM_GHOST_INPUT_CLASS,
+                  getFieldError('purchasePrice') && FORM_INPUT_ERROR_CLASS,
+                )}
+              />
+              {getFieldError('purchasePrice') ? (
+                <p className="mt-1 text-sm text-destructive">
+                  {getFieldError('purchasePrice')?.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="garment-currency">{t('garments.currency')}</Label>
+              <Input
+                id="garment-currency"
+                value={inventoryForm.currency ?? 'SEK'}
+                onChange={(e) => updateInventoryField('currency', e.target.value)}
+                maxLength={10}
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="garment-recommended-price">{t('garments.recommendedPrice')}</Label>
+              <Input
+                id="garment-recommended-price"
+                type="number"
+                min={0}
+                step="0.01"
+                value={inventoryForm.recommendedPrice ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  updateInventoryField('recommendedPrice', raw === '' ? null : Number(raw));
+                }}
+                className={cn(
+                  FORM_GHOST_INPUT_CLASS,
+                  getFieldError('recommendedPrice') && FORM_INPUT_ERROR_CLASS,
+                )}
+              />
+              {getFieldError('recommendedPrice') ? (
+                <p className="mt-1 text-sm text-destructive">
+                  {getFieldError('recommendedPrice')?.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="garment-sale-price">{t('garments.salePrice')}</Label>
+              <Input
+                id="garment-sale-price"
+                type="number"
+                min={0}
+                step="0.01"
+                value={inventoryForm.salePrice ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  updateInventoryField('salePrice', raw === '' ? null : Number(raw));
+                }}
+                className={cn(
+                  FORM_GHOST_INPUT_CLASS,
+                  getFieldError('salePrice') && FORM_INPUT_ERROR_CLASS,
+                )}
+              />
+              {getFieldError('salePrice') ? (
+                <p className="mt-1 text-sm text-destructive">
+                  {getFieldError('salePrice')?.message}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="garment-material">{t('garments.material')}</Label>
+            <Input
+              id="garment-material"
+              value={inventoryForm.material ?? ''}
+              onChange={(e) => updateInventoryField('material', e.target.value)}
+              className={FORM_GHOST_INPUT_CLASS}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <span className="text-slate-500 dark:text-slate-400">
+                {t('garments.totalQuantity')}
+              </span>
+              <div className="font-medium text-foreground">{inventoryVariantTotal}</div>
+            </div>
+            <div>
+              <span className="text-slate-500 dark:text-slate-400">
+                {t('garments.variantCount')}
+              </span>
+              <div className="font-medium text-foreground">{inventoryVariantCount}</div>
+            </div>
+          </div>
+          <div>
+            <Label>{t('garments.tags')}</Label>
+            <div className="mt-1.5 space-y-2">
               <Select
-                value={listForm.teamId ?? '__none__'}
-                onValueChange={(value) =>
-                  updateListField('teamId', value === '__none__' ? null : value)
-                }
+                value={tagToAdd || '__add_tag__'}
+                onValueChange={(value) => {
+                  if (value && value !== '__add_tag__') {
+                    addInventoryTag(value);
+                  }
+                }}
+                disabled={addableTags.length === 0}
               >
-                <SelectTrigger id="garment-team" className={FORM_INPUT_CLASS}>
-                  <SelectValue placeholder={t('garments.teamNone')} />
+                <SelectTrigger className={cn(FORM_GHOST_INPUT_CLASS, 'sm:w-[220px]')}>
+                  <SelectValue placeholder={t('garments.addTagPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">{t('garments.teamNone')}</SelectItem>
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={String(team.id)}>
-                      {formatTeamLabel(team)}
+                  <SelectItem value="__add_tag__">
+                    {addableTags.length === 0
+                      ? t('garments.noMoreTagsToAdd')
+                      : t('garments.addTagPlaceholder')}
+                  </SelectItem>
+                  {addableTags.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {item}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {formTags.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {formTags.map((item) => (
+                    <Badge
+                      key={item}
+                      className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-extrabold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    >
+                      <Tag className="h-3 w-3" />
+                      {item}
+                      <button
+                        type="button"
+                        className="rounded p-0.5 hover:bg-muted"
+                        onClick={() => removeInventoryTag(item)}
+                        aria-label={t('garments.removeTagAria', { tag: item })}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">{t('garments.noTags')}</span>
+              )}
+              {availableTags.length === 0 ? (
+                <p className="text-xs text-muted-foreground">{t('garments.tagsEmptyHint')}</p>
+              ) : null}
             </div>
-          ) : null}
-          {!currentList ? (
-            <p className="text-sm text-muted-foreground">{t('garments.defaultCheckboxesHint')}</p>
-          ) : null}
+          </div>
         </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const inventoryListsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={t('garments.tabs.lists')} icon={List} subtleTitle className="p-6">
+        <InventoryListAssignmentCheckboxes itemId={currentInventoryItem?.id} />
       </DetailSection>
     </Card>
   );
@@ -832,15 +951,67 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     </Card>
   );
 
+  const listDetailsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('garments.details')}
+        icon={SlidersHorizontal}
+        subtleTitle
+        className="p-6"
+      >
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="garment-name">{t('garments.name')}</Label>
+            <Input
+              id="garment-name"
+              value={listForm.name}
+              onChange={(e) => updateListField('name', e.target.value)}
+              className={cn(
+                FORM_GHOST_INPUT_CLASS,
+                getFieldError('name') && FORM_INPUT_ERROR_CLASS,
+              )}
+            />
+            {getFieldError('name') ? (
+              <p className="mt-1 text-sm text-destructive">{getFieldError('name')?.message}</p>
+            ) : null}
+          </div>
+          {hasTeams ? (
+            <div>
+              <Label htmlFor="garment-team">{t('garments.team')}</Label>
+              <Select
+                value={listForm.teamId ?? '__none__'}
+                onValueChange={(value) =>
+                  updateListField('teamId', value === '__none__' ? null : value)
+                }
+              >
+                <SelectTrigger id="garment-team" className={FORM_GHOST_INPUT_CLASS}>
+                  <SelectValue placeholder={t('garments.teamNone')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t('garments.teamNone')}</SelectItem>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={String(team.id)}>
+                      {formatTeamLabel(team)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          {!currentList ? (
+            <p className="text-sm text-muted-foreground">{t('garments.defaultCheckboxesHint')}</p>
+          ) : null}
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
   return (
     <>
       <div className="plugin-garments">
         <DetailLayout
-          gridClassName={
-            stacked ? 'grid-cols-1' : isInventory ? 'grid-cols-1 lg:grid-cols-2' : undefined
-          }
-          leftSidebar={!stacked && isInventory ? inventoryLeftSidebar : undefined}
-          sidebar={!stacked && !isInventory ? formSidebar : undefined}
+          gridClassName="grid-cols-1"
+          sidebar={!isInventory && !stacked ? formSidebar : undefined}
         >
           <form
             className="space-y-4"
@@ -862,7 +1033,17 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
               </Card>
             )}
 
-            {isInventory ? variantsCard : listDetailsCard}
+            {isInventory ? (
+              <>
+                {inventoryFormHeader}
+                {activeTab === 'information' ? inventoryInformationCard : null}
+                {activeTab === 'information' ? inventoryPropertiesCard : null}
+                {activeTab === 'variants' ? variantsCard : null}
+                {activeTab === 'lists' ? inventoryListsCard : null}
+              </>
+            ) : (
+              listDetailsCard
+            )}
           </form>
         </DetailLayout>
       </div>

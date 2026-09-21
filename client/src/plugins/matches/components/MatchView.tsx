@@ -1,13 +1,4 @@
-import {
-  ExternalLink,
-  History,
-  Info,
-  Link2,
-  Search,
-  SlidersHorizontal,
-  Trash2,
-  Users,
-} from 'lucide-react';
+import { ExternalLink, History, Info, Link2, Search, Trash2, Users } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -82,17 +73,14 @@ type AssignableContact = {
 
 type RelatedItem = { id: string | number; label: string; onOpen: () => void; pluginClass: string };
 
-type MatchViewTab = 'information' | 'properties' | 'contacts' | 'linked' | 'activity';
+type MatchViewTab = 'information' | 'contacts' | 'linked' | 'activity';
 
-const MATCH_VIEW_TABS: MatchViewTab[] = [
-  'information',
-  'properties',
-  'contacts',
-  'linked',
-  'activity',
-];
+const MATCH_VIEW_TABS: MatchViewTab[] = ['information', 'contacts', 'linked', 'activity'];
 
 function parseMatchViewTab(value: string | null): MatchViewTab {
+  if (value === 'properties') {
+    return 'information';
+  }
   if (value && MATCH_VIEW_TABS.includes(value as MatchViewTab)) {
     return value as MatchViewTab;
   }
@@ -435,12 +423,6 @@ export function MatchView({ match: matchProp, item, stacked: _stacked = false }:
         count: null as number | null,
       },
       {
-        id: 'properties' as const,
-        label: t('matches.tabs.properties'),
-        icon: SlidersHorizontal,
-        count: null as number | null,
-      },
-      {
         id: 'contacts' as const,
         label: t('matches.tabs.contacts'),
         icon: Users,
@@ -699,7 +681,7 @@ export function MatchView({ match: matchProp, item, stacked: _stacked = false }:
           <MatchQuickContextPanel match={match} headerBelow={tabChips} />
 
           {activeTab === 'information' ? <MatchInformationCard match={match} /> : null}
-          {activeTab === 'properties' ? (
+          {activeTab === 'information' ? (
             <MatchPropertiesCard match={match} sportLabel={sportLabel} />
           ) : null}
           {activeTab === 'contacts' ? contactsCard : null}

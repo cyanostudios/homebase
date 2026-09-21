@@ -129,7 +129,7 @@ export function AppContent() {
     registerOpenToSlotDialog,
     closeOtherPanels,
   } = useApp();
-  const { attemptNavigation, showWarning, confirmDiscard, cancelDiscard, warningMessage } =
+  const { attemptNavigation, showWarning, confirmDiscard, cancelDiscard } =
     useGlobalNavigationGuard();
 
   // Plugin contexts - automatically load all registered plugins
@@ -629,7 +629,7 @@ export function AppContent() {
       <ConfirmDialog
         isOpen={showWarning}
         title={t('dialog.unsavedChanges')}
-        message={warningMessage}
+        message={t('dialog.discardAndClose')}
         confirmText={t('dialog.discardChanges')}
         cancelText={t('dialog.continueEditing')}
         onConfirm={confirmDiscard}

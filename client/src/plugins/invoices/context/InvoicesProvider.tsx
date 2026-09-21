@@ -14,7 +14,7 @@ import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
-import { resolveSlug } from '@/core/utils/slugUtils';
+import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
 import { InvoiceDetailHeaderMenus } from '../components/InvoiceDetailHeaderMenus';
@@ -125,21 +125,7 @@ export function InvoicesProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
-  const didOpenFromUrlRef = useRef(false);
-  useEffect(() => {
-    if (didOpenFromUrlRef.current || invoices.length === 0) {
-      return;
-    }
-    const parts = window.location.pathname.split('/');
-    if (parts[1] !== 'invoices' || !parts[2]) {
-      return;
-    }
-    const item = resolveSlug(parts[2], invoices, 'invoiceNumber');
-    if (item) {
-      didOpenFromUrlRef.current = true;
-      openInvoiceForViewRef.current(item as Invoice);
-    }
-  }, [invoices]);
+  const invoicesDeepLinkPathSyncedRef = useRef<string | null>(null);
 
   useEffect(() => {
     registerPanelCloseFunction('invoices', closeInvoicesPanel);
@@ -213,6 +199,8 @@ export function InvoicesProvider({
     setValidationErrors([]);
     onCloseOtherPanels();
     if (item) {
+      const slug = buildSlug(item, invoices, 'invoiceNumber');
+      invoicesDeepLinkPathSyncedRef.current = `/invoices/${slug}`;
       navigateToItem(item, invoices, 'invoiceNumber');
     }
   };
@@ -280,6 +268,8 @@ export function InvoicesProvider({
     setIsInvoicesPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    const slug = buildSlug(item, invoices, 'invoiceNumber');
+    invoicesDeepLinkPathSyncedRef.current = `/invoices/${slug}`;
     navigateToItem(item, invoices, 'invoiceNumber');
   };
 
@@ -302,6 +292,30 @@ export function InvoicesProvider({
   useEffect(() => {
     openInvoiceForViewRef.current = openInvoiceForView;
   }, [openInvoiceForView]);
+
+  useEffect(() => {
+    if (invoices.length === 0) {
+      return;
+    }
+    const segments = location.pathname.split('/').filter(Boolean);
+    if (segments[0] !== 'invoices') {
+      return;
+    }
+    const slug = segments[1] ?? '';
+    if (!slug) {
+      invoicesDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (invoicesDeepLinkPathSyncedRef.current === pathKey) {
+      return;
+    }
+    const item = resolveSlug(slug, invoices, 'invoiceNumber');
+    invoicesDeepLinkPathSyncedRef.current = pathKey;
+    if (item) {
+      openInvoiceForViewRef.current(item as Invoice);
+    }
+  }, [location.pathname, invoices]);
 
   const closeInvoicesPanel = useCallback(() => {
     clearPendingInvoiceCreate();

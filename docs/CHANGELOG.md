@@ -4,13 +4,155 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-21 – Invoices: Information-only facts/preview + status select parity + hygiene
+
+**Typ:** enhancement / UX + cleanup  
+**Scope:** `InvoiceQuickContextPanel` header-only; `InvoicesView` / `InvoicesForm` Information tab (facts, customer, stacked live preview); `InvoiceStatusSelect` → `BADGE_SELECT_TRIGGER_CLASS`; line items `defaultOpen`; deleted orphans `InvoicePreviewDialog` / `InvoiceStatusButtons` + unused style aliases  
+**QA:** Godkänt (scoped 2026-09-21) — `invoicesViewTabChips`, `invoicesFormEditParity`, invoices suite. **Security:** Approved (UI-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Facts and live document preview no longer follow other tabs (no sticky `DetailLayout` preview column). QC is Contacts-class header + chips only. Form: title+chips header always; customer + preview on Information; Lines keeps editor + discount/pricing. Status dropdown matches Tasks/Requests trigger alignment. Dead modal/button components removed.
+
+---
+
+## 2026-09-21 – Inventory discard + ConfirmDialog confirm race
+
+**Typ:** bugfix  
+**Scope:** `ConfirmDialog` (confirm must not call `onCancel` via `onOpenChange`); `GarmentForm` discard; `GarmentList` edit cancel → view, inventory row activate parity with lists  
+**QA:** `inventoryFormEditParity` — Godkänt. **Security:** Approved (UI-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Create/edit Discard in inventory left the form open because AlertDialog close cleared the pending leave action. Confirm no longer cancels; discard runs pending `onCancel` once; edit returns to view (desktop list cancel + DetailPanel). Inventory DetailPanel view now uses `currentInventoryItem` instead of the list proxy.
+
+---
+
+## 2026-09-21 – Merge Information + Properties into one tab
+
+**Typ:** enhancement / UX  
+**Scope:** Contacts, Tasks, Requests, Matches, Cups, Clubdesk (+ PriceList), Garments inventory — View + Form; legacy `?tab=properties` maps to `information`  
+**QA:** view tab-chip + form edit-parity tests — Godkänt. **Security:** Approved (UI-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Plugins that had both Information and Properties chips now show only Information. Properties content is card #2 under Information (below description/main info). Requests: Properties card before Submitter on Information. Estimates keeps Properties as its first tab (no Information tab).
+
+---
+
+## 2026-09-21 – Garments inventory: View/Edit `?tab=` shell
+
+**Typ:** enhancement / UX  
+**Scope:** `InventoryQuickContextPanel` + `GarmentForm` (inventory) — same chips as Contacts-class (`information` | `variants` | `lists` | `activity`); Activity greyed in edit; removed inventory `leftSidebar` 2-col  
+**QA:** `inventoryFormEditParity`, `inventoryListTableView`. **Security:** N/A. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Inventory detail and create/edit share URL tabs; stacked edit no longer shows only variants.
+
+---
+
+## 2026-09-20 – Cups: DetailHeaderMetaRow under title
+
+**Typ:** enhancement / UX  
+**Scope:** `CupView` — location + updated first; Visible/Hidden, Sanctioned, Featured badges last (`StatusOutlineBadge` / `QC_*`)  
+**QA:** `cupViewTabChips`. **Security:** N/A. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Cups detail header matches Clubdesk/Matches meta-row pattern under `CupDetailHeaderMenus`.
+
+---
+
+## 2026-09-20 – Remaining plugins: Contacts-class edit parity
+
+**Typ:** enhancement / UX  
+**Scope:** Matches, Cups, Teams, Guides (already), Clubdesk (+ PriceList), Ingest form `?tab=` shells + ghost facts + session leave; Slots, Garments, Instructions, Files leave/ghost (no View tabs)  
+**QA:** `matchFormEditParity`, `cupFormEditParity`, `teamFormEditParity`, `clubdeskFormEditParity`, `ingestSourceFormEditParity`, `waveBFormEditLeaveParity` (files). **Security:** Approved (UI-only, 2026-09-21). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Remaining mail-layout create/edit mirrors Contacts-class: soft ghost fact fields, View-matching `?tab=` chips with view-only tabs greyed, and leave confirm from list/sidebar/settings/Close (`registerUnsavedChangesChecker(..., () => true)` + `{ force: true }`). Dense/line-item editors untouched where applicable.
+
+---
+
+## 2026-09-20 – Deep-link Edit stamp: no view bounce (all mail-layout plugins)
+
+**Typ:** bugfix  
+**Scope:** Prime `*DeepLinkPathSyncedRef` before `navigateToItem` in `open*ForEdit` / `open*Panel` — Matches, Slots, Guides, Garments, Instructions, Cups; Invoices migrated off `didOpenFromUrlRef`; Estimates already fixed  
+**QA:** `pluginDeepLinkEditStamp`, `estimateProviderDeepLink`. **Security:** N/A (nav-state only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Soft-preview → Edit no longer bounces back to view. Cups also gained a proper path-synced ref (previously re-opened view on every pathname/`cups` change).
+
+---
+
+## 2026-09-20 – Estimates: Edit no longer bounces back to view
+
+**Typ:** bugfix  
+**Scope:** `EstimateProvider` — prime `estimatesDeepLinkPathSyncedRef` in `openEstimateForEdit` / `openEstimatePanel` before `navigateToItem`  
+**QA:** `estimateProviderDeepLink`. **Security:** N/A (nav-state only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Soft-preview → Actions → Edit stayed on view until a second click because URL sync re-opened view. Same Contacts/Tasks deep-link stamp pattern.
+
+---
+
+## 2026-09-20 – Business plugins: Estimates/Invoices edit parity
+
+**Typ:** enhancement / UX  
+**Scope:** `EstimateForm` / `InvoicesForm` URL tabs + ghost fact fields + session leave; list settings `attemptNavigation`; line-item editors unchanged (`FORM_COMPACT_*` / `InvoiceLineItemsEditor`)  
+**QA:** `estimateFormEditParity`, `invoicesFormEditParity`. **Security:** Pending. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Estimates and Invoices create/edit match Contacts-class edit: soft light-blue ghost on header/fact fields, same `?tab=` chips as view (Activity / Payments / Linked greyed in edit), and leave confirm from list/sidebar/settings/Close. Line items and pricing compact chrome are intentionally untouched.
+
+---
+
+## 2026-09-20 – Requests QC: source first in meta row
+
+**Typ:** enhancement / UX  
+**Scope:** `RequestQuickContextPanel` DetailHeaderMetaRow — Internal/External as first meta badge  
+**QA:** `requestViewTabChips`. **Security:** Approved (UI meta order only; covered in epic FE review). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Request detail/quick-context meta row shows source (internal/external) before type and status badges.
+
+---
+
+## 2026-09-20 – Notes edit tabs + centered focus mode
+
+**Typ:** enhancement / UX  
+**Scope:** `NoteForm` URL tabs (parity with `NoteView`; linked/activity disabled), viewport-centered focus dialog via `createPortal`, leave guard already session-based  
+**QA:** `noteFormEditParity`. **Security:** Approved (FE UI; focus portal style-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Notes create/edit uses the same `?tab=` chips as view. Focus mode opens the editor in a centered overlay over the dimmed chrome (not only centered in the detail column).
+
+---
+
+## 2026-09-20 – Tasks/Requests edit parity (tabs, ghost, leave guard)
+
+**Typ:** enhancement / UX  
+**Scope:** `TaskForm` / `RequestForm` URL tabs + ghost chrome + session leave guard; list settings `attemptNavigation`; `FORM_GHOST_TEXTAREA` / RTE ghost content inset  
+**QA:** `taskFormEditParity`, `requestFormEditParity`, list table-view tests, `formFieldStyles`. **Security:** Approved (FE UI/nav-guard; same client-only leave limit as Contacts/Notes). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Tasks and Requests create/edit match Contacts-class edit: soft light-blue ghost fields, same `?tab=` chips as view (Linked/Activity or Activity greyed in edit), and leave confirm from list/sidebar/settings/Close. Ghost textareas and RTE content get extra horizontal padding so text is not flush to the edge.
+
+---
+
+## 2026-09-20 – Edit leave: confirm list/sidebar exit
+
+**Typ:** enhancement / UX  
+**Scope:** `ContactForm` / `NoteForm` global leave guard (`() => true` while create/edit open), Close `attemptAction(..., { force: true })`, list settings via `attemptNavigation`, right-rail Settings via `attemptNavigation`, AppContent discard dialog i18n  
+**QA:** `contactFormTabs`, `contactListTableView`, `appRightSidebarWiring`. **Security:** Approved (FE UI/nav-guard; Info: client-only — hard refresh bypasses prompt). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** In Contacts/Notes create/edit, leaving via list row, plugin settings, left sidebar, or right-rail Settings always shows the discard confirm (same dialog as Close) — not only when fields are dirty. _(Tasks/Requests use the same session leave pattern — see “Tasks/Requests edit parity” above.)_
+
+**Begränsning:** Guard is client UX only (not server access control); closing the browser tab or hard-refreshing skips the prompt.
+
+---
+
+## 2026-09-20 – Edit affordance + Contacts tabs in edit
+
+**Typ:** enhancement / UI  
+**Scope:** `FORM_GHOST_*` soft light-blue idle `bg-primary/10`, `DETAIL_FORM_TITLE_INPUT_CLASS`, `RichTextEditor` ghost shell, `ContactForm` URL tabs (parity with `ContactView`), `useItemUrl` preserves `?tab=`  
+**QA:** `formFieldStyles`, `contactFormGhostFields`, `contactFormTabs`. **Security:** N/A (chrome/layout only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Ghost fact fields keep view typography but show a soft light-blue idle surface so edit mode is obvious. Contacts create/edit uses the same six `?tab=` chips as view (linked/activity read-only); View→Edit keeps the active tab.
+
+---
+
 ## 2026-09-20 – Ghost fact fields in Contacts / Notes edit
 
 **Typ:** enhancement / UI  
 **Scope:** `formFieldStyles.ts` (`FORM_GHOST_*`), `ContactForm`, `NoteForm`, `RichTextEditor` (`variant="ghost"`), `DETAIL_FORM_TITLE_INPUT_CLASS` focus ring, view guide §3, design checklist, UX standards  
 **QA:** Scoped tests `formFieldStyles.test.js` + Contacts/Notes source checks. **Security:** N/A (chrome-only; no contenteditable / always-on-edit). **Local-first; not a prod release** by itself.
 
-**Sammanfattning:** Detail create/edit fact fields in Contacts (and Notes title/body) use transparent **ghost** chrome matching view typography (`DETAIL_FIELD_VALUE_CLASS`) instead of compact muted `FORM_INPUT_CLASS` boxes. Filled tokens stay for settings and dense grids. Notes editor supports `variant="ghost"`. Explicit Edit + unsaved guard unchanged.
+**Sammanfattning:** Detail create/edit fact fields in Contacts (and Notes title/body) use transparent **ghost** chrome matching view typography (`DETAIL_FIELD_VALUE_CLASS`) instead of compact muted `FORM_INPUT_CLASS` boxes. Filled tokens stay for settings and dense grids. Notes editor supports `variant="ghost"`. _(Superseded for idle surface by “Edit affordance + Contacts tabs in edit”; leave/session guard and Tasks/Requests/Notes tab shells superseded by later 2026-09-20 entries above.)_
 
 ---
 

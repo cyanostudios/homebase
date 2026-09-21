@@ -24,14 +24,15 @@ describe('ContactView detail tab chips', () => {
     expect(viewSrc).toMatch(/useSearchParams/);
     expect(viewSrc).toMatch(/parseContactViewTab/);
     expect(viewSrc).toMatch(/'information'/);
-    expect(viewSrc).toMatch(/'properties'/);
+    expect(viewSrc).toMatch(/value === 'properties'/); // legacy ?tab=properties → information
     expect(viewSrc).toMatch(/'addresses'/);
     expect(viewSrc).toMatch(/'persons'/);
     expect(viewSrc).toMatch(/'linked'/);
     expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
-    expect(viewSrc).toMatch(/activeTab === 'properties'/);
+    expect(viewSrc).toMatch(/activeTab === 'information' \? propertiesCard/);
+    expect(viewSrc).not.toMatch(/activeTab === 'properties'/);
     expect(viewSrc).toMatch(/activeTab === 'addresses'/);
     expect(viewSrc).toMatch(/activeTab === 'persons'/);
     expect(viewSrc).toMatch(/activeTab === 'linked'/);

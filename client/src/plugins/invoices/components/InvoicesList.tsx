@@ -152,7 +152,7 @@ export function InvoicesList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openInvoicesPanel(null)),
-    onSettings: openInvoiceSettings,
+    onSettings: () => attemptNavigation(() => openInvoiceSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -836,7 +836,7 @@ export function InvoicesList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={openInvoiceSettings}
+                      onClick={() => attemptNavigation(() => openInvoiceSettings())}
                     />
                     <ExpandableIconButton
                       icon={BarChart2}

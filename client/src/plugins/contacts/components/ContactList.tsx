@@ -156,7 +156,7 @@ export const ContactList: React.FC = () => {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openContactPanel(null)),
-    onSettings: () => openContactSettings(),
+    onSettings: () => attemptNavigation(() => openContactSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -910,7 +910,7 @@ export const ContactList: React.FC = () => {
                       icon={Settings}
                       label={t('contacts.settings')}
                       variant="soft"
-                      onClick={() => openContactSettings()}
+                      onClick={() => attemptNavigation(() => openContactSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle

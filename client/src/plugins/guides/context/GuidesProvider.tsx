@@ -131,6 +131,8 @@ export function GuidesProvider({
     return () => unregisterPanelCloseFunction('guides');
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeGuidePanel]);
 
+  const guidesDeepLinkPathSyncedRef = useRef<string | null>(null);
+
   const openGuidePanel = useCallback(
     (item: Guide | null) => {
       setGuidesContentView('list');
@@ -140,6 +142,8 @@ export function GuidesProvider({
       clearValidationErrors();
       onCloseOtherPanels();
       if (item) {
+        const slug = buildSlug(item, guides, 'displayName');
+        guidesDeepLinkPathSyncedRef.current = `/guides/${slug}`;
         navigateToItem(item, guides, 'displayName');
       }
     },
@@ -154,6 +158,8 @@ export function GuidesProvider({
       setIsGuidePanelOpen(true);
       clearValidationErrors();
       onCloseOtherPanels();
+      const slug = buildSlug(item, guides, 'displayName');
+      guidesDeepLinkPathSyncedRef.current = `/guides/${slug}`;
       navigateToItem(item, guides, 'displayName');
     },
     [clearValidationErrors, guides, navigateToItem, onCloseOtherPanels],
@@ -189,7 +195,6 @@ export function GuidesProvider({
     totalItems,
   } = usePluginNavigation(guides, currentGuide, openGuideForView);
 
-  const guidesDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (guides.length === 0) {
       return;

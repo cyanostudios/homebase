@@ -53,6 +53,8 @@ export function EstimateProvider({
     null,
   );
 
+  const estimatesDeepLinkPathSyncedRef = useRef<string | null>(null);
+
   const [quickEditDraft, setQuickEditDraft] = useState<Partial<{ status: string }> | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
   const pendingCloseRef = useRef<(() => void) | null>(null);
@@ -151,6 +153,8 @@ export function EstimateProvider({
     setValidationErrors([]);
     onCloseOtherPanels();
     if (estimate) {
+      const slug = buildSlug(estimate, estimates, 'estimateNumber');
+      estimatesDeepLinkPathSyncedRef.current = `/estimates/${slug}`;
       navigateToItem(estimate, estimates, 'estimateNumber');
     }
   };
@@ -164,6 +168,8 @@ export function EstimateProvider({
     setIsEstimatePanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    const slug = buildSlug(estimate, estimates, 'estimateNumber');
+    estimatesDeepLinkPathSyncedRef.current = `/estimates/${slug}`;
     navigateToItem(estimate, estimates, 'estimateNumber');
   };
 
@@ -191,7 +197,6 @@ export function EstimateProvider({
     openEstimateForViewRef.current = openEstimateForView;
   }, [openEstimateForView]);
 
-  const estimatesDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (estimates.length === 0) {
       return;

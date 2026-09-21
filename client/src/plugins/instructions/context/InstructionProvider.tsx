@@ -238,6 +238,8 @@ export function InstructionProvider({
     return instructionsApi.getInstruction(item.id);
   }, []);
 
+  const deepLinkPathSyncedRef = useRef<string | null>(null);
+
   const openInstructionPanel = useCallback(
     (instruction: Instruction | null) => {
       clearInstructionSelectionCore();
@@ -249,6 +251,8 @@ export function InstructionProvider({
       setValidationErrors([]);
       onCloseOtherPanels();
       if (instruction) {
+        const slug = buildSlug(instruction, instructions, 'slug');
+        deepLinkPathSyncedRef.current = `/instructions/${slug}`;
         navigateToItem(instruction, instructions, 'slug');
         void ensureFullInstruction(instruction).then((full) => {
           setCurrentInstruction(full);
@@ -278,6 +282,8 @@ export function InstructionProvider({
       setIsInstructionPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      const slug = buildSlug(instruction, instructions, 'slug');
+      deepLinkPathSyncedRef.current = `/instructions/${slug}`;
       navigateToItem(instruction, instructions, 'slug');
       void ensureFullInstruction(instruction).then((full) => {
         setCurrentInstruction(full);
@@ -331,7 +337,6 @@ export function InstructionProvider({
     openInstructionForViewRef.current = openInstructionForView;
   }, [openInstructionForView]);
 
-  const deepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (instructions.length === 0) {
       return;

@@ -14,8 +14,8 @@ export function useUnsavedChanges() {
   }, []);
 
   const attemptAction = useCallback(
-    (action: () => void) => {
-      if (isDirty) {
+    (action: () => void, options?: { force?: boolean }) => {
+      if (isDirty || options?.force) {
         pendingActionRef.current = action;
         setShowWarning(true);
       } else {

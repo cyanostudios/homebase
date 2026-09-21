@@ -155,7 +155,7 @@ export function SlotsList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openSlotPanel(null)),
-    onSettings: () => openSlotSettings(),
+    onSettings: () => attemptNavigation(() => openSlotSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -851,7 +851,7 @@ export function SlotsList() {
                       icon={Settings}
                       label={t('slots.settings')}
                       variant="soft"
-                      onClick={() => openSlotSettings()}
+                      onClick={() => attemptNavigation(() => openSlotSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle

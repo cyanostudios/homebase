@@ -81,17 +81,14 @@ interface RequestViewProps {
   stacked?: boolean;
 }
 
-type RequestViewTab = 'information' | 'properties' | 'assignees' | 'files' | 'activity';
+type RequestViewTab = 'information' | 'assignees' | 'files' | 'activity';
 
-const REQUEST_VIEW_TABS: RequestViewTab[] = [
-  'information',
-  'properties',
-  'assignees',
-  'files',
-  'activity',
-];
+const REQUEST_VIEW_TABS: RequestViewTab[] = ['information', 'assignees', 'files', 'activity'];
 
 function parseRequestViewTab(value: string | null): RequestViewTab {
+  if (value === 'properties') {
+    return 'information';
+  }
   if (value && REQUEST_VIEW_TABS.includes(value as RequestViewTab)) {
     return value as RequestViewTab;
   }
@@ -239,12 +236,6 @@ export function RequestView({
         id: 'information',
         label: t('requests.tabs.information'),
         icon: Info,
-        count: null,
-      },
-      {
-        id: 'properties',
-        label: t('requests.tabs.properties'),
-        icon: SlidersHorizontal,
         count: null,
       },
       {
@@ -408,6 +399,71 @@ export function RequestView({
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
+          title={t('requests.view.properties')}
+          icon={SlidersHorizontal}
+          subtleTitle
+          className="p-6"
+        >
+          <div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.form.requestType')}
+              </span>
+              <RequestTypeSelect
+                request={request}
+                onTypeChange={handleTypeChange}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.form.status')}
+              </span>
+              <RequestStatusSelect
+                request={request}
+                onStatusChange={handleStatusChange}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.form.priority')}
+              </span>
+              <RequestPrioritySelect
+                request={request}
+                onPriorityChange={handlePriorityChange}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.responseDue.label')}
+              </span>
+              <RequestResponseDueControl
+                request={request}
+                onDaysChange={handleResponseDueChange}
+                hideInlineLabel
+              />
+            </div>
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.view.source')}
+              </span>
+              <Badge
+                variant="outline"
+                className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS[request.source])}
+              >
+                {request.source === 'external'
+                  ? t('requests.sourceExternal')
+                  : t('requests.sourceInternal')}
+              </Badge>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
           title={t('requests.view.submitter')}
           icon={User}
           iconPlugin="requests"
@@ -503,69 +559,6 @@ export function RequestView({
     </div>
   );
 
-  const propertiesCard = (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection
-        title={t('requests.view.properties')}
-        icon={SlidersHorizontal}
-        subtleTitle
-        className="p-6"
-      >
-        <div>
-          <div className={DETAIL_PROP_ROW_CLASS}>
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {t('requests.form.requestType')}
-            </span>
-            <RequestTypeSelect request={request} onTypeChange={handleTypeChange} hideInlineLabel />
-          </div>
-          <div className={DETAIL_PROP_ROW_CLASS}>
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {t('requests.form.status')}
-            </span>
-            <RequestStatusSelect
-              request={request}
-              onStatusChange={handleStatusChange}
-              hideInlineLabel
-            />
-          </div>
-          <div className={DETAIL_PROP_ROW_CLASS}>
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {t('requests.form.priority')}
-            </span>
-            <RequestPrioritySelect
-              request={request}
-              onPriorityChange={handlePriorityChange}
-              hideInlineLabel
-            />
-          </div>
-          <div className={DETAIL_PROP_ROW_CLASS}>
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {t('requests.responseDue.label')}
-            </span>
-            <RequestResponseDueControl
-              request={request}
-              onDaysChange={handleResponseDueChange}
-              hideInlineLabel
-            />
-          </div>
-          <div className={DETAIL_PROP_ROW_CLASS}>
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {t('requests.view.source')}
-            </span>
-            <Badge
-              variant="outline"
-              className={cn(BADGE_CHIP_CLASS, REQUEST_SOURCE_COLORS[request.source])}
-            >
-              {request.source === 'external'
-                ? t('requests.sourceExternal')
-                : t('requests.sourceInternal')}
-            </Badge>
-          </div>
-        </div>
-      </DetailSection>
-    </Card>
-  );
-
   const assigneesCard = (
     <div className="space-y-4">
       <RequestAssigneeSelect request={request} onAssigneeChange={handleAssigneeChange} />
@@ -597,7 +590,6 @@ export function RequestView({
           ) : null}
 
           {activeTab === 'information' ? informationCard : null}
-          {activeTab === 'properties' ? propertiesCard : null}
           {activeTab === 'assignees' ? assigneesCard : null}
           {activeTab === 'files' ? filesCard : null}
           {activeTab === 'activity' ? (

@@ -25,6 +25,7 @@ import { TimerRailButton } from '@/core/ui/rightSidebar/TimerRailButton';
 import { UserAvatarButton } from '@/core/ui/rightSidebar/UserAvatarButton';
 import { UserPrefsPanel } from '@/core/ui/rightSidebar/UserPrefsPanel';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useTheme } from '@/hooks/useTheme';
 
 export function AppRightSidebar() {
@@ -34,6 +35,7 @@ export function AppRightSidebar() {
   const { theme, toggleTheme } = useTheme();
   const { activePanel, togglePanel, closePanel } = useRightSidebar();
   const { companionPlugin, toggleCompanionPanel, closeCompanionPanel } = useCompanionPanel();
+  const { attemptNavigation } = useGlobalNavigationGuard();
   const enabledPlugins = useEnabledPlugins();
   const currentPage = useMemo(() => pathToNavPage(location.pathname), [location.pathname]);
   const companionCandidates = useMemo(
@@ -62,10 +64,19 @@ export function AppRightSidebar() {
     : '';
 
   const handleOpenSettingsPage = useCallback(() => {
-    closePanel();
-    closeCompanionPanel();
-    navigateToSettings(navigate, `${location.pathname}${location.search}`);
-  }, [closePanel, closeCompanionPanel, navigate, location.pathname, location.search]);
+    attemptNavigation(() => {
+      closePanel();
+      closeCompanionPanel();
+      navigateToSettings(navigate, `${location.pathname}${location.search}`);
+    });
+  }, [
+    attemptNavigation,
+    closePanel,
+    closeCompanionPanel,
+    navigate,
+    location.pathname,
+    location.search,
+  ]);
 
   const handleToggleCompanion = useCallback(
     (plugin: NavPage) => {

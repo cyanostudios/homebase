@@ -25,22 +25,24 @@ describe('ClubdeskGuideView detail tab chips', () => {
     expect(viewSrc).toMatch(/useSearchParams/);
     expect(viewSrc).toMatch(/parseClubdeskGuideViewTab/);
     expect(viewSrc).toMatch(/'information'/);
-    expect(viewSrc).toMatch(/'properties'/);
+    expect(viewSrc).toMatch(/value === 'properties'/); // legacy ?tab=properties → information
     expect(viewSrc).toMatch(/'steps'/);
     expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
-    expect(viewSrc).toMatch(/activeTab === 'properties'/);
+    expect(viewSrc).toMatch(/activeTab === 'information' \? propertiesCard/);
+    // properties content still on information
+    expect(viewSrc).not.toMatch(/activeTab === 'properties'/);
     expect(viewSrc).toMatch(/activeTab === 'steps'/);
     expect(viewSrc).toMatch(/activeTab === 'activity'/);
   });
 
-  test('properties tab hosts publication and featured controls', () => {
+  test('properties card on information hosts publication and featured controls', () => {
     expect(viewSrc).toMatch(/ClubdeskPublicationPropertiesFields/);
     expect(viewSrc).toMatch(/updateClubdeskPublicationStatus/);
     expect(viewSrc).toMatch(/updateClubdeskFeatured/);
     expect(viewSrc).toMatch(/clubdesk\.guideProperties/);
-    expect(viewSrc).toMatch(/t\('clubdesk\.tabs\.properties'\)/);
+    expect(viewSrc).toMatch(/t\('clubdesk\.guideProperties'\)/);
     expect(viewSrc).toMatch(/showCategory/);
   });
 

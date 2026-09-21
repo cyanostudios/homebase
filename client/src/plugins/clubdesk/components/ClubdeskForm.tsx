@@ -3,6 +3,7 @@ import {
   ArrowUp,
   Check,
   Copy,
+  History,
   Info,
   ListOrdered,
   Plus,
@@ -12,7 +13,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -39,23 +40,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { pathToNavPage } from '@/core/routing/routeMap';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   DETAIL_EMPTY_STATE_CLASS,
-  DETAIL_INFO_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import {
-  FORM_INPUT_CLASS,
+  FORM_GHOST_INPUT_CLASS,
   FORM_INPUT_ERROR_CLASS,
-  FORM_TEXTAREA_CLASS,
+  FORM_GHOST_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
 const RichTextEditor = React.lazy(() =>
   import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
 );
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { slugify } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -105,6 +106,22 @@ export const ClubdeskForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>
   },
 );
 
+type ClubdeskFormTab = 'information' | 'steps' | 'activity';
+
+const CLUBDESK_FORM_TABS: ClubdeskFormTab[] = ['information', 'steps', 'activity'];
+
+const CLUBDESK_FORM_EDIT_DISABLED_TABS: ReadonlySet<ClubdeskFormTab> = new Set(['activity']);
+
+function parseClubdeskFormTab(value: string | null): ClubdeskFormTab {
+  if (value === 'properties') {
+    return 'information';
+  }
+  if (value && CLUBDESK_FORM_TABS.includes(value as ClubdeskFormTab)) {
+    return value as ClubdeskFormTab;
+  }
+  return 'information';
+}
+
 const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
   function ClubdeskGuideForm(
     {
@@ -119,6 +136,43 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
   ) {
     const clubdesk = currentClubdesk ?? currentItem ?? null;
     const { t } = useTranslation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = parseClubdeskFormTab(searchParams.get('tab'));
+    const setActiveTab = useCallback(
+      (tab: ClubdeskFormTab, replace = false) => {
+        if (CLUBDESK_FORM_EDIT_DISABLED_TABS.has(tab)) {
+          return;
+        }
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            if (tab === 'information') {
+              next.delete('tab');
+            } else {
+              next.set('tab', tab);
+            }
+            return next;
+          },
+          { replace },
+        );
+      },
+      [setSearchParams],
+    );
+
+    useEffect(() => {
+      if (!CLUBDESK_FORM_EDIT_DISABLED_TABS.has(activeTab)) {
+        return;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('tab');
+          return next;
+        },
+        { replace: true },
+      );
+    }, [activeTab, setSearchParams]);
+
     const {
       validationErrors,
       clearValidationErrors,
@@ -130,15 +184,8 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
       reorderClubdeskCategories,
       deleteClubdeskCategory,
     } = useClubdesk();
-    const {
-      isDirty,
-      showWarning,
-      markDirty,
-      markClean,
-      attemptAction,
-      confirmDiscard,
-      cancelDiscard,
-    } = useUnsavedChanges();
+    const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+      useUnsavedChanges();
     const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
       useGlobalNavigationGuard();
 
@@ -209,9 +256,9 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
 
     useEffect(() => {
       const formKey = `clubdesk-form-${clubdesk?.id || 'new'}`;
-      registerUnsavedChangesChecker(formKey, () => isDirty);
+      registerUnsavedChangesChecker(formKey, () => true);
       return () => unregisterUnsavedChangesChecker(formKey);
-    }, [isDirty, clubdesk, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+    }, [clubdesk, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
     const resetForm = useCallback(() => {
       setFormData({
@@ -274,7 +321,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
     }, [formData, onSave, markClean, clubdesk, resetForm, isCurrentlySubmitting]);
 
     const handleCancel = useCallback(() => {
-      attemptAction(() => onCancel());
+      attemptAction(() => onCancel(), { force: true });
     }, [attemptAction, onCancel]);
 
     useImperativeHandle(
@@ -503,53 +550,90 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
       }
     };
 
-    const formSidebar =
-      clubdesk && !stacked ? (
-        <div className="space-y-4">
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('clubdesk.information')}
-              icon={Info}
-              iconPlugin="clubdesk"
-              subtleTitle
-              className="p-4"
-              collapsible
+    const tabs = useMemo(
+      () => [
+        { id: 'information' as const, label: t('clubdesk.tabs.information'), icon: Info },
+        {
+          id: 'steps' as const,
+          label: t('clubdesk.tabs.steps'),
+          icon: ListOrdered,
+          count: formData.steps.length > 0 ? formData.steps.length : null,
+        },
+        { id: 'activity' as const, label: t('clubdesk.tabs.activity'), icon: History },
+      ],
+      [formData.steps.length, t],
+    );
+
+    const tabChips = (
+      <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+        {tabs.map((tab) => {
+          const TabIcon = tab.icon;
+          const isDisabled = CLUBDESK_FORM_EDIT_DISABLED_TABS.has(tab.id);
+          const isActive = !isDisabled && activeTab === tab.id;
+          return (
+            <Button
+              key={tab.id}
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-pressed={isActive}
+              aria-disabled={isDisabled}
+              disabled={isDisabled}
+              title={
+                isDisabled
+                  ? t('clubdesk.tabUnavailableInEdit', {
+                      defaultValue: 'Available in view mode only',
+                    })
+                  : undefined
+              }
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                isDisabled && 'pointer-events-none opacity-40',
+              )}
             >
-              <div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">ID</span>
-                  <span className="font-mono font-extrabold text-foreground">
-                    {formatDisplayNumber('clubdesk', clubdesk.id)}
-                  </span>
-                </div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">{t('common.created')}</span>
-                  <span className="font-mono font-extrabold text-foreground">
-                    {clubdesk.createdAt ? new Date(clubdesk.createdAt).toLocaleDateString() : '—'}
-                  </span>
-                </div>
-                <div className={DETAIL_INFO_ROW_CLASS}>
-                  <span className="text-slate-500 dark:text-slate-400">{t('common.updated')}</span>
-                  <span className="font-mono font-extrabold text-foreground">
-                    {clubdesk.updatedAt ? new Date(clubdesk.updatedAt).toLocaleDateString() : '—'}
-                  </span>
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
-          <DetailActivityLog
-            entityType="clubdesk"
-            entityId={clubdesk.id}
-            title={t('clubdesk.activity')}
-            refreshKey={clubdesk.updatedAt}
-          />
+              <TabIcon className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1.5">
+                {tab.label}
+                {'count' in tab && tab.count != null ? (
+                  <>
+                    {' '}
+                    <span className="tabular-nums font-semibold">({tab.count})</span>
+                  </>
+                ) : null}
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+
+    const formHeader = (
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+        <div className="px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="inline-flex shrink-0" aria-hidden>
+              <SectionCategoryIcon icon={Info} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <Input
+                value={formData.title}
+                onChange={(e) => updateField('title', e.target.value)}
+                placeholder={t('clubdesk.titlePlaceholder')}
+                aria-label={t('clubdesk.title')}
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+          </div>
+          <div className="mt-4">{tabChips}</div>
         </div>
-      ) : undefined;
+      </Card>
+    );
 
     return (
       <>
         <div className="plugin-clubdesk">
-          <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
+          <DetailLayout gridClassName="grid-cols-1">
             <form
               className="space-y-4"
               onSubmit={(e) => {
@@ -557,6 +641,8 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                 void handleSubmit();
               }}
             >
+              {formHeader}
+
               {hasBlockingErrors && (
                 <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
                   <div className="text-sm font-medium text-destructive">
@@ -572,376 +658,384 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                 </Card>
               )}
 
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('clubdesk.guideCard')}
-                  iconPlugin="clubdesk"
-                  className="p-6"
-                >
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="clubdesk-title">{t('clubdesk.title')}</Label>
-                      <Input
-                        id="clubdesk-title"
-                        value={formData.title}
-                        onChange={(e) => updateField('title', e.target.value)}
-                        placeholder={t('clubdesk.titlePlaceholder')}
-                        className={cn(
-                          FORM_INPUT_CLASS,
-                          getFieldError('title') && FORM_INPUT_ERROR_CLASS,
-                        )}
-                        required
-                      />
-                      {getFieldError('title') && (
-                        <p className="mt-1 text-sm text-destructive">
-                          {getFieldError('title')?.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="clubdesk-slug">{t('clubdesk.slug')}</Label>
-                      <Input
-                        id="clubdesk-slug"
-                        value={formData.slug || ''}
-                        onChange={(e) => {
-                          setSlugTouched(true);
-                          updateField('slug', e.target.value);
-                        }}
-                        placeholder={t('clubdesk.slugPlaceholder')}
-                        className={cn(
-                          FORM_INPUT_CLASS,
-                          getFieldError('slug') && FORM_INPUT_ERROR_CLASS,
-                        )}
-                      />
-                      {getFieldError('slug') && (
-                        <p className="mt-1 text-sm text-destructive">
-                          {getFieldError('slug')?.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="clubdesk-description">{t('clubdesk.description')}</Label>
-                      <Textarea
-                        id="clubdesk-description"
-                        value={formData.description ?? ''}
-                        onChange={(e) => updateField('description', e.target.value)}
-                        rows={4}
-                        placeholder={t('clubdesk.descriptionPlaceholder')}
-                        className={FORM_TEXTAREA_CLASS}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="clubdesk-featured">{t('clubdesk.featuredImageUrl')}</Label>
-                      <Input
-                        id="clubdesk-featured"
-                        value={formData.featuredImageUrl ?? ''}
-                        onChange={(e) => updateField('featuredImageUrl', e.target.value)}
-                        placeholder="https://"
-                        className={FORM_INPUT_CLASS}
-                      />
-                      {formData.featuredImageUrl ? (
-                        <img
-                          src={formData.featuredImageUrl}
-                          alt=""
-                          className="mt-2 h-20 w-auto rounded-md object-cover"
+              {activeTab === 'information' ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={t('clubdesk.guideCard')}
+                    iconPlugin="clubdesk"
+                    className="p-6"
+                  >
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="clubdesk-title">{t('clubdesk.title')}</Label>
+                        <Input
+                          id="clubdesk-title"
+                          value={formData.title}
+                          onChange={(e) => updateField('title', e.target.value)}
+                          placeholder={t('clubdesk.titlePlaceholder')}
+                          className={cn(
+                            FORM_GHOST_INPUT_CLASS,
+                            getFieldError('title') && FORM_INPUT_ERROR_CLASS,
+                          )}
+                          required
                         />
-                      ) : null}
-                    </div>
-                    <div>
-                      <Label htmlFor="clubdesk-status">{t('clubdesk.publicationStatus')}</Label>
-                      <Select
-                        value={formData.publicationStatus}
-                        onValueChange={(value) =>
-                          updateField('publicationStatus', value as PublicationStatus)
-                        }
-                      >
-                        <SelectTrigger id="clubdesk-status" className={FORM_INPUT_CLASS}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="draft">{t('clubdesk.status.draft')}</SelectItem>
-                          <SelectItem value="published">
-                            {t('clubdesk.status.published')}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <input
-                          id="clubdesk-featured-flag"
-                          type="checkbox"
-                          checked={formData.featured === true}
-                          onChange={(e) => updateField('featured', e.target.checked)}
-                          className="h-4 w-4"
-                        />
-                        <Label htmlFor="clubdesk-featured-flag" className="font-normal">
-                          {t('clubdesk.featured')}
-                        </Label>
+                        {getFieldError('title') && (
+                          <p className="mt-1 text-sm text-destructive">
+                            {getFieldError('title')?.message}
+                          </p>
+                        )}
                       </div>
-                      <p className="text-xs text-muted-foreground">{t('clubdesk.featuredHint')}</p>
+                      <div>
+                        <Label htmlFor="clubdesk-slug">{t('clubdesk.slug')}</Label>
+                        <Input
+                          id="clubdesk-slug"
+                          value={formData.slug || ''}
+                          onChange={(e) => {
+                            setSlugTouched(true);
+                            updateField('slug', e.target.value);
+                          }}
+                          placeholder={t('clubdesk.slugPlaceholder')}
+                          className={cn(
+                            FORM_GHOST_INPUT_CLASS,
+                            getFieldError('slug') && FORM_INPUT_ERROR_CLASS,
+                          )}
+                        />
+                        {getFieldError('slug') && (
+                          <p className="mt-1 text-sm text-destructive">
+                            {getFieldError('slug')?.message}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="clubdesk-description">{t('clubdesk.description')}</Label>
+                        <Textarea
+                          id="clubdesk-description"
+                          value={formData.description ?? ''}
+                          onChange={(e) => updateField('description', e.target.value)}
+                          rows={4}
+                          placeholder={t('clubdesk.descriptionPlaceholder')}
+                          className={FORM_GHOST_TEXTAREA_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="clubdesk-featured">{t('clubdesk.featuredImageUrl')}</Label>
+                        <Input
+                          id="clubdesk-featured"
+                          value={formData.featuredImageUrl ?? ''}
+                          onChange={(e) => updateField('featuredImageUrl', e.target.value)}
+                          placeholder="https://"
+                          className={FORM_GHOST_INPUT_CLASS}
+                        />
+                        {formData.featuredImageUrl ? (
+                          <img
+                            src={formData.featuredImageUrl}
+                            alt=""
+                            className="mt-2 h-20 w-auto rounded-md object-cover"
+                          />
+                        ) : null}
+                      </div>
+                      <div>
+                        <Label htmlFor="clubdesk-status">{t('clubdesk.publicationStatus')}</Label>
+                        <Select
+                          value={formData.publicationStatus}
+                          onValueChange={(value) =>
+                            updateField('publicationStatus', value as PublicationStatus)
+                          }
+                        >
+                          <SelectTrigger id="clubdesk-status" className={FORM_GHOST_INPUT_CLASS}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="draft">{t('clubdesk.status.draft')}</SelectItem>
+                            <SelectItem value="published">
+                              {t('clubdesk.status.published')}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <input
+                            id="clubdesk-featured-flag"
+                            type="checkbox"
+                            checked={formData.featured === true}
+                            onChange={(e) => updateField('featured', e.target.checked)}
+                            className="h-4 w-4"
+                          />
+                          <Label htmlFor="clubdesk-featured-flag" className="font-normal">
+                            {t('clubdesk.featured')}
+                          </Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {t('clubdesk.featuredHint')}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </DetailSection>
-              </Card>
+                  </DetailSection>
+                </Card>
+              ) : null}
 
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('clubdesk.guideCategoriesCard')}
-                  icon={Tags}
-                  iconPlugin="clubdesk"
-                  className="p-6"
-                >
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    {t('clubdesk.guideCategoriesOrderHint')}
-                  </p>
-                  {categoryDeleteError && !categoryPendingDelete ? (
-                    <p className="mb-3 text-xs text-destructive" role="alert">
-                      {categoryDeleteError}
+              {activeTab === 'information' ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={t('clubdesk.guideCategoriesCard')}
+                    icon={Tags}
+                    iconPlugin="clubdesk"
+                    className="p-6"
+                  >
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      {t('clubdesk.guideCategoriesOrderHint')}
                     </p>
-                  ) : null}
-                  <div className="mb-3 space-y-2">
-                    {orderedCategoryEntries.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        {t('clubdesk.noGuideCategories')}
+                    {categoryDeleteError && !categoryPendingDelete ? (
+                      <p className="mb-3 text-xs text-destructive" role="alert">
+                        {categoryDeleteError}
                       </p>
-                    ) : (
-                      orderedCategoryEntries.map((entry, index) => {
-                        const isSelected =
-                          categoryNameKey(formData.category) === categoryNameKey(entry.name);
-                        return (
-                          <div
-                            key={`${entry.id ?? 'orphan'}-${entry.name}`}
-                            className={cn(
-                              'flex items-center gap-2 rounded-md border px-2 py-1.5',
-                              isSelected
-                                ? 'border-primary/40 bg-primary/5'
-                                : 'border-border/50 bg-muted/20',
-                            )}
-                          >
-                            <button
-                              type="button"
-                              className="min-w-0 flex-1 truncate text-left text-xs font-medium hover:underline"
-                              aria-pressed={isSelected}
-                              aria-label={t('clubdesk.assignGuideCategory', {
-                                name: entry.name,
-                              })}
-                              onClick={() =>
-                                updateField('category', isSelected ? null : entry.name)
-                              }
+                    ) : null}
+                    <div className="mb-3 space-y-2">
+                      {orderedCategoryEntries.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {t('clubdesk.noGuideCategories')}
+                        </p>
+                      ) : (
+                        orderedCategoryEntries.map((entry, index) => {
+                          const isSelected =
+                            categoryNameKey(formData.category) === categoryNameKey(entry.name);
+                          return (
+                            <div
+                              key={`${entry.id ?? 'orphan'}-${entry.name}`}
+                              className={cn(
+                                'flex items-center gap-2 rounded-md border px-2 py-1.5',
+                                isSelected
+                                  ? 'border-primary/40 bg-primary/5'
+                                  : 'border-border/50 bg-muted/20',
+                              )}
                             >
-                              {entry.name}
-                            </button>
-                            <div className="flex flex-shrink-0 items-center gap-0.5">
-                              <Button
+                              <button
                                 type="button"
-                                variant="ghost"
-                                size="sm"
-                                icon={ArrowUp}
-                                className="h-7 w-7 px-0"
-                                disabled={reorderingCategory || deletingCategory || index === 0}
-                                aria-label={t('clubdesk.moveGuideCategoryUp', {
+                                className="min-w-0 flex-1 truncate text-left text-xs font-medium hover:underline"
+                                aria-pressed={isSelected}
+                                aria-label={t('clubdesk.assignGuideCategory', {
                                   name: entry.name,
                                 })}
-                                onClick={() => void handleMoveCategory(index, -1)}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                icon={ArrowDown}
-                                className="h-7 w-7 px-0"
-                                disabled={
-                                  reorderingCategory ||
-                                  deletingCategory ||
-                                  index === orderedCategoryEntries.length - 1
+                                onClick={() =>
+                                  updateField('category', isSelected ? null : entry.name)
                                 }
-                                aria-label={t('clubdesk.moveGuideCategoryDown', {
-                                  name: entry.name,
-                                })}
-                                onClick={() => void handleMoveCategory(index, 1)}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                icon={Trash2}
-                                className="h-7 w-7 px-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                                aria-label={t('clubdesk.removeGuideCategory', {
-                                  name: entry.name,
-                                })}
-                                onClick={() => handleRequestDeleteCategory(entry.name)}
-                                disabled={deletingCategory || reorderingCategory || !entry.id}
-                              />
+                              >
+                                {entry.name}
+                              </button>
+                              <div className="flex flex-shrink-0 items-center gap-0.5">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={ArrowUp}
+                                  className="h-7 w-7 px-0"
+                                  disabled={reorderingCategory || deletingCategory || index === 0}
+                                  aria-label={t('clubdesk.moveGuideCategoryUp', {
+                                    name: entry.name,
+                                  })}
+                                  onClick={() => void handleMoveCategory(index, -1)}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={ArrowDown}
+                                  className="h-7 w-7 px-0"
+                                  disabled={
+                                    reorderingCategory ||
+                                    deletingCategory ||
+                                    index === orderedCategoryEntries.length - 1
+                                  }
+                                  aria-label={t('clubdesk.moveGuideCategoryDown', {
+                                    name: entry.name,
+                                  })}
+                                  onClick={() => void handleMoveCategory(index, 1)}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={Trash2}
+                                  className="h-7 w-7 px-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                                  aria-label={t('clubdesk.removeGuideCategory', {
+                                    name: entry.name,
+                                  })}
+                                  onClick={() => handleRequestDeleteCategory(entry.name)}
+                                  disabled={deletingCategory || reorderingCategory || !entry.id}
+                                />
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder={t('clubdesk.addGuideCategoryPlaceholder')}
-                      className={FORM_INPUT_CLASS}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          void handleAddCategory();
-                        }
-                      }}
-                    />
-                    <RoundIconLabelButton
-                      type="button"
-                      icon={Plus}
-                      label={t('clubdesk.addGuideCategory')}
-                      variant="soft"
-                      size="xs"
-                      alwaysExpanded
-                      onClick={() => void handleAddCategory()}
-                    />
-                  </div>
-                </DetailSection>
-              </Card>
-
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('clubdesk.stepsCard')}
-                  icon={ListOrdered}
-                  iconPlugin="clubdesk"
-                  subtleTitle
-                  className="p-6"
-                >
-                  {getFieldError('steps') ? (
-                    <p className="mb-3 text-sm text-destructive">
-                      {getFieldError('steps')?.message}
-                    </p>
-                  ) : null}
-
-                  {formData.steps.length === 0 ? (
-                    <div className="space-y-3">
-                      <p className={DETAIL_EMPTY_STATE_CLASS}>{t('clubdesk.noStepsYet')}</p>
+                          );
+                        })
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder={t('clubdesk.addGuideCategoryPlaceholder')}
+                        className={FORM_GHOST_INPUT_CLASS}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void handleAddCategory();
+                          }
+                        }}
+                      />
                       <RoundIconLabelButton
                         type="button"
                         icon={Plus}
-                        label={t('clubdesk.addStep')}
+                        label={t('clubdesk.addGuideCategory')}
                         variant="soft"
                         size="xs"
                         alwaysExpanded
-                        onClick={addStep}
+                        onClick={() => void handleAddCategory()}
                       />
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {formData.steps.map((step, index) => (
-                        <div
-                          key={`step-${index}`}
-                          className="rounded-lg border border-border/60 bg-muted/20 p-3"
-                        >
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-muted-foreground">
-                              {t('clubdesk.stepNumber', { number: index + 1 })}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                icon={ArrowUp}
-                                className="h-9 w-9 px-0"
-                                disabled={index === 0}
-                                aria-label={t('clubdesk.moveStepUp')}
-                                onClick={() => moveStep(index, -1)}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                icon={ArrowDown}
-                                className="h-9 w-9 px-0"
-                                disabled={index === formData.steps.length - 1}
-                                aria-label={t('clubdesk.moveStepDown')}
-                                onClick={() => moveStep(index, 1)}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                icon={Copy}
-                                className="h-9 w-9 px-0 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30"
-                                aria-label={t('clubdesk.copyStep')}
-                                onClick={() => copyStep(index)}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                icon={Trash2}
-                                className="h-9 w-9 px-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                                aria-label={t('clubdesk.removeStep')}
-                                onClick={() => removeStep(index)}
-                              />
+                  </DetailSection>
+                </Card>
+              ) : null}
+
+              {activeTab === 'steps' ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={t('clubdesk.stepsCard')}
+                    icon={ListOrdered}
+                    iconPlugin="clubdesk"
+                    subtleTitle
+                    className="p-6"
+                  >
+                    {getFieldError('steps') ? (
+                      <p className="mb-3 text-sm text-destructive">
+                        {getFieldError('steps')?.message}
+                      </p>
+                    ) : null}
+
+                    {formData.steps.length === 0 ? (
+                      <div className="space-y-3">
+                        <p className={DETAIL_EMPTY_STATE_CLASS}>{t('clubdesk.noStepsYet')}</p>
+                        <RoundIconLabelButton
+                          type="button"
+                          icon={Plus}
+                          label={t('clubdesk.addStep')}
+                          variant="soft"
+                          size="xs"
+                          alwaysExpanded
+                          onClick={addStep}
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {formData.steps.map((step, index) => (
+                          <div
+                            key={`step-${index}`}
+                            className="rounded-lg border border-border/60 bg-muted/20 p-3"
+                          >
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                {t('clubdesk.stepNumber', { number: index + 1 })}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={ArrowUp}
+                                  className="h-9 w-9 px-0"
+                                  disabled={index === 0}
+                                  aria-label={t('clubdesk.moveStepUp')}
+                                  onClick={() => moveStep(index, -1)}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={ArrowDown}
+                                  className="h-9 w-9 px-0"
+                                  disabled={index === formData.steps.length - 1}
+                                  aria-label={t('clubdesk.moveStepDown')}
+                                  onClick={() => moveStep(index, 1)}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={Copy}
+                                  className="h-9 w-9 px-0 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30"
+                                  aria-label={t('clubdesk.copyStep')}
+                                  onClick={() => copyStep(index)}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={Trash2}
+                                  className="h-9 w-9 px-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                                  aria-label={t('clubdesk.removeStep')}
+                                  onClick={() => removeStep(index)}
+                                />
+                              </div>
                             </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Input
-                              value={step.title}
-                              onChange={(e) => updateStep(index, { title: e.target.value })}
-                              placeholder={t('clubdesk.stepTitlePlaceholder')}
-                              className={cn(
-                                FORM_INPUT_CLASS,
-                                getFieldError(`steps.${index}.title`) && FORM_INPUT_ERROR_CLASS,
-                              )}
-                            />
-                            <React.Suspense
-                              fallback={
-                                <textarea
-                                  className="w-full min-h-[72px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                  disabled
+                            <div className="space-y-2">
+                              <Input
+                                value={step.title}
+                                onChange={(e) => updateStep(index, { title: e.target.value })}
+                                placeholder={t('clubdesk.stepTitlePlaceholder')}
+                                className={cn(
+                                  FORM_GHOST_INPUT_CLASS,
+                                  getFieldError(`steps.${index}.title`) && FORM_INPUT_ERROR_CLASS,
+                                )}
+                              />
+                              <React.Suspense
+                                fallback={
+                                  <textarea
+                                    className="w-full min-h-[72px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    disabled
+                                    placeholder={t('clubdesk.stepDescriptionPlaceholder')}
+                                  />
+                                }
+                              >
+                                <RichTextEditor
+                                  value={step.description ?? ''}
+                                  onChange={(html) => {
+                                    updateStep(index, {
+                                      description: isEmptyRichText(html) ? null : html,
+                                    });
+                                  }}
                                   placeholder={t('clubdesk.stepDescriptionPlaceholder')}
                                 />
-                              }
-                            >
-                              <RichTextEditor
-                                value={step.description ?? ''}
-                                onChange={(html) => {
-                                  updateStep(index, {
-                                    description: isEmptyRichText(html) ? null : html,
-                                  });
-                                }}
-                                placeholder={t('clubdesk.stepDescriptionPlaceholder')}
+                              </React.Suspense>
+                              <Input
+                                value={step.imageUrl ?? ''}
+                                onChange={(e) => updateStep(index, { imageUrl: e.target.value })}
+                                placeholder={t('clubdesk.stepImagePlaceholder')}
+                                className={FORM_GHOST_INPUT_CLASS}
                               />
-                            </React.Suspense>
-                            <Input
-                              value={step.imageUrl ?? ''}
-                              onChange={(e) => updateStep(index, { imageUrl: e.target.value })}
-                              placeholder={t('clubdesk.stepImagePlaceholder')}
-                              className={FORM_INPUT_CLASS}
-                            />
-                            {step.imageUrl ? (
-                              <img
-                                src={step.imageUrl}
-                                alt=""
-                                className="h-16 w-auto rounded-md object-cover"
-                              />
-                            ) : null}
+                              {step.imageUrl ? (
+                                <img
+                                  src={step.imageUrl}
+                                  alt=""
+                                  className="h-16 w-auto rounded-md object-cover"
+                                />
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                      <RoundIconLabelButton
-                        type="button"
-                        icon={Plus}
-                        label={t('clubdesk.addStep')}
-                        variant="soft"
-                        size="xs"
-                        alwaysExpanded
-                        onClick={addStep}
-                      />
-                    </div>
-                  )}
-                </DetailSection>
-              </Card>
+                        ))}
+                        <RoundIconLabelButton
+                          type="button"
+                          icon={Plus}
+                          label={t('clubdesk.addStep')}
+                          variant="soft"
+                          size="xs"
+                          alwaysExpanded
+                          onClick={addStep}
+                        />
+                      </div>
+                    )}
+                  </DetailSection>
+                </Card>
+              ) : null}
 
               {!stacked ? (
                 <div className="flex justify-end gap-2 border-t border-border pt-4">
@@ -1019,7 +1113,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
               <Select value={moveToCategory} onValueChange={setMoveToCategory}>
                 <SelectTrigger
                   id="clubdesk-move-guide-category"
-                  className={cn('mt-1', FORM_INPUT_CLASS)}
+                  className={cn('mt-1', FORM_GHOST_INPUT_CLASS)}
                 >
                   <SelectValue />
                 </SelectTrigger>

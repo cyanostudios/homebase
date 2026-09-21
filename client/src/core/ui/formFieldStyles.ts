@@ -5,9 +5,11 @@
  * - **Filled** (`FORM_INPUT_*`): compact muted controls — settings, dense grids
  *   (invoice lines, PersonMatrix, inventory steppers). Do not change these for
  *   detail fact-field edit.
- * - **Ghost** (`FORM_GHOST_*`): transparent, view-matched typography for plugin
- *   detail create/edit fact fields (Contacts-class). Reference: view
- *   `DETAIL_FIELD_VALUE_CLASS` + hero `DETAIL_FORM_TITLE_INPUT_CLASS`.
+ * - **Ghost** (`FORM_GHOST_*`): soft light-blue idle surface (`bg-primary/10`) +
+ *   view-matched typography for plugin detail create/edit fact fields
+ *   (Contacts-class). Reference: view `DETAIL_FIELD_VALUE_CLASS` + hero
+ *   `DETAIL_FORM_TITLE_INPUT_CLASS`. Soft surface signals edit mode without
+ *   compact filled chrome.
  *
  * Do not change shadcn Input/Textarea/NativeSelect defaults — apply via className.
  */
@@ -47,31 +49,32 @@ export const FORM_INPUT_READONLY_CLASS = 'cursor-not-allowed text-muted-foregrou
 // ─── Ghost (view-matched detail fact fields) ─────────────────────────────────
 
 /**
- * Transparent chrome — no muted fill. Focus ring is required (WCAG focus-visible).
- * Typography matches `DETAIL_FIELD_VALUE_CLASS` (`text-base font-extrabold`).
+ * Soft light-blue idle surface so edit mode is visible; not compact filled chrome.
+ * Focus ring required (WCAG focus-visible). Typography matches
+ * `DETAIL_FIELD_VALUE_CLASS` (`text-base font-extrabold`).
  */
 export const FORM_FIELD_GHOST_CHROME =
-  'border-0 bg-transparent shadow-none rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-0';
+  'border-0 bg-primary/10 shadow-none rounded-md px-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-0';
 
 /**
  * Fact-field text input in plugin detail create/edit.
- * Same scale/weight as view values; min-height for touch target without a gray box.
+ * Same scale/weight as view values; soft idle surface signals editability.
  */
-export const FORM_GHOST_INPUT_CLASS = `h-auto min-h-9 w-full px-0 py-0.5 text-base font-extrabold text-foreground placeholder:font-normal placeholder:text-muted-foreground/70 ${FORM_FIELD_GHOST_CHROME}`;
+export const FORM_GHOST_INPUT_CLASS = `h-auto min-h-9 w-full py-0.5 text-base font-extrabold text-foreground placeholder:font-normal placeholder:text-muted-foreground/70 ${FORM_FIELD_GHOST_CHROME}`;
 
 /**
  * NativeSelect / SelectTrigger in fact grids — ghost typography; native chevron remains.
  */
-export const FORM_GHOST_SELECT_CLASS = `h-auto min-h-9 w-full px-0 py-0.5 text-base font-extrabold text-foreground ${FORM_FIELD_GHOST_CHROME}`;
+export const FORM_GHOST_SELECT_CLASS = `h-auto min-h-9 w-full py-0.5 text-base font-extrabold text-foreground ${FORM_FIELD_GHOST_CHROME}`;
 
 /**
  * Narrow property-row ghost controls (tax / currency / assignable).
  * Prefer over FORM_PROP_CONTROL_CLASS when the row mirrors detail view values.
  */
-export const FORM_GHOST_PROP_CONTROL_CLASS = `h-auto min-h-9 w-full max-w-[180px] px-0 py-0.5 text-base font-extrabold text-foreground ${FORM_FIELD_GHOST_CHROME}`;
+export const FORM_GHOST_PROP_CONTROL_CLASS = `h-auto min-h-9 w-full max-w-[180px] py-0.5 text-base font-extrabold text-foreground ${FORM_FIELD_GHOST_CHROME}`;
 
-/** Multi-line fact field (e.g. contact notes). */
-export const FORM_GHOST_TEXTAREA_CLASS = `min-h-[56px] w-full resize-y px-0 py-1 text-base font-extrabold text-foreground placeholder:font-normal placeholder:text-muted-foreground/70 ${FORM_FIELD_GHOST_CHROME}`;
+/** Multi-line prose field (description / notes). Normal weight like view body text; grows with content. */
+export const FORM_GHOST_TEXTAREA_CLASS = `min-h-[56px] w-full field-sizing-content resize-none overflow-hidden text-sm font-normal text-foreground placeholder:text-muted-foreground/70 ${FORM_FIELD_GHOST_CHROME} px-3 py-2.5`;
 
 /** Read-only ghost control (e.g. contact number on create). */
 export const FORM_GHOST_READONLY_CLASS = 'cursor-not-allowed text-muted-foreground';

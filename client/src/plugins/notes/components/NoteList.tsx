@@ -140,7 +140,7 @@ export const NoteList: React.FC = () => {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openNotePanel(null)),
-    onSettings: () => openNoteSettings(),
+    onSettings: () => attemptNavigation(() => openNoteSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -772,7 +772,7 @@ export const NoteList: React.FC = () => {
                       icon={Settings}
                       label={t('notes.settings')}
                       variant="soft"
-                      onClick={() => openNoteSettings()}
+                      onClick={() => attemptNavigation(() => openNoteSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle

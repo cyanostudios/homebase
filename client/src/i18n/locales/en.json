@@ -491,7 +491,8 @@
       "view": "View",
       "viewDescription": "Default list or grid for matches.",
       "apiDescription": "Fogis API base URL and key."
-    }
+    },
+    "tabUnavailableInEdit": "Available in view mode only"
   },
   "bulk": {
     "selected": "{{count}} selected",
@@ -622,6 +623,10 @@
     "actionInvoice": "Invoice",
     "exportOptions": "Export options",
     "activity": "Activity",
+    "activityAfterSave": "Activity appears after the contact is saved.",
+    "linkedAfterSave": "Linked items appear after the contact is saved.",
+    "contactPersonsCompanyOnly": "Contact persons are available for company contacts.",
+    "tabUnavailableInEdit": "Available in view mode only",
     "contactContent": "Contact Content",
     "contactProperties": "Contact Properties",
     "tabs": {
@@ -820,6 +825,7 @@
       "linkedEmpty": "No mentioned contacts yet.",
       "activity": "Activity"
     },
+    "tabUnavailableInEdit": "Available in view mode only",
     "quickEditDiscardMessage": "You have unsaved changes to status, priority, due date or assignees. Do you want to discard them?",
     "assignee": "Assignee",
     "noAssigneesYet": "No assignees yet.",
@@ -933,6 +939,7 @@
       "files": "Files",
       "activity": "Activity"
     },
+    "tabUnavailableInEdit": "Available in view mode only",
     "quickActions": "Quick actions",
     "exportOptions": "Export options",
     "activity": "Activity",
@@ -1317,7 +1324,8 @@
       "urlInvalid": "Enter a valid URL",
       "fetchMethodInvalid": "Choose a valid fetch method",
       "saveFailed": "Could not save source"
-    }
+    },
+    "tabUnavailableInEdit": "Available in view mode only"
   },
   "instructions": {
     "listDescription": "Create step-by-step guides for staff.",
@@ -1697,7 +1705,8 @@
       "deleteConfirmNamed": "Are you sure you want to remove \"{{name}}\" from the list?",
       "moveUp": "Move up",
       "moveDown": "Move down"
-    }
+    },
+    "tabUnavailableInEdit": "Available in view mode only"
   },
   "guides": {
     "title": "Guides",
@@ -2812,7 +2821,8 @@
         "social": "Social",
         "other": "Other"
       }
-    }
+    },
+    "tabUnavailableInEdit": "Available in view mode only"
   },
   "teams": {
     "listDescription": "{{count}} teams registered · Season {{season}}",
@@ -3131,7 +3141,8 @@
       "overviewDescription": "Order of cards on each team overview.",
       "venues": "Venues",
       "venuesDescription": "Shared training venues for all teams."
-    }
+    },
+    "tabUnavailableInEdit": "Available in view mode only"
   },
   "dashboard": {
     "description": "A quick overview of your enabled plugins—open one below or from the sidebar.",
@@ -3392,6 +3403,7 @@
       "files": "Files",
       "activity": "Activity"
     },
+    "tabUnavailableInEdit": "Available in view mode only",
     "settings": {
       "title": "Requests settings",
       "typesSection": "Request types",
@@ -3933,6 +3945,15 @@
       "identityColumns": "Identity columns",
       "identityColumnsHint": "Drag to reorder. Toggle to show or hide. Name is always visible.",
       "importDescription": "Import inventory items from CSV or Excel."
-    }
+    },
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "variants": "Variants",
+      "lists": "Lists",
+      "activity": "Activity"
+    },
+    "tabUnavailableInEdit": "Available in view mode only",
+    "activity": "Activity"
   }
 }

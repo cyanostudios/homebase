@@ -1,10 +1,15 @@
 import {
   Calculator,
+  CreditCard,
   Eye,
   Hash,
+  History,
+  Info,
+  Link2,
   ListOrdered,
   Package,
   Percent,
+  Receipt,
   Send,
   SlidersHorizontal,
   StickyNote,
@@ -12,7 +17,9 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,8 +31,21 @@ import { EMPTY_ORGANIZATION, organizationApi } from '@/core/api/organizationApi'
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DatePicker } from '@/core/ui/DatePicker';
-import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
+import {
+  DETAIL_PROP_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+} from '@/core/ui/detailViewCardStyles';
+import {
+  FORM_GHOST_INPUT_CLASS,
+  FORM_GHOST_PROP_CONTROL_CLASS,
+  FORM_GHOST_READONLY_CLASS,
+  FORM_GHOST_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { formatDate } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -34,11 +54,7 @@ import { cn } from '@/lib/utils';
 
 import { useInvoices } from '../hooks/useInvoices';
 import { displayPlainText } from '../utils/htmlText';
-import {
-  INVOICE_FORM_INPUT_CLASS,
-  INVOICE_FORM_PROP_CONTROL_CLASS,
-  INVOICE_FORM_TEXTAREA_CLASS,
-} from '../utils/invoiceLineItemStyles';
+import { INVOICE_FORM_INPUT_CLASS } from '../utils/invoiceLineItemStyles';
 import {
   Invoice,
   InvoiceLineItem,
@@ -74,6 +90,46 @@ const FACT_LABEL_CLASS =
 
 const PAYMENT_TERMS_OPTIONS = ['0', '15', '30', '60'] as const;
 
+type InvoiceFormTab = 'information' | 'lines' | 'payments' | 'linked' | 'activity';
+
+const INVOICE_FORM_TABS: InvoiceFormTab[] = [
+  'information',
+  'lines',
+  'payments',
+  'linked',
+  'activity',
+];
+
+/** Visible in edit for shell parity with View, but not selectable while editing. */
+const INVOICE_FORM_EDIT_DISABLED_TABS: ReadonlySet<InvoiceFormTab> = new Set([
+  'payments',
+  'linked',
+  'activity',
+]);
+
+const TAB_ERROR_FIELDS: Record<InvoiceFormTab, string[]> = {
+  information: [
+    'contactId',
+    'notes',
+    'invoiceType',
+    'issueDate',
+    'paymentTerms',
+    'currency',
+    'status',
+  ],
+  lines: ['lineItems'],
+  payments: [],
+  linked: [],
+  activity: [],
+};
+
+function parseInvoiceFormTab(value: string | null): InvoiceFormTab {
+  if (value && INVOICE_FORM_TABS.includes(value as InvoiceFormTab)) {
+    return value as InvoiceFormTab;
+  }
+  return 'information';
+}
+
 function normalizePaymentTermsSelectValue(
   paymentTerms: string | number | null | undefined,
 ): string {
@@ -103,20 +159,50 @@ interface InvoicesFormProps {
 export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>(
   function InvoicesForm({ currentInvoice, onSave, onCancel, stacked: _stacked = false }, ref) {
     const { t } = useTranslation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = parseInvoiceFormTab(searchParams.get('tab'));
+    const setActiveTab = useCallback(
+      (tab: InvoiceFormTab, replace = false) => {
+        if (INVOICE_FORM_EDIT_DISABLED_TABS.has(tab)) {
+          return;
+        }
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            if (tab === 'information') {
+              next.delete('tab');
+            } else {
+              next.set('tab', tab);
+            }
+            return next;
+          },
+          { replace },
+        );
+      },
+      [setSearchParams],
+    );
+
+    useEffect(() => {
+      if (!INVOICE_FORM_EDIT_DISABLED_TABS.has(activeTab)) {
+        return;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('tab');
+          return next;
+        },
+        { replace: true },
+      );
+    }, [activeTab, setSearchParams]);
+
     const { validationErrors, clearValidationErrors, invoiceCreatePrefill } = useInvoices();
     const { user, contacts } = useApp();
 
     const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
       useGlobalNavigationGuard();
-    const {
-      isDirty,
-      showWarning,
-      markDirty,
-      markClean,
-      attemptAction,
-      confirmDiscard,
-      cancelDiscard,
-    } = useUnsavedChanges();
+    const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+      useUnsavedChanges();
 
     const [duplicatedItemIds, setDuplicatedItemIds] = useState<Set<string>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -148,9 +234,9 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
 
     useEffect(() => {
       const formKey = `invoice-form-${currentInvoice?.id || 'new'}`;
-      registerUnsavedChangesChecker(formKey, () => isDirty);
+      registerUnsavedChangesChecker(formKey, () => true);
       return () => unregisterUnsavedChangesChecker(formKey);
-    }, [isDirty, currentInvoice, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+    }, [currentInvoice, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
     useEffect(() => {
       if (currentInvoice) {
@@ -250,10 +336,13 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     }, [formData, onSave, markClean, currentInvoice, resetForm, isSubmitting]);
 
     const handleCancel = useCallback(() => {
-      attemptAction(() => {
-        setDuplicatedItemIds(new Set());
-        onCancel();
-      });
+      attemptAction(
+        () => {
+          setDuplicatedItemIds(new Set());
+          onCancel();
+        },
+        { force: true },
+      );
     }, [attemptAction, onCancel]);
 
     const openSharedStylePreview = useCallback(() => {
@@ -502,7 +591,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
 
     const getFieldError = (field: string) => validationErrors.find((e) => e.field === field);
     const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
-    const propSelectClass = INVOICE_FORM_PROP_CONTROL_CLASS;
+    const propSelectClass = FORM_GHOST_PROP_CONTROL_CLASS;
     const dueDisplay = formatInvoiceDueDate(formData.dueDate);
     const showDueUrgency = formData.status !== 'paid' && formData.status !== 'canceled';
 
@@ -510,253 +599,423 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
       ? formatDisplayNumber('invoices', currentInvoice.invoiceNumber || currentInvoice.id)
       : '';
 
+    const tabHasError = useCallback(
+      (tab: InvoiceFormTab) => {
+        const fields = TAB_ERROR_FIELDS[tab];
+        if (!fields.length) {
+          return false;
+        }
+        return validationErrors.some(
+          (error) => fields.includes(error.field) && !error.message.includes('Warning'),
+        );
+      },
+      [validationErrors],
+    );
+
+    const lineItemCount = formData.lineItems.length;
+
+    const tabs = useMemo(
+      () => [
+        {
+          id: 'information' as const,
+          label: t('invoices.tabs.information'),
+          icon: Info,
+          count: null as number | null,
+        },
+        {
+          id: 'lines' as const,
+          label: t('invoices.tabs.lines'),
+          icon: ListOrdered,
+          count: lineItemCount > 0 ? lineItemCount : null,
+        },
+        {
+          id: 'payments' as const,
+          label: t('invoices.tabs.payments'),
+          icon: CreditCard,
+          count: null as number | null,
+        },
+        {
+          id: 'linked' as const,
+          label: t('invoices.tabs.linked'),
+          icon: Link2,
+          count: null as number | null,
+        },
+        {
+          id: 'activity' as const,
+          label: t('invoices.tabs.activity'),
+          icon: History,
+          count: null as number | null,
+        },
+      ],
+      [lineItemCount, t],
+    );
+
+    const tabChips = (
+      <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+        {tabs.map((tab) => {
+          const TabIcon = tab.icon;
+          const isDisabled = INVOICE_FORM_EDIT_DISABLED_TABS.has(tab.id);
+          const isActive = !isDisabled && activeTab === tab.id;
+          const hasError = !isDisabled && tabHasError(tab.id);
+          return (
+            <Button
+              key={tab.id}
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-pressed={isActive}
+              aria-disabled={isDisabled}
+              disabled={isDisabled}
+              title={
+                isDisabled
+                  ? t('tasks.tabUnavailableInEdit', {
+                      defaultValue: 'Available in view mode only',
+                    })
+                  : undefined
+              }
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                isDisabled && 'pointer-events-none opacity-40',
+              )}
+            >
+              <TabIcon className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1.5">
+                {tab.label}
+                {tab.count !== null ? (
+                  <>
+                    {' '}
+                    <span className="tabular-nums font-semibold">({tab.count})</span>
+                  </>
+                ) : null}
+                {hasError ? (
+                  <span
+                    className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-destructive"
+                    aria-label={t('common.error', { defaultValue: 'Error' })}
+                  />
+                ) : null}
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+
+    const formHeader = (
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-invoices flex flex-col')}>
+        <div className="px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="inline-flex shrink-0" aria-hidden>
+              <SectionCategoryIcon
+                icon={Receipt}
+                className="h-8 w-8 bg-plugin-subtle text-plugin [&_svg]:h-4 [&_svg]:w-4"
+              />
+            </span>
+            <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 font-mono tracking-[0.003em]')}>
+              {invoiceNumberLabel || t('invoices.newInvoice', { defaultValue: 'New invoice' })}
+            </h3>
+          </div>
+          <div className="mt-4">{tabChips}</div>
+        </div>
+      </Card>
+    );
+
     const formBody = (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 items-stretch gap-4">
-          <Card
-            padding="none"
-            className={cn(DETAIL_VIEW_CARD_CLASS, 'flex h-full min-h-0 flex-col')}
-          >
-            <InvoiceCustomerSelect
-              contactId={formData.contactId}
-              contactName={formData.contactName}
-              invoiceNumber={currentInvoice?.invoiceNumber || currentInvoice?.id}
-              editable={(formData.status || 'draft') === 'draft'}
-              onCustomerChange={handleContactChange}
-              errorMessage={getFieldError('contactId')?.message ?? null}
-            />
+        {formHeader}
 
-            <div className="flex min-h-0 flex-1 flex-col space-y-3 px-4 py-3">
-              {currentInvoice ? (
-                <div>
-                  <Label className={FACT_LABEL_CLASS}>
-                    <Hash className="h-3 w-3" />
-                    {t('invoices.table.number')}
-                  </Label>
-                  <Input
-                    type="text"
-                    value={invoiceNumberLabel}
-                    readOnly
-                    className={cn(
-                      INVOICE_FORM_INPUT_CLASS,
-                      'cursor-not-allowed text-muted-foreground',
-                    )}
-                  />
-                </div>
-              ) : null}
-
-              <div>
-                <Label htmlFor="invoice-order-number" className={FACT_LABEL_CLASS}>
-                  <Package className="h-3 w-3" />
-                  {t('invoices.orderNumber', { defaultValue: 'Order number' })}
-                </Label>
-                <Input
-                  id="invoice-order-number"
-                  type="text"
-                  value={formData.orderNumber}
-                  onChange={(e) => updateField('orderNumber', e.target.value)}
-                  className={INVOICE_FORM_INPUT_CLASS}
-                  placeholder={t('invoices.orderNumberPlaceholder', {
-                    defaultValue: 'Optional order number…',
-                  })}
+        {activeTab === 'information' ? (
+          <>
+            <div className="grid grid-cols-1 items-stretch gap-4">
+              <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+                <InvoiceCustomerSelect
+                  contactId={formData.contactId}
+                  contactName={formData.contactName}
+                  invoiceNumber={currentInvoice?.invoiceNumber || currentInvoice?.id}
+                  editable={(formData.status || 'draft') === 'draft'}
+                  onCustomerChange={handleContactChange}
+                  errorMessage={getFieldError('contactId')?.message ?? null}
                 />
-              </div>
+              </Card>
 
-              <div>
-                <Label htmlFor="invoice-delivery-method" className={FACT_LABEL_CLASS}>
-                  <Truck className="h-3 w-3" />
-                  {t('invoices.deliveryMethod', { defaultValue: 'Delivery method' })}
-                </Label>
-                <Input
-                  id="invoice-delivery-method"
-                  type="text"
-                  value={formData.deliveryMethod}
-                  onChange={(e) => updateField('deliveryMethod', e.target.value)}
-                  className={INVOICE_FORM_INPUT_CLASS}
-                  placeholder={t('invoices.deliveryMethodPlaceholder', {
-                    defaultValue: 'Optional delivery method…',
-                  })}
-                />
-              </div>
+              <Card
+                padding="none"
+                className={cn(DETAIL_VIEW_CARD_CLASS, 'flex h-full min-h-0 flex-col')}
+              >
+                <div className="flex min-h-0 flex-1 flex-col space-y-3 px-4 py-3">
+                  {currentInvoice ? (
+                    <div>
+                      <Label className={FACT_LABEL_CLASS}>
+                        <Hash className="h-3 w-3" />
+                        {t('invoices.table.number')}
+                      </Label>
+                      <Input
+                        type="text"
+                        value={invoiceNumberLabel}
+                        readOnly
+                        className={cn(FORM_GHOST_INPUT_CLASS, FORM_GHOST_READONLY_CLASS)}
+                      />
+                    </div>
+                  ) : null}
 
-              <div className="flex min-h-0 flex-1 flex-col">
-                <Label htmlFor="invoice-notes" className={FACT_LABEL_CLASS}>
-                  <StickyNote className="h-3 w-3" />
-                  {t('invoices.notesAndTerms')}
-                </Label>
-                <Textarea
-                  id="invoice-notes"
-                  value={formData.notes}
-                  onChange={(e) => updateField('notes', e.target.value)}
-                  rows={2}
-                  placeholder={t('invoices.notesPlaceholder', {
-                    defaultValue: 'Additional notes or terms…',
-                  })}
-                  className={cn(INVOICE_FORM_TEXTAREA_CLASS, 'min-h-[4.5rem] flex-1')}
-                />
-              </div>
-            </div>
-          </Card>
-
-          <Card
-            padding="none"
-            className={cn(DETAIL_VIEW_CARD_CLASS, 'flex h-full min-h-0 flex-col')}
-          >
-            <DetailSection
-              title={t('invoices.invoiceProperties', {
-                defaultValue: 'Invoice Properties',
-              })}
-              icon={SlidersHorizontal}
-              iconPlugin="invoices"
-              subtleTitle
-              className="flex h-full flex-col p-6"
-            >
-              <div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
-                  </span>
-                  <NativeSelect
-                    id="invoice-type"
-                    value={formData.invoiceType}
-                    onChange={(e) => updateField('invoiceType', e.target.value as any)}
-                    className={propSelectClass}
-                  >
-                    <option value="invoice">
-                      {t('invoices.type.invoice', { defaultValue: 'Invoice' })}
-                    </option>
-                    <option value="credit_note">
-                      {t('invoices.type.credit_note', { defaultValue: 'Credit note' })}
-                    </option>
-                    <option value="cash_invoice">
-                      {t('invoices.type.cash_invoice', { defaultValue: 'Cash invoice' })}
-                    </option>
-                    <option value="receipt">
-                      {t('invoices.type.receipt', { defaultValue: 'Receipt' })}
-                    </option>
-                  </NativeSelect>
-                </div>
-
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('invoices.issueDate', { defaultValue: 'Issue Date' })}
-                  </span>
-                  <DatePicker
-                    id="invoice-issue-date"
-                    value={formData.issueDate}
-                    onChange={(date) => updateField('issueDate', date ?? formData.issueDate)}
-                    placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
-                    clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
-                    variant="filled"
-                    propWidth
-                  />
-                </div>
-
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('invoices.paymentTerms', { defaultValue: 'Payment terms' })}
-                  </span>
-                  <NativeSelect
-                    id="invoice-payment-terms"
-                    value={formData.paymentTerms}
-                    onChange={(e) => updateField('paymentTerms', e.target.value)}
-                    className={propSelectClass}
-                  >
-                    <option value="0">
-                      {t('invoices.paymentTermsImmediate', { defaultValue: 'Immediate' })}
-                    </option>
-                    <option value="15">
-                      {t('invoices.paymentTermsDays', {
-                        defaultValue: '{{count}} days',
-                        count: 15,
+                  <div>
+                    <Label htmlFor="invoice-order-number" className={FACT_LABEL_CLASS}>
+                      <Package className="h-3 w-3" />
+                      {t('invoices.orderNumber', { defaultValue: 'Order number' })}
+                    </Label>
+                    <Input
+                      id="invoice-order-number"
+                      type="text"
+                      value={formData.orderNumber}
+                      onChange={(e) => updateField('orderNumber', e.target.value)}
+                      className={FORM_GHOST_INPUT_CLASS}
+                      placeholder={t('invoices.orderNumberPlaceholder', {
+                        defaultValue: 'Optional order number…',
                       })}
-                    </option>
-                    <option value="30">
-                      {t('invoices.paymentTermsDays', {
-                        defaultValue: '{{count}} days',
-                        count: 30,
-                      })}
-                    </option>
-                    <option value="60">
-                      {t('invoices.paymentTermsDays', {
-                        defaultValue: '{{count}} days',
-                        count: 60,
-                      })}
-                    </option>
-                    {!(PAYMENT_TERMS_OPTIONS as readonly string[]).includes(
-                      formData.paymentTerms,
-                    ) ? (
-                      <option value={formData.paymentTerms}>
-                        {t('invoices.paymentTermsDays', {
-                          defaultValue: '{{count}} days',
-                          count: Number(formData.paymentTerms) || 0,
-                        })}
-                      </option>
-                    ) : null}
-                  </NativeSelect>
-                </div>
+                    />
+                  </div>
 
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('invoices.fieldDueDate', { defaultValue: 'Due Date' })}
-                  </span>
-                  <div
-                    className="flex max-w-[180px] flex-col items-end gap-0.5 text-right"
-                    title={t('invoices.dueDateFromPaymentTerms', {
-                      defaultValue: 'Calculated from issue date + payment terms',
-                    })}
-                  >
-                    <span
-                      className={cn(
-                        'text-sm font-medium',
-                        showDueUrgency && dueDisplay ? dueDisplay.className : 'text-foreground',
-                      )}
-                    >
-                      {dueDisplay && showDueUrgency
-                        ? dueDisplay.text
-                        : formatDate(formData.dueDate) || '—'}
-                    </span>
-                    {dueDisplay && showDueUrgency && dueDisplay.isRelative ? (
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {formatDate(formData.dueDate) || '—'}
-                      </span>
-                    ) : null}
+                  <div>
+                    <Label htmlFor="invoice-delivery-method" className={FACT_LABEL_CLASS}>
+                      <Truck className="h-3 w-3" />
+                      {t('invoices.deliveryMethod', { defaultValue: 'Delivery method' })}
+                    </Label>
+                    <Input
+                      id="invoice-delivery-method"
+                      type="text"
+                      value={formData.deliveryMethod}
+                      onChange={(e) => updateField('deliveryMethod', e.target.value)}
+                      className={FORM_GHOST_INPUT_CLASS}
+                      placeholder={t('invoices.deliveryMethodPlaceholder', {
+                        defaultValue: 'Optional delivery method…',
+                      })}
+                    />
+                  </div>
+
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <Label htmlFor="invoice-notes" className={FACT_LABEL_CLASS}>
+                      <StickyNote className="h-3 w-3" />
+                      {t('invoices.notesAndTerms')}
+                    </Label>
+                    <Textarea
+                      id="invoice-notes"
+                      value={formData.notes}
+                      onChange={(e) => updateField('notes', e.target.value)}
+                      rows={2}
+                      placeholder={t('invoices.notesPlaceholder', {
+                        defaultValue: 'Additional notes or terms…',
+                      })}
+                      className={cn(FORM_GHOST_TEXTAREA_CLASS, 'min-h-[4.5rem] flex-1')}
+                    />
                   </div>
                 </div>
+              </Card>
 
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('invoices.currency', { defaultValue: 'Currency' })}
-                  </span>
-                  <NativeSelect
-                    id="invoice-currency"
-                    value={formData.currency}
-                    onChange={(e) => updateField('currency', e.target.value)}
-                    className={propSelectClass}
-                  >
-                    <option value="SEK">SEK</option>
-                    <option value="EUR">EUR</option>
-                    <option value="USD">USD</option>
-                    <option value="NOK">NOK</option>
-                    <option value="DKK">DKK</option>
-                  </NativeSelect>
-                </div>
+              <Card
+                padding="none"
+                className={cn(DETAIL_VIEW_CARD_CLASS, 'flex h-full min-h-0 flex-col')}
+              >
+                <DetailSection
+                  title={t('invoices.invoiceProperties', {
+                    defaultValue: 'Invoice Properties',
+                  })}
+                  icon={SlidersHorizontal}
+                  iconPlugin="invoices"
+                  subtleTitle
+                  className="flex h-full flex-col p-6"
+                >
+                  <div>
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
+                      </span>
+                      <NativeSelect
+                        id="invoice-type"
+                        value={formData.invoiceType}
+                        onChange={(e) => updateField('invoiceType', e.target.value as any)}
+                        className={propSelectClass}
+                      >
+                        <option value="invoice">
+                          {t('invoices.type.invoice', { defaultValue: 'Invoice' })}
+                        </option>
+                        <option value="credit_note">
+                          {t('invoices.type.credit_note', { defaultValue: 'Credit note' })}
+                        </option>
+                        <option value="cash_invoice">
+                          {t('invoices.type.cash_invoice', { defaultValue: 'Cash invoice' })}
+                        </option>
+                        <option value="receipt">
+                          {t('invoices.type.receipt', { defaultValue: 'Receipt' })}
+                        </option>
+                      </NativeSelect>
+                    </div>
 
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('invoices.propertyStatus', { defaultValue: 'Status' })}
-                  </span>
-                  <InvoiceStatusSelect
-                    invoice={{ status: formData.status }}
-                    onStatusChange={requestStatusChange}
-                    hideInlineLabel
-                    filled
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.issueDate', { defaultValue: 'Issue Date' })}
+                      </span>
+                      <DatePicker
+                        id="invoice-issue-date"
+                        value={formData.issueDate}
+                        onChange={(date) => updateField('issueDate', date ?? formData.issueDate)}
+                        placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                        clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                        variant="default"
+                        propWidth
+                      />
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.paymentTerms', { defaultValue: 'Payment terms' })}
+                      </span>
+                      <NativeSelect
+                        id="invoice-payment-terms"
+                        value={formData.paymentTerms}
+                        onChange={(e) => updateField('paymentTerms', e.target.value)}
+                        className={propSelectClass}
+                      >
+                        <option value="0">
+                          {t('invoices.paymentTermsImmediate', { defaultValue: 'Immediate' })}
+                        </option>
+                        <option value="15">
+                          {t('invoices.paymentTermsDays', {
+                            defaultValue: '{{count}} days',
+                            count: 15,
+                          })}
+                        </option>
+                        <option value="30">
+                          {t('invoices.paymentTermsDays', {
+                            defaultValue: '{{count}} days',
+                            count: 30,
+                          })}
+                        </option>
+                        <option value="60">
+                          {t('invoices.paymentTermsDays', {
+                            defaultValue: '{{count}} days',
+                            count: 60,
+                          })}
+                        </option>
+                        {!(PAYMENT_TERMS_OPTIONS as readonly string[]).includes(
+                          formData.paymentTerms,
+                        ) ? (
+                          <option value={formData.paymentTerms}>
+                            {t('invoices.paymentTermsDays', {
+                              defaultValue: '{{count}} days',
+                              count: Number(formData.paymentTerms) || 0,
+                            })}
+                          </option>
+                        ) : null}
+                      </NativeSelect>
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.fieldDueDate', { defaultValue: 'Due Date' })}
+                      </span>
+                      <div
+                        className="flex max-w-[180px] flex-col items-end gap-0.5 text-right"
+                        title={t('invoices.dueDateFromPaymentTerms', {
+                          defaultValue: 'Calculated from issue date + payment terms',
+                        })}
+                      >
+                        <span
+                          className={cn(
+                            'text-sm font-medium',
+                            showDueUrgency && dueDisplay ? dueDisplay.className : 'text-foreground',
+                          )}
+                        >
+                          {dueDisplay && showDueUrgency
+                            ? dueDisplay.text
+                            : formatDate(formData.dueDate) || '—'}
+                        </span>
+                        {dueDisplay && showDueUrgency && dueDisplay.isRelative ? (
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {formatDate(formData.dueDate) || '—'}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.currency', { defaultValue: 'Currency' })}
+                      </span>
+                      <NativeSelect
+                        id="invoice-currency"
+                        value={formData.currency}
+                        onChange={(e) => updateField('currency', e.target.value)}
+                        className={propSelectClass}
+                      >
+                        <option value="SEK">SEK</option>
+                        <option value="EUR">EUR</option>
+                        <option value="USD">USD</option>
+                        <option value="NOK">NOK</option>
+                        <option value="DKK">DKK</option>
+                      </NativeSelect>
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.propertyStatus', { defaultValue: 'Status' })}
+                      </span>
+                      <InvoiceStatusSelect
+                        invoice={{ status: formData.status }}
+                        onStatusChange={requestStatusChange}
+                        hideInlineLabel
+                      />
+                    </div>
+                  </div>
+                </DetailSection>
+              </Card>
+            </div>
+
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('invoices.previewTitle', { defaultValue: 'Invoice preview' })}
+                icon={Eye}
+                subtleTitle
+                className="p-6"
+              >
+                <p className="mb-3 text-xs text-muted-foreground">
+                  {t('invoices.previewHelp', {
+                    defaultValue:
+                      'This is how the invoice will look when shared or exported as PDF.',
+                  })}
+                </p>
+                <div className="mx-auto w-full min-w-0 max-w-[794px]">
+                  <InvoiceDocumentPreview
+                    formData={formData}
+                    invoiceId={currentInvoice?.id}
+                    invoiceNumber={currentInvoice?.invoiceNumber}
                   />
+                  <div className="mt-4 flex justify-end gap-2">
+                    {formData.status === 'draft' ? (
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={Send}
+                        label={t('invoices.send', { defaultValue: 'Send' })}
+                        variant="soft"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => requestStatusChange('sent')}
+                      />
+                    ) : null}
+                    <RoundIconLabelButton
+                      type="button"
+                      icon={Eye}
+                      label={t('common.preview')}
+                      variant="secondary"
+                      size="xs"
+                      alwaysExpanded
+                      onClick={openSharedStylePreview}
+                    />
+                  </div>
                 </div>
-              </div>
-            </DetailSection>
-          </Card>
-        </div>
+              </DetailSection>
+            </Card>
+          </>
+        ) : null}
 
         {hasBlockingErrors ? (
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -775,126 +1034,84 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           </Card>
         ) : null}
 
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection
-            title={t('invoices.lineItems')}
-            icon={ListOrdered}
-            iconPlugin="invoices"
-            subtleTitle
-            className="px-3 py-6"
-          >
-            <InvoiceLineItemsEditor
-              items={formData.lineItems}
-              duplicatedItemIds={duplicatedItemIds}
-              onAdd={addLineItem}
-              onAddTextField={addTextFieldLineItem}
-              onUpdate={updateLineItem}
-              onDuplicate={duplicateLineItem}
-              onRemove={removeLineItem}
-              onMoveUp={(i) => moveLineItem(i, 'up')}
-              onMoveDown={(i) => moveLineItem(i, 'down')}
-            />
-          </DetailSection>
-        </Card>
-
-        <div className="grid grid-cols-1 items-start gap-4">
-          <div className="space-y-4">
+        {activeTab === 'lines' ? (
+          <>
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
-                title={t('invoices.invoiceDiscount', { defaultValue: 'Invoice Discount' })}
-                icon={Percent}
+                title={t('invoices.lineItems')}
+                icon={ListOrdered}
                 iconPlugin="invoices"
                 subtleTitle
-                className="p-6"
+                className="px-3 py-6"
               >
-                <div className="flex flex-wrap items-center gap-3">
-                  <Label htmlFor="invoice-discount" className="sr-only">
-                    {t('invoices.discountPercent', { defaultValue: 'Discount %' })}
-                  </Label>
-                  <Input
-                    id="invoice-discount"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.invoiceDiscount}
-                    onChange={(e) =>
-                      updateField('invoiceDiscount', parseFloat(e.target.value) || 0)
-                    }
-                    className={cn(INVOICE_FORM_INPUT_CLASS, 'max-w-[8rem]')}
-                    aria-label={t('invoices.discountPercent', { defaultValue: 'Discount %' })}
-                  />
-                  <span className="text-xs text-muted-foreground">%</span>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {t('invoices.discountHelp', {
-                    defaultValue: 'Discount applied to subtotal after line item discounts',
-                  })}
-                </p>
-              </DetailSection>
-            </Card>
-
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('invoices.pricingSummary')}
-                icon={Calculator}
-                iconPlugin="invoices"
-                subtleTitle
-                className="p-6"
-              >
-                <InvoicePricingSummary
-                  totals={totals}
-                  currency={formData.currency}
-                  invoiceDiscount={Number(formData.invoiceDiscount || 0)}
+                <InvoiceLineItemsEditor
+                  items={formData.lineItems}
+                  duplicatedItemIds={duplicatedItemIds}
+                  onAdd={addLineItem}
+                  onAddTextField={addTextFieldLineItem}
+                  onUpdate={updateLineItem}
+                  onDuplicate={duplicateLineItem}
+                  onRemove={removeLineItem}
+                  onMoveUp={(i) => moveLineItem(i, 'up')}
+                  onMoveDown={(i) => moveLineItem(i, 'down')}
                 />
               </DetailSection>
             </Card>
-          </div>
 
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('invoices.previewTitle', { defaultValue: 'Invoice preview' })}
-              icon={Eye}
-              subtleTitle
-              className="p-6"
-            >
-              <p className="mb-3 text-xs text-muted-foreground">
-                {t('invoices.previewHelp', {
-                  defaultValue: 'This is how the invoice will look when shared or exported as PDF.',
-                })}
-              </p>
-              <div className="mx-auto w-full min-w-0 max-w-[794px]">
-                <InvoiceDocumentPreview
-                  formData={formData}
-                  invoiceId={currentInvoice?.id}
-                  invoiceNumber={currentInvoice?.invoiceNumber}
-                />
-                <div className="mt-4 flex justify-end gap-2">
-                  {formData.status === 'draft' ? (
-                    <RoundIconLabelButton
-                      type="button"
-                      icon={Send}
-                      label={t('invoices.send', { defaultValue: 'Send' })}
-                      variant="soft"
-                      size="xs"
-                      alwaysExpanded
-                      onClick={() => requestStatusChange('sent')}
+            <div className="space-y-4">
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('invoices.invoiceDiscount', { defaultValue: 'Invoice Discount' })}
+                  icon={Percent}
+                  iconPlugin="invoices"
+                  subtleTitle
+                  className="p-6"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Label htmlFor="invoice-discount" className="sr-only">
+                      {t('invoices.discountPercent', { defaultValue: 'Discount %' })}
+                    </Label>
+                    <Input
+                      id="invoice-discount"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={formData.invoiceDiscount}
+                      onChange={(e) =>
+                        updateField('invoiceDiscount', parseFloat(e.target.value) || 0)
+                      }
+                      className={cn(INVOICE_FORM_INPUT_CLASS, 'max-w-[8rem]')}
+                      aria-label={t('invoices.discountPercent', { defaultValue: 'Discount %' })}
                     />
-                  ) : null}
-                  <RoundIconLabelButton
-                    type="button"
-                    icon={Eye}
-                    label={t('common.preview')}
-                    variant="secondary"
-                    size="xs"
-                    alwaysExpanded
-                    onClick={openSharedStylePreview}
+                    <span className="text-xs text-muted-foreground">%</span>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {t('invoices.discountHelp', {
+                      defaultValue: 'Discount applied to subtotal after line item discounts',
+                    })}
+                  </p>
+                </DetailSection>
+              </Card>
+
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('invoices.pricingSummary')}
+                  icon={Calculator}
+                  iconPlugin="invoices"
+                  subtleTitle
+                  className="p-6"
+                >
+                  <InvoicePricingSummary
+                    totals={totals}
+                    currency={formData.currency}
+                    invoiceDiscount={Number(formData.invoiceDiscount || 0)}
                   />
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
-        </div>
+                </DetailSection>
+              </Card>
+            </div>
+          </>
+        ) : null}
       </div>
     );
 

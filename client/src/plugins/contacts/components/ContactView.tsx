@@ -66,17 +66,10 @@ interface ContactViewProps {
   stacked?: boolean;
 }
 
-type ContactViewTab =
-  | 'information'
-  | 'properties'
-  | 'addresses'
-  | 'persons'
-  | 'linked'
-  | 'activity';
+type ContactViewTab = 'information' | 'addresses' | 'persons' | 'linked' | 'activity';
 
 const CONTACT_VIEW_TABS: ContactViewTab[] = [
   'information',
-  'properties',
   'addresses',
   'persons',
   'linked',
@@ -84,6 +77,9 @@ const CONTACT_VIEW_TABS: ContactViewTab[] = [
 ];
 
 function parseContactViewTab(value: string | null): ContactViewTab {
+  if (value === 'properties') {
+    return 'information';
+  }
   if (value && CONTACT_VIEW_TABS.includes(value as ContactViewTab)) {
     return value as ContactViewTab;
   }
@@ -194,12 +190,6 @@ export const ContactView = React.memo(function ContactView({
         id: 'information' as const,
         label: t('contacts.tabs.information'),
         icon: Info,
-        count: null as number | null,
-      },
-      {
-        id: 'properties' as const,
-        label: t('contacts.tabs.properties'),
-        icon: SlidersHorizontal,
         count: null as number | null,
       },
       {
@@ -672,7 +662,8 @@ export const ContactView = React.memo(function ContactView({
           <ContactQuickContextPanel contact={contact} headerBelow={tabChips} />
 
           {activeTab === 'information' ? informationCard : null}
-          {activeTab === 'properties' ? propertiesCard : null}
+
+          {activeTab === 'information' ? propertiesCard : null}
           {activeTab === 'addresses' ? addressesCard : null}
           {activeTab === 'persons' ? personsCard : null}
           {activeTab === 'linked' ? linkedCard : null}

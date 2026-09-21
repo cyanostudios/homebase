@@ -144,7 +144,7 @@ export function MatchList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openMatchPanel(null)),
-    onSettings: () => openMatchSettings(),
+    onSettings: () => attemptNavigation(() => openMatchSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -777,7 +777,7 @@ export function MatchList() {
                       icon={Settings}
                       label={t('matches.settings')}
                       variant="soft"
-                      onClick={() => openMatchSettings()}
+                      onClick={() => attemptNavigation(() => openMatchSettings())}
                     />
                     <ExpandableIconButton
                       icon={BarChart2}

@@ -5,12 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { FORM_GHOST_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { LIST_SEARCH_FIELD_PROPS } from '@/core/ui/listSearchFieldProps';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import type { Contact } from '@/plugins/contacts/types/contacts';
-
-import { INVOICE_FORM_INPUT_CLASS } from '../utils/invoiceLineItemStyles';
 
 interface InvoiceCustomerSelectProps {
   contactId?: string | null;
@@ -81,7 +80,7 @@ export function InvoiceCustomerSelect({
   const openPopover = editable && showSuggestions;
 
   return (
-    <div className="border-b border-border/50 px-4 py-2.5">
+    <div className="px-4 py-4">
       <div className="flex items-center gap-3">
         <div
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold plugin-invoices bg-plugin-subtle text-plugin"
@@ -113,7 +112,7 @@ export function InvoiceCustomerSelect({
                       defaultValue: 'Select a customer…',
                     })}
                     className={cn(
-                      INVOICE_FORM_INPUT_CLASS,
+                      FORM_GHOST_INPUT_CLASS,
                       'pl-7 font-semibold',
                       displayName && !showSuggestions ? 'pr-8' : '',
                       errorMessage ? 'ring-1 ring-destructive' : '',
@@ -188,7 +187,7 @@ export function InvoiceCustomerSelect({
               value={displayName || t('invoices.noCustomer', { defaultValue: 'No customer' })}
               readOnly
               className={cn(
-                INVOICE_FORM_INPUT_CLASS,
+                FORM_GHOST_INPUT_CLASS,
                 'cursor-not-allowed font-semibold text-muted-foreground',
               )}
               title={t('invoices.customerLockedHint', {

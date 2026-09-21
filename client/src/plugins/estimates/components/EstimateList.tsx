@@ -136,7 +136,7 @@ export function EstimateList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openEstimatePanel(null)),
-    onSettings: openEstimateSettings,
+    onSettings: () => attemptNavigation(() => openEstimateSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -776,7 +776,7 @@ export function EstimateList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={openEstimateSettings}
+                      onClick={() => attemptNavigation(() => openEstimateSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle

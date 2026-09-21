@@ -88,6 +88,7 @@ describe('PriceListList table view wiring', () => {
     expect(listSrc).toMatch(/closeClubdeskPanel/);
     expect(listSrc).toMatch(/stacked/);
     expect(formSrc).toMatch(/stacked\?: boolean/);
+    expect(formSrc).toMatch(/!stacked \?/);
   });
 
   test('desktop detail card header shows PriceListDetailHeaderMenus when stacked', () => {

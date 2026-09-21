@@ -797,6 +797,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     slugField: 'name',
     contentViewKey: 'garmentsContentView',
     noPrimaryAction: true,
+    getViewExtraProps: (context: any) =>
+      context?.panelKind === 'inventory' && context?.currentInventoryItem
+        ? { inventoryItem: context.currentInventoryItem }
+        : {},
   },
   {
     name: 'requests',

@@ -374,7 +374,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     <div
       className={cn(
         variant === 'ghost'
-          ? 'rounded-sm border-0 bg-transparent shadow-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-0'
+          ? 'rounded-md border-0 bg-primary/10 shadow-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-0'
           : 'rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
         className,
       )}
@@ -384,7 +384,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         className={cn(
           'flex flex-wrap items-center gap-0.5 px-2 py-1.5',
           variant === 'ghost'
-            ? 'rounded-none border-b border-border/40 bg-transparent'
+            ? 'rounded-none border-b border-primary/15 bg-primary/5'
             : 'rounded-t-md border-b border-input bg-muted/30',
         )}
       >
@@ -414,7 +414,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         className={cn(
           'rich-text-editor',
           variant === 'ghost'
-            ? 'min-h-[200px] px-0 py-3 text-sm leading-relaxed'
+            ? 'min-h-[200px] px-3 py-3 text-sm leading-relaxed'
             : 'min-h-[200px] px-3 py-3 text-sm',
         )}
       />

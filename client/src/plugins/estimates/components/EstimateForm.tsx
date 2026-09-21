@@ -2,15 +2,18 @@ import {
   Plus,
   Trash2,
   Copy,
+  FileSpreadsheet,
+  History,
+  List,
   ListOrdered,
   Percent,
   Calculator,
   StickyNote,
-  Info,
   SlidersHorizontal,
 } from 'lucide-react';
-import React, { useState, useEffect, useCallback, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useCallback, useImperativeHandle, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -23,21 +26,25 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DatePicker } from '@/core/ui/DatePicker';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   DETAIL_EMPTY_STATE_CLASS,
   DETAIL_FIELD_LABEL_CLASS,
   DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import {
   FORM_COMPACT_INPUT_CLASS,
   FORM_COMPACT_SELECT_CLASS,
-  FORM_INPUT_CLASS,
+  FORM_GHOST_SELECT_CLASS,
+  FORM_GHOST_TEXTAREA_CLASS,
   FORM_INPUT_ERROR_CLASS,
   FORM_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -45,6 +52,27 @@ import { cn } from '@/lib/utils';
 
 import { useEstimates } from '../hooks/useEstimates';
 import { Estimate, LineItem, calculateLineItem, calculateEstimateTotals } from '../types/estimate';
+
+type EstimateFormTab = 'properties' | 'lines' | 'notes' | 'activity';
+
+const ESTIMATE_FORM_TABS: EstimateFormTab[] = ['properties', 'lines', 'notes', 'activity'];
+
+/** Visible in edit for shell parity with View, but not selectable while editing. */
+const ESTIMATE_FORM_EDIT_DISABLED_TABS: ReadonlySet<EstimateFormTab> = new Set(['activity']);
+
+const TAB_ERROR_FIELDS: Record<EstimateFormTab, string[]> = {
+  properties: ['contactId', 'currency', 'validTo', 'status'],
+  lines: ['lineItems'],
+  notes: ['notes'],
+  activity: [],
+};
+
+function parseEstimateFormTab(value: string | null): EstimateFormTab {
+  if (value && ESTIMATE_FORM_TABS.includes(value as EstimateFormTab)) {
+    return value as EstimateFormTab;
+  }
+  return 'properties';
+}
 
 interface EstimateFormProps {
   currentEstimate?: Estimate;
@@ -55,8 +83,45 @@ interface EstimateFormProps {
 }
 
 export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>(
-  function EstimateForm({ currentEstimate, onSave, onCancel, stacked = false }, ref) {
+  function EstimateForm({ currentEstimate, onSave, onCancel, stacked: _stacked = false }, ref) {
     const { t } = useTranslation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = parseEstimateFormTab(searchParams.get('tab'));
+    const setActiveTab = useCallback(
+      (tab: EstimateFormTab, replace = false) => {
+        if (ESTIMATE_FORM_EDIT_DISABLED_TABS.has(tab)) {
+          return;
+        }
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            if (tab === 'properties') {
+              next.delete('tab');
+            } else {
+              next.set('tab', tab);
+            }
+            return next;
+          },
+          { replace },
+        );
+      },
+      [setSearchParams],
+    );
+
+    useEffect(() => {
+      if (!ESTIMATE_FORM_EDIT_DISABLED_TABS.has(activeTab)) {
+        return;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('tab');
+          return next;
+        },
+        { replace: true },
+      );
+    }, [activeTab, setSearchParams]);
+
     const { validationErrors, clearValidationErrors } = useEstimates();
     const { contacts } = useApp(); // Cross-plugin data access
     const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
@@ -64,15 +129,8 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
 
     // Safety check for contacts
     const safeContacts = contacts || [];
-    const {
-      isDirty,
-      showWarning,
-      markDirty,
-      markClean,
-      attemptAction,
-      confirmDiscard,
-      cancelDiscard,
-    } = useUnsavedChanges();
+    const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+      useUnsavedChanges();
 
     const [formData, setFormData] = useState({
       contactId: '',
@@ -100,15 +158,15 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
       total: 0,
     });
 
-    // Register this form's unsaved changes state globally
+    // While create/edit is open, block list + sidebar navigation (same discard prompt as Close).
     useEffect(() => {
       const formKey = `estimate-form-${currentEstimate?.id || 'new'}`;
-      registerUnsavedChangesChecker(formKey, () => isDirty);
+      registerUnsavedChangesChecker(formKey, () => true);
 
       return () => {
         unregisterUnsavedChangesChecker(formKey);
       };
-    }, [isDirty, currentEstimate, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+    }, [currentEstimate, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
     // Load currentEstimate data when editing
     useEffect(() => {
@@ -187,10 +245,13 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
     }, [formData, onSave, markClean, currentEstimate, resetForm, isSubmitting]);
 
     const handleCancel = useCallback(() => {
-      attemptAction(() => {
-        setDuplicatedItemIds(new Set());
-        onCancel();
-      });
+      attemptAction(
+        () => {
+          setDuplicatedItemIds(new Set());
+          onCancel();
+        },
+        { force: true },
+      );
     }, [attemptAction, onCancel]);
 
     useImperativeHandle(
@@ -298,63 +359,129 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
     // Check if there are any blocking errors (non-warning)
     const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
 
-    const formSidebar = currentEstimate ? (
-      <div className="space-y-6">
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection
-            title={t('estimates.information')}
-            icon={Info}
-            iconPlugin="estimates"
-            className="p-4"
-            collapsible
-          >
-            <div className="space-y-4 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">ID</span>
-                <span className="font-mono font-medium">
-                  {formatDisplayNumber('estimates', currentEstimate.id)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Number</span>
-                <span className="font-mono font-medium">
-                  {formatDisplayNumber('estimates', currentEstimate.estimateNumber)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Created</span>
-                <span className="font-medium">
-                  {currentEstimate.createdAt
-                    ? new Date(currentEstimate.createdAt).toLocaleDateString()
-                    : '—'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Updated</span>
-                <span className="font-medium">
-                  {currentEstimate.updatedAt
-                    ? new Date(currentEstimate.updatedAt).toLocaleDateString()
-                    : '—'}
-                </span>
-              </div>
-            </div>
-          </DetailSection>
-        </Card>
-        <DetailActivityLog
-          entityType="estimate"
-          entityId={currentEstimate.id}
-          limit={30}
-          title={t('estimates.activity')}
-          showClearButton
-          refreshKey={String(currentEstimate.updatedAt ?? currentEstimate.id)}
-        />
+    const tabHasError = useCallback(
+      (tab: EstimateFormTab) => {
+        const fields = TAB_ERROR_FIELDS[tab];
+        if (!fields.length) {
+          return false;
+        }
+        return validationErrors.some(
+          (error) => fields.includes(error.field) && !error.message.includes('Warning'),
+        );
+      },
+      [validationErrors],
+    );
+
+    const lineItemCount = formData.lineItems.length;
+
+    const tabs = useMemo(
+      () => [
+        {
+          id: 'properties' as const,
+          label: t('estimates.tabs.properties'),
+          icon: SlidersHorizontal,
+          count: null as number | null,
+        },
+        {
+          id: 'lines' as const,
+          label: t('estimates.tabs.lines'),
+          icon: List,
+          count: lineItemCount > 0 ? lineItemCount : null,
+        },
+        {
+          id: 'notes' as const,
+          label: t('estimates.tabs.notes'),
+          icon: StickyNote,
+          count: null as number | null,
+        },
+        {
+          id: 'activity' as const,
+          label: t('estimates.tabs.activity'),
+          icon: History,
+          count: null as number | null,
+        },
+      ],
+      [lineItemCount, t],
+    );
+
+    const tabChips = (
+      <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+        {tabs.map((tab) => {
+          const TabIcon = tab.icon;
+          const isDisabled = ESTIMATE_FORM_EDIT_DISABLED_TABS.has(tab.id);
+          const isActive = !isDisabled && activeTab === tab.id;
+          const hasError = !isDisabled && tabHasError(tab.id);
+          return (
+            <Button
+              key={tab.id}
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-pressed={isActive}
+              aria-disabled={isDisabled}
+              disabled={isDisabled}
+              title={
+                isDisabled
+                  ? t('tasks.tabUnavailableInEdit', {
+                      defaultValue: 'Available in view mode only',
+                    })
+                  : undefined
+              }
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                isDisabled && 'pointer-events-none opacity-40',
+              )}
+            >
+              <TabIcon className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1.5">
+                {tab.label}
+                {tab.count !== null ? (
+                  <>
+                    {' '}
+                    <span className="tabular-nums font-semibold">({tab.count})</span>
+                  </>
+                ) : null}
+                {hasError ? (
+                  <span
+                    className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-destructive"
+                    aria-label={t('common.error', { defaultValue: 'Error' })}
+                  />
+                ) : null}
+              </span>
+            </Button>
+          );
+        })}
       </div>
-    ) : null;
+    );
+
+    const estimateTitle = currentEstimate
+      ? formatDisplayNumber('estimates', currentEstimate.estimateNumber)
+      : t('estimates.newEstimate', { defaultValue: 'New estimate' });
+
+    const formHeader = (
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+        <div className="px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="inline-flex shrink-0" aria-hidden>
+              <SectionCategoryIcon
+                icon={FileSpreadsheet}
+                className="h-8 w-8 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 [&_svg]:h-4 [&_svg]:w-4"
+              />
+            </span>
+            <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+              {estimateTitle}
+            </h3>
+          </div>
+          <div className="mt-4">{tabChips}</div>
+        </div>
+      </Card>
+    );
 
     return (
       <>
         <div className="plugin-estimates">
-          <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
+          <DetailLayout gridClassName="grid-cols-1">
             <form
               className="space-y-6"
               onSubmit={(e) => {
@@ -362,6 +489,8 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                 handleSubmit();
               }}
             >
+              {formHeader}
+
               {/* Validation Summary */}
               {hasBlockingErrors && (
                 <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -400,410 +529,420 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                 </Card>
               )}
 
-              {/* Estimate properties: Contact → Currency → Valid to → Status (same order as view) */}
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('estimates.estimateProperties')}
-                  icon={SlidersHorizontal}
-                  subtleTitle
-                  className="p-6"
-                >
-                  <div
-                    className={cn(
-                      'space-y-3',
-                      !stacked && 'md:space-y-0 md:grid md:grid-cols-2 md:gap-3',
-                    )}
-                  >
-                    <div>
-                      <Label htmlFor="estimate-contact" className={DETAIL_FIELD_LABEL_CLASS}>
-                        {t('estimates.fieldContact')}
-                      </Label>
-                      <NativeSelect
-                        id="estimate-contact"
-                        value={formData.contactId}
-                        onChange={(e) => handleContactChange(e.target.value)}
-                        className={cn(
-                          FORM_INPUT_CLASS,
-                          getFieldError('contactId') && FORM_INPUT_ERROR_CLASS,
-                        )}
-                        required
-                      >
-                        <option value="">{t('estimates.selectContact')}</option>
-                        {safeContacts.map((contact) => (
-                          <option key={contact.id} value={contact.id}>
-                            {contact.companyName}{' '}
-                            {contact.organizationNumber && `(${contact.organizationNumber})`}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                      {getFieldError('contactId') && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                          {getFieldError('contactId')?.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="estimate-currency" className={DETAIL_FIELD_LABEL_CLASS}>
-                        {t('estimates.fieldCurrency')}
-                      </Label>
-                      <NativeSelect
-                        id="estimate-currency"
-                        value={formData.currency}
-                        onChange={(e) => updateField('currency', e.target.value)}
-                        className={FORM_INPUT_CLASS}
-                      >
-                        <option value="SEK">SEK (Swedish Krona)</option>
-                        <option value="EUR">EUR (Euro)</option>
-                        <option value="USD">USD (US Dollar)</option>
-                        <option value="NOK">NOK (Norwegian Krone)</option>
-                        <option value="DKK">DKK (Danish Krone)</option>
-                      </NativeSelect>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="estimate-valid-to" className={DETAIL_FIELD_LABEL_CLASS}>
-                        {t('estimates.fieldValidTo')}
-                      </Label>
-                      <DatePicker
-                        id="estimate-valid-to"
-                        value={formData.validTo}
-                        onChange={(date) => updateField('validTo', date ?? formData.validTo)}
-                        placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
-                        clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
-                        variant="filled"
-                        fullWidth
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="estimate-status" className={DETAIL_FIELD_LABEL_CLASS}>
-                        {t('estimates.fieldStatus')}
-                      </Label>
-                      <NativeSelect
-                        id="estimate-status"
-                        value={formData.status}
-                        onChange={(e) => updateField('status', e.target.value)}
-                        className={FORM_INPUT_CLASS}
-                      >
-                        <option value="draft">Draft</option>
-                        <option value="sent">Sent</option>
-                        <option value="accepted">Accepted</option>
-                        <option value="rejected">Rejected</option>
-                      </NativeSelect>
-                    </div>
-                  </div>
-                </DetailSection>
-              </Card>
-
-              {/* Line Items */}
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('estimates.lineItems')}
-                  icon={ListOrdered}
-                  iconPlugin="estimates"
-                  className="p-6"
-                >
-                  <div className="flex items-center justify-end mb-3">
-                    <RoundIconLabelButton
-                      type="button"
-                      icon={Plus}
-                      label="Add Item"
-                      variant="soft"
-                      size="xs"
-                      alwaysExpanded
-                      onClick={addLineItem}
-                    />
-                  </div>
-
-                  {formData.lineItems.length === 0 ? (
-                    <p className={DETAIL_EMPTY_STATE_CLASS}>No line items added yet.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {formData.lineItems.map((item, index) => (
-                        <div
-                          key={item.id}
-                          className={`rounded-lg border border-border p-3 ${
-                            duplicatedItemIds.has(item.id) ? 'bg-green-50 dark:bg-green-950/30' : ''
-                          }`}
-                        >
-                          {/* Row 1: Item number + Description + Action */}
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="w-12 flex-shrink-0 text-sm font-medium text-foreground">
-                              Item {index + 1}
-                            </span>
-                            <Textarea
-                              value={item.description}
-                              onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                              placeholder="Service or product description"
-                              rows={1}
-                              className={cn(
-                                FORM_TEXTAREA_CLASS,
-                                'flex-1 resize-none h-auto min-h-[2.5rem]',
-                              )}
-                              required
-                            />
-                            <Button
-                              type="button"
-                              onClick={() => duplicateLineItem(index)}
-                              variant="secondary"
-                              icon={Copy}
-                              size="sm"
-                              className="h-8 w-8 p-0 flex-shrink-0"
-                              title="Duplicate item"
-                            ></Button>
-                            <Button
-                              type="button"
-                              onClick={() => removeLineItem(index)}
-                              variant="danger"
-                              icon={Trash2}
-                              size="sm"
-                              className="h-8 w-8 p-0 flex-shrink-0"
-                            ></Button>
-                          </div>
-
-                          {/* Row 2: Numbers table */}
-                          <div className="overflow-x-auto">
-                            <table className="w-full">
-                              <thead className="bg-muted/40">
-                                <tr>
-                                  <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                    Qty
-                                  </th>
-                                  <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                    Unit Price
-                                  </th>
-                                  <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                    Discount %
-                                  </th>
-                                  <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                    VAT %
-                                  </th>
-                                  <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                    Discount
-                                  </th>
-                                  <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                    VAT
-                                  </th>
-                                  <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                    Total
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr>
-                                  <td className="px-2 py-1">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      value={item.quantity}
-                                      onChange={(e) =>
-                                        updateLineItem(
-                                          index,
-                                          'quantity',
-                                          parseFloat(e.target.value) || 0,
-                                        )
-                                      }
-                                      className={cn(FORM_COMPACT_INPUT_CLASS, 'w-16')}
-                                      required
-                                    />
-                                  </td>
-                                  <td className="px-2 py-1">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      value={item.unitPrice}
-                                      onChange={(e) =>
-                                        updateLineItem(
-                                          index,
-                                          'unitPrice',
-                                          parseFloat(e.target.value) || 0,
-                                        )
-                                      }
-                                      className={cn(FORM_COMPACT_INPUT_CLASS, 'w-20')}
-                                      required
-                                    />
-                                  </td>
-                                  <td className="px-2 py-1">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      value={item.discount || 0}
-                                      onChange={(e) =>
-                                        updateLineItem(
-                                          index,
-                                          'discount',
-                                          parseFloat(e.target.value) || 0,
-                                        )
-                                      }
-                                      className={cn(FORM_COMPACT_INPUT_CLASS, 'w-16')}
-                                    />
-                                  </td>
-                                  <td className="px-2 py-1">
-                                    <NativeSelect
-                                      value={item.vatRate}
-                                      onChange={(e) =>
-                                        updateLineItem(index, 'vatRate', parseFloat(e.target.value))
-                                      }
-                                      className={cn(FORM_COMPACT_SELECT_CLASS, 'w-16')}
-                                    >
-                                      <option value="0">0%</option>
-                                      <option value="6">6%</option>
-                                      <option value="12">12%</option>
-                                      <option value="25">25%</option>
-                                    </NativeSelect>
-                                  </td>
-                                  <td className="px-2 py-1 text-right text-sm text-foreground">
-                                    -{(item.discountAmount || 0).toFixed(2)}
-                                  </td>
-                                  <td className="px-2 py-1 text-right text-sm text-foreground">
-                                    {(item.vatAmount || 0).toFixed(2)}
-                                  </td>
-                                  <td className="px-2 py-1 text-right text-sm font-medium text-foreground">
-                                    {(item.lineTotal || 0).toFixed(2)}
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </DetailSection>
-              </Card>
-
-              {/* Estimate Discount - After line items, before totals */}
-              {formData.lineItems.length > 0 && (
+              {activeTab === 'properties' ? (
                 <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                   <DetailSection
-                    title={t('estimates.discount')}
-                    icon={Percent}
-                    iconPlugin="estimates"
+                    title={t('estimates.estimateProperties')}
+                    icon={SlidersHorizontal}
+                    subtleTitle
                     className="p-6"
                   >
-                    <div className="flex items-center gap-4 mb-2">
-                      <Label htmlFor="estimate-discount" className={DETAIL_FIELD_LABEL_CLASS}>
-                        Estimate Discount (%)
-                      </Label>
-                      <div className="max-w-xs">
-                        <Input
-                          id="estimate-discount"
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          value={formData.estimateDiscount || 0}
-                          onChange={(e) =>
-                            updateField('estimateDiscount', parseFloat(e.target.value) || 0)
-                          }
-                          placeholder="0.00"
-                          className={FORM_COMPACT_INPUT_CLASS}
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="estimate-contact" className={DETAIL_FIELD_LABEL_CLASS}>
+                          {t('estimates.fieldContact')}
+                        </Label>
+                        <NativeSelect
+                          id="estimate-contact"
+                          value={formData.contactId}
+                          onChange={(e) => handleContactChange(e.target.value)}
+                          className={cn(
+                            FORM_GHOST_SELECT_CLASS,
+                            getFieldError('contactId') && FORM_INPUT_ERROR_CLASS,
+                          )}
+                          required
+                        >
+                          <option value="">{t('estimates.selectContact')}</option>
+                          {safeContacts.map((contact) => (
+                            <option key={contact.id} value={contact.id}>
+                              {contact.companyName}{' '}
+                              {contact.organizationNumber && `(${contact.organizationNumber})`}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                        {getFieldError('contactId') && (
+                          <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                            {getFieldError('contactId')?.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="estimate-currency" className={DETAIL_FIELD_LABEL_CLASS}>
+                          {t('estimates.fieldCurrency')}
+                        </Label>
+                        <NativeSelect
+                          id="estimate-currency"
+                          value={formData.currency}
+                          onChange={(e) => updateField('currency', e.target.value)}
+                          className={FORM_GHOST_SELECT_CLASS}
+                        >
+                          <option value="SEK">SEK (Swedish Krona)</option>
+                          <option value="EUR">EUR (Euro)</option>
+                          <option value="USD">USD (US Dollar)</option>
+                          <option value="NOK">NOK (Norwegian Krone)</option>
+                          <option value="DKK">DKK (Danish Krone)</option>
+                        </NativeSelect>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="estimate-valid-to" className={DETAIL_FIELD_LABEL_CLASS}>
+                          {t('estimates.fieldValidTo')}
+                        </Label>
+                        <DatePicker
+                          id="estimate-valid-to"
+                          value={formData.validTo}
+                          onChange={(date) => updateField('validTo', date ?? formData.validTo)}
+                          placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                          clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                          variant="default"
+                          fullWidth
                         />
                       </div>
+
+                      <div>
+                        <Label htmlFor="estimate-status" className={DETAIL_FIELD_LABEL_CLASS}>
+                          {t('estimates.fieldStatus')}
+                        </Label>
+                        <NativeSelect
+                          id="estimate-status"
+                          value={formData.status}
+                          onChange={(e) => updateField('status', e.target.value)}
+                          className={FORM_GHOST_SELECT_CLASS}
+                        >
+                          <option value="draft">Draft</option>
+                          <option value="sent">Sent</option>
+                          <option value="accepted">Accepted</option>
+                          <option value="rejected">Rejected</option>
+                        </NativeSelect>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Discount applied to subtotal after line item discounts
-                    </p>
                   </DetailSection>
                 </Card>
-              )}
+              ) : null}
 
-              {/* Totals Summary */}
-              {formData.lineItems.length > 0 && (
-                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                  <DetailSection
-                    title={t('estimates.summary')}
-                    icon={Calculator}
-                    iconPlugin="estimates"
-                    className="p-6"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Subtotal:</span>
-                        <span className="text-sm font-medium text-foreground">
-                          {(totals.subtotal || 0).toFixed(2)} {formData.currency}
-                        </span>
+              {activeTab === 'lines' ? (
+                <>
+                  {/* Line Items — compact chrome unchanged */}
+                  <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                    <DetailSection
+                      title={t('estimates.lineItems')}
+                      icon={ListOrdered}
+                      iconPlugin="estimates"
+                      className="p-6"
+                    >
+                      <div className="flex items-center justify-end mb-3">
+                        <RoundIconLabelButton
+                          type="button"
+                          icon={Plus}
+                          label="Add Item"
+                          variant="soft"
+                          size="xs"
+                          alwaysExpanded
+                          onClick={addLineItem}
+                        />
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          Total Line Item Discounts:
-                        </span>
-                        <span className="text-sm font-medium text-foreground">
-                          -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
-                        </span>
-                      </div>
-                      <div className="flex justify-between border-t border-border pt-2">
-                        <span className="text-sm text-muted-foreground">
-                          Subtotal after line discounts:
-                        </span>
-                        <span className="text-sm font-medium text-foreground">
-                          {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
-                        </span>
-                      </div>
-                      {/* NEW: Show estimate discount if applied */}
-                      {formData.estimateDiscount > 0 && (
-                        <>
+
+                      {formData.lineItems.length === 0 ? (
+                        <p className={DETAIL_EMPTY_STATE_CLASS}>No line items added yet.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {formData.lineItems.map((item, index) => (
+                            <div
+                              key={item.id}
+                              className={`rounded-lg border border-border p-3 ${
+                                duplicatedItemIds.has(item.id)
+                                  ? 'bg-green-50 dark:bg-green-950/30'
+                                  : ''
+                              }`}
+                            >
+                              {/* Row 1: Item number + Description + Action */}
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="w-12 flex-shrink-0 text-sm font-medium text-foreground">
+                                  Item {index + 1}
+                                </span>
+                                <Textarea
+                                  value={item.description}
+                                  onChange={(e) =>
+                                    updateLineItem(index, 'description', e.target.value)
+                                  }
+                                  placeholder="Service or product description"
+                                  rows={1}
+                                  className={cn(
+                                    FORM_TEXTAREA_CLASS,
+                                    'flex-1 resize-none h-auto min-h-[2.5rem]',
+                                  )}
+                                  required
+                                />
+                                <Button
+                                  type="button"
+                                  onClick={() => duplicateLineItem(index)}
+                                  variant="secondary"
+                                  icon={Copy}
+                                  size="sm"
+                                  className="h-8 w-8 p-0 flex-shrink-0"
+                                  title="Duplicate item"
+                                ></Button>
+                                <Button
+                                  type="button"
+                                  onClick={() => removeLineItem(index)}
+                                  variant="danger"
+                                  icon={Trash2}
+                                  size="sm"
+                                  className="h-8 w-8 p-0 flex-shrink-0"
+                                ></Button>
+                              </div>
+
+                              {/* Row 2: Numbers table */}
+                              <div className="overflow-x-auto">
+                                <table className="w-full">
+                                  <thead className="bg-muted/40">
+                                    <tr>
+                                      <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Qty
+                                      </th>
+                                      <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Unit Price
+                                      </th>
+                                      <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Discount %
+                                      </th>
+                                      <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        VAT %
+                                      </th>
+                                      <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Discount
+                                      </th>
+                                      <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        VAT
+                                      </th>
+                                      <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Total
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr>
+                                      <td className="px-2 py-1">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          value={item.quantity}
+                                          onChange={(e) =>
+                                            updateLineItem(
+                                              index,
+                                              'quantity',
+                                              parseFloat(e.target.value) || 0,
+                                            )
+                                          }
+                                          className={cn(FORM_COMPACT_INPUT_CLASS, 'w-16')}
+                                          required
+                                        />
+                                      </td>
+                                      <td className="px-2 py-1">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          value={item.unitPrice}
+                                          onChange={(e) =>
+                                            updateLineItem(
+                                              index,
+                                              'unitPrice',
+                                              parseFloat(e.target.value) || 0,
+                                            )
+                                          }
+                                          className={cn(FORM_COMPACT_INPUT_CLASS, 'w-20')}
+                                          required
+                                        />
+                                      </td>
+                                      <td className="px-2 py-1">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          max="100"
+                                          value={item.discount || 0}
+                                          onChange={(e) =>
+                                            updateLineItem(
+                                              index,
+                                              'discount',
+                                              parseFloat(e.target.value) || 0,
+                                            )
+                                          }
+                                          className={cn(FORM_COMPACT_INPUT_CLASS, 'w-16')}
+                                        />
+                                      </td>
+                                      <td className="px-2 py-1">
+                                        <NativeSelect
+                                          value={item.vatRate}
+                                          onChange={(e) =>
+                                            updateLineItem(
+                                              index,
+                                              'vatRate',
+                                              parseFloat(e.target.value),
+                                            )
+                                          }
+                                          className={cn(FORM_COMPACT_SELECT_CLASS, 'w-16')}
+                                        >
+                                          <option value="0">0%</option>
+                                          <option value="6">6%</option>
+                                          <option value="12">12%</option>
+                                          <option value="25">25%</option>
+                                        </NativeSelect>
+                                      </td>
+                                      <td className="px-2 py-1 text-right text-sm text-foreground">
+                                        -{(item.discountAmount || 0).toFixed(2)}
+                                      </td>
+                                      <td className="px-2 py-1 text-right text-sm text-foreground">
+                                        {(item.vatAmount || 0).toFixed(2)}
+                                      </td>
+                                      <td className="px-2 py-1 text-right text-sm font-medium text-foreground">
+                                        {(item.lineTotal || 0).toFixed(2)}
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </DetailSection>
+                  </Card>
+
+                  {/* Estimate Discount - After line items, before totals */}
+                  {formData.lineItems.length > 0 && (
+                    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                      <DetailSection
+                        title={t('estimates.discount')}
+                        icon={Percent}
+                        iconPlugin="estimates"
+                        className="p-6"
+                      >
+                        <div className="flex items-center gap-4 mb-2">
+                          <Label htmlFor="estimate-discount" className={DETAIL_FIELD_LABEL_CLASS}>
+                            Estimate Discount (%)
+                          </Label>
+                          <div className="max-w-xs">
+                            <Input
+                              id="estimate-discount"
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={formData.estimateDiscount || 0}
+                              onChange={(e) =>
+                                updateField('estimateDiscount', parseFloat(e.target.value) || 0)
+                              }
+                              placeholder="0.00"
+                              className={FORM_COMPACT_INPUT_CLASS}
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Discount applied to subtotal after line item discounts
+                        </p>
+                      </DetailSection>
+                    </Card>
+                  )}
+
+                  {/* Totals Summary */}
+                  {formData.lineItems.length > 0 && (
+                    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                      <DetailSection
+                        title={t('estimates.summary')}
+                        icon={Calculator}
+                        iconPlugin="estimates"
+                        className="p-6"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Subtotal:</span>
+                            <span className="text-sm font-medium text-foreground">
+                              {(totals.subtotal || 0).toFixed(2)} {formData.currency}
+                            </span>
+                          </div>
                           <div className="flex justify-between">
                             <span className="text-sm text-muted-foreground">
-                              Estimate Discount ({formData.estimateDiscount}%):
+                              Total Line Item Discounts:
                             </span>
                             <span className="text-sm font-medium text-foreground">
-                              -{(totals.estimateDiscountAmount || 0).toFixed(2)} {formData.currency}
+                              -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
                             </span>
                           </div>
                           <div className="flex justify-between border-t border-border pt-2">
                             <span className="text-sm text-muted-foreground">
-                              Subtotal after estimate discount:
+                              Subtotal after line discounts:
                             </span>
                             <span className="text-sm font-medium text-foreground">
-                              {(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)}{' '}
-                              {formData.currency}
+                              {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
                             </span>
                           </div>
-                        </>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Total VAT:</span>
-                        <span className="text-sm font-medium text-foreground">
-                          {(totals.totalVat || 0).toFixed(2)} {formData.currency}
-                        </span>
-                      </div>
-                      <div className="flex justify-between border-t border-border pt-2 text-lg font-semibold">
-                        <span>Total:</span>
-                        <span>
-                          {(totals.total || 0).toFixed(2)} {formData.currency}
-                        </span>
-                      </div>
+                          {/* NEW: Show estimate discount if applied */}
+                          {formData.estimateDiscount > 0 && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                  Estimate Discount ({formData.estimateDiscount}%):
+                                </span>
+                                <span className="text-sm font-medium text-foreground">
+                                  -{(totals.estimateDiscountAmount || 0).toFixed(2)}{' '}
+                                  {formData.currency}
+                                </span>
+                              </div>
+                              <div className="flex justify-between border-t border-border pt-2">
+                                <span className="text-sm text-muted-foreground">
+                                  Subtotal after estimate discount:
+                                </span>
+                                <span className="text-sm font-medium text-foreground">
+                                  {(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)}{' '}
+                                  {formData.currency}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Total VAT:</span>
+                            <span className="text-sm font-medium text-foreground">
+                              {(totals.totalVat || 0).toFixed(2)} {formData.currency}
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-t border-border pt-2 text-lg font-semibold">
+                            <span>Total:</span>
+                            <span>
+                              {(totals.total || 0).toFixed(2)} {formData.currency}
+                            </span>
+                          </div>
+                        </div>
+                      </DetailSection>
+                    </Card>
+                  )}
+                </>
+              ) : null}
+
+              {activeTab === 'notes' ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={t('estimates.notes')}
+                    icon={StickyNote}
+                    iconPlugin="estimates"
+                    className="p-6"
+                  >
+                    <div>
+                      <Label htmlFor="estimate-notes" className={DETAIL_FIELD_LABEL_CLASS}>
+                        Additional Notes
+                      </Label>
+                      <Textarea
+                        id="estimate-notes"
+                        value={formData.notes}
+                        onChange={(e) => updateField('notes', e.target.value)}
+                        placeholder="Additional notes or terms..."
+                        rows={4}
+                        className={cn(FORM_GHOST_TEXTAREA_CLASS)}
+                      />
                     </div>
                   </DetailSection>
                 </Card>
-              )}
-
-              {/* Notes */}
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('estimates.notes')}
-                  icon={StickyNote}
-                  iconPlugin="estimates"
-                  className="p-6"
-                >
-                  <div>
-                    <Label htmlFor="estimate-notes" className={DETAIL_FIELD_LABEL_CLASS}>
-                      Additional Notes
-                    </Label>
-                    <Textarea
-                      id="estimate-notes"
-                      value={formData.notes}
-                      onChange={(e) => updateField('notes', e.target.value)}
-                      placeholder="Additional notes or terms..."
-                      rows={4}
-                      className={cn(FORM_TEXTAREA_CLASS, 'resize-y')}
-                    />
-                  </div>
-                </DetailSection>
-              </Card>
+              ) : null}
             </form>
           </DetailLayout>
         </div>

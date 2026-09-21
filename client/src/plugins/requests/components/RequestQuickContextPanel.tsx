@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import type { Request, RequestStatus } from '../types/requests';
 import {
   REQUEST_PRIORITY_COLORS,
+  REQUEST_SOURCE_COLORS,
   REQUEST_STATUS_COLORS,
   REQUEST_STATUS_ICON_SHELL_CLASS,
   REQUEST_TYPE_ICON_SHELL_CLASS,
@@ -133,6 +134,11 @@ export function RequestQuickContextPanel({
       <div className="px-4 py-5">
         <RequestDetailHeaderMenus request={request} leading={titleLeading} />
         <DetailHeaderMetaRow>
+          <StatusOutlineBadge className={REQUEST_SOURCE_COLORS[request.source]}>
+            {request.source === 'external'
+              ? t('requests.sourceExternal')
+              : t('requests.sourceInternal')}
+          </StatusOutlineBadge>
           <div className="flex min-w-0 items-center gap-1.5">
             <span title={typeLabel} className="inline-flex shrink-0">
               <SectionCategoryIcon

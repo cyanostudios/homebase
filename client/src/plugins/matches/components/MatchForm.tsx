@@ -1,4 +1,4 @@
-import { Info, X } from 'lucide-react';
+import { History, Info, Link2, SlidersHorizontal, Trophy, Users, X } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -8,7 +8,9 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,12 +24,17 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
+import { FORM_GHOST_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { DateTimePicker } from '@/core/ui/DateTimePicker';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_FIELD_LABEL_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
+import {
+  DETAIL_FIELD_LABEL_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
@@ -77,6 +84,39 @@ interface MatchFormProps {
   stacked?: boolean;
 }
 
+type MatchFormTab = 'information' | 'contacts' | 'linked' | 'activity';
+
+const MATCH_FORM_TABS: MatchFormTab[] = ['information', 'contacts', 'linked', 'activity'];
+
+/** Visible in edit for shell parity with View, but not selectable while editing. */
+const MATCH_FORM_EDIT_DISABLED_TABS: ReadonlySet<MatchFormTab> = new Set(['linked', 'activity']);
+
+const TAB_ERROR_FIELDS: Record<MatchFormTab, string[]> = {
+  information: [
+    'home_team',
+    'away_team',
+    'start_time',
+    'name',
+    'location',
+    'sport_type',
+    'format',
+    'match_type',
+  ],
+  contacts: [],
+  linked: [],
+  activity: [],
+};
+
+function parseMatchFormTab(value: string | null): MatchFormTab {
+  if (value === 'properties') {
+    return 'information';
+  }
+  if (value && MATCH_FORM_TABS.includes(value as MatchFormTab)) {
+    return value as MatchFormTab;
+  }
+  return 'information';
+}
+
 function toDatetimeLocal(iso: string | null): string {
   if (!iso) {
     return '';
@@ -95,21 +135,51 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
   ref,
 ) {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseMatchFormTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: MatchFormTab, replace = false) => {
+      if (MATCH_FORM_EDIT_DISABLED_TABS.has(tab)) {
+        return;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'information') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace },
+      );
+    },
+    [setSearchParams],
+  );
+
+  useEffect(() => {
+    if (!MATCH_FORM_EDIT_DISABLED_TABS.has(activeTab)) {
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('tab');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [activeTab, setSearchParams]);
+
   const { contacts } = useApp();
   const assignableContacts = useMemo(
     () => (contacts as AssignableContact[]).filter((c) => c.isAssignable !== false),
     [contacts],
   );
   const { validationErrors, clearValidationErrors, panelMode } = useMatches();
-  const {
-    isDirty,
-    showWarning,
-    markDirty,
-    markClean,
-    attemptAction,
-    confirmDiscard,
-    cancelDiscard,
-  } = useUnsavedChanges();
+  const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+    useUnsavedChanges();
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
@@ -140,9 +210,9 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
 
   useEffect(() => {
     const formKey = `match-form-${currentMatch?.id || 'new'}`;
-    registerUnsavedChangesChecker(formKey, () => isDirty);
+    registerUnsavedChangesChecker(formKey, () => true);
     return () => unregisterUnsavedChangesChecker(formKey);
-  }, [isDirty, currentMatch, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+  }, [currentMatch, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -288,7 +358,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
   ]);
 
   const handleCancel = useCallback(() => {
-    attemptAction(() => onCancel());
+    attemptAction(() => onCancel(), { force: true });
   }, [attemptAction, onCancel]);
 
   useImperativeHandle(
@@ -320,56 +390,506 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
   );
 
   const formatOptions = getFormatsForSport(formData.sport_type);
-  const formSidebar = currentMatch ? (
-    <div className="space-y-4">
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('matches.information')}
-          icon={Info}
-          iconPlugin="matches"
-          className="p-4"
-          collapsible
-        >
-          <div className="space-y-4 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">ID</span>
-              <span className="font-mono font-medium">
-                {formatDisplayNumber('matches', currentMatch.id)}
-              </span>
+
+  const tabHasError = (tab: MatchFormTab) =>
+    TAB_ERROR_FIELDS[tab].some((field) => validationErrors.some((e) => e.field === field));
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: 'information' as const,
+        label: t('matches.tabs.information'),
+        icon: Info,
+      },
+      {
+        id: 'contacts' as const,
+        label: t('matches.tabs.contacts'),
+        icon: Users,
+        count: selectedContactIds.length > 0 ? selectedContactIds.length : null,
+      },
+      {
+        id: 'linked' as const,
+        label: t('matches.tabs.linked'),
+        icon: Link2,
+        count: null as number | null,
+      },
+      {
+        id: 'activity' as const,
+        label: t('matches.tabs.activity'),
+        icon: History,
+        count: null as number | null,
+      },
+    ],
+    [selectedContactIds.length, t],
+  );
+
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isDisabled = MATCH_FORM_EDIT_DISABLED_TABS.has(tab.id);
+        const isActive = !isDisabled && activeTab === tab.id;
+        const hasError = !isDisabled && tabHasError(tab.id);
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            aria-disabled={isDisabled}
+            disabled={isDisabled}
+            title={
+              isDisabled
+                ? t('matches.tabUnavailableInEdit', {
+                    defaultValue: 'Available in view mode only',
+                  })
+                : undefined
+            }
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              isDisabled && 'pointer-events-none opacity-40',
+            )}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span className="inline-flex items-center gap-1.5">
+              {tab.label}
+              {'count' in tab && tab.count != null ? (
+                <>
+                  {' '}
+                  <span className="tabular-nums font-semibold">({tab.count})</span>
+                </>
+              ) : null}
+              {hasError ? (
+                <span
+                  className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-destructive"
+                  aria-label={t('common.error', { defaultValue: 'Error' })}
+                />
+              ) : null}
+            </span>
+          </Button>
+        );
+      })}
+    </div>
+  );
+
+  const formHeader = (
+    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+      <div className="px-4 py-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="inline-flex shrink-0" aria-hidden>
+            <SectionCategoryIcon icon={Trophy} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <Input
+              id="match-name"
+              value={formData.name}
+              onChange={(e) => updateField('name', e.target.value)}
+              placeholder={t('matches.namePlaceholder')}
+              aria-label={t('matches.nameLabel')}
+              className={FORM_GHOST_INPUT_CLASS}
+            />
+          </div>
+        </div>
+        <div className="mt-4">{tabChips}</div>
+      </div>
+    </Card>
+  );
+
+  const informationCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={t('matches.match')} iconPlugin="matches" className="p-6">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="match-home" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('matches.homeTeamLabel')}
+              </Label>
+              <Input
+                id="match-home"
+                value={formData.home_team}
+                onChange={(e) => updateField('home_team', e.target.value)}
+                placeholder="e.g. Team A"
+                className={cn(
+                  FORM_GHOST_INPUT_CLASS,
+                  getFieldError('home_team') && FORM_INPUT_ERROR_CLASS,
+                )}
+              />
+              {getFieldError('home_team') && (
+                <p className="mt-1 text-sm text-destructive">
+                  {getFieldError('home_team')?.message}
+                </p>
+              )}
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">{t('matches.created')}</span>
-              <span className="font-medium">
-                {currentMatch.created_at
-                  ? new Date(currentMatch.created_at).toLocaleDateString()
-                  : '—'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">{t('matches.updated')}</span>
-              <span className="font-medium">
-                {currentMatch.updated_at
-                  ? new Date(currentMatch.updated_at).toLocaleDateString()
-                  : '—'}
-              </span>
+            <div>
+              <Label htmlFor="match-away" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('matches.awayTeamLabel')}
+              </Label>
+              <Input
+                id="match-away"
+                value={formData.away_team}
+                onChange={(e) => updateField('away_team', e.target.value)}
+                placeholder="e.g. Team B"
+                className={cn(
+                  FORM_GHOST_INPUT_CLASS,
+                  getFieldError('away_team') && FORM_INPUT_ERROR_CLASS,
+                )}
+              />
+              {getFieldError('away_team') && (
+                <p className="mt-1 text-sm text-destructive">
+                  {getFieldError('away_team')?.message}
+                </p>
+              )}
             </div>
           </div>
-        </DetailSection>
-      </Card>
-    </div>
-  ) : undefined;
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="match-number" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('matches.matchNumber')}
+              </Label>
+              <Input
+                id="match-number"
+                type="number"
+                min={1}
+                max={999999}
+                value={formData.match_number}
+                onChange={(e) => updateField('match_number', e.target.value)}
+                placeholder="1"
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <Label htmlFor="match-time" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('matches.dateTimePlaceholder')}
+              </Label>
+              <DateTimePicker
+                value={formData.start_time}
+                onChange={(v) => updateField('start_time', v)}
+                hasError={Boolean(getFieldError('start_time'))}
+                placeholder={t('matches.dateTimePlaceholder')}
+                timeLabel={t('matches.timeLabel')}
+                clearLabel={t('matches.dateTimeClear')}
+                variant="filled"
+              />
+              {getFieldError('start_time') && (
+                <p className="mt-1 text-sm text-destructive">
+                  {getFieldError('start_time')?.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="match-location" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('matches.locationLabel')}
+              </Label>
+              <Input
+                id="match-location"
+                value={formData.location}
+                onChange={(e) => updateField('location', e.target.value)}
+                placeholder="Venue, arena"
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <Label htmlFor="match-map-link" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('matches.mapLink')}
+              </Label>
+              <Input
+                id="match-map-link"
+                value={formData.map_link}
+                onChange={(e) => updateField('map_link', e.target.value)}
+                placeholder={t('matches.mapLinkPlaceholder')}
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+          </div>
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const propertiesCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('matches.tabs.properties')}
+        icon={SlidersHorizontal}
+        iconPlugin="matches"
+        className="p-6"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.sport')}</Label>
+              <Select
+                value={formData.sport_type}
+                onValueChange={(v) => setSportType(v as SportType)}
+              >
+                <SelectTrigger className={FORM_GHOST_INPUT_CLASS}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SPORT_TYPES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s === 'football' ? 'Football' : 'Handball'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.format')}</Label>
+              <Select
+                value={formData.format || '__none__'}
+                onValueChange={(v) => updateField('format', v === '__none__' ? '' : v)}
+              >
+                <SelectTrigger className={FORM_GHOST_INPUT_CLASS}>
+                  <SelectValue placeholder={t('matches.formatPlaceholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t('matches.formatPlaceholder')}</SelectItem>
+                  {formatOptions.map((f) => (
+                    <SelectItem key={f} value={f}>
+                      {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="match-minutes" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('matches.minutes')}
+              </Label>
+              <Input
+                id="match-minutes"
+                type="number"
+                min={1}
+                max={999}
+                value={formData.total_minutes}
+                onChange={(e) => updateField('total_minutes', e.target.value)}
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.matchType')}</Label>
+              <Select
+                value={formData.match_type || '__none__'}
+                onValueChange={(v) =>
+                  updateField(
+                    'match_type',
+                    v === '__none__' ? '' : (v as MatchFormState['match_type']),
+                  )
+                }
+              >
+                <SelectTrigger className={FORM_GHOST_INPUT_CLASS}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t('matches.matchTypeNone')}</SelectItem>
+                  <SelectItem value="series">{t('matches.matchTypeSeries')}</SelectItem>
+                  <SelectItem value="cup">{t('matches.matchTypeCup')}</SelectItem>
+                  <SelectItem value="friendly">{t('matches.matchTypeFriendly')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="match-referees" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('matches.refereeCount')}
+              </Label>
+              <Input
+                id="match-referees"
+                type="number"
+                min={0}
+                max={99}
+                value={formData.referee_count}
+                onChange={(e) => updateField('referee_count', e.target.value)}
+                placeholder="1"
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="sm:col-span-3">
+              <Label htmlFor="match-competition" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('matches.competitionName')}
+              </Label>
+              <Input
+                id="match-competition"
+                value={formData.competition_name}
+                onChange={(e) => updateField('competition_name', e.target.value)}
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+            <div className="sm:col-span-3">
+              <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.result')}</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="match-home-score" className="text-xs text-muted-foreground">
+                    {t('matches.homeScore')}
+                  </Label>
+                  <Input
+                    id="match-home-score"
+                    type="number"
+                    min={0}
+                    max={999}
+                    value={formData.home_score}
+                    onChange={(e) => updateField('home_score', e.target.value)}
+                    className={FORM_GHOST_INPUT_CLASS}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="match-away-score" className="text-xs text-muted-foreground">
+                    {t('matches.awayScore')}
+                  </Label>
+                  <Input
+                    id="match-away-score"
+                    type="number"
+                    min={0}
+                    max={999}
+                    value={formData.away_score}
+                    onChange={(e) => updateField('away_score', e.target.value)}
+                    className={FORM_GHOST_INPUT_CLASS}
+                  />
+                </div>
+              </div>
+              <div className="mt-3">
+                <Label htmlFor="match-result-text" className="text-xs text-muted-foreground">
+                  {t('matches.resultText')}
+                </Label>
+                <Input
+                  id="match-result-text"
+                  value={formData.result}
+                  onChange={(e) => updateField('result', e.target.value)}
+                  placeholder="2-1"
+                  className={FORM_GHOST_INPUT_CLASS}
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-3 flex flex-wrap gap-4">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={formData.is_canceled}
+                  onChange={(e) => updateField('is_canceled', e.target.checked)}
+                  className="h-4 w-4"
+                />
+                {t('matches.statusCanceled')}
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={formData.is_postponed}
+                  onChange={(e) => updateField('is_postponed', e.target.checked)}
+                  className="h-4 w-4"
+                />
+                {t('matches.statusPostponed')}
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={formData.is_finished}
+                  onChange={(e) => updateField('is_finished', e.target.checked)}
+                  className="h-4 w-4"
+                />
+                {t('matches.statusFinished')}
+              </label>
+            </div>
+          </div>
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const contactsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('matches.contacts')}
+        icon={Users}
+        iconPlugin="matches"
+        className="p-6"
+      >
+        <div>
+          <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.contacts')}</Label>
+          <Select
+            value="__add__"
+            onValueChange={(v) => {
+              if (v && v !== '__add__' && !selectedContactIds.includes(v)) {
+                setSelectedContactIds((prev) => [...prev, v]);
+                markDirty();
+                clearValidationErrors();
+              }
+            }}
+          >
+            <SelectTrigger className={FORM_GHOST_INPUT_CLASS}>
+              <SelectValue placeholder={t('matches.addContact')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__add__" className="text-muted-foreground">
+                {t('matches.addContact')}
+              </SelectItem>
+              {assignableContacts
+                .filter((c) => !selectedContactIds.includes(String(c.id)))
+                .map((contact) => (
+                  <SelectItem key={contact.id} value={String(contact.id)}>
+                    {contact.companyName ?? `Contact ${contact.id}`}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+
+          {selectedContactIds.length > 0 && (
+            <ul className="flex flex-wrap gap-2 mt-2">
+              {selectedContactIds.map((id) => {
+                const contact = assignableContacts.find((c) => String(c.id) === id);
+                const name = contact?.companyName ?? id;
+                return (
+                  <li
+                    key={id}
+                    className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-medium"
+                  >
+                    {name}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedContactIds((prev) => prev.filter((x) => x !== id));
+                        markDirty();
+                        clearValidationErrors();
+                      }}
+                      className="rounded hover:bg-muted-foreground/20 p-0.5"
+                      aria-label={`${t('matches.removeContact')} ${name}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </DetailSection>
+    </Card>
+  );
 
   return (
     <div className="plugin-matches">
-      <DetailLayout gridClassName="grid-cols-1" sidebar={formSidebar}>
+      <DetailLayout gridClassName="grid-cols-1">
         <form
           ref={formRef}
-          className="space-y-6"
+          className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
             handleSubmit();
           }}
         >
+          {formHeader}
+
           {hasBlockingErrors && (
             <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
               <div className="text-sm text-destructive font-medium">Cannot save</div>
@@ -383,380 +903,9 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
             </Card>
           )}
 
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('matches.match')} iconPlugin="matches" className="p-6">
-              <div className="space-y-4">
-                {/* Name (own row) */}
-                <div>
-                  <Label htmlFor="match-name" className={DETAIL_FIELD_LABEL_CLASS}>
-                    {t('matches.nameLabel')}
-                  </Label>
-                  <Input
-                    id="match-name"
-                    value={formData.name}
-                    onChange={(e) => updateField('name', e.target.value)}
-                    placeholder={t('matches.namePlaceholder')}
-                    className={FORM_INPUT_CLASS}
-                  />
-                </div>
-
-                {/* Home / Away (same row) */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="match-home" className={DETAIL_FIELD_LABEL_CLASS}>
-                      {t('matches.homeTeamLabel')}
-                    </Label>
-                    <Input
-                      id="match-home"
-                      value={formData.home_team}
-                      onChange={(e) => updateField('home_team', e.target.value)}
-                      placeholder="e.g. Team A"
-                      className={cn(
-                        FORM_INPUT_CLASS,
-                        getFieldError('home_team') && FORM_INPUT_ERROR_CLASS,
-                      )}
-                    />
-                    {getFieldError('home_team') && (
-                      <p className="mt-1 text-sm text-destructive">
-                        {getFieldError('home_team')?.message}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="match-away" className={DETAIL_FIELD_LABEL_CLASS}>
-                      {t('matches.awayTeamLabel')}
-                    </Label>
-                    <Input
-                      id="match-away"
-                      value={formData.away_team}
-                      onChange={(e) => updateField('away_team', e.target.value)}
-                      placeholder="e.g. Team B"
-                      className={cn(
-                        FORM_INPUT_CLASS,
-                        getFieldError('away_team') && FORM_INPUT_ERROR_CLASS,
-                      )}
-                    />
-                    {getFieldError('away_team') && (
-                      <p className="mt-1 text-sm text-destructive">
-                        {getFieldError('away_team')?.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Number + Date time (same row) */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="match-number" className={DETAIL_FIELD_LABEL_CLASS}>
-                      {t('matches.matchNumber')}
-                    </Label>
-                    <Input
-                      id="match-number"
-                      type="number"
-                      min={1}
-                      max={999999}
-                      value={formData.match_number}
-                      onChange={(e) => updateField('match_number', e.target.value)}
-                      placeholder="1"
-                      className={FORM_INPUT_CLASS}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="match-time" className={DETAIL_FIELD_LABEL_CLASS}>
-                      {t('matches.dateTimePlaceholder')}
-                    </Label>
-                    <DateTimePicker
-                      value={formData.start_time}
-                      onChange={(v) => updateField('start_time', v)}
-                      hasError={Boolean(getFieldError('start_time'))}
-                      placeholder={t('matches.dateTimePlaceholder')}
-                      timeLabel={t('matches.timeLabel')}
-                      clearLabel={t('matches.dateTimeClear')}
-                      variant="filled"
-                    />
-                    {getFieldError('start_time') && (
-                      <p className="mt-1 text-sm text-destructive">
-                        {getFieldError('start_time')?.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Location + Map link (same row) */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="match-location" className={DETAIL_FIELD_LABEL_CLASS}>
-                      {t('matches.locationLabel')}
-                    </Label>
-                    <Input
-                      id="match-location"
-                      value={formData.location}
-                      onChange={(e) => updateField('location', e.target.value)}
-                      placeholder="Venue, arena"
-                      className={FORM_INPUT_CLASS}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="match-map-link" className={DETAIL_FIELD_LABEL_CLASS}>
-                      {t('matches.mapLink')}
-                    </Label>
-                    <Input
-                      id="match-map-link"
-                      value={formData.map_link}
-                      onChange={(e) => updateField('map_link', e.target.value)}
-                      placeholder={t('matches.mapLinkPlaceholder')}
-                      className={FORM_INPUT_CLASS}
-                    />
-                  </div>
-                </div>
-
-                {/* Sport / Format / Minutes (same row) */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div>
-                    <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.sport')}</Label>
-                    <Select
-                      value={formData.sport_type}
-                      onValueChange={(v) => setSportType(v as SportType)}
-                    >
-                      <SelectTrigger className={FORM_INPUT_CLASS}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SPORT_TYPES.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s === 'football' ? 'Football' : 'Handball'}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.format')}</Label>
-                    <Select
-                      value={formData.format || '__none__'}
-                      onValueChange={(v) => updateField('format', v === '__none__' ? '' : v)}
-                    >
-                      <SelectTrigger className={FORM_INPUT_CLASS}>
-                        <SelectValue placeholder={t('matches.formatPlaceholder')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">{t('matches.formatPlaceholder')}</SelectItem>
-                        {formatOptions.map((f) => (
-                          <SelectItem key={f} value={f}>
-                            {f}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="match-minutes" className={DETAIL_FIELD_LABEL_CLASS}>
-                      {t('matches.minutes')}
-                    </Label>
-                    <Input
-                      id="match-minutes"
-                      type="number"
-                      min={1}
-                      max={999}
-                      value={formData.total_minutes}
-                      onChange={(e) => updateField('total_minutes', e.target.value)}
-                      className={FORM_INPUT_CLASS}
-                    />
-                  </div>
-                </div>
-
-                {/* Type / Referees / Future (same row) */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div>
-                    <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.matchType')}</Label>
-                    <Select
-                      value={formData.match_type || '__none__'}
-                      onValueChange={(v) =>
-                        updateField(
-                          'match_type',
-                          v === '__none__' ? '' : (v as MatchFormState['match_type']),
-                        )
-                      }
-                    >
-                      <SelectTrigger className={FORM_INPUT_CLASS}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">{t('matches.matchTypeNone')}</SelectItem>
-                        <SelectItem value="series">{t('matches.matchTypeSeries')}</SelectItem>
-                        <SelectItem value="cup">{t('matches.matchTypeCup')}</SelectItem>
-                        <SelectItem value="friendly">{t('matches.matchTypeFriendly')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="match-referees" className={DETAIL_FIELD_LABEL_CLASS}>
-                      {t('matches.refereeCount')}
-                    </Label>
-                    <Input
-                      id="match-referees"
-                      type="number"
-                      min={0}
-                      max={99}
-                      value={formData.referee_count}
-                      onChange={(e) => updateField('referee_count', e.target.value)}
-                      placeholder="1"
-                      className={FORM_INPUT_CLASS}
-                    />
-                  </div>
-                </div>
-
-                {/* Competition / Result */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="sm:col-span-3">
-                    <Label htmlFor="match-competition" className={DETAIL_FIELD_LABEL_CLASS}>
-                      {t('matches.competitionName')}
-                    </Label>
-                    <Input
-                      id="match-competition"
-                      value={formData.competition_name}
-                      onChange={(e) => updateField('competition_name', e.target.value)}
-                      className={FORM_INPUT_CLASS}
-                    />
-                  </div>
-                  <div className="sm:col-span-3">
-                    <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.result')}</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label htmlFor="match-home-score" className="text-xs text-muted-foreground">
-                          {t('matches.homeScore')}
-                        </Label>
-                        <Input
-                          id="match-home-score"
-                          type="number"
-                          min={0}
-                          max={999}
-                          value={formData.home_score}
-                          onChange={(e) => updateField('home_score', e.target.value)}
-                          className={FORM_INPUT_CLASS}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="match-away-score" className="text-xs text-muted-foreground">
-                          {t('matches.awayScore')}
-                        </Label>
-                        <Input
-                          id="match-away-score"
-                          type="number"
-                          min={0}
-                          max={999}
-                          value={formData.away_score}
-                          onChange={(e) => updateField('away_score', e.target.value)}
-                          className={FORM_INPUT_CLASS}
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <Label htmlFor="match-result-text" className="text-xs text-muted-foreground">
-                        {t('matches.resultText')}
-                      </Label>
-                      <Input
-                        id="match-result-text"
-                        value={formData.result}
-                        onChange={(e) => updateField('result', e.target.value)}
-                        placeholder="2-1"
-                        className={FORM_INPUT_CLASS}
-                      />
-                    </div>
-                  </div>
-                  <div className="sm:col-span-3 flex flex-wrap gap-4">
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={formData.is_canceled}
-                        onChange={(e) => updateField('is_canceled', e.target.checked)}
-                        className="h-4 w-4"
-                      />
-                      {t('matches.statusCanceled')}
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={formData.is_postponed}
-                        onChange={(e) => updateField('is_postponed', e.target.checked)}
-                        className="h-4 w-4"
-                      />
-                      {t('matches.statusPostponed')}
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={formData.is_finished}
-                        onChange={(e) => updateField('is_finished', e.target.checked)}
-                        className="h-4 w-4"
-                      />
-                      {t('matches.statusFinished')}
-                    </label>
-                  </div>
-                </div>
-
-                {/* Contacts (last row) */}
-                <div>
-                  <Label className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.contacts')}</Label>
-                  <Select
-                    value="__add__"
-                    onValueChange={(v) => {
-                      if (v && v !== '__add__' && !selectedContactIds.includes(v)) {
-                        setSelectedContactIds((prev) => [...prev, v]);
-                        markDirty();
-                        clearValidationErrors();
-                      }
-                    }}
-                  >
-                    <SelectTrigger className={FORM_INPUT_CLASS}>
-                      <SelectValue placeholder={t('matches.addContact')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__add__" className="text-muted-foreground">
-                        {t('matches.addContact')}
-                      </SelectItem>
-                      {assignableContacts
-                        .filter((c) => !selectedContactIds.includes(String(c.id)))
-                        .map((contact) => (
-                          <SelectItem key={contact.id} value={String(contact.id)}>
-                            {contact.companyName ?? `Contact ${contact.id}`}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-
-                  {selectedContactIds.length > 0 && (
-                    <ul className="flex flex-wrap gap-2 mt-2">
-                      {selectedContactIds.map((id) => {
-                        const contact = assignableContacts.find((c) => String(c.id) === id);
-                        const name = contact?.companyName ?? id;
-                        return (
-                          <li
-                            key={id}
-                            className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-medium"
-                          >
-                            {name}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedContactIds((prev) => prev.filter((x) => x !== id));
-                                markDirty();
-                                clearValidationErrors();
-                              }}
-                              className="rounded hover:bg-muted-foreground/20 p-0.5"
-                              aria-label={`${t('matches.removeContact')} ${name}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
+          {activeTab === 'information' ? informationCard : null}
+          {activeTab === 'information' ? propertiesCard : null}
+          {activeTab === 'contacts' ? contactsCard : null}
         </form>
       </DetailLayout>
 

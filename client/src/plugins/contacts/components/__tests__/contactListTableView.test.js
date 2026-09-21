@@ -100,6 +100,12 @@ describe('ContactList table view wiring', () => {
     expect(appContentSrc).toMatch(/isAnyPanelOpen && !inlineDesktopPanel/);
   });
 
+  test('list and settings leave edit via attemptNavigation', () => {
+    expect(listSrc).toMatch(/attemptNavigation\(\(\) => \{\s*closeContactPanel/);
+    expect(listSrc).toMatch(/attemptNavigation\(\(\) => openContactSettings\(\)\)/);
+    expect(listSrc).toMatch(/handleRowActivate/);
+  });
+
   test('desktop detail card header shows ContactDetailHeaderMenus', () => {
     const quickContextSrc = fs.readFileSync(
       path.join(__dirname, '../ContactQuickContextPanel.tsx'),

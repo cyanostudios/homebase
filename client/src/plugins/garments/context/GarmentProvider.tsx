@@ -185,6 +185,8 @@ export function GarmentProvider({
     return () => unregisterPanelCloseFunction('garments');
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeGarmentPanel]);
 
+  const deepLinkSyncedRef = useRef<string | null>(null);
+
   const openGarmentPanel = useCallback(
     (list: GarmentList | null) => {
       setRecentlyDuplicatedInventoryId(null);
@@ -197,6 +199,8 @@ export function GarmentProvider({
       clearValidationErrors();
       onCloseOtherPanels();
       if (list) {
+        const slug = buildSlug(list, garmentLists, 'name');
+        deepLinkSyncedRef.current = `/garments/${slug}`;
         navigateToItem(list, garmentLists, 'name');
       }
     },
@@ -221,6 +225,8 @@ export function GarmentProvider({
       setIsGarmentPanelOpen(true);
       clearValidationErrors();
       onCloseOtherPanels();
+      const slug = buildSlug(list, garmentLists, 'name');
+      deepLinkSyncedRef.current = `/garments/${slug}`;
       navigateToItem(list, garmentLists, 'name');
     },
     [
@@ -340,7 +346,6 @@ export function GarmentProvider({
   );
   const nav = panelKind === 'inventory' ? inventoryNav : listNav;
 
-  const deepLinkSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (garmentLists.length === 0) {
       return;

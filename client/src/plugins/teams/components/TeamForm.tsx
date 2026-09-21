@@ -1,6 +1,20 @@
-import { Info, Plus, Trash2, UserPlus, X } from 'lucide-react';
+import {
+  BarChart2,
+  Calendar,
+  History,
+  Info,
+  NotebookPen,
+  Plus,
+  Shirt,
+  Trash2,
+  Trophy,
+  UserPlus,
+  Users,
+  X,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -19,10 +33,15 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DatePicker, formatDateInputValue, parseDateInputValue } from '@/core/ui/DatePicker';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { FORM_INPUT_CLASS, FORM_PROP_CONTROL_CLASS } from '@/core/ui/formFieldStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
+import {
+  DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+} from '@/core/ui/detailViewCardStyles';
+import { FORM_GHOST_INPUT_CLASS, FORM_GHOST_PROP_CONTROL_CLASS } from '@/core/ui/formFieldStyles';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
@@ -72,6 +91,46 @@ import { SeriesTeamSelect } from './SeriesTeamSelect';
 import { TeamNotesSection } from './TeamNotesSection';
 import { TrainingLocationField } from './TrainingLocationField';
 
+type TeamFormTab =
+  | 'overview'
+  | 'schedule'
+  | 'seriesTeams'
+  | 'responsibles'
+  | 'notes'
+  | 'requests'
+  | 'matches'
+  | 'garments'
+  | 'statistics'
+  | 'activity';
+
+const TEAM_FORM_TABS: TeamFormTab[] = [
+  'overview',
+  'schedule',
+  'seriesTeams',
+  'responsibles',
+  'notes',
+  'requests',
+  'matches',
+  'garments',
+  'statistics',
+  'activity',
+];
+
+const TEAM_FORM_EDIT_DISABLED_TABS: ReadonlySet<TeamFormTab> = new Set([
+  'requests',
+  'matches',
+  'garments',
+  'statistics',
+  'activity',
+]);
+
+function parseTeamFormTab(value: string | null): TeamFormTab {
+  if (value && TEAM_FORM_TABS.includes(value as TeamFormTab)) {
+    return value as TeamFormTab;
+  }
+  return 'overview';
+}
+
 interface TeamFormProps {
   currentTeam?: Team | null;
   currentItem?: Team | null;
@@ -86,6 +145,43 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
   ref,
 ) {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseTeamFormTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: TeamFormTab, replace = false) => {
+      if (TEAM_FORM_EDIT_DISABLED_TABS.has(tab)) {
+        return;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'overview') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace },
+      );
+    },
+    [setSearchParams],
+  );
+
+  useEffect(() => {
+    if (!TEAM_FORM_EDIT_DISABLED_TABS.has(activeTab)) {
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('tab');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [activeTab, setSearchParams]);
+
   const { validationErrors, clearValidationErrors } = useTeams();
   const { contacts } = useApp();
   const item = currentTeam ?? currentItem ?? null;
@@ -120,6 +216,14 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
   const [externalTeamFilter, setExternalTeamFilter] = useState('');
   const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
     useUnsavedChanges();
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
+    useGlobalNavigationGuard();
+
+  useEffect(() => {
+    const formKey = `team-form-${item?.id || 'new'}`;
+    registerUnsavedChangesChecker(formKey, () => true);
+    return () => unregisterUnsavedChangesChecker(formKey);
+  }, [item?.id, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   const loadExternalOptions = useCallback(async () => {
     setExternalOptionsStatus('loading');
@@ -363,589 +467,659 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
     ref,
     () => ({
       submit: () => submit(),
-      cancel: () => attemptAction(onCancel),
+      cancel: () => attemptAction(onCancel, { force: true }),
     }),
     [submit, attemptAction, onCancel],
   );
 
+  const tabs = useMemo(
+    () => [
+      { id: 'overview' as const, label: t('teams.tabs.overview'), icon: Info },
+      { id: 'schedule' as const, label: t('teams.tabs.schedule'), icon: Calendar },
+      { id: 'seriesTeams' as const, label: t('teams.tabs.seriesTeams'), icon: Users },
+      { id: 'responsibles' as const, label: t('teams.tabs.responsibles'), icon: UserPlus },
+      { id: 'notes' as const, label: t('teams.tabs.notes'), icon: NotebookPen },
+      { id: 'requests' as const, label: t('teams.tabs.requests'), icon: NotebookPen },
+      { id: 'matches' as const, label: t('teams.tabs.matches'), icon: Trophy },
+      { id: 'garments' as const, label: t('teams.tabs.garments'), icon: Shirt },
+      { id: 'statistics' as const, label: t('teams.tabs.statistics'), icon: BarChart2 },
+      { id: 'activity' as const, label: t('teams.tabs.activity'), icon: History },
+    ],
+    [t],
+  );
+
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isDisabled = TEAM_FORM_EDIT_DISABLED_TABS.has(tab.id);
+        const isActive = !isDisabled && activeTab === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            aria-disabled={isDisabled}
+            disabled={isDisabled}
+            title={
+              isDisabled
+                ? t('teams.tabUnavailableInEdit', {
+                    defaultValue: 'Available in view mode only',
+                  })
+                : undefined
+            }
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              isDisabled && 'pointer-events-none opacity-40',
+            )}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span>{tab.label}</span>
+          </Button>
+        );
+      })}
+    </div>
+  );
+
+  const formHeader = (
+    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+      <div className="px-4 py-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="inline-flex shrink-0" aria-hidden>
+            <SectionCategoryIcon icon={Users} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <Input
+              value={form.name}
+              onChange={(e) => onFieldChange('name', e.target.value)}
+              placeholder={t('teams.form.namePlaceholder')}
+              aria-label={t('teams.form.nameLabel')}
+              className={FORM_GHOST_INPUT_CLASS}
+            />
+          </div>
+        </div>
+        <div className="mt-4">{tabChips}</div>
+      </div>
+    </Card>
+  );
+
   return (
     <>
-      <DetailLayout
-        gridClassName="grid-cols-1"
-        sidebar={
-          item ? (
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('teams.information', { defaultValue: 'Information' })}
-                icon={Info}
-                iconPlugin="teams"
-                subtleTitle
-                className="p-4"
-                collapsible
-              >
-                <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {formatDisplayNumber('teams', item.id)}
-                    </span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-          ) : undefined
-        }
-      >
+      <DetailLayout gridClassName="grid-cols-1">
         <div className="space-y-3">
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('teams.form.detailsSection')} className="p-4">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="md:col-span-2">
-                  <Label>{t('teams.form.nameLabel')}</Label>
-                  <Input
-                    value={form.name}
-                    onChange={(e) => onFieldChange('name', e.target.value)}
-                    placeholder={t('teams.form.namePlaceholder')}
-                    className={FORM_INPUT_CLASS}
-                  />
-                </div>
-                <div>
-                  <Label>{t('teams.form.ageGroupLabel')}</Label>
-                  <Input
-                    value={form.age_group}
-                    onChange={(e) => onFieldChange('age_group', e.target.value)}
-                    placeholder="P12, F14..."
-                    className={FORM_INPUT_CLASS}
-                  />
-                </div>
-                <div>
-                  <Label>{t('teams.form.genderLabel')}</Label>
-                  <Select
-                    value={form.gender || undefined}
-                    onValueChange={(value) => onFieldChange('gender', value as Team['gender'])}
-                  >
-                    <SelectTrigger className={FORM_INPUT_CLASS}>
-                      <SelectValue placeholder={t('teams.form.genderPlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TEAM_GENDERS.map((gender) => (
-                        <SelectItem key={gender} value={gender}>
-                          {t(`teams.gender.${gender}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>{t('teams.form.playingFormatLabel')}</Label>
-                  <Select
-                    value={form.playing_format || EXTERNAL_TEAM_NONE_VALUE}
-                    onValueChange={(value) =>
-                      onFieldChange(
-                        'playing_format',
-                        value === EXTERNAL_TEAM_NONE_VALUE ? '' : (value as Team['playing_format']),
-                      )
-                    }
-                  >
-                    <SelectTrigger className={FORM_INPUT_CLASS}>
-                      <SelectValue placeholder={t('teams.form.playingFormatPlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={EXTERNAL_TEAM_NONE_VALUE}>
-                        {t('teams.form.playingFormatNone')}
-                      </SelectItem>
-                      {TEAM_PLAYING_FORMATS.map((format) => (
-                        <SelectItem key={format} value={format}>
-                          {format}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>{t('teams.form.playerCountLabel')}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={form.player_count}
-                    onChange={(e) => onFieldChange('player_count', e.target.value)}
-                    className={FORM_INPUT_CLASS}
-                  />
-                </div>
-                <div>
-                  <Label>{t('teams.form.statusLabel')}</Label>
-                  <Select
-                    value={form.status}
-                    onValueChange={(value) => onFieldChange('status', value as Team['status'])}
-                  >
-                    <SelectTrigger className={FORM_INPUT_CLASS}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TEAM_STATUSES.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {t(`teams.status.${status}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>{t('teams.form.colorLabel')}</Label>
-                  <div className="flex items-center gap-2 pt-1.5">
-                    {TEAM_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        title={color}
-                        className={cn(
-                          'h-7 w-7 rounded-full bg-gradient-to-br transition-transform',
-                          TEAM_COLOR_GRADIENTS[color],
-                          form.color === color
-                            ? 'scale-110 ring-2 ring-foreground ring-offset-2'
-                            : 'hover:scale-105',
-                        )}
-                        onClick={() => onFieldChange('color', color)}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="team-external-fogis">{t('teams.externalTeam')}</Label>
-                  <Input
-                    id="team-external-fogis-filter"
-                    value={externalTeamFilter}
-                    onChange={(e) => setExternalTeamFilter(e.target.value)}
-                    placeholder={t('teams.externalTeamFilterPlaceholder')}
-                    disabled={externalSelectDisabled}
-                    className={cn(FORM_INPUT_CLASS, 'mb-2')}
-                  />
-                  <Select
-                    value={form.external_team_id.trim() || EXTERNAL_TEAM_NONE_VALUE}
-                    onValueChange={(value) =>
-                      onFieldChange(
-                        'external_team_id',
-                        value === EXTERNAL_TEAM_NONE_VALUE ? '' : value,
-                      )
-                    }
-                    disabled={externalSelectDisabled}
-                  >
-                    <SelectTrigger id="team-external-fogis" className={FORM_INPUT_CLASS}>
-                      <SelectValue placeholder={t('teams.externalTeamPlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={EXTERNAL_TEAM_NONE_VALUE}>
-                        {t('teams.externalTeamNone')}
-                      </SelectItem>
-                      {showOrphanOption ? (
-                        <SelectItem value={form.external_team_id.trim()}>
-                          {t('teams.externalTeamOrphan', { id: form.external_team_id.trim() })}
-                        </SelectItem>
-                      ) : null}
-                      {filteredExternalTeams.map((team) => {
-                        const occupied = findOccupiedByOther(
-                          occupiedBy,
-                          team.externalTeamId,
-                          item?.id,
-                        );
-                        const label = formatExternalTeamLabel(team);
-                        return (
-                          <SelectItem
-                            key={team.externalTeamId}
-                            value={team.externalTeamId}
-                            disabled={Boolean(occupied)}
-                          >
-                            {occupied
-                              ? t('teams.externalTeamOccupiedOption', {
-                                  label,
-                                  teamName: occupied.teamName,
-                                })
-                              : label}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <p className="mt-1 text-xs text-muted-foreground">{externalOptionsHint}</p>
-                  {externalOptionsStatus === 'error' ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="mt-1 h-7 px-2 text-xs"
-                      onClick={() => void loadExternalOptions()}
-                    >
-                      {t('teams.externalTeamRetry')}
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
-
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('teams.form.seriesTeamsSection')} className="p-4">
-              <div className="space-y-2">
-                {seriesTeams.map((seriesTeam, index) => (
-                  <div
-                    key={index}
-                    className="flex items-end gap-2 rounded-lg border border-border/60 p-2"
-                  >
-                    <div className="flex-1">
-                      <Label className="text-[11px]">{t('teams.form.seriesTeamNameLabel')}</Label>
-                      <Input
-                        value={seriesTeam.name}
-                        onChange={(e) => updateSeriesTeam(index, { name: e.target.value })}
-                        className={FORM_INPUT_CLASS}
-                        placeholder={t('teams.form.seriesTeamNamePlaceholder')}
-                      />
-                    </div>
-                    <div className="w-36 sm:w-44">
-                      <Label className="text-[11px]">{t('teams.form.seriesTeamLevelLabel')}</Label>
-                      <Input
-                        value={seriesTeam.level ?? ''}
-                        onChange={(e) => updateSeriesTeam(index, { level: e.target.value })}
-                        className={FORM_INPUT_CLASS}
-                        placeholder={t('teams.form.seriesTeamLevelPlaceholder')}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">{t('teams.form.colorLabel')}</Label>
-                      <div className="pt-1.5">
-                        <SeriesTeamColorPicker
-                          value={
-                            seriesTeam.color && TEAM_COLORS.includes(seriesTeam.color)
-                              ? seriesTeam.color
-                              : null
-                          }
-                          onChange={(color) => updateSeriesTeam(index, { color })}
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      icon={Trash2}
-                      className="h-9 px-2 text-destructive hover:text-destructive"
-                      onClick={() => removeSeriesTeam(index)}
-                      aria-label={t('common.delete')}
-                    />
-                  </div>
-                ))}
-                <RoundIconLabelButton
-                  type="button"
-                  icon={Plus}
-                  label={t('teams.form.addSeriesTeam')}
-                  variant="soft"
-                  size="xs"
-                  alwaysExpanded
-                  onClick={addSeriesTeam}
-                />
-              </div>
-            </DetailSection>
-          </Card>
-
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('teams.form.trainingSection')} className="p-4">
-              <div className="space-y-2">
-                {trainingTimes.map((training, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-1 items-end gap-2 rounded-lg border border-border/60 p-2 sm:grid-cols-[1fr_auto_auto_1fr_auto]"
-                  >
-                    <div>
-                      <Label className="text-[11px]">{t('teams.form.dayLabel')}</Label>
-                      <Select
-                        value={training.day}
-                        onValueChange={(value) => updateTrainingTime(index, { day: value })}
-                      >
-                        <SelectTrigger className={FORM_INPUT_CLASS}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {WEEK_DAYS.map((day) => (
-                            <SelectItem key={day} value={day}>
-                              {t(`teams.days.${day}`)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">{t('teams.form.startTimeLabel')}</Label>
-                      <Input
-                        type="time"
-                        value={training.startTime}
-                        onChange={(e) => updateTrainingTime(index, { startTime: e.target.value })}
-                        className={FORM_INPUT_CLASS}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">{t('teams.form.endTimeLabel')}</Label>
-                      <Input
-                        type="time"
-                        value={training.endTime}
-                        onChange={(e) => updateTrainingTime(index, { endTime: e.target.value })}
-                        className={FORM_INPUT_CLASS}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">{t('teams.form.locationLabel')}</Label>
-                      <TrainingLocationField
-                        training={training}
-                        onChange={(next) => updateTrainingTime(index, next)}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      icon={Trash2}
-                      className="h-9 px-2 text-destructive hover:text-destructive"
-                      onClick={() => removeTrainingTime(index)}
-                      aria-label={t('common.delete')}
-                    />
-                  </div>
-                ))}
-                <RoundIconLabelButton
-                  type="button"
-                  icon={Plus}
-                  label={t('teams.form.addTraining')}
-                  variant="soft"
-                  size="xs"
-                  alwaysExpanded
-                  onClick={addTrainingTime}
-                />
-              </div>
-            </DetailSection>
-          </Card>
-
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('teams.form.seasonBreaksSection')} className="p-4">
-              <div className="space-y-2">
-                {seasonBreaks.map((seasonBreak, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-1 items-end gap-2 rounded-lg border border-border/60 p-2 sm:grid-cols-[1fr_auto_auto_auto]"
-                  >
-                    <div>
-                      <Label className="text-[11px]">{t('teams.form.breakNameLabel')}</Label>
-                      <Input
-                        value={seasonBreak.name}
-                        onChange={(e) => updateSeasonBreak(index, { name: e.target.value })}
-                        className={FORM_INPUT_CLASS}
-                        placeholder={t('teams.form.breakNamePlaceholder')}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">{t('teams.form.startDateLabel')}</Label>
-                      <DatePicker
-                        value={parseDateInputValue(seasonBreak.startDate)}
-                        onChange={(date) =>
-                          updateSeasonBreak(index, { startDate: formatDateInputValue(date) })
-                        }
-                        placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
-                        clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
-                        variant="filled"
-                        fullWidth
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">{t('teams.form.endDateLabel')}</Label>
-                      <DatePicker
-                        value={parseDateInputValue(seasonBreak.endDate)}
-                        onChange={(date) =>
-                          updateSeasonBreak(index, { endDate: formatDateInputValue(date) })
-                        }
-                        placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
-                        clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
-                        variant="filled"
-                        fullWidth
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      icon={Trash2}
-                      className="h-9 px-2 text-destructive hover:text-destructive"
-                      onClick={() => removeSeasonBreak(index)}
-                      aria-label={t('common.delete')}
-                    />
-                  </div>
-                ))}
-                <RoundIconLabelButton
-                  type="button"
-                  icon={Plus}
-                  label={t('teams.form.addBreak')}
-                  variant="soft"
-                  size="xs"
-                  alwaysExpanded
-                  onClick={addSeasonBreak}
-                />
-              </div>
-            </DetailSection>
-          </Card>
-
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('teams.form.responsiblesSection')} className="p-4">
-              <div className="space-y-3">
-                {responsibles.length > 0 && (
-                  <div className="space-y-1.5">
-                    {responsibles.map((responsible) => {
-                      const key = responsibleKey(responsible);
-                      const name =
-                        contactNameById.get(String(responsible.contactId)) ||
-                        `Contact ${responsible.contactId}`;
-                      const roleKey = RESPONSIBLE_ROLES.includes(responsible.role as any)
-                        ? responsible.role
-                        : 'other';
-                      return (
-                        <div
-                          key={key}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2"
-                        >
-                          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                            <span className="truncate text-sm font-medium">{name}</span>
-                            <span
-                              className={cn(
-                                'inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-extrabold',
-                                RESPONSIBLE_ROLE_BADGES[
-                                  roleKey as keyof typeof RESPONSIBLE_ROLE_BADGES
-                                ],
-                              )}
-                            >
-                              {t(`teams.roles.${roleKey}`)}
-                            </span>
-                            {seriesTeamOptions.length > 0 ? (
-                              <SeriesTeamBadge
-                                label={
-                                  getSeriesTeamDisplayLabel(
-                                    { series_teams: seriesTeams },
-                                    responsible.seriesTeam,
-                                  ) || t('teams.form.seriesTeamAll')
-                                }
-                                color={getSeriesTeamColorForName(
-                                  { series_teams: seriesTeams },
-                                  responsible.seriesTeam,
-                                )}
-                              />
-                            ) : null}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {seriesTeamOptions.length > 0 && (
-                              <div className="w-36">
-                                <SeriesTeamSelect
-                                  options={seriesTeamOptions}
-                                  value={responsible.seriesTeam}
-                                  onChange={(seriesTeam) => updateResponsible(key, { seriesTeam })}
-                                  className="h-8 text-xs"
-                                />
-                              </div>
-                            )}
-                            <Select
-                              value={roleKey}
-                              onValueChange={(role) => updateResponsible(key, { role })}
-                            >
-                              <SelectTrigger className={cn(FORM_PROP_CONTROL_CLASS, 'w-36')}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {RESPONSIBLE_ROLES.map((role) => (
-                                  <SelectItem key={role} value={role}>
-                                    {t(`teams.roles.${role}`)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-muted-foreground hover:text-destructive"
-                              onClick={() =>
-                                setPendingRemoveResponsible({
-                                  key,
-                                  name,
-                                })
-                              }
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="flex flex-wrap items-end gap-2">
-                  <div className="min-w-[140px] flex-1">
-                    <Label className="text-[11px]">{t('teams.form.searchContactLabel')}</Label>
+          {formHeader}
+          {activeTab === 'overview' ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.form.detailsSection')} className="p-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <Label>{t('teams.form.nameLabel')}</Label>
                     <Input
-                      value={contactSearch}
-                      onChange={(e) => setContactSearch(e.target.value)}
-                      className={FORM_INPUT_CLASS}
-                      placeholder={t('teams.form.searchContactPlaceholder')}
+                      value={form.name}
+                      onChange={(e) => onFieldChange('name', e.target.value)}
+                      placeholder={t('teams.form.namePlaceholder')}
+                      className={FORM_GHOST_INPUT_CLASS}
                     />
                   </div>
-                  {seriesTeamOptions.length > 0 && (
-                    <div className="w-40">
-                      <Label className="text-[11px]">{t('teams.form.seriesTeamLabel')}</Label>
-                      <SeriesTeamSelect
-                        options={seriesTeamOptions}
-                        value={newResponsibleSeriesTeam}
-                        onChange={setNewResponsibleSeriesTeam}
-                      />
-                    </div>
-                  )}
-                  <div className="w-40">
-                    <Label className="text-[11px]">{t('teams.form.roleLabel')}</Label>
-                    <Select value={newResponsibleRole} onValueChange={setNewResponsibleRole}>
-                      <SelectTrigger className={FORM_INPUT_CLASS}>
-                        <SelectValue />
+                  <div>
+                    <Label>{t('teams.form.ageGroupLabel')}</Label>
+                    <Input
+                      value={form.age_group}
+                      onChange={(e) => onFieldChange('age_group', e.target.value)}
+                      placeholder="P12, F14..."
+                      className={FORM_GHOST_INPUT_CLASS}
+                    />
+                  </div>
+                  <div>
+                    <Label>{t('teams.form.genderLabel')}</Label>
+                    <Select
+                      value={form.gender || undefined}
+                      onValueChange={(value) => onFieldChange('gender', value as Team['gender'])}
+                    >
+                      <SelectTrigger className={FORM_GHOST_INPUT_CLASS}>
+                        <SelectValue placeholder={t('teams.form.genderPlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
-                        {RESPONSIBLE_ROLES.map((role) => (
-                          <SelectItem key={role} value={role}>
-                            {t(`teams.roles.${role}`)}
+                        {TEAM_GENDERS.map((gender) => (
+                          <SelectItem key={gender} value={gender}>
+                            {t(`teams.gender.${gender}`)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                {availableContacts.length > 0 && (
-                  <div className="space-y-1 rounded-lg border border-border/60 p-1.5">
-                    {availableContacts.map((contact) => (
-                      <button
-                        key={contact.id}
-                        type="button"
-                        className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
-                        onClick={() => addResponsible(String(contact.id))}
-                      >
-                        <span className="truncate">{contact.companyName}</span>
-                        <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs text-plugin">
-                          <UserPlus className="h-3.5 w-3.5" />
-                          {t('teams.form.linkContact')}
-                        </span>
-                      </button>
-                    ))}
+                  <div>
+                    <Label>{t('teams.form.playingFormatLabel')}</Label>
+                    <Select
+                      value={form.playing_format || EXTERNAL_TEAM_NONE_VALUE}
+                      onValueChange={(value) =>
+                        onFieldChange(
+                          'playing_format',
+                          value === EXTERNAL_TEAM_NONE_VALUE
+                            ? ''
+                            : (value as Team['playing_format']),
+                        )
+                      }
+                    >
+                      <SelectTrigger className={FORM_GHOST_INPUT_CLASS}>
+                        <SelectValue placeholder={t('teams.form.playingFormatPlaceholder')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={EXTERNAL_TEAM_NONE_VALUE}>
+                          {t('teams.form.playingFormatNone')}
+                        </SelectItem>
+                        {TEAM_PLAYING_FORMATS.map((format) => (
+                          <SelectItem key={format} value={format}>
+                            {format}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
-              </div>
-            </DetailSection>
-          </Card>
+                  <div>
+                    <Label>{t('teams.form.playerCountLabel')}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={form.player_count}
+                      onChange={(e) => onFieldChange('player_count', e.target.value)}
+                      className={FORM_GHOST_INPUT_CLASS}
+                    />
+                  </div>
+                  <div>
+                    <Label>{t('teams.form.statusLabel')}</Label>
+                    <Select
+                      value={form.status}
+                      onValueChange={(value) => onFieldChange('status', value as Team['status'])}
+                    >
+                      <SelectTrigger className={FORM_GHOST_INPUT_CLASS}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEAM_STATUSES.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {t(`teams.status.${status}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>{t('teams.form.colorLabel')}</Label>
+                    <div className="flex items-center gap-2 pt-1.5">
+                      {TEAM_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          title={color}
+                          className={cn(
+                            'h-7 w-7 rounded-full bg-gradient-to-br transition-transform',
+                            TEAM_COLOR_GRADIENTS[color],
+                            form.color === color
+                              ? 'scale-110 ring-2 ring-foreground ring-offset-2'
+                              : 'hover:scale-105',
+                          )}
+                          onClick={() => onFieldChange('color', color)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="team-external-fogis">{t('teams.externalTeam')}</Label>
+                    <Input
+                      id="team-external-fogis-filter"
+                      value={externalTeamFilter}
+                      onChange={(e) => setExternalTeamFilter(e.target.value)}
+                      placeholder={t('teams.externalTeamFilterPlaceholder')}
+                      disabled={externalSelectDisabled}
+                      className={cn(FORM_GHOST_INPUT_CLASS, 'mb-2')}
+                    />
+                    <Select
+                      value={form.external_team_id.trim() || EXTERNAL_TEAM_NONE_VALUE}
+                      onValueChange={(value) =>
+                        onFieldChange(
+                          'external_team_id',
+                          value === EXTERNAL_TEAM_NONE_VALUE ? '' : value,
+                        )
+                      }
+                      disabled={externalSelectDisabled}
+                    >
+                      <SelectTrigger id="team-external-fogis" className={FORM_GHOST_INPUT_CLASS}>
+                        <SelectValue placeholder={t('teams.externalTeamPlaceholder')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={EXTERNAL_TEAM_NONE_VALUE}>
+                          {t('teams.externalTeamNone')}
+                        </SelectItem>
+                        {showOrphanOption ? (
+                          <SelectItem value={form.external_team_id.trim()}>
+                            {t('teams.externalTeamOrphan', { id: form.external_team_id.trim() })}
+                          </SelectItem>
+                        ) : null}
+                        {filteredExternalTeams.map((team) => {
+                          const occupied = findOccupiedByOther(
+                            occupiedBy,
+                            team.externalTeamId,
+                            item?.id,
+                          );
+                          const label = formatExternalTeamLabel(team);
+                          return (
+                            <SelectItem
+                              key={team.externalTeamId}
+                              value={team.externalTeamId}
+                              disabled={Boolean(occupied)}
+                            >
+                              {occupied
+                                ? t('teams.externalTeamOccupiedOption', {
+                                    label,
+                                    teamName: occupied.teamName,
+                                  })
+                                : label}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-muted-foreground">{externalOptionsHint}</p>
+                    {externalOptionsStatus === 'error' ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1 h-7 px-2 text-xs"
+                        onClick={() => void loadExternalOptions()}
+                      >
+                        {t('teams.externalTeamRetry')}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </DetailSection>
+            </Card>
+          ) : null}
 
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('teams.form.notesSection')} className="p-4">
-              <TeamNotesSection
-                notes={teamNotes}
-                onAdd={addNote}
-                onRemoveRequest={setPendingRemoveNote}
-              />
-            </DetailSection>
-          </Card>
+          {activeTab === 'seriesTeams' ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.form.seriesTeamsSection')} className="p-4">
+                <div className="space-y-2">
+                  {seriesTeams.map((seriesTeam, index) => (
+                    <div
+                      key={index}
+                      className="flex items-end gap-2 rounded-lg border border-border/60 p-2"
+                    >
+                      <div className="flex-1">
+                        <Label className="text-[11px]">{t('teams.form.seriesTeamNameLabel')}</Label>
+                        <Input
+                          value={seriesTeam.name}
+                          onChange={(e) => updateSeriesTeam(index, { name: e.target.value })}
+                          className={FORM_GHOST_INPUT_CLASS}
+                          placeholder={t('teams.form.seriesTeamNamePlaceholder')}
+                        />
+                      </div>
+                      <div className="w-36 sm:w-44">
+                        <Label className="text-[11px]">
+                          {t('teams.form.seriesTeamLevelLabel')}
+                        </Label>
+                        <Input
+                          value={seriesTeam.level ?? ''}
+                          onChange={(e) => updateSeriesTeam(index, { level: e.target.value })}
+                          className={FORM_GHOST_INPUT_CLASS}
+                          placeholder={t('teams.form.seriesTeamLevelPlaceholder')}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[11px]">{t('teams.form.colorLabel')}</Label>
+                        <div className="pt-1.5">
+                          <SeriesTeamColorPicker
+                            value={
+                              seriesTeam.color && TEAM_COLORS.includes(seriesTeam.color)
+                                ? seriesTeam.color
+                                : null
+                            }
+                            onChange={(color) => updateSeriesTeam(index, { color })}
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        icon={Trash2}
+                        className="h-9 px-2 text-destructive hover:text-destructive"
+                        onClick={() => removeSeriesTeam(index)}
+                        aria-label={t('common.delete')}
+                      />
+                    </div>
+                  ))}
+                  <RoundIconLabelButton
+                    type="button"
+                    icon={Plus}
+                    label={t('teams.form.addSeriesTeam')}
+                    variant="soft"
+                    size="xs"
+                    alwaysExpanded
+                    onClick={addSeriesTeam}
+                  />
+                </div>
+              </DetailSection>
+            </Card>
+          ) : null}
+
+          {activeTab === 'schedule' ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.form.trainingSection')} className="p-4">
+                <div className="space-y-2">
+                  {trainingTimes.map((training, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-1 items-end gap-2 rounded-lg border border-border/60 p-2 sm:grid-cols-[1fr_auto_auto_1fr_auto]"
+                    >
+                      <div>
+                        <Label className="text-[11px]">{t('teams.form.dayLabel')}</Label>
+                        <Select
+                          value={training.day}
+                          onValueChange={(value) => updateTrainingTime(index, { day: value })}
+                        >
+                          <SelectTrigger className={FORM_GHOST_INPUT_CLASS}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {WEEK_DAYS.map((day) => (
+                              <SelectItem key={day} value={day}>
+                                {t(`teams.days.${day}`)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-[11px]">{t('teams.form.startTimeLabel')}</Label>
+                        <Input
+                          type="time"
+                          value={training.startTime}
+                          onChange={(e) => updateTrainingTime(index, { startTime: e.target.value })}
+                          className={FORM_GHOST_INPUT_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[11px]">{t('teams.form.endTimeLabel')}</Label>
+                        <Input
+                          type="time"
+                          value={training.endTime}
+                          onChange={(e) => updateTrainingTime(index, { endTime: e.target.value })}
+                          className={FORM_GHOST_INPUT_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[11px]">{t('teams.form.locationLabel')}</Label>
+                        <TrainingLocationField
+                          training={training}
+                          onChange={(next) => updateTrainingTime(index, next)}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        icon={Trash2}
+                        className="h-9 px-2 text-destructive hover:text-destructive"
+                        onClick={() => removeTrainingTime(index)}
+                        aria-label={t('common.delete')}
+                      />
+                    </div>
+                  ))}
+                  <RoundIconLabelButton
+                    type="button"
+                    icon={Plus}
+                    label={t('teams.form.addTraining')}
+                    variant="soft"
+                    size="xs"
+                    alwaysExpanded
+                    onClick={addTrainingTime}
+                  />
+                </div>
+              </DetailSection>
+            </Card>
+          ) : null}
+
+          {activeTab === 'schedule' ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.form.seasonBreaksSection')} className="p-4">
+                <div className="space-y-2">
+                  {seasonBreaks.map((seasonBreak, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-1 items-end gap-2 rounded-lg border border-border/60 p-2 sm:grid-cols-[1fr_auto_auto_auto]"
+                    >
+                      <div>
+                        <Label className="text-[11px]">{t('teams.form.breakNameLabel')}</Label>
+                        <Input
+                          value={seasonBreak.name}
+                          onChange={(e) => updateSeasonBreak(index, { name: e.target.value })}
+                          className={FORM_GHOST_INPUT_CLASS}
+                          placeholder={t('teams.form.breakNamePlaceholder')}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[11px]">{t('teams.form.startDateLabel')}</Label>
+                        <DatePicker
+                          value={parseDateInputValue(seasonBreak.startDate)}
+                          onChange={(date) =>
+                            updateSeasonBreak(index, { startDate: formatDateInputValue(date) })
+                          }
+                          placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                          clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                          variant="filled"
+                          fullWidth
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[11px]">{t('teams.form.endDateLabel')}</Label>
+                        <DatePicker
+                          value={parseDateInputValue(seasonBreak.endDate)}
+                          onChange={(date) =>
+                            updateSeasonBreak(index, { endDate: formatDateInputValue(date) })
+                          }
+                          placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                          clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                          variant="filled"
+                          fullWidth
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        icon={Trash2}
+                        className="h-9 px-2 text-destructive hover:text-destructive"
+                        onClick={() => removeSeasonBreak(index)}
+                        aria-label={t('common.delete')}
+                      />
+                    </div>
+                  ))}
+                  <RoundIconLabelButton
+                    type="button"
+                    icon={Plus}
+                    label={t('teams.form.addBreak')}
+                    variant="soft"
+                    size="xs"
+                    alwaysExpanded
+                    onClick={addSeasonBreak}
+                  />
+                </div>
+              </DetailSection>
+            </Card>
+          ) : null}
+
+          {activeTab === 'responsibles' ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.form.responsiblesSection')} className="p-4">
+                <div className="space-y-3">
+                  {responsibles.length > 0 && (
+                    <div className="space-y-1.5">
+                      {responsibles.map((responsible) => {
+                        const key = responsibleKey(responsible);
+                        const name =
+                          contactNameById.get(String(responsible.contactId)) ||
+                          `Contact ${responsible.contactId}`;
+                        const roleKey = RESPONSIBLE_ROLES.includes(responsible.role as any)
+                          ? responsible.role
+                          : 'other';
+                        return (
+                          <div
+                            key={key}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2"
+                          >
+                            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                              <span className="truncate text-sm font-medium">{name}</span>
+                              <span
+                                className={cn(
+                                  'inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-extrabold',
+                                  RESPONSIBLE_ROLE_BADGES[
+                                    roleKey as keyof typeof RESPONSIBLE_ROLE_BADGES
+                                  ],
+                                )}
+                              >
+                                {t(`teams.roles.${roleKey}`)}
+                              </span>
+                              {seriesTeamOptions.length > 0 ? (
+                                <SeriesTeamBadge
+                                  label={
+                                    getSeriesTeamDisplayLabel(
+                                      { series_teams: seriesTeams },
+                                      responsible.seriesTeam,
+                                    ) || t('teams.form.seriesTeamAll')
+                                  }
+                                  color={getSeriesTeamColorForName(
+                                    { series_teams: seriesTeams },
+                                    responsible.seriesTeam,
+                                  )}
+                                />
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {seriesTeamOptions.length > 0 && (
+                                <div className="w-36">
+                                  <SeriesTeamSelect
+                                    options={seriesTeamOptions}
+                                    value={responsible.seriesTeam}
+                                    onChange={(seriesTeam) =>
+                                      updateResponsible(key, { seriesTeam })
+                                    }
+                                    className="h-8 text-xs"
+                                  />
+                                </div>
+                              )}
+                              <Select
+                                value={roleKey}
+                                onValueChange={(role) => updateResponsible(key, { role })}
+                              >
+                                <SelectTrigger
+                                  className={cn(FORM_GHOST_PROP_CONTROL_CLASS, 'w-36')}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {RESPONSIBLE_ROLES.map((role) => (
+                                    <SelectItem key={role} value={role}>
+                                      {t(`teams.roles.${role}`)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-muted-foreground hover:text-destructive"
+                                onClick={() =>
+                                  setPendingRemoveResponsible({
+                                    key,
+                                    name,
+                                  })
+                                }
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="min-w-[140px] flex-1">
+                      <Label className="text-[11px]">{t('teams.form.searchContactLabel')}</Label>
+                      <Input
+                        value={contactSearch}
+                        onChange={(e) => setContactSearch(e.target.value)}
+                        className={FORM_GHOST_INPUT_CLASS}
+                        placeholder={t('teams.form.searchContactPlaceholder')}
+                      />
+                    </div>
+                    {seriesTeamOptions.length > 0 && (
+                      <div className="w-40">
+                        <Label className="text-[11px]">{t('teams.form.seriesTeamLabel')}</Label>
+                        <SeriesTeamSelect
+                          options={seriesTeamOptions}
+                          value={newResponsibleSeriesTeam}
+                          onChange={setNewResponsibleSeriesTeam}
+                        />
+                      </div>
+                    )}
+                    <div className="w-40">
+                      <Label className="text-[11px]">{t('teams.form.roleLabel')}</Label>
+                      <Select value={newResponsibleRole} onValueChange={setNewResponsibleRole}>
+                        <SelectTrigger className={FORM_GHOST_INPUT_CLASS}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {RESPONSIBLE_ROLES.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {t(`teams.roles.${role}`)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {availableContacts.length > 0 && (
+                    <div className="space-y-1 rounded-lg border border-border/60 p-1.5">
+                      {availableContacts.map((contact) => (
+                        <button
+                          key={contact.id}
+                          type="button"
+                          className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                          onClick={() => addResponsible(String(contact.id))}
+                        >
+                          <span className="truncate">{contact.companyName}</span>
+                          <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs text-plugin">
+                            <UserPlus className="h-3.5 w-3.5" />
+                            {t('teams.form.linkContact')}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </DetailSection>
+            </Card>
+          ) : null}
+
+          {activeTab === 'notes' ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.form.notesSection')} className="p-4">
+                <TeamNotesSection
+                  notes={teamNotes}
+                  onAdd={addNote}
+                  onRemoveRequest={setPendingRemoveNote}
+                />
+              </DetailSection>
+            </Card>
+          ) : null}
         </div>
       </DetailLayout>
       {validationErrors.length > 0 && (

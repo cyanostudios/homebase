@@ -1,8 +1,28 @@
-import { Search, ClipboardList, SlidersHorizontal, StickyNote, User } from 'lucide-react';
-import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import {
+  ClipboardList,
+  History,
+  Info,
+  Paperclip,
+  Search,
+  SlidersHorizontal,
+  StickyNote,
+  User,
+  Users,
+} from 'lucide-react';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,14 +32,23 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
-import {
-  FORM_INPUT_CLASS,
-  FORM_INPUT_ERROR_CLASS,
-  FORM_TEXTAREA_CLASS,
-} from '@/core/ui/formFieldStyles';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_PROP_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+} from '@/core/ui/detailViewCardStyles';
+import {
+  FORM_GHOST_INPUT_CLASS,
+  FORM_GHOST_TEXTAREA_CLASS,
+  FORM_INPUT_ERROR_CLASS,
+} from '@/core/ui/formFieldStyles';
+import { DETAIL_FORM_TITLE_INPUT_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { syncTextareaHeight } from '@/core/ui/syncTextareaHeight';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
@@ -38,6 +67,23 @@ import { RequestResponseDueControl } from './RequestResponseDueControl';
 import { RequestStatusSelect } from './RequestStatusSelect';
 import { RequestTypeSelect } from './RequestTypeSelect';
 
+type RequestFormTab = 'information' | 'assignees' | 'files' | 'activity';
+
+const REQUEST_FORM_TABS: RequestFormTab[] = ['information', 'assignees', 'files', 'activity'];
+
+/** Visible in edit for shell parity with View, but not selectable while editing. */
+const REQUEST_FORM_EDIT_DISABLED_TABS: ReadonlySet<RequestFormTab> = new Set(['activity']);
+
+function parseRequestFormTab(value: string | null): RequestFormTab {
+  if (value === 'properties') {
+    return 'information';
+  }
+  if (value && REQUEST_FORM_TABS.includes(value as RequestFormTab)) {
+    return value as RequestFormTab;
+  }
+  return 'information';
+}
+
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
@@ -55,6 +101,29 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
   ref,
 ) {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseRequestFormTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: RequestFormTab, replace = false) => {
+      if (REQUEST_FORM_EDIT_DISABLED_TABS.has(tab)) {
+        return;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'information') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace },
+      );
+    },
+    [setSearchParams],
+  );
+
   const { validationErrors, clearValidationErrors, requestTypes } = useRequests();
   const { contacts, user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
@@ -64,6 +133,8 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
 
   const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
     useUnsavedChanges();
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
+    useGlobalNavigationGuard();
 
   const createCreatedAtRef = React.useRef(new Date().toISOString());
 
@@ -82,9 +153,39 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
     responseDueAt: responseDueAtFromDays(7, createCreatedAtRef.current),
   });
   const [extraData, setExtraData] = useState<Record<string, string>>({});
+  const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const internalNotesTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [contactSearch, setContactSearch] = useState('');
   const [showContactSuggestions, setShowContactSuggestions] = useState(false);
+
+  useEffect(() => {
+    const formKey = `request-form-${item?.id || 'new'}`;
+    registerUnsavedChangesChecker(formKey, () => true);
+    return () => {
+      unregisterUnsavedChangesChecker(formKey);
+    };
+  }, [item, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+
+  useEffect(() => {
+    if (!REQUEST_FORM_EDIT_DISABLED_TABS.has(activeTab)) {
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('tab');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [activeTab, setSearchParams]);
+
+  useEffect(() => {
+    if (activeTab === 'files' && !hasFilesPlugin) {
+      setActiveTab('information', true);
+    }
+  }, [activeTab, hasFilesPlugin, setActiveTab]);
 
   useEffect(() => {
     if (item) {
@@ -125,6 +226,14 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
     }
     markClean();
   }, [item?.id, markClean]);
+
+  useLayoutEffect(() => {
+    if (activeTab !== 'information') {
+      return;
+    }
+    syncTextareaHeight(descriptionTextareaRef.current);
+    syncTextareaHeight(internalNotesTextareaRef.current);
+  }, [activeTab, form.description, form.internalNotes, extraData]);
 
   const typeConfig = useMemo(
     () => findRequestTypeConfig(requestTypes, form.requestType),
@@ -227,7 +336,12 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
   }, [form, extraData, showPluginIntake, onSave, markClean]);
 
   const handleCancel = useCallback(() => {
-    attemptAction(onCancel);
+    attemptAction(
+      () => {
+        onCancel();
+      },
+      { force: true },
+    );
   }, [attemptAction, onCancel]);
 
   useImperativeHandle(ref, () => ({ submit: handleSubmit, cancel: handleCancel }), [
@@ -258,38 +372,133 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
       .slice(0, 20);
   }, [contacts, contactSearch, form.contactId]);
 
-  const formLeftSidebar = (
-    <div className="space-y-6">
+  const assigneeCount = form.assignedToIds.length;
+
+  const tabs = useMemo(() => {
+    const next: Array<{
+      id: RequestFormTab;
+      label: string;
+      icon: typeof Info;
+      count: number | null;
+    }> = [
+      {
+        id: 'information',
+        label: t('requests.tabs.information'),
+        icon: Info,
+        count: null,
+      },
+      {
+        id: 'assignees',
+        label: t('requests.tabs.assignees'),
+        icon: Users,
+        count: assigneeCount > 0 ? assigneeCount : null,
+      },
+    ];
+    if (hasFilesPlugin) {
+      next.push({
+        id: 'files',
+        label: t('requests.tabs.files'),
+        icon: Paperclip,
+        count: null,
+      });
+    }
+    next.push({
+      id: 'activity',
+      label: t('requests.tabs.activity'),
+      icon: History,
+      count: null,
+    });
+    return next;
+  }, [assigneeCount, hasFilesPlugin, t]);
+
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isDisabled = REQUEST_FORM_EDIT_DISABLED_TABS.has(tab.id);
+        const isActive = !isDisabled && activeTab === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            aria-disabled={isDisabled}
+            disabled={isDisabled}
+            title={
+              isDisabled
+                ? t('requests.tabUnavailableInEdit', {
+                    defaultValue: 'Available in view mode only',
+                  })
+                : undefined
+            }
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              isDisabled && 'pointer-events-none opacity-40',
+            )}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span>
+              {tab.label}
+              {tab.count != null ? (
+                <>
+                  {' '}
+                  <span className="tabular-nums font-semibold">({tab.count})</span>
+                </>
+              ) : null}
+            </span>
+          </Button>
+        );
+      })}
+    </div>
+  );
+
+  const formHeader = (
+    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+      <div className="px-4 py-5">
+        <div className="min-w-0 flex-1">
+          <Input
+            id="request-title"
+            value={form.title}
+            onChange={(e) => updateForm('title', e.target.value)}
+            placeholder={t('requests.form.titlePlaceholder')}
+            aria-label={t('requests.form.title')}
+            className={cn(
+              DETAIL_FORM_TITLE_INPUT_CLASS,
+              PLUGIN_PAGE_TITLE_CLASS,
+              'min-w-0 tracking-[0.003em]',
+              titleError && FORM_INPUT_ERROR_CLASS,
+            )}
+            required
+          />
+          {titleError ? (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{titleError}</p>
+          ) : null}
+        </div>
+        <div className="mt-4">{tabChips}</div>
+      </div>
+    </Card>
+  );
+
+  const informationTab = (
+    <>
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection title={t('requests.form.details')} className="p-6" prominentTitle>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="request-title" className="mb-1">
-                {t('requests.form.title')} *
-              </Label>
-              <Input
-                id="request-title"
-                value={form.title}
-                onChange={(e) => updateForm('title', e.target.value)}
-                placeholder={t('requests.form.titlePlaceholder')}
-                className={cn(FORM_INPUT_CLASS, titleError && FORM_INPUT_ERROR_CLASS)}
-                required
-              />
-              {titleError ? (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{titleError}</p>
-              ) : null}
-            </div>
-
-            <div>
-              <Label className="mb-1">{t('requests.form.description')}</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) => updateForm('description', e.target.value)}
-                placeholder={t('requests.form.descriptionPlaceholder')}
-                rows={5}
-                className={FORM_TEXTAREA_CLASS}
-              />
-            </div>
+          <div>
+            <Label className="mb-1">{t('requests.form.description')}</Label>
+            <Textarea
+              ref={descriptionTextareaRef}
+              value={form.description}
+              onChange={(e) => {
+                updateForm('description', e.target.value);
+                syncTextareaHeight(e.currentTarget);
+              }}
+              placeholder={t('requests.form.descriptionPlaceholder')}
+              rows={3}
+              className={FORM_GHOST_TEXTAREA_CLASS}
+            />
           </div>
         </DetailSection>
       </Card>
@@ -319,11 +528,14 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                     {isComment ? (
                       <Textarea
                         value={extraData[field.key] || ''}
-                        onChange={(e) => updateExtraField(field.key, e.target.value)}
-                        rows={3}
+                        onChange={(e) => {
+                          updateExtraField(field.key, e.target.value);
+                          syncTextareaHeight(e.currentTarget);
+                        }}
+                        rows={2}
                         required={required}
                         aria-required={required}
-                        className={FORM_TEXTAREA_CLASS}
+                        className={FORM_GHOST_TEXTAREA_CLASS}
                       />
                     ) : (
                       <Input
@@ -331,7 +543,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                         onChange={(e) => updateExtraField(field.key, e.target.value)}
                         required={required}
                         aria-required={required}
-                        className={FORM_INPUT_CLASS}
+                        className={FORM_GHOST_INPUT_CLASS}
                       />
                     )}
                   </div>
@@ -341,127 +553,6 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           </DetailSection>
         </Card>
       ) : null}
-
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('requests.view.submitter')}
-          icon={User}
-          iconPlugin="requests"
-          subtleTitle
-          className="p-6"
-        >
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-xs">{t('requests.form.submitterName')}</Label>
-                <Input
-                  value={form.submitterName}
-                  onChange={(e) => updateForm('submitterName', e.target.value)}
-                  placeholder={t('requests.form.submitterNamePlaceholder')}
-                  className={FORM_INPUT_CLASS}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{t('requests.form.submitterEmail')}</Label>
-                <Input
-                  type="email"
-                  value={form.submitterEmail}
-                  onChange={(e) => updateForm('submitterEmail', e.target.value)}
-                  placeholder={t('requests.form.submitterEmailPlaceholder')}
-                  className={FORM_INPUT_CLASS}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">{t('requests.form.linkedContact')}</Label>
-              {linkedContact ? (
-                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate text-xs font-medium">
-                      {linkedContact.companyName ?? `Contact ${linkedContact.id}`}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updateForm('contactId', '')}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    {t('common.remove')}
-                  </button>
-                </div>
-              ) : (
-                <Popover
-                  open={showContactSuggestions && contactSuggestions.length > 0}
-                  onOpenChange={setShowContactSuggestions}
-                >
-                  <PopoverAnchor asChild>
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={contactSearch}
-                        onChange={(e) => {
-                          setContactSearch(e.target.value);
-                          setShowContactSuggestions(true);
-                        }}
-                        onFocus={() => setShowContactSuggestions(true)}
-                        placeholder={t('requests.form.searchContact')}
-                        className={cn(FORM_INPUT_CLASS, 'pl-9')}
-                      />
-                    </div>
-                  </PopoverAnchor>
-                  <PopoverContent
-                    align="start"
-                    side="bottom"
-                    sideOffset={4}
-                    className="z-[120] w-[var(--radix-popover-trigger-width)] max-h-52 overflow-y-auto rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
-                  >
-                    {contactSuggestions.map((c: any) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className="flex w-full items-start rounded-lg px-2.5 py-2 text-left hover:bg-accent"
-                        onClick={() => {
-                          updateForm('contactId', String(c.id));
-                          setContactSearch('');
-                          setShowContactSuggestions(false);
-                        }}
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-xs font-medium">
-                            {c.companyName ?? `Contact ${c.id}`}
-                          </span>
-                          {c.email && (
-                            <span className="block truncate text-[11px] text-muted-foreground">
-                              {c.email}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    ))}
-                  </PopoverContent>
-                </Popover>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="request-internal-notes" className={FACT_LABEL_CLASS}>
-                <StickyNote className="h-3 w-3" />
-                {t('requests.form.internalNotes')}
-              </Label>
-              <Textarea
-                id="request-internal-notes"
-                value={form.internalNotes}
-                onChange={(e) => updateForm('internalNotes', e.target.value)}
-                placeholder={t('requests.form.internalNotesPlaceholder')}
-                rows={4}
-                className={FORM_TEXTAREA_CLASS}
-              />
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
@@ -532,19 +623,172 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           </div>
         </DetailSection>
       </Card>
+
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('requests.view.submitter')}
+          icon={User}
+          iconPlugin="requests"
+          subtleTitle
+          className="p-6"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">{t('requests.form.submitterName')}</Label>
+                <Input
+                  value={form.submitterName}
+                  onChange={(e) => updateForm('submitterName', e.target.value)}
+                  placeholder={t('requests.form.submitterNamePlaceholder')}
+                  className={FORM_GHOST_INPUT_CLASS}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">{t('requests.form.submitterEmail')}</Label>
+                <Input
+                  type="email"
+                  value={form.submitterEmail}
+                  onChange={(e) => updateForm('submitterEmail', e.target.value)}
+                  placeholder={t('requests.form.submitterEmailPlaceholder')}
+                  className={FORM_GHOST_INPUT_CLASS}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">{t('requests.form.linkedContact')}</Label>
+              {linkedContact ? (
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-xs font-medium">
+                      {linkedContact.companyName ?? `Contact ${linkedContact.id}`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updateForm('contactId', '')}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {t('common.remove')}
+                  </button>
+                </div>
+              ) : (
+                <Popover
+                  open={showContactSuggestions && contactSuggestions.length > 0}
+                  onOpenChange={setShowContactSuggestions}
+                >
+                  <PopoverAnchor asChild>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={contactSearch}
+                        onChange={(e) => {
+                          setContactSearch(e.target.value);
+                          setShowContactSuggestions(true);
+                        }}
+                        onFocus={() => setShowContactSuggestions(true)}
+                        placeholder={t('requests.form.searchContact')}
+                        className={cn(FORM_GHOST_INPUT_CLASS, 'pl-9')}
+                      />
+                    </div>
+                  </PopoverAnchor>
+                  <PopoverContent
+                    align="start"
+                    side="bottom"
+                    sideOffset={4}
+                    className="z-[120] w-[var(--radix-popover-trigger-width)] max-h-52 overflow-y-auto rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
+                  >
+                    {contactSuggestions.map((c: any) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="flex w-full items-start rounded-lg px-2.5 py-2 text-left hover:bg-accent"
+                        onClick={() => {
+                          updateForm('contactId', String(c.id));
+                          setContactSearch('');
+                          setShowContactSuggestions(false);
+                        }}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-medium">
+                            {c.companyName ?? `Contact ${c.id}`}
+                          </span>
+                          {c.email && (
+                            <span className="block truncate text-[11px] text-muted-foreground">
+                              {c.email}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="request-internal-notes" className={FACT_LABEL_CLASS}>
+                <StickyNote className="h-3 w-3" />
+                {t('requests.form.internalNotes')}
+              </Label>
+              <Textarea
+                ref={internalNotesTextareaRef}
+                id="request-internal-notes"
+                value={form.internalNotes}
+                onChange={(e) => {
+                  updateForm('internalNotes', e.target.value);
+                  syncTextareaHeight(e.currentTarget);
+                }}
+                placeholder={t('requests.form.internalNotesPlaceholder')}
+                rows={3}
+                className={FORM_GHOST_TEXTAREA_CLASS}
+              />
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+    </>
+  );
+
+  const assigneesTab = (
+    <div className="space-y-6">
+      <RequestAssigneeSelect
+        request={{ assignedToIds: form.assignedToIds }}
+        onAssigneeChange={(ids) => updateForm('assignedToIds', ids)}
+      />
+      {hasTeamsPlugin ? (
+        <RequestAssignedTeamSelect
+          request={{ teamId: form.teamId || null }}
+          onTeamChange={(teamId) => updateForm('teamId', teamId ?? '')}
+        />
+      ) : null}
     </div>
   );
 
+  const filesTab = hasFilesPlugin ? (
+    <div className="space-y-2">
+      {!item ? (
+        <p className="px-1 text-xs text-muted-foreground">
+          {t('requests.form.attachmentsAfterSave')}
+        </p>
+      ) : null}
+      <FileAttachmentsSection pluginName="requests" entityId={item?.id} />
+    </div>
+  ) : null;
+
   return (
     <>
-      <DetailLayout gridClassName="grid-cols-1" leftSidebar={formLeftSidebar}>
+      <DetailLayout gridClassName="grid-cols-1">
         <form
-          className="space-y-6"
+          className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
             void handleSubmit();
           }}
         >
+          {formHeader}
+
           {blockingValidationErrors.length > 0 ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
               <div className="text-sm font-medium text-destructive">{t('common.cannotSave')}</div>
@@ -556,28 +800,9 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
             </Card>
           ) : null}
 
-          {hasFilesPlugin ? (
-            <div className="space-y-2">
-              {!item ? (
-                <p className="px-1 text-xs text-muted-foreground">
-                  {t('requests.form.attachmentsAfterSave')}
-                </p>
-              ) : null}
-              <FileAttachmentsSection pluginName="requests" entityId={item?.id} />
-            </div>
-          ) : null}
-
-          <RequestAssigneeSelect
-            request={{ assignedToIds: form.assignedToIds }}
-            onAssigneeChange={(ids) => updateForm('assignedToIds', ids)}
-          />
-
-          {hasTeamsPlugin ? (
-            <RequestAssignedTeamSelect
-              request={{ teamId: form.teamId || null }}
-              onTeamChange={(teamId) => updateForm('teamId', teamId ?? '')}
-            />
-          ) : null}
+          {activeTab === 'information' ? informationTab : null}
+          {activeTab === 'assignees' ? assigneesTab : null}
+          {activeTab === 'files' ? filesTab : null}
         </form>
       </DetailLayout>
       <ConfirmDialog

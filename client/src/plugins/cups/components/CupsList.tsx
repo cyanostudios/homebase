@@ -144,7 +144,7 @@ export function CupsList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openCupPanel(null)),
-    onSettings: openCupSettings,
+    onSettings: () => attemptNavigation(() => openCupSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -902,7 +902,7 @@ export function CupsList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={openCupSettings}
+                      onClick={() => attemptNavigation(() => openCupSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle

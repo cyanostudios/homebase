@@ -22,33 +22,34 @@ describe('PriceListView detail tab chips', () => {
     expect(viewSrc).not.toMatch(/stacked \?/);
   });
 
-  test('tabs are information, properties, items, and activity', () => {
+  test('tabs are information, items, and activity', () => {
     expect(viewSrc).toMatch(/useSearchParams/);
     expect(viewSrc).toMatch(/parsePriceListViewTab/);
     expect(viewSrc).toMatch(/'information'/);
-    expect(viewSrc).toMatch(/'properties'/);
+    expect(viewSrc).toMatch(/value === 'properties'/); // legacy ?tab=properties → information
     expect(viewSrc).toMatch(/'items'/);
     expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(
-      /PRICE_LIST_VIEW_TABS: PriceListViewTab\[] = \[\s*'information',\s*'properties',\s*'items',\s*'activity',\s*\]/,
+      /PRICE_LIST_VIEW_TABS: PriceListViewTab\[] = \['information', 'items', 'activity'\]/,
     );
     expect(viewSrc).not.toMatch(/id: 'currency'/);
     expect(viewSrc).not.toMatch(/currencyCard/);
     expect(viewSrc).not.toMatch(/activeTab === 'currency'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
-    expect(viewSrc).toMatch(/activeTab === 'properties'/);
+    expect(viewSrc).toMatch(/activeTab === 'information' \? propertiesCard/);
+    expect(viewSrc).not.toMatch(/activeTab === 'properties'/);
     expect(viewSrc).toMatch(/activeTab === 'items'/);
     expect(viewSrc).toMatch(/activeTab === 'activity'/);
     expect(viewSrc).toMatch(/Legacy \?tab=currency/);
   });
 
-  test('properties tab hosts publication featured currency and slug', () => {
+  test('properties card on information hosts publication featured currency and slug', () => {
     expect(viewSrc).toMatch(/ClubdeskPublicationPropertiesFields/);
     expect(viewSrc).toMatch(/updatePriceListPublicationStatus/);
     expect(viewSrc).toMatch(/updatePriceListFeatured/);
     expect(viewSrc).toMatch(/clubdesk\.priceList\.properties/);
-    expect(viewSrc).toMatch(/t\('clubdesk\.priceList\.tabs\.properties'\)/);
+    expect(viewSrc).toMatch(/t\('clubdesk\.priceList\.properties'\)/);
     expect(viewSrc).toMatch(/showCurrency/);
   });
 
@@ -57,7 +58,7 @@ describe('PriceListView detail tab chips', () => {
     expect(viewSrc).toMatch(/count: itemsCount/);
   });
 
-  test('currency lives on properties (not information)', () => {
+  test('currency lives on properties card (not information card)', () => {
     expect(viewSrc).toMatch(/showCurrency/);
     expect(viewSrc).not.toMatch(/DETAIL_INFO_ROW_CLASS/);
     expect(viewSrc).not.toMatch(/informationCard[\s\S]*clubdesk\.priceList\.tabs\.currency/);
@@ -90,7 +91,7 @@ describe('PriceListView detail tab chips', () => {
 
   test('section titles use i18n tab keys', () => {
     expect(viewSrc).toMatch(/t\('clubdesk\.priceList\.tabs\.information'\)/);
-    expect(viewSrc).toMatch(/t\('clubdesk\.priceList\.tabs\.properties'\)/);
+    expect(viewSrc).toMatch(/t\('clubdesk\.priceList\.properties'\)/);
     expect(viewSrc).toMatch(/t\('clubdesk\.priceList\.tabs\.items'\)/);
   });
 

@@ -39,6 +39,42 @@ export type InventoryListTableProps = {
   visibleColumnIds?: InventoryTableColumnId[];
 };
 
+function formatInventoryListPrice(
+  price: number | null | undefined,
+  currency: string,
+): string | null {
+  if (price == null || Number.isNaN(price)) {
+    return null;
+  }
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currency || 'SEK',
+      maximumFractionDigits: 2,
+    }).format(price);
+  } catch {
+    return `${price.toFixed(2)} ${currency || 'SEK'}`;
+  }
+}
+
+/** Brand · Qty N · price under article name (lists identity meta). */
+function inventoryIdentityMeta(
+  item: InventoryItem,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  const parts: string[] = [];
+  const brand = item.brand?.trim();
+  if (brand) {
+    parts.push(brand);
+  }
+  parts.push(t('garments.qty', { count: item.totalQuantity ?? 0 }));
+  const rec = formatInventoryListPrice(item.recommendedPrice, item.currency || 'SEK');
+  if (rec) {
+    parts.push(rec);
+  }
+  return parts.join(' · ');
+}
+
 export function InventoryListTable({
   items,
   primarySort,
@@ -72,22 +108,31 @@ export function InventoryListTable({
       articleName: {
         field: 'articleName',
         header: t('garments.articleName'),
-        cell: (item) => (
-          <div className="flex min-w-0 items-center gap-1.5">
-            <span title={t('nav.garments-inventory')} className="inline-flex shrink-0">
-              <SectionCategoryIcon
-                icon={ShoppingBag}
-                className="h-6 w-6 bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200 [&_svg]:h-3 [&_svg]:w-3"
-              />
-            </span>
-            <span
-              className="block min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
-              title={item.articleName || undefined}
-            >
-              {item.articleName || '—'}
-            </span>
-          </div>
-        ),
+        cell: (item) => {
+          const label = item.articleName?.trim() || '—';
+          const identityMeta = inventoryIdentityMeta(item, t);
+          return (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={t('nav.garments-inventory')} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={ShoppingBag}
+                    className="h-6 w-6 bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200 [&_svg]:h-3 [&_svg]:w-3"
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold leading-4 text-foreground transition-colors group-hover:text-primary"
+                  title={label !== '—' ? label : undefined}
+                >
+                  {label}
+                </span>
+              </div>
+              <span className="min-w-0 truncate pl-7 text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                {identityMeta}
+              </span>
+            </div>
+          );
+        },
       },
       brand: {
         field: 'brand',

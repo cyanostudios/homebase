@@ -190,7 +190,8 @@ export const GarmentList: React.FC = () => {
   useMobileActions({
     onAdd: () =>
       attemptNavigation(() => (isInventory ? openInventoryPanel(null) : openGarmentPanel(null))),
-    onSettings: () => openGarmentsSettings(isInventory ? 'inventory' : 'lists'),
+    onSettings: () =>
+      attemptNavigation(() => openGarmentsSettings(isInventory ? 'inventory' : 'lists')),
   });
 
   const { searchTerm, setSearchTerm } = usePersistedListSearch('garments');
@@ -570,10 +571,18 @@ export const GarmentList: React.FC = () => {
       return;
     }
     if (isGarmentPanelOpen && modeMatchesPanel) {
-      attemptNavigation(() => {
-        closeGarmentPanel();
-        setPreviewInventory(item);
-      });
+      if (
+        panelMode === 'view' &&
+        currentInventoryItem &&
+        String(currentInventoryItem.id) === String(item.id)
+      ) {
+        attemptNavigation(() => {
+          closeGarmentPanel();
+          setPreviewInventory(null);
+        });
+        return;
+      }
+      attemptNavigation(() => openInventoryForView(item));
       return;
     }
     setPreviewInventory((current) =>
@@ -594,13 +603,35 @@ export const GarmentList: React.FC = () => {
     await inlineFormRef.current?.submit();
   }, []);
 
+  const handleInlineFormCancel = useCallback(() => {
+    if (panelMode === 'edit') {
+      if (isInventory && currentInventoryItem) {
+        openInventoryForView(currentInventoryItem);
+        return;
+      }
+      if (!isInventory && currentGarment) {
+        openGarmentForView(currentGarment);
+        return;
+      }
+    }
+    closeGarmentPanel();
+  }, [
+    closeGarmentPanel,
+    currentGarment,
+    currentInventoryItem,
+    isInventory,
+    openGarmentForView,
+    openInventoryForView,
+    panelMode,
+  ]);
+
   const handleInlineFormClose = useCallback(() => {
     if (inlineFormRef.current) {
       inlineFormRef.current.cancel();
       return;
     }
-    closeGarmentPanel();
-  }, [closeGarmentPanel]);
+    handleInlineFormCancel();
+  }, [handleInlineFormCancel]);
 
   const handleInlineFormOnSave = useCallback(
     async (data: Parameters<typeof saveGarment>[0]) => saveGarment(data),
@@ -929,7 +960,11 @@ export const GarmentList: React.FC = () => {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={() => openGarmentsSettings(isInventory ? 'inventory' : 'lists')}
+                      onClick={() =>
+                        attemptNavigation(() =>
+                          openGarmentsSettings(isInventory ? 'inventory' : 'lists'),
+                        )
+                      }
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle
@@ -1129,7 +1164,7 @@ export const GarmentList: React.FC = () => {
                       currentGarment={isInventory ? null : currentGarment}
                       currentItem={isInventory ? null : currentGarment}
                       onSave={handleInlineFormOnSave}
-                      onCancel={closeGarmentPanel}
+                      onCancel={handleInlineFormCancel}
                       stacked
                     />
                   </div>

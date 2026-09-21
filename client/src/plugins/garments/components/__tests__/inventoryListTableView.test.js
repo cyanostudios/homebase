@@ -85,6 +85,15 @@ describe('Garment inventory list split view wiring', () => {
     expect(listSrc).toMatch(/teamId.*garments\.team|garments\.team[\s\S]*teamId/);
   });
 
+  test('inventory table shows brand, qty, and recommended price as identity meta', () => {
+    expect(tableSrc).toMatch(/inventoryIdentityMeta/);
+    expect(tableSrc).toMatch(/garments\.qty/);
+    expect(tableSrc).toMatch(/recommendedPrice/);
+    expect(tableSrc).toMatch(/item\.brand/);
+    expect(tableSrc).toMatch(/pl-7 text-\[10px\]/);
+    expect(tableSrc).not.toMatch(/recommendedPriceShort/);
+  });
+
   test('person matrix shows created under name and sorts by createdAt', () => {
     const matrixSrc = fs.readFileSync(path.join(__dirname, '../PersonMatrix.tsx'), 'utf8');
     expect(matrixSrc).toMatch(/formatDate\(person\.createdAt\)/);
@@ -97,17 +106,24 @@ describe('Garment inventory list split view wiring', () => {
     expect(viewSrc).toMatch(/InventoryQuickContextPanel/);
     expect(panelSrc).toMatch(/InventoryDetailHeaderMenus/);
     expect(panelSrc).toMatch(/leading=\{titleLeading\}/);
+    expect(panelSrc).toMatch(/useSearchParams/);
+    expect(panelSrc).toMatch(/LIST_FILTER_CHIP_ROW_CLASS/);
+    expect(panelSrc).toMatch(/'information'/);
+    expect(panelSrc).toMatch(/value === 'properties'/);
+    expect(panelSrc).not.toMatch(/id: 'properties'/);
+    expect(panelSrc).toMatch(/'variants'/);
+    expect(panelSrc).toMatch(/'lists'/);
+    expect(panelSrc).toMatch(/'activity'/);
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/GarmentForm/);
     expect(listSrc).toMatch(/InlinePanelFormActions/);
     expect(listSrc).toMatch(/isGarmentPanelOpen/);
     expect(formSrc).toMatch(/stacked\?: boolean/);
-    // Mail detail: stacked forces single column for both list and inventory forms
-    expect(formSrc).toMatch(/stacked \? 'grid-cols-1'/);
-    expect(formSrc).toMatch(/sidebar=\{!stacked && !isInventory \? formSidebar : undefined\}/);
-    expect(formSrc).toMatch(
-      /leftSidebar=\{!stacked && isInventory \? inventoryLeftSidebar : undefined\}/,
-    );
+    expect(formSrc).toMatch(/gridClassName="grid-cols-1"/);
+    expect(formSrc).toMatch(/INVENTORY_FORM_EDIT_DISABLED_TABS/);
+    expect(formSrc).toMatch(/inventoryFormHeader/);
+    expect(formSrc).not.toMatch(/leftSidebar/);
+    expect(formSrc).not.toMatch(/inventoryLeftSidebar/);
   });
 
   test('inventory quick context can assign item to lists', () => {
