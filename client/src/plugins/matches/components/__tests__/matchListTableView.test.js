@@ -77,6 +77,14 @@ describe('MatchList table view wiring', () => {
     expect(settingsSrc).not.toMatch(/TableColumnsSettingsSection/);
   });
 
+  test('settings is full-page only; no legacy panel settings or inline category buttons', () => {
+    expect(listSrc).toMatch(/matchesContentView === 'settings'/);
+    expect(listSrc).toMatch(/MatchSettingsView/);
+    expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
+    expect(settingsSrc).not.toMatch(/renderCategoryButtonsInline/);
+    expect(settingsSrc).not.toMatch(/panelMode === 'settings'/);
+  });
+
   test('list split view previews matches on wide screens without opening the global panel', () => {
     expect(listSrc).toMatch(/previewMatch/);
     expect(listSrc).toMatch(/MatchView/);

@@ -4,6 +4,18 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-22 – Teams/Schedule/Matches: drop dead settings chrome
+
+**Typ:** cleanup / UX  
+**Scope:** Matches — removed unused deprecated `renderCategoryButtonsInline` from `MatchSettingsView` / `MatchList`; settings remain via `matchesContentView === 'settings'` + `MatchSettingsView`. Schedule — removed unused deprecated `iconClassName` from `ScheduleLockToggle` (never read; round button uses standard icon size). Teams — no dead chrome (already full-page `TeamsSettingsView` via `teamsContentView`); lock-in tests only.  
+**QA:** Godkänt (scoped teams+schedule+matches 2026-09-22). **Security:** Approved (UI-only; no new API/auth surface). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Matches/Teams/Schedule settings stay full-page content views. Never-read settings/lock props are gone.
+
+**Begränsningar:** Residual `ScheduleAppSettings.locked` (migrated to `locks.default` on load) is a data-contract concern, not UI chrome. Guides/Slots may still pass `renderCategoryButtonsInline` (out of this scope).
+
+---
+
 ## 2026-09-22 – Cups/Clubdesk: drop dead settings chrome
 
 **Typ:** cleanup / UX  

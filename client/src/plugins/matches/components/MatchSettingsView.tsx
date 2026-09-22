@@ -31,8 +31,6 @@ export type MatchSettingsCategory = 'api';
 interface MatchSettingsViewProps {
   selectedCategory?: MatchSettingsCategory;
   onSelectedCategoryChange?: (category: MatchSettingsCategory) => void;
-  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
 

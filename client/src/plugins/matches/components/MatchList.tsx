@@ -681,7 +681,6 @@ export function MatchList() {
           <MatchSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
             onClose={closeMatchSettingsView}
           />
         </div>

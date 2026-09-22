@@ -10,8 +10,6 @@ export type ScheduleLockToggleProps = {
   disabled?: boolean;
   onToggle: (nextLocked: boolean) => void | boolean | Promise<void | boolean>;
   className?: string;
-  /** @deprecated Round button uses standard icon size. */
-  iconClassName?: string;
 };
 
 const lockedContentClass =
