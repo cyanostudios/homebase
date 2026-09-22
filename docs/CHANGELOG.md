@@ -4,15 +4,39 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-22 – Cups/Clubdesk: drop dead settings chrome
+
+**Typ:** cleanup / UX  
+**Scope:** Cups — removed unused deprecated `renderCategoryButtonsInline` from `CupsSettingsView` / `CupsList`; `panelMode` is `'create' | 'edit' | 'view'` only; settings remain via `cupsContentView === 'settings'` + `CupsSettingsView`. Clubdesk — removed orphan settings content-view API (`clubdeskContentView`, `ClubdeskSettingsTab`, `openClubdeskSettings` / `closeClubdeskSettingsView`); `ClubdeskSettingsView` was already gone; Info stays on route `/clubdesk/info` → `ClubdeskInfoView`.  
+**QA:** Godkänt (scoped cups+clubdesk 2026-09-22). **Security:** Approved (UI-only; no new API/auth surface). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Cups settings stay full-page (appearance/import). Clubdesk has no plugin settings shell — guide/price-list category catalog remains on the edit forms; site Info is a dedicated nav page.
+
+**Begränsningar:** Historical CHANGELOG/ADR rows that named `ClubdeskSettingsTab = 'view'` describe superseded chrome (repaired below / in ADR). Same-commit Tools hygiene (Files/Mail/Pulses/AI Providers) documented separately where applicable.
+
+---
+
+## 2026-09-22 – Tools: Files full-page settings only; drop dead routing prop
+
+**Typ:** cleanup / UX  
+**Scope:** Tools nav plugins — Files: removed unreachable `FileForm` `panelMode === 'settings'` branch; `panelMode` is `'create' | 'edit' | 'view'` only; settings via `filesContentView === 'settings'` + `FileSettingsView` (body still `FileSettingsForm`). Mail / Pulses / AI Providers: removed unused deprecated `renderCategoryButtonsInline` from routing list mounts and Routing prop types. Ingest: no dead chrome candidates.  
+**QA:** Godkänt (scoped Tools 2026-09-22). **Security:** Approved (UI-only; cloud settings write path unchanged). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Files settings only open as the full-page cloud-storage shell. Dead panel settings path and never-read routing category-button prop are gone.
+
+**Begränsningar:** `FileSettingsForm` remains as the settings body component (not mounted from `FileForm`). Same-commit Apps carryover (Cups/Clubdesk) documented separately where applicable.
+
+---
+
 ## 2026-09-22 – Estimates/Invoices: drop dead settings prop; form header actions
 
 **Typ:** cleanup / UX  
-**Scope:** Estimates + Invoices — removed unused deprecated `renderCategoryButtonsInline` from `EstimateSettingsView` / `InvoiceSettingsView` (and no-op pass from `InvoicesList`); desktop create/edit: `InlinePanelFormActions` as `headerTrailing` in the form header card (view-chrome parity); `EstimatesStatisticsView` title uses shared `PLUGIN_PAGE_*` heading classes. Follow-on hygiene in same pass: same dead prop removed from Cups/Mail/Pulses/AI Providers routing shells; Clubdesk dead settings content-view API removed; Files no longer branches `FileForm` on `panelMode === 'settings'` (settings stay on `FileSettingsForm` via content view); Cups `panelMode` without `'settings'`.  
+**Scope:** Estimates + Invoices — removed unused deprecated `renderCategoryButtonsInline` from `EstimateSettingsView` / `InvoiceSettingsView` (and no-op pass from `InvoicesList`); desktop create/edit: `InlinePanelFormActions` as `headerTrailing` in the form header card (view-chrome parity); `EstimatesStatisticsView` title uses shared `PLUGIN_PAGE_*` heading classes. Follow-on hygiene in same pass: same dead prop removed from Cups/Mail/Pulses/AI Providers routing shells; Clubdesk dead settings content-view API removed; Files no longer branches `FileForm` on `panelMode === 'settings'` (settings stay on `FileSettingsView` / `FileSettingsForm` via content view); Cups `panelMode` without `'settings'`.  
 **QA:** Godkänt (scoped Estimates/Invoices 2026-09-22). **Security:** Approved (UI-only for Estimates/Invoices). **Local-first; not a prod release** by itself.
 
 **Sammanfattning:** Settings remain full-page numbering shells only. Dead category-button prop (never read) is gone. Mail-layout create/edit puts Close/Update in the form title row instead of a bar above the form — same as Contacts/Notes/Tasks.
 
-**Begränsningar:** Some plugins may still keep panel settings forms (e.g. Files `FileSettingsForm` mount path). Same-day commit carryover (fit-summary m.m.) is out of Estimates/Invoices QA scope.
+**Begränsningar:** Same-day commit carryover (fit-summary m.m.) is out of Estimates/Invoices QA scope. Tools Files dual-path removal is covered under the Tools changelog entry above (QA/Security scoped separately).
 
 ---
 
@@ -24,7 +48,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 **Sammanfattning:** Contacts settings only open as the full-page Tags/Import shell. Dead panel settings form and unreachable `panelMode: 'settings'` are gone. Unused assignment-row chrome removed (no production imports).
 
-**Begränsningar:** Older CHANGELOG rows may still name `ContactSettingsForm` as historical fact. Files and some provider plugins may still mount panel settings forms; not changed here. Security: no new API/auth surface (ui-only delete).
+**Begränsningar:** Older CHANGELOG rows may still name `ContactSettingsForm` as historical fact. Files dual panel-settings path removed under Tools entry (2026-09-22). Security: no new API/auth surface (ui-only delete).
 
 ---
 
@@ -36,7 +60,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 **Sammanfattning:** Notes settings only open as the full-page import shell (same pattern Tasks already used). Dead panel settings form and unreachable `panelMode: 'settings'` are gone. Mail-layout create/edit puts Close/Update in the form title row instead of a bar above the form.
 
-**Begränsningar:** Historical docs/CHANGELOG may still name `NoteSettingsForm` / panel `settings` mode — those describe superseded UI. Provider plugins (Mail/Pulse/AI) and Files may still mount settings forms differently; not changed here.
+**Begränsningar:** Historical docs/CHANGELOG may still name `NoteSettingsForm` / panel `settings` mode — those describe superseded UI. Files dual panel-settings path removed under Tools entry (2026-09-22); Mail/Pulse/AI Providers `*SettingsForm` remain the registry create/edit Form (not a panel dual path).
 
 ---
 
@@ -3479,7 +3503,7 @@ DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:task-shares
 
 **Verifierat beteende (kod):**
 
-- **Clubdesk Guides:** [`ClubdeskForm.tsx`](../client/src/plugins/clubdesk/components/ClubdeskForm.tsx) — Guide category-kort (lägg till / ordna / radera / klicka för tilldela). Settings View-only ([`ClubdeskContext.tsx`](../client/src/plugins/clubdesk/context/ClubdeskContext.tsx) `ClubdeskSettingsTab = 'view'`).
+- **Clubdesk Guides:** [`ClubdeskForm.tsx`](../client/src/plugins/clubdesk/components/ClubdeskForm.tsx) — Guide category-kort (lägg till / ordna / radera / klicka för tilldela). **Superseded 2026-09-22:** no Clubdesk settings shell / `ClubdeskSettingsTab` (orphan API removed); Info is `/clubdesk/info` → `ClubdeskInfoView`.
 - **Instructions:** speglad UX i [`InstructionForm.tsx`](../client/src/plugins/instructions/components/InstructionForm.tsx); Settings View-only.
 - **Delete API:** optional body `{ moveToCategory }` — [`plugins/clubdesk/model.js`](../plugins/clubdesk/model.js), [`priceListModel.js`](../plugins/clubdesk/priceListModel.js), [`plugins/instructions/model.js`](../plugins/instructions/model.js). FE skickar options **endast** efter dialog (`withReassignment`); annars DELETE utan body.
 - **Price list:** samma delete-integritet i [`PriceListForm.tsx`](../client/src/plugins/clubdesk/components/PriceListForm.tsx).

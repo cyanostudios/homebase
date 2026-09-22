@@ -77,6 +77,7 @@ Diagnostic routes **`/storage/objects`** and **`/storage/google-drive/health`** 
 - **List browse:** table-only mail-layout (`FileList` / `FileListTable`). Row click shows stacked `FileView` in the detail column (`FileQuickContextPanel` is the view header card). There is **no** sticky list-side QC. Compact viewport uses panel flow.
 - **Exception — Files delete surface:** Delete is on `FileDetailHeaderMenus` (`ConfirmDialog` → `getDeleteMessage` → `deleteFile`), not in the QC body. Bulk delete remains on the list `BulkDeleteModal`. The earlier “Delete inside list QC” waiver does **not** apply — list QC is gone.
 - Form: create keeps inline Save/Cancel; edit uses shell header Close/Update. i18n `en`/`sv`.
+- **Settings (full-page only):** `openFileSettings` sets `filesContentView === 'settings'`; `FileList` mounts `FileSettingsView` → `FileSettingsForm` → `CloudStorageSettings`. `FileForm` does **not** branch on `panelMode === 'settings'` (removed 2026-09-22).
 - Cloud settings: Drive-only + ConfirmDialog.
 - Card/table thumbs: images (non-SVG) via download URL (`?inline=1`); SVG excluded client-side and refused inline server-side (**F-SVG-1**).
 
