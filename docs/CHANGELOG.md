@@ -4,6 +4,42 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-22 – Contacts: remove legacy panel settings and orphan AssignmentRow
+
+**Typ:** cleanup / UX  
+**Scope:** Contacts — deleted `ContactSettingsForm` and orphan `ContactAssignmentRow`; `ContactForm` no longer branches on `panelMode === 'settings'`; `panelMode` is `'create' | 'edit' | 'view'` only; settings via `contactsContentView === 'settings'` + `ContactSettingsView`. Desktop create/edit: `InlinePanelFormActions` as `headerTrailing` in the form header card (view-chrome parity).  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Contacts settings only open as the full-page Tags/Import shell. Dead panel settings form and unreachable `panelMode: 'settings'` are gone. Unused assignment-row chrome removed (no production imports).
+
+**Begränsningar:** Older CHANGELOG rows may still name `ContactSettingsForm` as historical fact. Files and some provider plugins may still mount panel settings forms; not changed here. Security: no new API/auth surface (ui-only delete).
+
+---
+
+## 2026-09-22 – Notes/Tasks: remove legacy panel settings; inline form header actions
+
+**Typ:** cleanup / UX  
+**Scope:** Notes — deleted `NoteSettingsForm`; `NoteForm` no longer branches on `panelMode === 'settings'`; `panelMode` is `'create' | 'edit' | 'view'` only; settings via `notesContentView === 'settings'` + `NotesSettingsView`. Notes/Tasks desktop create/edit: `InlinePanelFormActions` (Close/Update) passed as `headerTrailing` into the form header card (view-chrome parity).  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Notes settings only open as the full-page import shell (same pattern Tasks already used). Dead panel settings form and unreachable `panelMode: 'settings'` are gone. Mail-layout create/edit puts Close/Update in the form title row instead of a bar above the form.
+
+**Begränsningar:** Historical docs/CHANGELOG may still name `NoteSettingsForm` / panel `settings` mode — those describe superseded UI. Provider plugins (Mail/Pulse/AI) and Files may still mount settings forms differently; not changed here.
+
+---
+
+## 2026-09-22 – Garments: remove orphan PersonBlock UI
+
+**Typ:** cleanup / docs  
+**Scope:** deleted `PersonBlock.tsx`; admin/public person UI is `PersonMatrix` / `PublicPersonMatrix` only; operator/ADR/security/guide docs synced  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Dead two-row person UI removed (no production imports). Spreadsheet matrix unchanged. Public share still clears comments via API; Team column still omitted on public.
+
+**Begränsningar:** Older CHANGELOG/qa-log rows may still name `PersonBlock` as historical fact.
+
+---
+
 ## 2026-09-21 – Estimates: shared Offert footer (org + public tenant)
 
 **Typ:** bugfix  

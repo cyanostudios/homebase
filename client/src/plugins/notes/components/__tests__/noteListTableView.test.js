@@ -83,10 +83,19 @@ describe('NoteList table view wiring', () => {
     expect(tableSrc).toMatch(/selectionEnabled/);
   });
 
+  test('create/edit form is not legacy panel settings', () => {
+    const formSrc = fs.readFileSync(path.join(__dirname, '../NoteForm.tsx'), 'utf8');
+    expect(formSrc).not.toMatch(/NoteSettingsForm/);
+    expect(formSrc).not.toMatch(/panelMode === 'settings'/);
+    expect(listSrc).toMatch(/NotesSettingsView/);
+    expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
+  });
+
   test('desktop create/edit renders NoteForm in the detail column', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/NoteForm/);
     expect(listSrc).toMatch(/InlinePanelFormActions/);
+    expect(listSrc).toMatch(/headerTrailing/);
     expect(listSrc).toMatch(/inlineFormRef/);
     expect(listSrc).toMatch(/isNotePanelOpen/);
     expect(listSrc).toMatch(/panelMode === 'create' \|\| panelMode === 'edit'/);

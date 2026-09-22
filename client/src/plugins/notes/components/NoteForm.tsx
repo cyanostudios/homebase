@@ -39,8 +39,6 @@ import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmen
 
 import { useNotes } from '../hooks/useNotes';
 
-import { NoteSettingsForm } from './NoteSettingsForm';
-
 const RichTextEditor = React.lazy(() =>
   import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
 );
@@ -84,6 +82,8 @@ interface NoteFormProps {
   isSubmitting?: boolean;
   /** Single-column card stack (e.g. list detail column). */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(function NoteForm(
@@ -93,6 +93,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
     onCancel,
     isSubmitting: externalIsSubmitting = false,
     stacked: _stacked = false,
+    headerTrailing,
   },
   ref,
 ) {
@@ -101,7 +102,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
   const activeTab = parseNoteFormTab(searchParams.get('tab'));
   const { user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
-  const { validationErrors, clearValidationErrors, panelMode } = useNotes();
+  const { validationErrors, clearValidationErrors } = useNotes();
   const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
     useUnsavedChanges();
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
@@ -320,11 +321,6 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
     return next;
   }, [hasFilesPlugin, t]);
 
-  // All hooks above — settings return must not precede hooks (ContactForm pattern).
-  if (panelMode === 'settings') {
-    return <NoteSettingsForm ref={ref} onCancel={onCancel} />;
-  }
-
   const tabChips = (
     <div className={LIST_FILTER_CHIP_ROW_CLASS}>
       {tabs.map((tab) => {
@@ -534,6 +530,9 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
               </p>
             ) : null}
           </div>
+          {headerTrailing ? (
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          ) : null}
         </div>
       </div>
       <div className="border-t border-border/40 px-4 py-3">{tabChips}</div>

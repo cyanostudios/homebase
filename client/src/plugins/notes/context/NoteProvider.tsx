@@ -48,7 +48,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<ValidationError>();
 

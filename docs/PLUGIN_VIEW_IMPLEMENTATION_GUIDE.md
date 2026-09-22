@@ -168,7 +168,7 @@ Do **not** call `open*ForView` from the global Space handler. Full profile stays
 
 Use the **Contacts list header** (§4) — not `ListToolbar` — above the split. Outer page shell must use `PLUGIN_PAGE_LIST_SHELL_CLASS` (`overflow-x-clip` — `overflow-x-hidden` breaks sticky). Do **not** nest the header row inside a shrinking flex child.
 
-**Default (mail-layout):** **20/80** list|detail columns on desktop (`≥1024px` / `showDesktopSplit`). Left: table only. Right: stacked `*View`, inline `*Form` + `InlinePanelFormActions`, or `*StatisticsView` when nothing selected. Copy `ContactList.tsx` / `YourItemList.tsx`:
+**Default (mail-layout):** **20/80** list|detail columns on desktop (`≥1024px` / `showDesktopSplit`). Left: table only. Right: stacked `*View`, inline `*Form` with `headerTrailing={<InlinePanelFormActions … />}` in the form header title row (Close/Update — view-chrome parity; verified Notes/Tasks), or `*StatisticsView` when nothing selected. Do **not** put a separate Close/Update bar above the form. Copy `ContactList.tsx` / `YourItemList.tsx`:
 
 ```tsx
 <div
@@ -193,7 +193,7 @@ Use the **Contacts list header** (§4) — not `ListToolbar` — above the split
       role="region"
       aria-label="Item preview"
     >
-      {/* inlineForm ? InlinePanelFormActions + *Form : detailItem ? *View stacked : *StatisticsView */}
+      {/* inlineForm ? *Form stacked headerTrailing={InlinePanelFormActions} : detailItem ? *View stacked : *StatisticsView */}
     </aside>
   ) : null}
 </div>
@@ -370,7 +370,7 @@ import {
 
 | Token                                                    | Use on                                                                                                             |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `FORM_INPUT_CLASS`                                       | Settings cards; dense list-detail blocks (e.g. garments `PersonBlock`) until migrated                              |
+| `FORM_INPUT_CLASS`                                       | Settings cards; dense list-detail blocks (e.g. garments matrix-adjacent editors) until migrated                    |
 | `FORM_PROP_CONTROL_CLASS`                                | Narrow filled property-row controls (`max-w-[180px]`)                                                              |
 | `FORM_TEXTAREA_CLASS`                                    | Settings / dense `Textarea`                                                                                        |
 | `FORM_COMPACT_INPUT_CLASS` / `FORM_COMPACT_SELECT_CLASS` | Dense rows: invoice line items, garment variants, garments `PersonMatrix` cells, inventory QC quantity             |

@@ -261,7 +261,7 @@ List views place toolbar actions inside the main list card (same shell as table/
 - No bottom dirty-Save footer for plugins that use dirty-state Save; that Save lives in the header like Core Settings. No `panelMode === 'settings'` in the detail `Form` for plugins that use full-page settings.
 - **Save variants (verified):** Dirty header Save — tasks, notes, contacts, slots, matches, cups, instructions, teams (season), estimates, mail, pulses. Per-section / immediate save in children — guides, requests, schedule, files (cloud credentials).
 
-**Panel settings (legacy):** When a plugin still opens settings in the detail panel:
+**Panel settings (legacy):** Only for plugins that have **not** migrated to full-page settings. **Notes and Tasks do not use this path** (settings = `*ContentView` + `NotesSettingsView` / `TaskSettingsView`; no `*SettingsForm` in the detail `Form`). When a plugin still opens settings in the detail panel (e.g. Files):
 
 - **Content:** Use `DetailSection` to group settings (e.g. "Cloud storage", "Email provider").
 - **Header/Footer actions:** `PanelFooter` for non-core plugins in `settings` mode shows **Close only**; the settings form is expected to save inline (or via its own controls). Core `settings` plugin footer shows Close + Save. See `PanelFooter.tsx` and `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §7.

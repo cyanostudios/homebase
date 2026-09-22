@@ -43,12 +43,9 @@ describe('NoteForm edit UX parity (NoteView shell + focus)', () => {
     expect(formSrc).toMatch(/activeTab === 'information' && !focusMode/);
   });
 
-  test('settings early return is after all hooks (rules-of-hooks)', () => {
-    const settingsReturn = formSrc.indexOf("if (panelMode === 'settings')");
-    const tabsMemo = formSrc.indexOf('const tabs = useMemo');
-    expect(settingsReturn).toBeGreaterThan(-1);
-    expect(tabsMemo).toBeGreaterThan(-1);
-    expect(tabsMemo).toBeLessThan(settingsReturn);
+  test('create/edit form is not legacy panel settings', () => {
+    expect(formSrc).not.toMatch(/NoteSettingsForm/);
+    expect(formSrc).not.toMatch(/panelMode === 'settings'/);
   });
 
   test('tab error indicator maps validation fields', () => {

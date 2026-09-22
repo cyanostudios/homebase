@@ -90,6 +90,8 @@ interface TaskFormProps {
   isSubmitting?: boolean;
   /** Single-column card stack (e.g. list detail column). */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(function TaskForm(
@@ -99,6 +101,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
     onCancel,
     isSubmitting: externalIsSubmitting = false,
     stacked: _stacked = false,
+    headerTrailing,
   },
   ref,
 ) {
@@ -416,6 +419,9 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
               </p>
             ) : null}
           </div>
+          {headerTrailing ? (
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          ) : null}
         </div>
         <div className="mt-4">{tabChips}</div>
       </div>

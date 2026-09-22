@@ -55,7 +55,7 @@ The hook returned by `plugin.hook()` should expose (as applicable):
 
 **Create / edit (`panelMode` create | edit):** use **inline Save/Cancel** in the form body. Do **not** register `window.submit*Form` / `window.cancel*Form` for these modes (`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12).
 
-**Full-page settings (`*ContentView === 'settings'`):** settings views live on the list route (`TeamsSettingsView`, `TaskSettingsView`, `MatchSettingsView`, etc.) inside `PluginSettingsPageShell` — not inside the detail panel `Form` component. Dirty Save belongs in the shell header (`saveAction`); Close via `trailing` / `inlineTrailing`.
+**Full-page settings (`*ContentView === 'settings'`):** settings views live on the list route (`NotesSettingsView`, `TaskSettingsView`, `TeamsSettingsView`, `MatchSettingsView`, etc.) inside `PluginSettingsPageShell` — not inside the detail panel `Form` component. Dirty Save belongs in the shell header (`saveAction`); Close via `trailing` / `inlineTrailing`. Notes and Tasks `panelMode` is `'create' | 'edit' | 'view'` only.
 
 **Legacy settings footer (`window.submit*`):** some older plugins still register globals for shell footer integration. New plugins should use `PanelFormHandle` + inline Save/Cancel for CRUD forms; see `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` §3.
 

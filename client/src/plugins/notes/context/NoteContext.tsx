@@ -7,7 +7,7 @@ import type { Note, NoteShare, ValidationError } from '../types/notes';
 export interface NoteContextType {
   isNotePanelOpen: boolean;
   currentNote: Note | null;
-  panelMode: 'create' | 'edit' | 'view' | 'settings';
+  panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   notes: Note[];
   openNotePanel: (note: Note | null) => void;
