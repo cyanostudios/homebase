@@ -4,6 +4,16 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-22 – Garments: list duplicate copies team, inventory, sizes
+
+**Typ:** Fix  
+**Scope:** `createListDuplicate` in `GarmentProvider`; helpers in `listDuplicate.ts`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Duplicating a garment list now assigns the same inventory articles, copies person `teamId`, and restores `ctSizes` / `ctAudiences` (plus fit-summary procurement). Audience/size selectors work on the copy without a migration.
+
+---
+
 ## 2026-09-22 – Teams/Schedule/Matches: drop dead settings chrome
 
 **Typ:** cleanup / UX  

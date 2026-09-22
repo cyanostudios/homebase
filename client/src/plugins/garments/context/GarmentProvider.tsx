@@ -36,6 +36,10 @@ import {
   buildDuplicatedItemVariantPayloads,
   validateInventoryPayload,
 } from '../utils/inventoryValidation';
+import {
+  buildDuplicatedListPersonPayload,
+  buildDuplicatedPersonCtPatch,
+} from '../utils/listDuplicate';
 import { groupInventoryImportRows } from '../utils/groupInventoryImportRows';
 import {
   buildInventoryImportFailureMessages,
@@ -660,10 +664,9 @@ export function GarmentProvider({
   const createListDuplicate = useCallback(
     async (item: GarmentList, newName: string): Promise<GarmentList> => {
       const nextName = (newName ?? '').trim() || item.name?.trim() || t('garments.list');
-      const source =
-        item.persons && item.persons.length > 0
-          ? item
-          : ((await garmentsApi.getList(item.id)) ?? item);
+      // Always reload the source list so assigned inventory + ct sizes/audiences are present
+      // (list-index payloads often omit persons / assignment detail).
+      const source = (await garmentsApi.getList(item.id)) ?? item;
       const created = await garmentsApi.createList({
         name: nextName,
         teamId: source.teamId ?? null,
@@ -672,23 +675,33 @@ export function GarmentProvider({
             ? source.checkboxColumns
             : createDefaultCheckboxColumns(),
       });
+      // Inventory must be assigned before persons so inv_* checkbox values and
+      // ct size/audience keys are accepted and audience/size UI is available.
+      for (const inventoryItemId of source.assignedInventoryItemIds ?? []) {
+        await garmentsApi.assignInventoryItemToList(created.id, inventoryItemId);
+      }
       for (const person of source.persons ?? []) {
-        await garmentsApi.createPerson(created.id, {
-          name: person.name,
-          shirtSize: person.shirtSize,
-          shortsSize: person.shortsSize,
-          socksSize: person.socksSize,
-          jerseyNumber: person.jerseyNumber,
-          jerseyName: person.jerseyName,
-          initials: person.initials,
-          comment: person.comment,
-          contactId: person.contactId,
-          checkboxValues: person.checkboxValues ?? {},
-          sortOrder: person.sortOrder,
-        });
+        const createdPerson = await garmentsApi.createPerson(
+          created.id,
+          buildDuplicatedListPersonPayload(person),
+        );
+        const ctPatch = buildDuplicatedPersonCtPatch(person);
+        if (ctPatch) {
+          await garmentsApi.updatePersonCtSizes(created.id, createdPerson.id, ctPatch);
+        }
+      }
+      const procurement = source.fitSummaryProcurement;
+      if (procurement && Object.keys(procurement).length > 0) {
+        await garmentsApi.patchFitSummaryProcurement(created.id, procurement);
       }
       const full = (await garmentsApi.getList(created.id)) ?? created;
       setGarmentLists((prev) => [full, ...prev]);
+      try {
+        const inventory = await garmentsApi.getInventory();
+        setInventoryItems(inventory);
+      } catch {
+        // List copy succeeded; inventory badge refresh is best-effort.
+      }
       setGarmentsContentView('lists');
       navigate('/garments');
       return full;
