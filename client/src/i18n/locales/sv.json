@@ -1073,6 +1073,15 @@
       "cash_invoice": "Kontantfaktura",
       "receipt": "Kvitto"
     },
+    "filter": {
+      "draft": "Utkast",
+      "sent": "Skickad",
+      "partiallyPaid": "Delvis betald",
+      "paid": "Betald",
+      "overdue": "Förfallen",
+      "canceled": "Annullerad",
+      "unpaid": "Obetald"
+    },
     "paymentTerms": "Betalningsvillkor",
     "paymentTermsImmediate": "Omedelbart",
     "paymentTermsDays": "{{count}} dagar",
@@ -1145,13 +1154,44 @@
   "estimates": {
     "listDescription": "Skapa, skicka och följ offerter till godkännande.",
     "settingsTitle": "Offerter – Inställningar",
-    "settingsSubtitle": "Offertinställningar visas här när de finns.",
-    "settingsEmpty": "Inga inställningskategorier ännu. Listkolumner är fasta i kod (endast offertnummer).",
+    "settingsSubtitle": "Numrering och dokumentstandard för offerter.",
+    "settingsEmpty": "Inga inställningskategorier ännu.",
     "settingsCategories": {
+      "numbering": "Numrering",
+      "numberingDescription": "Ställ in hur offertnummer genereras.",
+      "numberingHint": "Prefix, år och startnummer för nya offerter.",
       "columns": "Tabellkolumner",
       "columnsDescription": "Välj vilka kolumner som visas i offerttabellen och i vilken ordning.",
       "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Offertnummer är alltid synligt."
     },
+    "noCustomer": "Ingen kund",
+    "previewTitle": "Offertförhandsvisning",
+    "previewHelp": "Så här ser offerten ut när den delas eller exporteras som PDF.",
+    "previewDraftNumber": "UTKAST",
+    "previewPageBreak": "Sidbrytning",
+    "previewPopupBlocked": "Kunde inte öppna förhandsvisning. Tillåt popup-fönster för den här sidan och försök igen.",
+    "previewOpenFailed": "Kunde inte öppna offertförhandsvisning. Försök igen.",
+    "downloadPdf": "Ladda ner PDF",
+    "generatingPdf": "Skapar PDF…",
+    "pdfDownloadFailed": "Kunde inte ladda ner PDF. Försök igen.",
+    "shareEstimate": "Dela offert",
+    "viewShare": "Visa delning",
+    "send": "Skicka",
+    "shareExpiredBlockedTitle": "Kan inte skapa delningslänk",
+    "shareExpiredBlockedMessage": "Offert {{number}} gick ut {{date}}. Delningslänkar kan bara skapas för offerter som fortfarande är giltiga. Uppdatera \"Giltig till\" i redigeringsläge för att skapa en delningslänk.",
+    "noLineItems": "Inga rader",
+    "relations": "Relationer",
+    "subtotalAfterEstimateDiscount": "Delsumma efter offertrabatt",
+    "convertToInvoice": "Konvertera till faktura",
+    "convertToInvoiceTitle": "Konvertera till faktura?",
+    "convertToInvoiceMessage": "Skapa en fakturautkast från offert {{number}}? Offerten markeras som fakturerad och kan inte längre redigeras.",
+    "convertDisabledNotAccepted": "Endast godkända offerter kan konverteras till faktura.",
+    "convertDisabledInvoiced": "Denna offert har redan konverterats till faktura.",
+    "convertDisabledInvoicesOff": "Aktivera fakturapluginet för att konvertera offerter.",
+    "editDisabledInvoiced": "Fakturerade offerter kan inte redigeras.",
+    "convertFailed": "Kunde inte konvertera offert till faktura.",
+    "acceptanceReasons": "Godkännandeskäl",
+    "rejectionReasons": "Avslagskäl",
     "searchPlaceholder": "Sök offerter...",
     "noMatch": "Inga offerter matchar sökningen.",
     "noYet": "Inga offerter ännu",
@@ -1181,11 +1221,14 @@
     "pricingSummary": "Prisöversikt",
     "lineItemsCount": "Rader ({{count}})",
     "tabs": {
-      "properties": "Egenskaper",
+      "information": "Information",
       "lines": "Rader",
+      "linked": "Länkade",
+      "linkedEmpty": "Inga länkade poster ännu.",
+      "activity": "Aktivitet",
+      "properties": "Egenskaper",
       "notes": "Anteckningar",
-      "notesEmpty": "Inga anteckningar ännu.",
-      "activity": "Aktivitet"
+      "notesEmpty": "Inga anteckningar ännu."
     },
     "quickInfo": {
       "items": "Rader",
@@ -1216,16 +1259,18 @@
       "total": "Totalt",
       "draft": "Utkast",
       "sent": "Skickad",
-      "accepted": "Godkänd"
+      "accepted": "Godkänd",
+      "invoiced": "Fakturerad"
     },
     "statistics": {
       "title": "Offertstatistik",
-      "description": "Översikt av utkast, skickade och godkända offerter.",
+      "description": "Översikt av utkast, skickade, godkända och fakturerade offerter.",
       "overview": "Översikt",
       "total": "Totalt",
       "draft": "Utkast",
       "sent": "Skickad",
-      "accepted": "Godkänd"
+      "accepted": "Godkänd",
+      "invoiced": "Fakturerad"
     }
   },
   "ingest": {

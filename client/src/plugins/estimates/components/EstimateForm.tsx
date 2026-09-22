@@ -1,15 +1,18 @@
 import {
-  Plus,
-  Trash2,
-  Copy,
-  FileSpreadsheet,
-  History,
-  List,
-  ListOrdered,
-  Percent,
   Calculator,
-  StickyNote,
+  Eye,
+  FileSpreadsheet,
+  Hash,
+  History,
+  Info,
+  Link2,
+  ListOrdered,
+  Package,
+  Percent,
+  Send,
   SlidersHorizontal,
+  StickyNote,
+  Truck,
 } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useImperativeHandle, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -23,26 +26,24 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
+import { EMPTY_ORGANIZATION, organizationApi } from '@/core/api/organizationApi';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DatePicker } from '@/core/ui/DatePicker';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
-  DETAIL_EMPTY_STATE_CLASS,
-  DETAIL_FIELD_LABEL_CLASS,
+  DETAIL_PROP_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import {
-  FORM_COMPACT_INPUT_CLASS,
-  FORM_COMPACT_SELECT_CLASS,
-  FORM_GHOST_SELECT_CLASS,
+  FORM_GHOST_INPUT_CLASS,
+  FORM_GHOST_PROP_CONTROL_CLASS,
+  FORM_GHOST_READONLY_CLASS,
   FORM_GHOST_TEXTAREA_CLASS,
-  FORM_INPUT_ERROR_CLASS,
-  FORM_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -50,20 +51,44 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
+import { DEFAULT_INVOICE_LINE_ITEM_UNIT } from '@/plugins/invoices/types/invoices';
+import {
+  buildInvoiceCustomerBlock,
+  displayNameFromEmail,
+  fetchLogoAsDataUrl,
+} from '@/plugins/invoices/utils/invoiceDocumentIdentity';
+import { INVOICE_FORM_INPUT_CLASS } from '@/plugins/invoices/utils/invoiceLineItemStyles';
+
 import { useEstimates } from '../hooks/useEstimates';
 import { Estimate, LineItem, calculateLineItem, calculateEstimateTotals } from '../types/estimate';
+import {
+  openEstimatePreviewWindow,
+  writeEstimatePreviewWindow,
+} from '../utils/openEstimatePreviewWindow';
+import { generateWebHTML } from '../webTemplate';
 
-type EstimateFormTab = 'properties' | 'lines' | 'notes' | 'activity';
+import { EstimateCustomerSelect } from './EstimateCustomerSelect';
+import { EstimateDocumentPreview } from './EstimateDocumentPreview';
+import { EstimateLineItemsEditor } from './EstimateLineItemsEditor';
+import { EstimatePricingSummary } from './EstimatePricingSummary';
+import { EstimateStatusSelect } from './EstimateStatusSelect';
 
-const ESTIMATE_FORM_TABS: EstimateFormTab[] = ['properties', 'lines', 'notes', 'activity'];
+const FACT_LABEL_CLASS =
+  'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
-/** Visible in edit for shell parity with View, but not selectable while editing. */
-const ESTIMATE_FORM_EDIT_DISABLED_TABS: ReadonlySet<EstimateFormTab> = new Set(['activity']);
+type EstimateFormTab = 'information' | 'lines' | 'linked' | 'activity';
+
+const ESTIMATE_FORM_TABS: EstimateFormTab[] = ['information', 'lines', 'linked', 'activity'];
+
+const ESTIMATE_FORM_EDIT_DISABLED_TABS: ReadonlySet<EstimateFormTab> = new Set([
+  'linked',
+  'activity',
+]);
 
 const TAB_ERROR_FIELDS: Record<EstimateFormTab, string[]> = {
-  properties: ['contactId', 'currency', 'validTo', 'status'],
+  information: ['contactId', 'currency', 'validTo', 'status', 'notes'],
   lines: ['lineItems'],
-  notes: ['notes'],
+  linked: [],
   activity: [],
 };
 
@@ -71,7 +96,7 @@ function parseEstimateFormTab(value: string | null): EstimateFormTab {
   if (value && ESTIMATE_FORM_TABS.includes(value as EstimateFormTab)) {
     return value as EstimateFormTab;
   }
-  return 'properties';
+  return 'information';
 }
 
 interface EstimateFormProps {
@@ -95,7 +120,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
         setSearchParams(
           (prev) => {
             const next = new URLSearchParams(prev);
-            if (tab === 'properties') {
+            if (tab === 'information') {
               next.delete('tab');
             } else {
               next.set('tab', tab);
@@ -123,12 +148,10 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
     }, [activeTab, setSearchParams]);
 
     const { validationErrors, clearValidationErrors } = useEstimates();
-    const { contacts } = useApp(); // Cross-plugin data access
+    const { user, contacts } = useApp();
     const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
       useGlobalNavigationGuard();
 
-    // Safety check for contacts
-    const safeContacts = contacts || [];
     const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
       useUnsavedChanges();
 
@@ -140,12 +163,15 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
       lineItems: [] as LineItem[],
       estimateDiscount: 0, // NEW: Estimate-level discount percentage
       notes: '',
+      orderNumber: '',
+      deliveryMethod: '',
       validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-      status: 'draft' as 'draft' | 'sent' | 'accepted' | 'rejected',
+      status: 'draft' as Estimate['status'],
     });
 
     // Track which items are recently duplicated for visual feedback
     const [duplicatedItemIds, setDuplicatedItemIds] = useState<Set<string>>(new Set());
+    const [showSentConfirm, setShowSentConfirm] = useState(false);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [totals, setTotals] = useState({
@@ -191,6 +217,8 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
           lineItems: migratedLineItems,
           estimateDiscount: currentEstimate.estimateDiscount || 0, // NEW: Load estimate discount
           notes: currentEstimate.notes || '',
+          orderNumber: currentEstimate.orderNumber || '',
+          deliveryMethod: currentEstimate.deliveryMethod || '',
           validTo: new Date(currentEstimate.validTo),
           status: currentEstimate.status || 'draft',
         });
@@ -217,6 +245,8 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
         lineItems: [],
         estimateDiscount: 0, // NEW: Reset estimate discount
         notes: '',
+        orderNumber: '',
+        deliveryMethod: '',
         validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         status: 'draft',
       });
@@ -254,13 +284,95 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
       );
     }, [attemptAction, onCancel]);
 
+    const openSharedStylePreview = useCallback(() => {
+      const win = openEstimatePreviewWindow();
+      if (!win) {
+        alert(
+          t('estimates.previewPopupBlocked', {
+            defaultValue: 'Could not open preview. Allow pop-ups for this site and try again.',
+          }),
+        );
+        return;
+      }
+
+      void (async () => {
+        try {
+          let organization = EMPTY_ORGANIZATION;
+          try {
+            const org = await organizationApi.getOrganization();
+            const logoUrl = org.logoUrl ? await fetchLogoAsDataUrl(org.logoUrl) : '';
+            organization = { ...org, logoUrl: logoUrl || org.logoUrl || '' };
+          } catch {
+            organization = EMPTY_ORGANIZATION;
+          }
+
+          const totals = calculateEstimateTotals(
+            formData.lineItems || [],
+            formData.estimateDiscount || 0,
+          );
+          const numberLabel = currentEstimate?.estimateNumber
+            ? formatDisplayNumber('estimates', String(currentEstimate.estimateNumber))
+            : currentEstimate?.id
+              ? formatDisplayNumber('estimates', String(currentEstimate.id))
+              : t('estimates.previewDraftNumber', { defaultValue: 'DRAFT' });
+          const contact =
+            formData.contactId && contacts
+              ? contacts.find((c) => String(c.id) === String(formData.contactId))
+              : null;
+          const customer = buildInvoiceCustomerBlock({
+            contactName: formData.contactName,
+            organizationNumber: formData.organizationNumber,
+            contactId: formData.contactId,
+            contact: contact || null,
+          });
+
+          const html = generateWebHTML({
+            id: currentEstimate?.id || 'draft',
+            estimateNumber: numberLabel,
+            contactName: formData.contactName,
+            organizationNumber: formData.organizationNumber,
+            currency: formData.currency || 'SEK',
+            lineItems: formData.lineItems || [],
+            estimateDiscount: formData.estimateDiscount || 0,
+            notes: formData.notes,
+            orderNumber: formData.orderNumber,
+            deliveryMethod: formData.deliveryMethod,
+            validTo: formData.validTo,
+            status: formData.status,
+            createdAt: currentEstimate?.createdAt || new Date(),
+            ...totals,
+            organization,
+            referencePerson: displayNameFromEmail(user?.email),
+            customer,
+          });
+
+          writeEstimatePreviewWindow(win, html, `Offert ${numberLabel}`, {
+            pageBreakLabel: t('estimates.previewPageBreak', { defaultValue: 'Page break' }),
+          });
+        } catch (error) {
+          console.error('Failed to open estimate preview', error);
+          try {
+            win.close();
+          } catch {
+            /* ignore */
+          }
+          alert(
+            t('estimates.previewOpenFailed', {
+              defaultValue: 'Could not open estimate preview. Try again.',
+            }),
+          );
+        }
+      })();
+    }, [contacts, currentEstimate, formData, t, user?.email]);
+
     useImperativeHandle(
       ref,
       () => ({
         submit: () => handleSubmit(),
         cancel: handleCancel,
+        preview: openSharedStylePreview,
       }),
-      [handleSubmit, handleCancel],
+      [handleSubmit, handleCancel, openSharedStylePreview],
     );
 
     const handleDiscardChanges = () => {
@@ -285,33 +397,84 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
       markDirty();
     };
 
-    const handleContactChange = (contactId: string) => {
-      const contact = safeContacts.find((c) => c.id === contactId);
+    const requestStatusChange = (nextStatus: string) => {
+      if (nextStatus === 'sent' && formData.status !== 'sent') {
+        setShowSentConfirm(true);
+        return;
+      }
+      updateField('status', nextStatus);
+    };
+
+    const confirmMarkAsSent = () => {
+      updateField('status', 'sent');
+      setShowSentConfirm(false);
+    };
+
+    const handleContactChange = (
+      contact: {
+        id: string | number;
+        companyName?: string;
+        organizationNumber?: string;
+        currency?: string;
+      } | null,
+    ) => {
       if (contact) {
         setFormData((prev) => ({
           ...prev,
-          contactId: contact.id,
-          contactName: contact.companyName,
+          contactId: String(contact.id),
+          contactName: contact.companyName || '',
           organizationNumber: contact.organizationNumber || '',
           currency: contact.currency || 'SEK',
         }));
         markDirty();
         clearValidationErrors();
+        return;
       }
+      setFormData((prev) => ({
+        ...prev,
+        contactId: '',
+        contactName: '',
+        organizationNumber: '',
+      }));
+      markDirty();
     };
 
     const addLineItem = () => {
       const newItem = calculateLineItem({
         id: Date.now().toString(),
+        kind: 'item',
         description: '',
         quantity: 1,
+        unit: DEFAULT_INVOICE_LINE_ITEM_UNIT,
         unitPrice: 0,
         discount: 0,
         vatRate: 25,
         sortOrder: formData.lineItems.length,
       });
-
       updateField('lineItems', [...formData.lineItems, newItem]);
+    };
+
+    const addTextFieldLineItem = () => {
+      const newItem = calculateLineItem({
+        id: Date.now().toString(),
+        kind: 'text',
+        description: '',
+        sortOrder: formData.lineItems.length,
+      });
+      updateField('lineItems', [...formData.lineItems, newItem]);
+    };
+
+    const moveLineItem = (index: number, direction: 'up' | 'down') => {
+      const items = [...formData.lineItems];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= items.length) {
+        return;
+      }
+      [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
+      items.forEach((item, i) => {
+        item.sortOrder = i;
+      });
+      updateField('lineItems', items);
     };
 
     const updateLineItem = (index: number, field: keyof LineItem, value: any) => {
@@ -343,7 +506,9 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
       const itemToRemove = formData.lineItems[index];
       setDuplicatedItemIds((prev) => {
         const newSet = new Set(prev);
-        newSet.delete(itemToRemove.id);
+        if (itemToRemove.id) {
+          newSet.delete(itemToRemove.id);
+        }
         return newSet;
       });
 
@@ -377,21 +542,21 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
     const tabs = useMemo(
       () => [
         {
-          id: 'properties' as const,
-          label: t('estimates.tabs.properties'),
-          icon: SlidersHorizontal,
+          id: 'information' as const,
+          label: t('estimates.tabs.information', { defaultValue: 'Information' }),
+          icon: Info,
           count: null as number | null,
         },
         {
           id: 'lines' as const,
           label: t('estimates.tabs.lines'),
-          icon: List,
+          icon: ListOrdered,
           count: lineItemCount > 0 ? lineItemCount : null,
         },
         {
-          id: 'notes' as const,
-          label: t('estimates.tabs.notes'),
-          icon: StickyNote,
+          id: 'linked' as const,
+          label: t('estimates.tabs.linked', { defaultValue: 'Linked' }),
+          icon: Link2,
           count: null as number | null,
         },
         {
@@ -483,7 +648,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
         <div className="plugin-estimates">
           <DetailLayout gridClassName="grid-cols-1">
             <form
-              className="space-y-6"
+              className="space-y-4"
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSubmit();
@@ -529,419 +694,296 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                 </Card>
               )}
 
-              {activeTab === 'properties' ? (
-                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                  <DetailSection
-                    title={t('estimates.estimateProperties')}
-                    icon={SlidersHorizontal}
-                    subtleTitle
-                    className="p-6"
-                  >
-                    <div className="space-y-3">
-                      <div>
-                        <Label htmlFor="estimate-contact" className={DETAIL_FIELD_LABEL_CLASS}>
-                          {t('estimates.fieldContact')}
-                        </Label>
-                        <NativeSelect
-                          id="estimate-contact"
-                          value={formData.contactId}
-                          onChange={(e) => handleContactChange(e.target.value)}
-                          className={cn(
-                            FORM_GHOST_SELECT_CLASS,
-                            getFieldError('contactId') && FORM_INPUT_ERROR_CLASS,
-                          )}
-                          required
-                        >
-                          <option value="">{t('estimates.selectContact')}</option>
-                          {safeContacts.map((contact) => (
-                            <option key={contact.id} value={contact.id}>
-                              {contact.companyName}{' '}
-                              {contact.organizationNumber && `(${contact.organizationNumber})`}
-                            </option>
-                          ))}
-                        </NativeSelect>
-                        {getFieldError('contactId') && (
-                          <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                            {getFieldError('contactId')?.message}
-                          </p>
-                        )}
-                      </div>
+              {activeTab === 'information' ? (
+                <>
+                  <div className="grid grid-cols-1 items-stretch gap-4">
+                    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+                      <EstimateCustomerSelect
+                        contactId={formData.contactId}
+                        contactName={formData.contactName}
+                        estimateNumber={currentEstimate?.estimateNumber || currentEstimate?.id}
+                        editable={formData.status === 'draft'}
+                        onCustomerChange={handleContactChange}
+                        errorMessage={getFieldError('contactId')?.message ?? null}
+                      />
+                    </Card>
 
-                      <div>
-                        <Label htmlFor="estimate-currency" className={DETAIL_FIELD_LABEL_CLASS}>
-                          {t('estimates.fieldCurrency')}
-                        </Label>
-                        <NativeSelect
-                          id="estimate-currency"
-                          value={formData.currency}
-                          onChange={(e) => updateField('currency', e.target.value)}
-                          className={FORM_GHOST_SELECT_CLASS}
-                        >
-                          <option value="SEK">SEK (Swedish Krona)</option>
-                          <option value="EUR">EUR (Euro)</option>
-                          <option value="USD">USD (US Dollar)</option>
-                          <option value="NOK">NOK (Norwegian Krone)</option>
-                          <option value="DKK">DKK (Danish Krone)</option>
-                        </NativeSelect>
+                    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                      <div className="space-y-3 px-4 py-3">
+                        {currentEstimate ? (
+                          <div>
+                            <Label className={FACT_LABEL_CLASS}>
+                              <Hash className="h-3 w-3" />
+                              {t('estimates.table.number')}
+                            </Label>
+                            <Input
+                              type="text"
+                              value={formatDisplayNumber(
+                                'estimates',
+                                currentEstimate.estimateNumber || currentEstimate.id,
+                              )}
+                              readOnly
+                              className={cn(FORM_GHOST_INPUT_CLASS, FORM_GHOST_READONLY_CLASS)}
+                            />
+                          </div>
+                        ) : null}
+                        <div>
+                          <Label htmlFor="estimate-order-number" className={FACT_LABEL_CLASS}>
+                            <Package className="h-3 w-3" />
+                            {t('invoices.orderNumber', { defaultValue: 'Order number' })}
+                          </Label>
+                          <Input
+                            id="estimate-order-number"
+                            value={formData.orderNumber}
+                            onChange={(e) => updateField('orderNumber', e.target.value)}
+                            className={FORM_GHOST_INPUT_CLASS}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="estimate-delivery-method" className={FACT_LABEL_CLASS}>
+                            <Truck className="h-3 w-3" />
+                            {t('invoices.deliveryMethod', { defaultValue: 'Delivery method' })}
+                          </Label>
+                          <Input
+                            id="estimate-delivery-method"
+                            value={formData.deliveryMethod}
+                            onChange={(e) => updateField('deliveryMethod', e.target.value)}
+                            className={FORM_GHOST_INPUT_CLASS}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="estimate-notes" className={FACT_LABEL_CLASS}>
+                            <StickyNote className="h-3 w-3" />
+                            {t('estimates.notes')}
+                          </Label>
+                          <Textarea
+                            id="estimate-notes"
+                            value={formData.notes}
+                            onChange={(e) => updateField('notes', e.target.value)}
+                            rows={3}
+                            className={FORM_GHOST_TEXTAREA_CLASS}
+                          />
+                        </div>
                       </div>
+                    </Card>
 
-                      <div>
-                        <Label htmlFor="estimate-valid-to" className={DETAIL_FIELD_LABEL_CLASS}>
-                          {t('estimates.fieldValidTo')}
-                        </Label>
-                        <DatePicker
-                          id="estimate-valid-to"
-                          value={formData.validTo}
-                          onChange={(date) => updateField('validTo', date ?? formData.validTo)}
-                          placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
-                          clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
-                          variant="default"
-                          fullWidth
-                        />
-                      </div>
+                    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                      <DetailSection
+                        title={t('estimates.estimateProperties')}
+                        icon={SlidersHorizontal}
+                        iconPlugin="estimates"
+                        subtleTitle
+                        className="p-6"
+                      >
+                        <div>
+                          <div className={DETAIL_PROP_ROW_CLASS}>
+                            <span className="text-sm text-slate-500 dark:text-slate-400">
+                              {t('estimates.fieldValidTo')}
+                            </span>
+                            <DatePicker
+                              id="estimate-valid-to"
+                              value={formData.validTo}
+                              onChange={(date) => updateField('validTo', date ?? formData.validTo)}
+                              placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                              clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                              variant="default"
+                              propWidth
+                            />
+                          </div>
+                          <div className={DETAIL_PROP_ROW_CLASS}>
+                            <span className="text-sm text-slate-500 dark:text-slate-400">
+                              {t('estimates.fieldCurrency')}
+                            </span>
+                            <NativeSelect
+                              id="estimate-currency"
+                              value={formData.currency}
+                              onChange={(e) => updateField('currency', e.target.value)}
+                              className={FORM_GHOST_PROP_CONTROL_CLASS}
+                            >
+                              <option value="SEK">SEK</option>
+                              <option value="EUR">EUR</option>
+                              <option value="USD">USD</option>
+                              <option value="NOK">NOK</option>
+                              <option value="DKK">DKK</option>
+                            </NativeSelect>
+                          </div>
+                          <div className={DETAIL_PROP_ROW_CLASS}>
+                            <span className="text-sm text-slate-500 dark:text-slate-400">
+                              {t('estimates.fieldStatus')}
+                            </span>
+                            <EstimateStatusSelect
+                              estimate={
+                                {
+                                  id: currentEstimate?.id || 'draft',
+                                  estimateNumber: currentEstimate?.estimateNumber || '',
+                                  contactId: formData.contactId || null,
+                                  contactName: formData.contactName,
+                                  organizationNumber: formData.organizationNumber,
+                                  currency: formData.currency,
+                                  lineItems: formData.lineItems,
+                                  estimateDiscount: formData.estimateDiscount,
+                                  notes: formData.notes,
+                                  validTo: formData.validTo,
+                                  status: formData.status,
+                                  subtotal: 0,
+                                  totalDiscount: 0,
+                                  subtotalAfterDiscount: 0,
+                                  estimateDiscountAmount: 0,
+                                  subtotalAfterEstimateDiscount: 0,
+                                  totalVat: 0,
+                                  total: 0,
+                                  createdAt: new Date(),
+                                  updatedAt: new Date(),
+                                } as Estimate
+                              }
+                              onStatusChange={requestStatusChange}
+                              hideInlineLabel
+                              disabled={formData.status === 'invoiced'}
+                            />
+                          </div>
+                        </div>
+                      </DetailSection>
+                    </Card>
 
-                      <div>
-                        <Label htmlFor="estimate-status" className={DETAIL_FIELD_LABEL_CLASS}>
-                          {t('estimates.fieldStatus')}
-                        </Label>
-                        <NativeSelect
-                          id="estimate-status"
-                          value={formData.status}
-                          onChange={(e) => updateField('status', e.target.value)}
-                          className={FORM_GHOST_SELECT_CLASS}
-                        >
-                          <option value="draft">Draft</option>
-                          <option value="sent">Sent</option>
-                          <option value="accepted">Accepted</option>
-                          <option value="rejected">Rejected</option>
-                        </NativeSelect>
-                      </div>
-                    </div>
-                  </DetailSection>
-                </Card>
+                    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                      <DetailSection
+                        title={t('estimates.previewTitle', { defaultValue: 'Estimate preview' })}
+                        icon={Eye}
+                        iconPlugin="estimates"
+                        subtleTitle
+                        className="p-6"
+                      >
+                        <p className="mb-3 text-xs text-muted-foreground">
+                          {t('estimates.previewHelp', {
+                            defaultValue:
+                              'This is how the estimate will look when shared or exported as PDF.',
+                          })}
+                        </p>
+                        <div className="mx-auto w-full min-w-0 max-w-[794px]">
+                          <EstimateDocumentPreview
+                            formData={{
+                              contactId: formData.contactId,
+                              contactName: formData.contactName,
+                              organizationNumber: formData.organizationNumber,
+                              currency: formData.currency,
+                              lineItems: formData.lineItems,
+                              estimateDiscount: formData.estimateDiscount,
+                              notes: formData.notes,
+                              orderNumber: formData.orderNumber,
+                              deliveryMethod: formData.deliveryMethod,
+                              validTo: formData.validTo,
+                              status: formData.status,
+                            }}
+                            estimateId={currentEstimate?.id}
+                            estimateNumber={currentEstimate?.estimateNumber}
+                          />
+                          <div className="mt-4 flex justify-end gap-2">
+                            {formData.status === 'draft' ? (
+                              <RoundIconLabelButton
+                                type="button"
+                                icon={Send}
+                                label={t('estimates.send', { defaultValue: 'Send' })}
+                                variant="soft"
+                                size="xs"
+                                alwaysExpanded
+                                onClick={() => requestStatusChange('sent')}
+                              />
+                            ) : null}
+                            <RoundIconLabelButton
+                              type="button"
+                              icon={Eye}
+                              label={t('common.preview')}
+                              variant="secondary"
+                              size="xs"
+                              alwaysExpanded
+                              onClick={openSharedStylePreview}
+                            />
+                          </div>
+                        </div>
+                      </DetailSection>
+                    </Card>
+                  </div>
+                </>
               ) : null}
 
               {activeTab === 'lines' ? (
                 <>
-                  {/* Line Items — compact chrome unchanged */}
                   <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                     <DetailSection
                       title={t('estimates.lineItems')}
                       icon={ListOrdered}
                       iconPlugin="estimates"
-                      className="p-6"
+                      subtleTitle
+                      className="px-3 py-6"
                     >
-                      <div className="flex items-center justify-end mb-3">
-                        <RoundIconLabelButton
-                          type="button"
-                          icon={Plus}
-                          label="Add Item"
-                          variant="soft"
-                          size="xs"
-                          alwaysExpanded
-                          onClick={addLineItem}
-                        />
-                      </div>
-
-                      {formData.lineItems.length === 0 ? (
-                        <p className={DETAIL_EMPTY_STATE_CLASS}>No line items added yet.</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {formData.lineItems.map((item, index) => (
-                            <div
-                              key={item.id}
-                              className={`rounded-lg border border-border p-3 ${
-                                duplicatedItemIds.has(item.id)
-                                  ? 'bg-green-50 dark:bg-green-950/30'
-                                  : ''
-                              }`}
-                            >
-                              {/* Row 1: Item number + Description + Action */}
-                              <div className="flex items-center gap-3 mb-2">
-                                <span className="w-12 flex-shrink-0 text-sm font-medium text-foreground">
-                                  Item {index + 1}
-                                </span>
-                                <Textarea
-                                  value={item.description}
-                                  onChange={(e) =>
-                                    updateLineItem(index, 'description', e.target.value)
-                                  }
-                                  placeholder="Service or product description"
-                                  rows={1}
-                                  className={cn(
-                                    FORM_TEXTAREA_CLASS,
-                                    'flex-1 resize-none h-auto min-h-[2.5rem]',
-                                  )}
-                                  required
-                                />
-                                <Button
-                                  type="button"
-                                  onClick={() => duplicateLineItem(index)}
-                                  variant="secondary"
-                                  icon={Copy}
-                                  size="sm"
-                                  className="h-8 w-8 p-0 flex-shrink-0"
-                                  title="Duplicate item"
-                                ></Button>
-                                <Button
-                                  type="button"
-                                  onClick={() => removeLineItem(index)}
-                                  variant="danger"
-                                  icon={Trash2}
-                                  size="sm"
-                                  className="h-8 w-8 p-0 flex-shrink-0"
-                                ></Button>
-                              </div>
-
-                              {/* Row 2: Numbers table */}
-                              <div className="overflow-x-auto">
-                                <table className="w-full">
-                                  <thead className="bg-muted/40">
-                                    <tr>
-                                      <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                        Qty
-                                      </th>
-                                      <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                        Unit Price
-                                      </th>
-                                      <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                        Discount %
-                                      </th>
-                                      <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                        VAT %
-                                      </th>
-                                      <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                        Discount
-                                      </th>
-                                      <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                        VAT
-                                      </th>
-                                      <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                        Total
-                                      </th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    <tr>
-                                      <td className="px-2 py-1">
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          value={item.quantity}
-                                          onChange={(e) =>
-                                            updateLineItem(
-                                              index,
-                                              'quantity',
-                                              parseFloat(e.target.value) || 0,
-                                            )
-                                          }
-                                          className={cn(FORM_COMPACT_INPUT_CLASS, 'w-16')}
-                                          required
-                                        />
-                                      </td>
-                                      <td className="px-2 py-1">
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          value={item.unitPrice}
-                                          onChange={(e) =>
-                                            updateLineItem(
-                                              index,
-                                              'unitPrice',
-                                              parseFloat(e.target.value) || 0,
-                                            )
-                                          }
-                                          className={cn(FORM_COMPACT_INPUT_CLASS, 'w-20')}
-                                          required
-                                        />
-                                      </td>
-                                      <td className="px-2 py-1">
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          max="100"
-                                          value={item.discount || 0}
-                                          onChange={(e) =>
-                                            updateLineItem(
-                                              index,
-                                              'discount',
-                                              parseFloat(e.target.value) || 0,
-                                            )
-                                          }
-                                          className={cn(FORM_COMPACT_INPUT_CLASS, 'w-16')}
-                                        />
-                                      </td>
-                                      <td className="px-2 py-1">
-                                        <NativeSelect
-                                          value={item.vatRate}
-                                          onChange={(e) =>
-                                            updateLineItem(
-                                              index,
-                                              'vatRate',
-                                              parseFloat(e.target.value),
-                                            )
-                                          }
-                                          className={cn(FORM_COMPACT_SELECT_CLASS, 'w-16')}
-                                        >
-                                          <option value="0">0%</option>
-                                          <option value="6">6%</option>
-                                          <option value="12">12%</option>
-                                          <option value="25">25%</option>
-                                        </NativeSelect>
-                                      </td>
-                                      <td className="px-2 py-1 text-right text-sm text-foreground">
-                                        -{(item.discountAmount || 0).toFixed(2)}
-                                      </td>
-                                      <td className="px-2 py-1 text-right text-sm text-foreground">
-                                        {(item.vatAmount || 0).toFixed(2)}
-                                      </td>
-                                      <td className="px-2 py-1 text-right text-sm font-medium text-foreground">
-                                        {(item.lineTotal || 0).toFixed(2)}
-                                      </td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <EstimateLineItemsEditor
+                        items={formData.lineItems}
+                        duplicatedItemIds={duplicatedItemIds}
+                        onAdd={addLineItem}
+                        onAddTextField={addTextFieldLineItem}
+                        onUpdate={updateLineItem}
+                        onDuplicate={duplicateLineItem}
+                        onRemove={removeLineItem}
+                        onMoveUp={(index) => moveLineItem(index, 'up')}
+                        onMoveDown={(index) => moveLineItem(index, 'down')}
+                      />
                     </DetailSection>
                   </Card>
 
-                  {/* Estimate Discount - After line items, before totals */}
-                  {formData.lineItems.length > 0 && (
+                  <div className="space-y-4">
                     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                       <DetailSection
                         title={t('estimates.discount')}
                         icon={Percent}
                         iconPlugin="estimates"
+                        subtleTitle
                         className="p-6"
                       >
-                        <div className="flex items-center gap-4 mb-2">
-                          <Label htmlFor="estimate-discount" className={DETAIL_FIELD_LABEL_CLASS}>
-                            Estimate Discount (%)
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Label htmlFor="estimate-discount" className="sr-only">
+                            {t('invoices.discountPercent', { defaultValue: 'Discount %' })}
                           </Label>
-                          <div className="max-w-xs">
-                            <Input
-                              id="estimate-discount"
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              value={formData.estimateDiscount || 0}
-                              onChange={(e) =>
-                                updateField('estimateDiscount', parseFloat(e.target.value) || 0)
-                              }
-                              placeholder="0.00"
-                              className={FORM_COMPACT_INPUT_CLASS}
-                            />
-                          </div>
+                          <Input
+                            id="estimate-discount"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={formData.estimateDiscount || 0}
+                            onChange={(e) =>
+                              updateField('estimateDiscount', parseFloat(e.target.value) || 0)
+                            }
+                            className={cn(INVOICE_FORM_INPUT_CLASS, 'max-w-[8rem]')}
+                            aria-label={t('invoices.discountPercent', {
+                              defaultValue: 'Discount %',
+                            })}
+                          />
+                          <span className="text-xs text-muted-foreground">%</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Discount applied to subtotal after line item discounts
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {t('invoices.discountHelp', {
+                            defaultValue: 'Discount applied to subtotal after line item discounts',
+                          })}
                         </p>
                       </DetailSection>
                     </Card>
-                  )}
-
-                  {/* Totals Summary */}
-                  {formData.lineItems.length > 0 && (
                     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                       <DetailSection
-                        title={t('estimates.summary')}
+                        title={t('estimates.pricingSummary')}
                         icon={Calculator}
                         iconPlugin="estimates"
+                        subtleTitle
                         className="p-6"
                       >
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Subtotal:</span>
-                            <span className="text-sm font-medium text-foreground">
-                              {(totals.subtotal || 0).toFixed(2)} {formData.currency}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">
-                              Total Line Item Discounts:
-                            </span>
-                            <span className="text-sm font-medium text-foreground">
-                              -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
-                            </span>
-                          </div>
-                          <div className="flex justify-between border-t border-border pt-2">
-                            <span className="text-sm text-muted-foreground">
-                              Subtotal after line discounts:
-                            </span>
-                            <span className="text-sm font-medium text-foreground">
-                              {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
-                            </span>
-                          </div>
-                          {/* NEW: Show estimate discount if applied */}
-                          {formData.estimateDiscount > 0 && (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-muted-foreground">
-                                  Estimate Discount ({formData.estimateDiscount}%):
-                                </span>
-                                <span className="text-sm font-medium text-foreground">
-                                  -{(totals.estimateDiscountAmount || 0).toFixed(2)}{' '}
-                                  {formData.currency}
-                                </span>
-                              </div>
-                              <div className="flex justify-between border-t border-border pt-2">
-                                <span className="text-sm text-muted-foreground">
-                                  Subtotal after estimate discount:
-                                </span>
-                                <span className="text-sm font-medium text-foreground">
-                                  {(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)}{' '}
-                                  {formData.currency}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Total VAT:</span>
-                            <span className="text-sm font-medium text-foreground">
-                              {(totals.totalVat || 0).toFixed(2)} {formData.currency}
-                            </span>
-                          </div>
-                          <div className="flex justify-between border-t border-border pt-2 text-lg font-semibold">
-                            <span>Total:</span>
-                            <span>
-                              {(totals.total || 0).toFixed(2)} {formData.currency}
-                            </span>
-                          </div>
-                        </div>
+                        <EstimatePricingSummary
+                          totals={totals}
+                          currency={formData.currency}
+                          estimateDiscount={formData.estimateDiscount}
+                        />
                       </DetailSection>
                     </Card>
-                  )}
+                  </div>
                 </>
-              ) : null}
-
-              {activeTab === 'notes' ? (
-                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                  <DetailSection
-                    title={t('estimates.notes')}
-                    icon={StickyNote}
-                    iconPlugin="estimates"
-                    className="p-6"
-                  >
-                    <div>
-                      <Label htmlFor="estimate-notes" className={DETAIL_FIELD_LABEL_CLASS}>
-                        Additional Notes
-                      </Label>
-                      <Textarea
-                        id="estimate-notes"
-                        value={formData.notes}
-                        onChange={(e) => updateField('notes', e.target.value)}
-                        placeholder="Additional notes or terms..."
-                        rows={4}
-                        className={cn(FORM_GHOST_TEXTAREA_CLASS)}
-                      />
-                    </div>
-                  </DetailSection>
-                </Card>
               ) : null}
             </form>
           </DetailLayout>
@@ -956,6 +998,21 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
           cancelText={t('dialog.continueEditing')}
           onConfirm={handleDiscardChanges}
           onCancel={cancelDiscard}
+          variant="warning"
+        />
+
+        <ConfirmDialog
+          isOpen={showSentConfirm}
+          title={t('estimates.markAsSentTitle')}
+          message={t('estimates.markAsSentMessage', {
+            number: currentEstimate?.estimateNumber
+              ? formatDisplayNumber('estimates', String(currentEstimate.estimateNumber))
+              : t('estimates.previewDraftNumber', { defaultValue: 'DRAFT' }),
+          })}
+          confirmText={t('estimates.markAsSent')}
+          cancelText={t('common.cancel')}
+          onConfirm={confirmMarkAsSent}
+          onCancel={() => setShowSentConfirm(false)}
           variant="warning"
         />
       </>

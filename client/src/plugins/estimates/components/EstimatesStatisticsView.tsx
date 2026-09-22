@@ -21,6 +21,7 @@ export function EstimatesStatisticsView() {
       draft: estimates.filter((estimate) => estimate.status === 'draft').length,
       sent: estimates.filter((estimate) => estimate.status === 'sent').length,
       accepted: estimates.filter((estimate) => estimate.status === 'accepted').length,
+      invoiced: estimates.filter((estimate) => estimate.status === 'invoiced').length,
     }),
     [estimates],
   );
@@ -68,6 +69,13 @@ export function EstimatesStatisticsView() {
           <StatKpiTile
             label={t('estimates.statistics.accepted', { defaultValue: 'Accepted' })}
             value={stats.accepted}
+            className={STAT_KPI_SOFT_CLASS}
+            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+          />
+          <StatKpiTile
+            label={t('estimates.statistics.invoiced', { defaultValue: 'Invoiced' })}
+            value={stats.invoiced}
             className={STAT_KPI_SOFT_CLASS}
             labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
             valueClassName={STAT_KPI_SOFT_VALUE_CLASS}

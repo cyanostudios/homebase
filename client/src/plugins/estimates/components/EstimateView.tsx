@@ -1,24 +1,38 @@
-import { FileSpreadsheet, History, List, SlidersHorizontal, StickyNote } from 'lucide-react';
-import React, { useCallback, useMemo } from 'react';
+import {
+  Calculator,
+  Calendar,
+  Eye,
+  FileText,
+  Hash,
+  History,
+  Info,
+  Link2,
+  ListOrdered,
+  Package,
+  Receipt,
+  Send,
+  SlidersHorizontal,
+  StickyNote,
+  Truck,
+  Users,
+} from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
-import { cn } from '@/lib/utils';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
+import { useApp } from '@/core/api/AppContext';
+import { EMPTY_ORGANIZATION, organizationApi } from '@/core/api/organizationApi';
+import { LINKED_SECTION_BADGE_CLASS } from '@/core/ui/badgeStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
-import {
-  DETAIL_HEADER_BELOW_MENUS_CLASS,
-  DETAIL_HEADER_CHIP_GAP_CLASS,
-} from '@/core/ui/DetailHeaderMenus';
-import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { DetailSection, SubtleSectionHeading } from '@/core/ui/DetailSection';
 import {
   DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_FIELD_VALUE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_PROP_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -26,43 +40,100 @@ import {
   LIST_FILTER_CHIP_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
+import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { buildSlug } from '@/core/utils/slugUtils';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { cn } from '@/lib/utils';
+import { AssignmentQuickInfoDialog } from '@/plugins/contacts/components/AssignmentQuickInfoDialog';
+import { ContactQuickInfoDialog } from '@/plugins/contacts/components/ContactQuickInfoDialog';
+import {
+  CONTACT_TYPE_BADGE_CLASS,
+  CONTACT_TYPE_COLORS,
+  type Contact,
+} from '@/plugins/contacts/types/contacts';
+import {
+  formatInvoiceStatusForDisplay,
+  INVOICE_STATUS_COLORS,
+} from '@/plugins/invoices/components/InvoiceStatusSelect';
+import type { Invoice } from '@/plugins/invoices/types/invoices';
+import { displayPlainText } from '@/plugins/invoices/utils/htmlText';
+import {
+  formatInvoiceAmount,
+  formatInvoiceMoney,
+} from '@/plugins/invoices/utils/formatInvoiceAmount';
+import {
+  buildInvoiceCustomerBlock,
+  displayNameFromEmail,
+  fetchLogoAsDataUrl,
+} from '@/plugins/invoices/utils/invoiceDocumentIdentity';
+import {
+  LINE_ITEM_LIST_ROW_CLASS,
+  LINE_ITEM_MUTED_VALUE_CLASS,
+  LINE_ITEM_PRIMARY_TEXT_CLASS,
+  LINE_ITEM_VALUE_CLASS,
+} from '@/plugins/invoices/utils/invoiceLineItemStyles';
+import { resolveInvoiceTotals } from '@/plugins/invoices/utils/invoiceTotals';
 
+import { useEstimateLinkedInvoice } from '../hooks/useEstimateLinkedInvoice';
 import { useEstimates } from '../hooks/useEstimates';
-import { Estimate, calculateEstimateTotals } from '../types/estimate';
+import {
+  ACCEPTANCE_REASONS,
+  REJECTION_REASONS,
+  calculateEstimateTotals,
+  type Estimate,
+} from '../types/estimate';
+import { resolveEstimateTotals } from '../utils/estimateTotals';
+import {
+  openEstimatePreviewWindow,
+  writeEstimatePreviewWindow,
+} from '../utils/openEstimatePreviewWindow';
+import { generateWebHTML } from '../webTemplate';
 
-import { EstimateDetailHeaderMenus } from './EstimateDetailHeaderMenus';
+import { EstimateDocumentPreview } from './EstimateDocumentPreview';
+import { EstimatePricingSummary } from './EstimatePricingSummary';
+import { EstimateQuickContextPanel } from './EstimateQuickContextPanel';
 import { EstimateShareBlock } from './EstimateActions';
 import { EstimateStatusSelect } from './EstimateStatusSelect';
 import { StatusReasonModal } from './StatusReasonModal';
 
 interface EstimateViewProps {
   estimate: Estimate;
-  /** Single-column card stack (e.g. list detail column). */
   stacked?: boolean;
 }
 
-type EstimateViewTab = 'properties' | 'lines' | 'notes' | 'activity';
+type EstimateViewTab = 'information' | 'lines' | 'linked' | 'activity';
 
-const ESTIMATE_VIEW_TABS: EstimateViewTab[] = ['properties', 'lines', 'notes', 'activity'];
+const ESTIMATE_VIEW_TABS: EstimateViewTab[] = ['information', 'lines', 'linked', 'activity'];
 
 function parseEstimateViewTab(value: string | null): EstimateViewTab {
   if (value && ESTIMATE_VIEW_TABS.includes(value as EstimateViewTab)) {
     return value as EstimateViewTab;
   }
-  return 'properties';
+  return 'information';
 }
+
+const FACT_LABEL_CLASS =
+  'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
 export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = parseEstimateViewTab(searchParams.get('tab'));
+  const enabledPlugins = useEnabledPlugins();
+  const { contacts, user } = useApp();
+  const linkedInvoice = useEstimateLinkedInvoice(estimate.id, estimate.status);
+  const [viewingContact, setViewingContact] = useState<Contact | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+
   const setActiveTab = useCallback(
     (tab: EstimateViewTab) => {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
-          if (tab === 'properties') {
+          if (tab === 'information') {
             next.delete('tab');
           } else {
             next.set('tab', tab);
@@ -74,9 +145,10 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
     },
     [setSearchParams],
   );
+
   const {
     quickEditDraft,
-    setQuickEditField,
+    requestStatusChange,
     estimateQuickEditShowStatusModal,
     estimateQuickEditShowSentConfirmation,
     estimateQuickEditPendingStatus,
@@ -89,7 +161,7 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
     onDiscardQuickEditAndClose,
   } = useEstimates();
 
-  const displayEstimate = React.useMemo(
+  const displayEstimate = useMemo(
     () =>
       estimate
         ? { ...estimate, status: (quickEditDraft?.status ?? estimate.status) as Estimate['status'] }
@@ -97,27 +169,112 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
     [estimate, quickEditDraft?.status],
   );
 
-  const lineItemCount = estimate?.lineItems?.length ?? 0;
+  const isInvoiced = estimate.status === 'invoiced';
+  const lineItems = estimate.lineItems ?? [];
+  const currency = estimate.currency ?? 'SEK';
+
+  const openSharedStylePreview = useCallback(() => {
+    const win = openEstimatePreviewWindow();
+    if (!win) {
+      alert(
+        t('estimates.previewPopupBlocked', {
+          defaultValue: 'Could not open preview. Allow pop-ups for this site and try again.',
+        }),
+      );
+      return;
+    }
+
+    void (async () => {
+      try {
+        let organization = EMPTY_ORGANIZATION;
+        try {
+          const org = await organizationApi.getOrganization();
+          const logoUrl = org.logoUrl ? await fetchLogoAsDataUrl(org.logoUrl) : '';
+          organization = { ...org, logoUrl: logoUrl || org.logoUrl || '' };
+        } catch {
+          organization = EMPTY_ORGANIZATION;
+        }
+
+        const totals = calculateEstimateTotals(lineItems, estimate.estimateDiscount || 0);
+        const numberLabel = formatDisplayNumber(
+          'estimates',
+          String(estimate.estimateNumber || estimate.id),
+        );
+        const contact =
+          estimate.contactId && contacts
+            ? contacts.find((c) => String(c.id) === String(estimate.contactId))
+            : null;
+        const customer = buildInvoiceCustomerBlock({
+          contactName: estimate.contactName,
+          organizationNumber: estimate.organizationNumber,
+          contactId: estimate.contactId,
+          contact: contact || null,
+        });
+
+        const html = generateWebHTML({
+          id: estimate.id,
+          estimateNumber: numberLabel,
+          contactName: estimate.contactName,
+          organizationNumber: estimate.organizationNumber,
+          currency,
+          lineItems,
+          estimateDiscount: estimate.estimateDiscount || 0,
+          notes: estimate.notes,
+          orderNumber: estimate.orderNumber,
+          deliveryMethod: estimate.deliveryMethod,
+          validTo: estimate.validTo,
+          status: estimate.status,
+          createdAt: estimate.createdAt,
+          ...totals,
+          organization,
+          referencePerson: displayNameFromEmail(user?.email),
+          customer,
+        });
+
+        writeEstimatePreviewWindow(win, html, `Offert ${numberLabel}`, {
+          pageBreakLabel: t('estimates.previewPageBreak', { defaultValue: 'Page break' }),
+        });
+      } catch (error) {
+        console.error('Failed to open estimate preview', error);
+        try {
+          win.close();
+        } catch {
+          /* ignore */
+        }
+        alert(
+          t('estimates.previewOpenFailed', {
+            defaultValue: 'Could not open estimate preview. Try again.',
+          }),
+        );
+      }
+    })();
+  }, [contacts, currency, estimate, lineItems, t, user?.email]);
+  const totals = resolveEstimateTotals(estimate);
+  const hasNotes = Boolean(displayPlainText(estimate.notes).trim());
+  const contactRecord =
+    estimate.contactId && contacts
+      ? contacts.find((c) => String(c.id) === String(estimate.contactId))
+      : null;
 
   const tabs = useMemo(
     () => [
       {
-        id: 'properties' as const,
-        label: t('estimates.tabs.properties'),
-        icon: SlidersHorizontal,
+        id: 'information' as const,
+        label: t('estimates.tabs.information', { defaultValue: 'Information' }),
+        icon: Info,
         count: null as number | null,
       },
       {
         id: 'lines' as const,
         label: t('estimates.tabs.lines'),
-        icon: List,
-        count: lineItemCount > 0 ? lineItemCount : null,
+        icon: ListOrdered,
+        count: lineItems.length > 0 ? lineItems.length : null,
       },
       {
-        id: 'notes' as const,
-        label: t('estimates.tabs.notes'),
-        icon: StickyNote,
-        count: null as number | null,
+        id: 'linked' as const,
+        label: t('estimates.tabs.linked', { defaultValue: 'Linked' }),
+        icon: Link2,
+        count: linkedInvoice ? 1 : null,
       },
       {
         id: 'activity' as const,
@@ -126,7 +283,7 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
         count: null as number | null,
       },
     ],
-    [lineItemCount, t],
+    [lineItems.length, linkedInvoice, t],
   );
 
   const tabChips = (
@@ -160,210 +317,175 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
     </div>
   );
 
-  if (!estimate) {
-    return null;
-  }
+  const numberLabel = formatDisplayNumber('estimates', estimate.estimateNumber || estimate.id);
+  const factValueClass = 'text-base font-medium text-foreground';
 
-  const totals = calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0);
+  const reasonLabels = (ids: string[] | undefined, pool: typeof ACCEPTANCE_REASONS) => {
+    if (!ids?.length) {
+      return [];
+    }
+    return ids.map((id) => pool.find((r) => r.id === id)?.label || id).filter(Boolean);
+  };
 
-  const titleLeading = (
-    <div className="flex min-w-0 items-center gap-2">
-      <span title={t('nav.estimate')} className="inline-flex shrink-0">
-        <SectionCategoryIcon
-          icon={FileSpreadsheet}
-          className="h-8 w-8 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 [&_svg]:h-4 [&_svg]:w-4"
-        />
-      </span>
-      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
-        {formatDisplayNumber('estimates', estimate.estimateNumber)}
-      </h3>
-    </div>
-  );
-
-  const headerCard = (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <div className="px-4 py-5">
-        <EstimateDetailHeaderMenus estimate={estimate} leading={titleLeading} />
-        {estimate.updatedAt ? (
-          <div
-            className={cn(
-              DETAIL_HEADER_BELOW_MENUS_CLASS,
-              'flex min-w-0 flex-wrap items-center',
-              DETAIL_HEADER_CHIP_GAP_CLASS,
-            )}
-          >
-            <p className="min-w-0 text-xs text-muted-foreground">
-              {t('common.updated')}{' '}
-              {new Date(estimate.updatedAt).toLocaleString(undefined, {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
+  const informationCard = (
+    <div className="space-y-4">
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('estimates.information')}
+          icon={Info}
+          iconPlugin="estimates"
+          subtleTitle
+          className="p-6"
+        >
+          <div className="grid grid-cols-1 gap-y-3 md:grid-cols-2 md:gap-x-4">
+            <div>
+              <div className={FACT_LABEL_CLASS}>
+                <Hash className="h-3 w-3" />
+                {t('estimates.table.number')}
+              </div>
+              <div className={factValueClass}>{numberLabel || '—'}</div>
+            </div>
+            <div>
+              <div className={FACT_LABEL_CLASS}>
+                <Calendar className="h-3 w-3" />
+                {t('estimates.fieldValidTo')}
+              </div>
+              <div className={factValueClass}>{formatDate(estimate.validTo) || '—'}</div>
+            </div>
+            <div>
+              <div className={FACT_LABEL_CLASS}>
+                <Receipt className="h-3 w-3" />
+                {t('estimates.table.total')}
+              </div>
+              <div className={cn(DETAIL_FIELD_VALUE_CLASS, 'tabular-nums')}>
+                {formatInvoiceAmount(totals.total)} {currency}
+              </div>
+            </div>
+            <div>
+              <div className={FACT_LABEL_CLASS}>{t('estimates.fieldCurrency')}</div>
+              <div className={factValueClass}>{currency}</div>
+            </div>
+            <div>
+              <div className={FACT_LABEL_CLASS}>
+                <Package className="h-3 w-3" />
+                {t('invoices.orderNumber', { defaultValue: 'Order number' })}
+              </div>
+              <div className={factValueClass}>{estimate.orderNumber?.trim() || '—'}</div>
+            </div>
+            <div>
+              <div className={FACT_LABEL_CLASS}>
+                <Truck className="h-3 w-3" />
+                {t('invoices.deliveryMethod', { defaultValue: 'Delivery method' })}
+              </div>
+              <div className={factValueClass}>{estimate.deliveryMethod?.trim() || '—'}</div>
+            </div>
           </div>
-        ) : null}
-        <div className="mt-4">{tabChips}</div>
-      </div>
-    </Card>
-  );
+        </DetailSection>
+      </Card>
 
-  const propertiesContent = (
-    <div className="space-y-6">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('estimates.estimateProperties')}
           icon={SlidersHorizontal}
+          iconPlugin="estimates"
           subtleTitle
           className="p-6"
         >
-          <div>
-            <div className={DETAIL_PROP_ROW_CLASS}>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {t('estimates.fieldContact')}
-              </span>
-              <Badge
-                className={cn(
-                  BADGE_CHIP_CLASS,
-                  'max-w-[min(100%,220px)] truncate bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-                )}
-              >
-                {estimate.contactName || '—'}
-              </Badge>
-            </div>
-            <div className={DETAIL_PROP_ROW_CLASS}>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {t('estimates.fieldCurrency')}
-              </span>
-              <Badge
-                className={cn(
-                  BADGE_CHIP_CLASS,
-                  'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300',
-                )}
-              >
-                {estimate.currency || '—'}
-              </Badge>
-            </div>
-            <div className={DETAIL_PROP_ROW_CLASS}>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {t('estimates.fieldValidTo')}
-              </span>
-              <Badge
-                className={cn(
-                  BADGE_CHIP_CLASS,
-                  'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-                )}
-              >
-                {estimate.validTo ? new Date(estimate.validTo).toLocaleDateString() : '—'}
-              </Badge>
-            </div>
+          <div className="space-y-4">
             <div className={DETAIL_PROP_ROW_CLASS}>
               <span className="text-sm text-slate-500 dark:text-slate-400">
                 {t('estimates.fieldStatus')}
               </span>
               <EstimateStatusSelect
                 estimate={displayEstimate ?? estimate}
-                onStatusChange={(status) => setQuickEditField('status', status)}
+                onStatusChange={(status) => requestStatusChange(status, estimate)}
                 hideInlineLabel
+                disabled={isInvoiced}
               />
             </div>
+            {estimate.acceptanceReasons?.length ? (
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {t('estimates.acceptanceReasons', { defaultValue: 'Acceptance reasons' })}:{' '}
+                </span>
+                {reasonLabels(estimate.acceptanceReasons, ACCEPTANCE_REASONS).join(', ')}
+              </div>
+            ) : null}
+            {estimate.rejectionReasons?.length ? (
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {t('estimates.rejectionReasons', { defaultValue: 'Rejection reasons' })}:{' '}
+                </span>
+                {reasonLabels(estimate.rejectionReasons, REJECTION_REASONS).join(', ')}
+              </div>
+            ) : null}
+            {hasNotes ? (
+              <div className="space-y-2">
+                <SubtleSectionHeading title={t('estimates.notes')} icon={StickyNote} />
+                <div className={DETAIL_NOTE_CALLOUT_CLASS}>
+                  <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
+                    {displayPlainText(estimate.notes)}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
         </DetailSection>
       </Card>
 
       <EstimateShareBlock estimate={estimate} />
-    </div>
-  );
 
-  const linesContent = (
-    <div className="space-y-6">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
-          title={t('estimates.lineItemsCount', { count: estimate.lineItems.length })}
-          iconPlugin="estimates"
+          title={t('estimates.previewTitle', { defaultValue: 'Estimate preview' })}
+          icon={Eye}
+          subtleTitle
           className="p-6"
         >
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="pb-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Qty
-                  </th>
-                  <th className="pb-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Price
-                  </th>
-                  <th className="pb-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {estimate.lineItems.map((item) => (
-                  <tr key={item.id} className="group hover:bg-muted/30">
-                    <td className="py-4">
-                      <div className="text-sm font-medium text-foreground">{item.description}</div>
-                      {item.vatRate > 0 && (
-                        <div className="text-[10px] text-muted-foreground">VAT {item.vatRate}%</div>
-                      )}
-                    </td>
-                    <td className="py-4 text-right text-sm text-foreground">{item.quantity}</td>
-                    <td className="py-4 text-right text-sm text-foreground">
-                      {(item.unitPrice || 0).toFixed(2)}
-                    </td>
-                    <td className="py-4 text-right text-sm font-medium text-foreground">
-                      {(item.lineTotal || 0).toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </DetailSection>
-      </Card>
-
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title={t('estimates.pricingSummary')} iconPlugin="estimates" className="p-6">
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium">
-                {totals.subtotal.toFixed(2)} {estimate.currency}
-              </span>
-            </div>
-            {totals.totalDiscount > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Line Discounts</span>
-                <span className="font-medium text-red-600">
-                  -{totals.totalDiscount.toFixed(2)} {estimate.currency}
-                </span>
-              </div>
-            )}
-            {totals.estimateDiscountAmount > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  Estimate Discount ({(estimate.estimateDiscount || 0).toFixed(1)}%)
-                </span>
-                <span className="font-medium text-red-600">
-                  -{totals.estimateDiscountAmount.toFixed(2)} {estimate.currency}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Total VAT</span>
-              <span className="font-medium">
-                {totals.totalVat.toFixed(2)} {estimate.currency}
-              </span>
-            </div>
-            <div className="flex justify-between text-lg font-semibold pt-4 border-t border-border">
-              <span>Total Amount</span>
-              <span>
-                {totals.total.toFixed(2)} {estimate.currency}
-              </span>
+          <p className="mb-3 text-xs text-muted-foreground">
+            {t('estimates.previewHelp', {
+              defaultValue: 'This is how the estimate will look when shared or exported as PDF.',
+            })}
+          </p>
+          <div className="mx-auto w-full max-w-[794px]">
+            <EstimateDocumentPreview
+              formData={{
+                contactId: estimate.contactId || '',
+                contactName: estimate.contactName || '',
+                organizationNumber: estimate.organizationNumber || '',
+                currency,
+                lineItems,
+                estimateDiscount: estimate.estimateDiscount || 0,
+                notes: estimate.notes || '',
+                orderNumber: estimate.orderNumber || '',
+                deliveryMethod: estimate.deliveryMethod || '',
+                validTo: estimate.validTo,
+                status: estimate.status,
+              }}
+              estimateId={estimate.id}
+              estimateNumber={estimate.estimateNumber}
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              {estimate.status === 'draft' ? (
+                <RoundIconLabelButton
+                  type="button"
+                  icon={Send}
+                  label={t('estimates.send', { defaultValue: 'Send' })}
+                  variant="soft"
+                  size="xs"
+                  alwaysExpanded
+                  onClick={() => requestStatusChange('sent', estimate)}
+                />
+              ) : null}
+              <RoundIconLabelButton
+                type="button"
+                icon={Eye}
+                label={t('common.preview')}
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
+                onClick={openSharedStylePreview}
+              />
             </div>
           </div>
         </DetailSection>
@@ -371,27 +493,162 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
     </div>
   );
 
-  const notesContent = (
-    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection title={t('estimates.notes')} icon={StickyNote} subtleTitle className="p-6">
-        {estimate.notes?.trim() ? (
-          <div className={DETAIL_NOTE_CALLOUT_CLASS}>
-            <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
-              {estimate.notes}
+  const linesCard = (
+    <div className="space-y-4">
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('estimates.lineItemsCount', { count: lineItems.length })}
+          icon={ListOrdered}
+          iconPlugin="estimates"
+          subtleTitle
+          className="p-6"
+          collapsible
+          defaultOpen
+        >
+          {lineItems.length > 0 ? (
+            <div className="space-y-1">
+              {lineItems.map((lineItem) => {
+                if (lineItem.kind === 'text') {
+                  return (
+                    <div
+                      key={lineItem.id || `text-${lineItem.description}`}
+                      className={LINE_ITEM_LIST_ROW_CLASS}
+                    >
+                      <div
+                        className={cn(LINE_ITEM_PRIMARY_TEXT_CLASS, 'min-w-0 flex-1 font-normal')}
+                      >
+                        {lineItem.description || '—'}
+                      </div>
+                    </div>
+                  );
+                }
+                const title = lineItem.name || lineItem.description || 'Item';
+                const lineSubtotal =
+                  lineItem.lineSubtotal ?? (lineItem.quantity || 0) * (lineItem.unitPrice || 0);
+                const lineDiscount =
+                  lineItem.discountAmount ?? lineSubtotal * ((lineItem.discount || 0) / 100);
+                const lineNet = lineSubtotal - lineDiscount;
+                return (
+                  <div
+                    key={lineItem.id || `${lineItem.name}-${lineItem.description}`}
+                    className={LINE_ITEM_LIST_ROW_CLASS}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className={LINE_ITEM_PRIMARY_TEXT_CLASS}>{title}</div>
+                    </div>
+                    <span className={cn(LINE_ITEM_MUTED_VALUE_CLASS, 'shrink-0')}>
+                      {lineItem.quantity || 0}
+                      {lineItem.unit ? ` ${lineItem.unit}` : ''} ×{' '}
+                      {formatInvoiceAmount(lineItem.unitPrice || 0)}
+                      {(lineItem.discount || 0) > 0 ? ` (−${lineItem.discount}%)` : ''}
+                    </span>
+                    <span className={cn(LINE_ITEM_VALUE_CLASS, 'shrink-0 font-semibold')}>
+                      {formatInvoiceMoney(lineNet, currency)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className={DETAIL_EMPTY_STATE_CLASS}>
+              {t('estimates.noLineItems', { defaultValue: 'No line items' })}
             </p>
-          </div>
+          )}
+        </DetailSection>
+      </Card>
+
+      {lineItems.length > 0 ? (
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('estimates.pricingSummary')}
+            icon={Calculator}
+            iconPlugin="estimates"
+            subtleTitle
+            className="p-6"
+          >
+            <EstimatePricingSummary
+              totals={totals}
+              currency={currency}
+              estimateDiscount={estimate.estimateDiscount || 0}
+            />
+          </DetailSection>
+        </Card>
+      ) : null}
+    </div>
+  );
+
+  const linkedCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('estimates.relations', { defaultValue: 'Relations' })}
+        icon={Link2}
+        iconPlugin="contacts"
+        subtleTitle
+        className="p-6"
+      >
+        {estimate.contactId || estimate.contactName || linkedInvoice ? (
+          <QuickContextLinkTileGrid>
+            {estimate.contactId || estimate.contactName ? (
+              <QuickContextLinkTile
+                label={t('nav.contact')}
+                meta={
+                  contactRecord
+                    ? t(
+                        `contacts.type.${contactRecord.contactType === 'private' ? 'private' : 'company'}`,
+                      )
+                    : estimate.organizationNumber
+                      ? `Org: ${estimate.organizationNumber}`
+                      : undefined
+                }
+                metaClassName={
+                  contactRecord
+                    ? CONTACT_TYPE_COLORS[
+                        contactRecord.contactType === 'private' ? 'private' : 'company'
+                      ]
+                    : undefined
+                }
+                icon={Users}
+                iconClassName="text-sky-600"
+                onClick={() => {
+                  if (contactRecord && enabledPlugins.has('contacts')) {
+                    setViewingContact(contactRecord);
+                  }
+                }}
+              >
+                {estimate.contactName || t('estimates.noCustomer', { defaultValue: 'No customer' })}
+              </QuickContextLinkTile>
+            ) : null}
+            {linkedInvoice && enabledPlugins.has('invoices') ? (
+              <QuickContextLinkTile
+                label={t('nav.invoice')}
+                meta={formatInvoiceStatusForDisplay(linkedInvoice.status || 'draft')}
+                metaClassName={
+                  INVOICE_STATUS_COLORS[linkedInvoice.status || 'draft'] ??
+                  'bg-muted/40 text-muted-foreground'
+                }
+                icon={Receipt}
+                iconClassName="text-violet-600"
+                onClick={() => setViewingInvoice(linkedInvoice)}
+              >
+                {formatDisplayNumber('invoices', linkedInvoice.invoiceNumber || linkedInvoice.id)}
+              </QuickContextLinkTile>
+            ) : null}
+          </QuickContextLinkTileGrid>
         ) : (
-          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('estimates.tabs.notesEmpty')}</p>
+          <p className={DETAIL_EMPTY_STATE_CLASS}>
+            {t('estimates.tabs.linkedEmpty', { defaultValue: 'No linked records yet.' })}
+          </p>
         )}
       </DetailSection>
     </Card>
   );
 
-  const tabContent = (
-    <>
-      {activeTab === 'properties' ? propertiesContent : null}
-      {activeTab === 'lines' ? linesContent : null}
-      {activeTab === 'notes' ? notesContent : null}
+  const body = (
+    <div className="space-y-4">
+      <EstimateQuickContextPanel estimate={estimate} headerBelow={tabChips} />
+      {activeTab === 'information' ? informationCard : null}
+      {activeTab === 'lines' ? linesCard : null}
+      {activeTab === 'linked' ? linkedCard : null}
       {activeTab === 'activity' ? (
         <DetailActivityLog
           entityType="estimate"
@@ -403,21 +660,103 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
           systemId={formatDisplayNumber('estimates', estimate.id)}
         />
       ) : null}
-    </>
-  );
-
-  const body = (
-    <div className="space-y-4">
-      {headerCard}
-      {tabContent}
     </div>
   );
+
+  const invoicePreviewStatus = viewingInvoice?.status || 'draft';
+  const invoicePreviewTitle = viewingInvoice
+    ? formatDisplayNumber('invoices', viewingInvoice.invoiceNumber || viewingInvoice.id)
+    : '';
+  const invoicePreviewTotals = viewingInvoice ? resolveInvoiceTotals(viewingInvoice) : null;
+  const invoicePreviewLineCount = Array.isArray(viewingInvoice?.lineItems)
+    ? viewingInvoice.lineItems.length
+    : 0;
+  const invoicePreviewCurrency = viewingInvoice?.currency || 'SEK';
 
   return (
     <>
       {stacked ? body : <DetailLayout gridClassName="grid-cols-1">{body}</DetailLayout>}
 
-      {/* Status Reason Modal (when applying quick-edit to accepted/rejected) */}
+      <ContactQuickInfoDialog
+        isOpen={viewingContact !== null}
+        contact={viewingContact}
+        onClose={() => setViewingContact(null)}
+        onOpenContact={() => {
+          if (viewingContact) {
+            navigate(`/contacts/${buildSlug(viewingContact, contacts || [], 'companyName')}`);
+            setViewingContact(null);
+          }
+        }}
+        badges={
+          viewingContact ? (
+            <span
+              className={cn(
+                CONTACT_TYPE_BADGE_CLASS,
+                CONTACT_TYPE_COLORS[viewingContact.contactType],
+              )}
+            >
+              {t(`contacts.type.${viewingContact.contactType}`)}
+            </span>
+          ) : null
+        }
+      />
+
+      <AssignmentQuickInfoDialog
+        isOpen={viewingInvoice !== null}
+        title={invoicePreviewTitle}
+        icon={FileText}
+        badges={
+          viewingInvoice ? (
+            <span
+              className={cn(
+                INVOICE_STATUS_COLORS[invoicePreviewStatus] ?? 'bg-muted/40 text-muted-foreground',
+                LINKED_SECTION_BADGE_CLASS,
+              )}
+            >
+              {formatInvoiceStatusForDisplay(invoicePreviewStatus)}
+            </span>
+          ) : null
+        }
+        details={
+          viewingInvoice && invoicePreviewTotals
+            ? [
+                {
+                  icon: FileText,
+                  label: t('invoices.fieldStatus'),
+                  value: formatInvoiceStatusForDisplay(invoicePreviewStatus),
+                },
+                {
+                  icon: Hash,
+                  label: t('invoices.quickInfo.items'),
+                  value: t('invoices.quickInfo.itemsCount', { count: invoicePreviewLineCount }),
+                },
+                {
+                  icon: FileText,
+                  label: t('invoices.subtotalAfterInvoiceDiscount'),
+                  value: formatInvoiceMoney(
+                    invoicePreviewTotals.subtotalAfterInvoiceDiscount,
+                    invoicePreviewCurrency,
+                  ),
+                },
+                {
+                  icon: FileText,
+                  label: t('invoices.totalAmount'),
+                  value: formatInvoiceMoney(invoicePreviewTotals.total, invoicePreviewCurrency),
+                },
+              ]
+            : []
+        }
+        openLabel={t('contacts.openInvoice')}
+        onClose={() => setViewingInvoice(null)}
+        onOpen={() => {
+          if (!viewingInvoice) {
+            return;
+          }
+          navigate(`/invoices/${buildSlug(viewingInvoice, [], 'invoiceNumber')}`);
+          setViewingInvoice(null);
+        }}
+      />
+
       <StatusReasonModal
         isOpen={estimateQuickEditShowStatusModal}
         onClose={handleEstimateQuickEditModalCancel}
@@ -426,7 +765,6 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
         estimateNumber={formatDisplayNumber('estimates', estimate.estimateNumber)}
       />
 
-      {/* Sent Confirmation (when applying quick-edit to sent) */}
       <ConfirmDialog
         isOpen={estimateQuickEditShowSentConfirmation}
         title={t('estimates.markAsSentTitle')}
@@ -440,7 +778,6 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
         variant="warning"
       />
 
-      {/* Discard quick-edit changes when closing */}
       <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}
         title={t('dialog.unsavedChanges')}

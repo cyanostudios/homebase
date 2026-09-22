@@ -45,6 +45,8 @@ describe('InvoicesList table view wiring', () => {
     expect(tableSrc).toMatch(/contactName/);
     expect(tableSrc).toMatch(/text-\[10px\]/);
     expect(tableSrc).toMatch(/invoice\.contactName/);
+    expect(tableSrc).toMatch(/common\.updated/);
+    expect(tableSrc).toMatch(/formatDateTimeShort\(invoice\.updatedAt\)/);
     expect(tableSrc).toMatch(/status/);
     expect(tableSrc).toMatch(/dueDate/);
     expect(tableSrc).toMatch(/updatedAt/);

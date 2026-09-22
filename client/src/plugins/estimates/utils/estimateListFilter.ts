@@ -1,7 +1,7 @@
 import { itemMatchesListFilters, toggleListFilterSelection } from '@/core/list/listFilterSelection';
 
 /** Selectable filters (excluding "all", which clears the selection). */
-export type EstimateListFilter = 'draft' | 'sent' | 'accepted';
+export type EstimateListFilter = 'draft' | 'sent' | 'accepted' | 'invoiced';
 
 /** Empty array = show all. Multiple filters are AND-combined. */
 export type EstimateListFilterSelection = EstimateListFilter[];
@@ -10,6 +10,7 @@ const STATUS_FILTERS = [
   'draft',
   'sent',
   'accepted',
+  'invoiced',
 ] as const satisfies readonly EstimateListFilter[];
 
 export const ESTIMATE_LIST_FILTER_EXCLUSIVE_GROUPS = [STATUS_FILTERS] as const;

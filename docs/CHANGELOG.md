@@ -4,6 +4,76 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-21 – Estimates: shared Offert footer (org + public tenant)
+
+**Typ:** bugfix  
+**Scope:** `getEstimateByShareToken` public tenant resolve; public estimate JSON org/customer; footer F-skatt only with real issuer  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Shared estimate documents now resolve the tenant pool like tasks/notes, attach organization/customer for the Facio footer, and no longer show “Godkänd för F-skatt” under the empty “Företag” fallback.
+
+---
+
+## 2026-09-21 – Estimates: public share window header (invoice parity)
+
+**Typ:** UX  
+**Scope:** `PublicEstimateView`, `GET /api/estimates/public/:token/pdf`, public estimate JSON org/customer  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Opening a share link shows the same chrome as invoices: top header with customer/number, valid-to, status badge, and Download PDF — then the Offert document iframe.
+
+---
+
+## 2026-09-21 – Estimates: Export menu visible in soft preview
+
+**Typ:** bugfix  
+**Scope:** `EstimateDetailHeaderMenus`, `EstimateProvider` share open helper, `EstimateShareBlock`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Export (Download PDF + Share) is built in the detail header like invoices, so it shows in list soft preview as well as panel view. Previously Export depended on `detailFooterActions` which was empty unless `panelMode === 'view'`.
+
+---
+
+## 2026-09-21 – Invoices: restore status filter chips with counts
+
+**Typ:** UX  
+**Scope:** `invoiceListFilter.ts`, `InvoicesList` filter chips, i18n, `docs/INVOICES_PLUGIN.md`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** List filter chips again show per-status counts (Draft / Sent / Partially paid / Paid / Overdue / Canceled / Unpaid). Document-type chips remain as a second exclusive group and can be AND-combined with status.
+
+---
+
+## 2026-09-21 – Invoices + Estimates: Tasks-style one-click Share
+
+**Typ:** UX  
+**Scope:** Invoice/estimate share create (no valid-until modal); soft-preview share sync; `InvoiceShareBlock` / `EstimateShareBlock`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Export → Share mirrors Tasks: reuse an active link or create one with a 30-day default, then open `ShareDialog`. Soft preview loads the active share for the viewed item.
+
+---
+
+## 2026-09-21 – Estimates: Facio Offert PDF/preview (from invoices)
+
+**Typ:** UX / PDF  
+**Scope:** `client/src/plugins/estimates/webTemplate.ts`, `EstimateDocumentPreview`, `plugins/estimates/pdfTemplate.js`, `plugins/estimates/controller.js` (org/customer for PDF), `docs/ESTIMATES_PLUGIN.md`  
+**QA:** `plugins/estimates/__tests__/pdfTemplate.test.js`. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Offert PDF and live/public preview use the same Facio document layout as invoices (issuer brand, customer/payment grid, line table, sticky footer). Estimate-specific labels: **Offert**, **Giltig t.o.m.**, **Offertsumma**, **Offertedatum**, **Offertrabatt** — no payment-due / bankgiro / payment-terms / late-interest chrome.
+
+---
+
+## 2026-09-21 – Estimates: invoice alignment + convert to invoice
+
+**Typ:** enhancement  
+**Scope:** Estimates plugin — `orderNumber` / `deliveryMethod`; line items `kind` / `unit` (shared invoice editor); status `invoiced` (terminal); `POST /api/estimates/:id/convert-to-invoice` (accepted only); migration 162 + `npm run migrate:estimates-invoice-alignment`; numbering settings (`numberPrefix`, `includeYear`, `numberStart`); view tabs `information` | `lines` | `linked` | `activity` with Contacts-class `EstimateQuickContextPanel`; Offert PDF/preview chrome; partial unique index on `invoices.estimate_id`  
+**QA:** Godkänt (scoped 2026-09-21). **Security:** Approved with documented residual risks (R1–R4). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Estimates now mirror invoice document fields and line-item editing where it matters, without invoice payments or multi-type invoice series. Accepted estimates can be converted to a **draft** invoice in one server transaction; the estimate becomes **invoiced** and is no longer editable via the API. Full view uses Information (facts, properties, notes, share, live preview), Lines, Linked (invoice when invoiced), and Activity. See `docs/ESTIMATES_PLUGIN.md` and ADR `docs/ai/adr/ESTIMATES_INVOICE_ALIGNMENT_AND_CONVERT.md`.
+
+---
+
 ## 2026-09-21 – Invoices: Information-only facts/preview + status select parity + hygiene
 
 **Typ:** enhancement / UX + cleanup  

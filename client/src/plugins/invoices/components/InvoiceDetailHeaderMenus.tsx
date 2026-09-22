@@ -34,8 +34,7 @@ export function InvoiceDetailHeaderMenus({
     getDeleteMessage,
     invoiceShare,
     isCreatingInvoiceShare,
-    openCreateInvoiceShare,
-    openInvoiceShareDialog,
+    openInvoiceShareForItem,
   } = useInvoices();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -132,7 +131,13 @@ export function InvoiceDetailHeaderMenus({
             icon: ExternalLink,
             label: t('invoices.viewShare'),
             variant: 'soft',
-            onClick: openInvoiceShareDialog,
+            onClick: () => {
+              if (!invoiceShare) {
+                return;
+              }
+              const url = `${window.location.origin}/public/invoice/${invoiceShare.shareToken}`;
+              window.open(url, '_blank', 'noopener,noreferrer');
+            },
           }
         : {
             id: 'share',
@@ -140,15 +145,16 @@ export function InvoiceDetailHeaderMenus({
             label: isCreatingInvoiceShare ? t('common.creating') : t('invoices.shareInvoice'),
             variant: 'soft',
             disabled: isCreatingInvoiceShare,
-            onClick: openCreateInvoiceShare,
+            onClick: () => void openInvoiceShareForItem(invoice),
           },
     ];
   }, [
     hasActiveShare,
+    invoice,
+    invoiceShare,
     isCreatingInvoiceShare,
     isDownloadingPDF,
-    openCreateInvoiceShare,
-    openInvoiceShareDialog,
+    openInvoiceShareForItem,
     t,
   ]);
 

@@ -20,6 +20,7 @@ Facio-inspired Swedish invoice layout (matches uploaded reference):
   - **App shell:** `AppContent` keeps panels with `panelMode === 'create'` open on the plugin list URL (no slug). `useItemUrl.navigateToBase` only navigates when an item segment is present (avoids no-op `/invoices` → `/invoices` loops).
 - **Linked on Contacts:** `ContactLinkedItemsSection` loads invoices via `GET /api/invoices` then filters by `contactId` (same auth privilege as the invoices list; tenant `user_id` via DB adapter). Quick context: max **2** tiles then “X more linked items”; full contact view shows all. Open → `openInvoiceForView` (valid here: Linked section renders under both providers).
 - **Leveranssätt** / **Ordernummer** are editable on the invoice form and stored on the invoice; shown on the document when set, otherwise `—`.
+- **From estimates:** converting an accepted estimate (`POST /api/estimates/:id/convert-to-invoice`) creates a draft invoice with `estimateId` set on the invoice row; see [`ESTIMATES_PLUGIN.md`](ESTIMATES_PLUGIN.md).
 - **Language:** Swedish labels.
 
 **Security (2026-09-04 review, contacts↔invoices):** Approved. Prefill/bridge is client UI intent only; create still requires session + plugin gate + CSRF. Linked list fetch does not expand privilege beyond the invoices list. No TPM-accepted residual risks for this slice.
@@ -64,7 +65,7 @@ Contact-style day select (`0` / `15` / `30` / `60`). Due date = issue date + day
 
 Table-only mail-layout per `docs/UI_AND_UX_STANDARDS_V3.md` §0.1. Due dates use Tasks-style urgency colors (`formatInvoiceDueDate`). Table identity is name/number with type as coded meta; sort includes “Type”.
 
-**No sidebar submenu.** Single nav entry Invoices. Filter chips: Total, Invoice, Credit note, Cash invoice, Receipt (document type; exclusive).
+**No sidebar submenu.** Single nav entry Invoices. Filter chips: **status** (Total, Draft, Sent, Partially paid, Paid, Overdue, Canceled, Unpaid — exclusive within status) plus **document type** (Invoice, Credit note, Cash invoice, Receipt — exclusive within type). Status and type may be combined (AND).
 
 Desktop/pad: row click shows stacked `InvoicesView` in the detail column (`InvoiceQuickContextPanel` is the view header card). There is **no** sticky list-side QC and no `variant="list"`. Compact viewports use panel flow.
 
@@ -103,7 +104,7 @@ Aligned with Contacts / Notes / Tasks chrome (see also `docs/PLUGIN_VIEW_IMPLEME
 | Edit / create | Header card (number + tab chips) always visible. **Information** tab: customer + notes + Invoice Properties + preview. **Lines** tab: line items + discount/pricing (no preview). Payments / Linked / Activity greyed in edit.                                                                                                                                                                                                                                                                                                                 |
 | Duplicate     | `usePluginDuplicate` + `DuplicateDialog`; list row highlight via `recentlyDuplicatedInvoiceId`                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Credit note   | Full-view **Actions → Create credit note** (UI only when `invoiceType === 'invoice'` via `canCreateCreditNoteFromInvoice` — **not** enforced as a separate server gate). Creates a **draft** `credit_note` with the same customer and **positive** line amounts; `resolveInvoiceTotals` signs money totals **negative** (list, preview, PDF, denormalized DB cache, statistics). Number from the `credit_note` series; notes “Credit against invoice …”. Opens the new draft in edit. No DB link field; no payment adjustment on the original. |
-| Share         | Create via AlertDialog (valid-until); result / view via shared `ShareDialog` (`variant="invoice"`). Active share panel + public share page include **Download PDF** (`GET /api/invoices/public/:token/pdf`).                                                                                                                                                                                                                                                                                                                                   |
+| Share         | Tasks-style: Export → Share creates (or reuses) a 30-day link and opens `ShareDialog` — no valid-until picker. Active share panel + public share page include **Download PDF** (`GET /api/invoices/public/:token/pdf`).                                                                                                                                                                                                                                                                                                                        |
 
 **Invoice Properties (edit) field order:** Invoice type → Issue date → Payment terms → Due date (read-only, computed) → Currency → Status.
 
@@ -115,7 +116,7 @@ Status colors: shared `INVOICE_STATUS_COLORS` / `InvoiceStatusSelect` (draft gra
 
 ## Payments
 
-Ledger table `invoice_payments` (amount, paid_on, reference) is the **source of truth** for paid state. Recording a payment updates denormalized `invoices.amount_paid` and sets `status=paid` / `paid_at` when sum ≥ total (`partially_paid` when sum is greater than 0 but below total). Partial payments supported. UI: `InvoicePaymentsBlock` on full view. Status still appears on cards/QC/table; **list filter chips are document type**, not payment status (see List UI).
+Ledger table `invoice_payments` (amount, paid_on, reference) is the **source of truth** for paid state. Recording a payment updates denormalized `invoices.amount_paid` and sets `status=paid` / `paid_at` when sum ≥ total (`partially_paid` when sum is greater than 0 but below total). Partial payments supported. UI: `InvoicePaymentsBlock` on full view. Status still appears on cards/QC/table; list filter chips cover **status** (with counts) and **document type** (see List UI).
 
 **Ledger vs credit notes:** `derivePaymentStatus` only marks `paid` when `total > 0` and ledger covers it — negative credit-note totals do not forge paid from an empty ledger.
 

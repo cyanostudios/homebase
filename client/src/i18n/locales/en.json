@@ -1079,6 +1079,15 @@
       "cash_invoice": "Cash invoice",
       "receipt": "Receipt"
     },
+    "filter": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "partiallyPaid": "Partially paid",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "canceled": "Canceled",
+      "unpaid": "Unpaid"
+    },
     "paymentTerms": "Payment terms",
     "paymentTermsImmediate": "Immediate",
     "paymentTermsDays": "{{count}} days",
@@ -1151,13 +1160,44 @@
   "estimates": {
     "listDescription": "Draft, send, and track quotes through acceptance.",
     "settingsTitle": "Estimates – Settings",
-    "settingsSubtitle": "Estimates settings will appear here when available.",
-    "settingsEmpty": "No settings categories yet. List columns are fixed in code (estimate number only).",
+    "settingsSubtitle": "Numbering and document defaults for estimates.",
+    "settingsEmpty": "No settings categories yet.",
     "settingsCategories": {
+      "numbering": "Numbering",
+      "numberingDescription": "Configure how estimate numbers are generated.",
+      "numberingHint": "Prefix, year, and start number for new estimates.",
       "columns": "Table columns",
       "columnsDescription": "Choose which columns appear in the estimates table and their order.",
       "columnsHint": "Drag to reorder. Toggle to show or hide a column. Estimate number is always visible."
     },
+    "noCustomer": "No customer",
+    "previewTitle": "Estimate preview",
+    "previewHelp": "This is how the estimate will look when shared or exported as PDF.",
+    "previewDraftNumber": "DRAFT",
+    "previewPageBreak": "Page break",
+    "previewPopupBlocked": "Could not open preview. Allow pop-ups for this site and try again.",
+    "previewOpenFailed": "Could not open estimate preview. Try again.",
+    "downloadPdf": "Download PDF",
+    "generatingPdf": "Generating PDF…",
+    "pdfDownloadFailed": "Failed to download PDF. Please try again.",
+    "shareEstimate": "Share estimate",
+    "viewShare": "View share",
+    "send": "Send",
+    "shareExpiredBlockedTitle": "Cannot create share link",
+    "shareExpiredBlockedMessage": "Estimate {{number}} expired on {{date}}. Share links can only be created for estimates that are still valid. Update the \"Valid To\" date in edit mode to create a share link.",
+    "noLineItems": "No line items",
+    "relations": "Relations",
+    "subtotalAfterEstimateDiscount": "Subtotal after estimate discount",
+    "convertToInvoice": "Convert to invoice",
+    "convertToInvoiceTitle": "Convert to invoice?",
+    "convertToInvoiceMessage": "Create a draft invoice from estimate {{number}}? The estimate will be marked as invoiced and can no longer be edited.",
+    "convertDisabledNotAccepted": "Only accepted estimates can be converted to an invoice.",
+    "convertDisabledInvoiced": "This estimate has already been converted to an invoice.",
+    "convertDisabledInvoicesOff": "Enable the Invoices plugin to convert estimates.",
+    "editDisabledInvoiced": "Invoiced estimates cannot be edited.",
+    "convertFailed": "Could not convert estimate to invoice.",
+    "acceptanceReasons": "Acceptance reasons",
+    "rejectionReasons": "Rejection reasons",
     "searchPlaceholder": "Search estimates...",
     "noMatch": "No estimates found matching your search.",
     "noYet": "No estimates yet",
@@ -1187,11 +1227,14 @@
     "pricingSummary": "Pricing Summary",
     "lineItemsCount": "Line Items ({{count}})",
     "tabs": {
-      "properties": "Properties",
+      "information": "Information",
       "lines": "Line items",
+      "linked": "Linked",
+      "linkedEmpty": "No linked records yet.",
+      "activity": "Activity",
+      "properties": "Properties",
       "notes": "Notes",
-      "notesEmpty": "No notes yet.",
-      "activity": "Activity"
+      "notesEmpty": "No notes yet."
     },
     "quickInfo": {
       "items": "Items",
@@ -1222,16 +1265,18 @@
       "total": "Total",
       "draft": "Draft",
       "sent": "Sent",
-      "accepted": "Accepted"
+      "accepted": "Accepted",
+      "invoiced": "Invoiced"
     },
     "statistics": {
       "title": "Estimate statistics",
-      "description": "Overview of draft, sent, and accepted estimates.",
+      "description": "Overview of draft, sent, accepted, and invoiced estimates.",
       "overview": "Overview",
       "total": "Total",
       "draft": "Draft",
       "sent": "Sent",
-      "accepted": "Accepted"
+      "accepted": "Accepted",
+      "invoiced": "Invoiced"
     }
   },
   "ingest": {

@@ -1,4 +1,3 @@
-import { Download, ExternalLink, Share } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -64,6 +63,8 @@ export function EstimateProvider({
   const [estimateQuickEditPendingStatus, setEstimateQuickEditPendingStatus] = useState<
     'accepted' | 'rejected' | null
   >(null);
+  /** Estimate targeted by status confirm dialogs (supports list preview without panel). */
+  const [estimateQuickEditTarget, setEstimateQuickEditTarget] = useState<Estimate | null>(null);
 
   const {
     selectedIds: selectedEstimateIds,
@@ -160,6 +161,9 @@ export function EstimateProvider({
   };
 
   const openEstimateForEdit = (estimate: Estimate) => {
+    if (estimate.status === 'invoiced') {
+      return;
+    }
     clearEstimateSelectionCore();
     setRecentlyDuplicatedEstimateId(null);
     setQuickEditDraft(null);
@@ -272,28 +276,22 @@ export function EstimateProvider({
         const idToUpdate = estimateId ?? currentEstimate?.id ?? null;
 
         if (idToUpdate) {
-          saved = await estimatesApi.updateEstimate(idToUpdate, estimateData);
+          saved = await estimatesApi.updateEstimate(String(idToUpdate), estimateData);
+          const normalized = {
+            ...saved,
+            validTo: new Date(saved.validTo),
+            createdAt: new Date(saved.createdAt),
+            updatedAt: new Date(saved.updatedAt),
+          };
           setEstimates((prev) =>
-            prev.map((e) =>
-              e.id === idToUpdate
-                ? {
-                    ...saved,
-                    validTo: new Date(saved.validTo),
-                    createdAt: new Date(saved.createdAt),
-                    updatedAt: new Date(saved.updatedAt),
-                  }
-                : e,
-            ),
+            prev.map((e) => (String(e.id) === String(idToUpdate) ? normalized : e)),
           );
-          if (currentEstimate?.id === idToUpdate) {
-            setCurrentEstimate({
-              ...saved,
-              validTo: new Date(saved.validTo),
-              createdAt: new Date(saved.createdAt),
-              updatedAt: new Date(saved.updatedAt),
-            });
+          setCurrentEstimate((prev) =>
+            prev && String(prev.id) === String(idToUpdate) ? normalized : prev,
+          );
+          if (currentEstimate && String(currentEstimate.id) === String(idToUpdate)) {
+            setPanelMode('view');
           }
-          setPanelMode('view');
           setValidationErrors([]);
         } else {
           saved = await estimatesApi.createEstimate(estimateData);
@@ -427,60 +425,58 @@ export function EstimateProvider({
     useState<EstimateShare | null>(null);
   const [estimateShareShowDialog, setEstimateShareShowDialog] = useState(false);
   const [estimateShareShowExpiredModal, setEstimateShareShowExpiredModal] = useState(false);
-  const [estimateShareIsDownloadingPdf, setEstimateShareIsDownloadingPdf] = useState(false);
   const [estimateShareIsCreatingShare, setEstimateShareIsCreatingShare] = useState(false);
+  const [isConvertingEstimateToInvoice, setIsConvertingEstimateToInvoice] = useState(false);
+
+  const defaultEstimateShareValidUntil = useCallback((): Date => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }, []);
+
+  const syncEstimateShareForEstimate = useCallback(
+    async (estimateId: string | null | undefined) => {
+      if (!estimateId) {
+        setEstimateShareExistingShare(null);
+        return;
+      }
+      try {
+        const shares = await estimateShareApi.getShares(String(estimateId));
+        const active = shares.find((s) => new Date(s.validUntil) > new Date());
+        setEstimateShareExistingShare(active || null);
+      } catch {
+        setEstimateShareExistingShare(null);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (panelMode === 'view' && currentEstimate?.id) {
-      let cancelled = false;
-      estimateShareApi
-        .getShares(currentEstimate.id)
-        .then((shares) => {
-          if (cancelled) {
-            return;
-          }
-          const active = shares.find((s) => new Date(s.validUntil) > new Date());
-          setEstimateShareExistingShare(active || null);
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setEstimateShareExistingShare(null);
-          }
-        });
-      return () => {
-        cancelled = true;
-      };
+      void syncEstimateShareForEstimate(currentEstimate.id);
+      return;
     }
-    setEstimateShareExistingShare(null);
-  }, [panelMode, currentEstimate?.id]);
-
-  const handleDownloadPdf = useCallback(async (estimate: Estimate) => {
-    setEstimateShareIsDownloadingPdf(true);
-    try {
-      await estimatesApi.downloadPDF(estimate.id);
-    } catch (error) {
-      console.error('Failed to download PDF:', error);
-      alert('Failed to download PDF. Please try again.');
-    } finally {
-      setEstimateShareIsDownloadingPdf(false);
+    if (!currentEstimate?.id) {
+      setEstimateShareExistingShare(null);
     }
-  }, []);
+  }, [panelMode, currentEstimate?.id, syncEstimateShareForEstimate]);
 
-  const handleShareClick = useCallback(
+  /** Tasks-style: reuse active link or create with 30-day default. */
+  const openEstimateShareForItem = useCallback(
     async (estimate: Estimate) => {
-      if (new Date(estimate.validTo) <= new Date()) {
-        setEstimateShareShowExpiredModal(true);
-        return;
-      }
-      if (estimateShareExistingShare) {
-        setEstimateShareShowDialog(true);
-        return;
-      }
       setEstimateShareIsCreatingShare(true);
       try {
+        const shares = await estimateShareApi.getShares(estimate.id);
+        const active = shares.find((s) => new Date(s.validUntil) > new Date());
+        if (active) {
+          setEstimateShareExistingShare(active);
+          setEstimateShareShowDialog(true);
+          return;
+        }
         const share = await estimateShareApi.createShare({
           estimateId: estimate.id,
-          validUntil: estimate.validTo,
+          validUntil: defaultEstimateShareValidUntil(),
         });
         setEstimateShareExistingShare(share);
         setEstimateShareShowDialog(true);
@@ -491,7 +487,7 @@ export function EstimateProvider({
         setEstimateShareIsCreatingShare(false);
       }
     },
-    [estimateShareExistingShare],
+    [defaultEstimateShareValidUntil],
   );
 
   const handleEstimateCopyShareUrl = useCallback(() => {
@@ -549,6 +545,8 @@ export function EstimateProvider({
         lineItems,
         estimateDiscount: estimate.estimateDiscount ?? 0,
         notes: estimate.notes ?? '',
+        orderNumber: estimate.orderNumber ?? '',
+        deliveryMethod: estimate.deliveryMethod ?? '',
         validTo,
         status: newStatus,
         acceptanceReasons: newStatus === 'accepted' ? reasons : (estimate.acceptanceReasons ?? []),
@@ -562,6 +560,35 @@ export function EstimateProvider({
     [formatValidTo, saveEstimate],
   );
 
+  /** Send button + status select: confirm sent / reasons for accept|reject, else save. */
+  const requestStatusChange = useCallback(
+    (newStatus: string, estimate?: Estimate | null) => {
+      const target = estimate ?? currentEstimate;
+      if (!target) {
+        return;
+      }
+      if (newStatus === target.status) {
+        setQuickEditDraft(null);
+        return;
+      }
+      if (newStatus === 'sent') {
+        setEstimateQuickEditTarget(target);
+        setEstimateQuickEditShowSentConfirmation(true);
+        return;
+      }
+      if (newStatus === 'accepted' || newStatus === 'rejected') {
+        setEstimateQuickEditTarget(target);
+        setEstimateQuickEditPendingStatus(newStatus);
+        setEstimateQuickEditShowStatusModal(true);
+        return;
+      }
+      void performStatusChange(target, newStatus, []).then(() => {
+        setQuickEditDraft(null);
+      });
+    },
+    [currentEstimate, performStatusChange],
+  );
+
   const onApplyQuickEdit = useCallback(async () => {
     if (!currentEstimate || !quickEditDraft?.status) {
       return;
@@ -569,6 +596,7 @@ export function EstimateProvider({
     const draftStatus = quickEditDraft.status;
 
     if (draftStatus === 'sent' && currentEstimate.status !== 'sent') {
+      setEstimateQuickEditTarget(currentEstimate);
       setEstimateQuickEditShowSentConfirmation(true);
       return;
     }
@@ -576,6 +604,7 @@ export function EstimateProvider({
       (draftStatus === 'accepted' || draftStatus === 'rejected') &&
       currentEstimate.status !== draftStatus
     ) {
+      setEstimateQuickEditTarget(currentEstimate);
       setEstimateQuickEditPendingStatus(draftStatus);
       setEstimateQuickEditShowStatusModal(true);
       return;
@@ -605,84 +634,90 @@ export function EstimateProvider({
   }, []);
 
   const handleEstimateQuickEditSentConfirm = useCallback(async () => {
-    if (!currentEstimate) {
+    const target = estimateQuickEditTarget ?? currentEstimate;
+    if (!target) {
       return;
     }
-    await performStatusChange(currentEstimate, 'sent', []);
+    await performStatusChange(target, 'sent', []);
     setEstimateQuickEditShowSentConfirmation(false);
+    setEstimateQuickEditTarget(null);
     setQuickEditDraft(null);
-  }, [currentEstimate, performStatusChange]);
+  }, [currentEstimate, estimateQuickEditTarget, performStatusChange]);
 
   const handleEstimateQuickEditSentCancel = useCallback(() => {
     setEstimateQuickEditShowSentConfirmation(false);
+    setEstimateQuickEditTarget(null);
   }, []);
 
   const handleEstimateQuickEditModalConfirm = useCallback(
     async (reasons: string[]) => {
-      if (!currentEstimate || !estimateQuickEditPendingStatus) {
+      const target = estimateQuickEditTarget ?? currentEstimate;
+      if (!target || !estimateQuickEditPendingStatus) {
         return;
       }
-      await performStatusChange(currentEstimate, estimateQuickEditPendingStatus, reasons);
+      await performStatusChange(target, estimateQuickEditPendingStatus, reasons);
       setEstimateQuickEditShowStatusModal(false);
       setEstimateQuickEditPendingStatus(null);
+      setEstimateQuickEditTarget(null);
       setQuickEditDraft(null);
     },
-    [currentEstimate, estimateQuickEditPendingStatus, performStatusChange],
+    [currentEstimate, estimateQuickEditPendingStatus, estimateQuickEditTarget, performStatusChange],
   );
 
   const handleEstimateQuickEditModalCancel = useCallback(() => {
     setEstimateQuickEditShowStatusModal(false);
     setEstimateQuickEditPendingStatus(null);
+    setEstimateQuickEditTarget(null);
   }, []);
 
-  const detailFooterActions = useMemo(() => {
-    if (panelMode !== 'view' || !currentEstimate) {
-      return [];
-    }
-    const hasActiveShare =
-      estimateShareExistingShare && new Date(estimateShareExistingShare.validUntil) > new Date();
-    const actions = [
-      {
-        id: 'download-pdf',
-        label: estimateShareIsDownloadingPdf ? 'Generating PDF…' : 'Download PDF',
-        icon: Download,
-        onClick: (item: Estimate) => handleDownloadPdf(item),
-        className: 'h-9 text-xs px-3',
-        disabled: estimateShareIsDownloadingPdf,
-      },
-    ];
-    if (hasActiveShare && estimateShareExistingShare) {
-      const shareUrl = estimateShareApi.generateShareUrl(estimateShareExistingShare.shareToken);
-      actions.push({
-        id: 'view-share',
-        label: 'View',
-        icon: ExternalLink,
-        onClick: async (_item: Estimate) => {
-          window.open(shareUrl, '_blank', 'noopener,noreferrer');
-        },
-        className: 'h-9 text-xs px-3',
-        disabled: false,
-      });
-    } else {
-      actions.push({
-        id: 'share',
-        label: estimateShareIsCreatingShare ? 'Creating Share…' : 'Share estimate',
-        icon: Share,
-        onClick: (item: Estimate) => handleShareClick(item),
-        className: 'h-9 text-xs px-3',
-        disabled: estimateShareIsCreatingShare,
-      });
-    }
-    return actions;
-  }, [
-    panelMode,
-    currentEstimate,
-    estimateShareIsDownloadingPdf,
-    estimateShareIsCreatingShare,
-    estimateShareExistingShare,
-    handleDownloadPdf,
-    handleShareClick,
-  ]);
+  const convertEstimateToInvoice = useCallback(
+    async (estimate: Estimate) => {
+      setIsConvertingEstimateToInvoice(true);
+      try {
+        const result = await estimatesApi.convertToInvoice(estimate.id);
+        const updated = {
+          ...result.estimate,
+          validTo: new Date(result.estimate.validTo),
+          createdAt: new Date(result.estimate.createdAt),
+          updatedAt: new Date(result.estimate.updatedAt),
+        } as Estimate;
+        setEstimates((prev) =>
+          prev.map((e) => (String(e.id) === String(updated.id) ? updated : e)),
+        );
+        if (currentEstimate?.id === updated.id) {
+          setCurrentEstimate(updated);
+        }
+        const invoice = result.invoice;
+        if (invoice?.id) {
+          const slug = buildSlug(
+            { id: invoice.id, invoiceNumber: invoice.invoiceNumber || invoice.id },
+            [],
+            'invoiceNumber',
+          );
+          navigate(`/invoices/${slug}`);
+        }
+      } catch (error: any) {
+        if (error?.status === 409 && error.existingInvoiceId) {
+          const slug = buildSlug(
+            { id: error.existingInvoiceId, invoiceNumber: error.existingInvoiceId },
+            [],
+            'invoiceNumber',
+          );
+          navigate(`/invoices/${slug}`);
+          return;
+        }
+        alert(
+          error?.message || t('estimates.convertFailed', { defaultValue: 'Conversion failed.' }),
+        );
+      } finally {
+        setIsConvertingEstimateToInvoice(false);
+      }
+    },
+    [currentEstimate?.id, navigate, t],
+  );
+
+  /** Export lives in EstimateDetailHeaderMenus (always, including soft preview). */
+  const detailFooterActions = useMemo(() => [], []);
 
   const getPanelTitle = (
     mode: string,
@@ -712,6 +747,8 @@ export function EstimateProvider({
         accepted:
           'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
         rejected: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
+        invoiced:
+          'bg-violet-50/50 text-violet-700 dark:text-violet-300 border-violet-100/50 font-medium',
       };
 
       const badgeColor = statusColors[item.status] || statusColors.draft;
@@ -785,12 +822,14 @@ export function EstimateProvider({
     setEstimateShareShowDialog,
     estimateShareShowExpiredModal,
     setEstimateShareShowExpiredModal,
-    estimateShareIsDownloadingPdf,
     estimateShareIsCreatingShare,
+    syncEstimateShareForEstimate,
+    openEstimateShareForItem,
     handleEstimateCopyShareUrl,
     handleEstimateRevokeShare,
     quickEditDraft,
     setQuickEditField,
+    requestStatusChange,
     hasQuickEditChanges,
     onApplyQuickEdit,
     showDiscardQuickEditDialog,
@@ -814,6 +853,8 @@ export function EstimateProvider({
     estimatesContentView,
     openEstimateSettings: () => setEstimatesContentView('settings'),
     closeEstimateSettingsView: () => setEstimatesContentView('list'),
+    convertEstimateToInvoice,
+    isConvertingEstimateToInvoice,
   };
 
   return <EstimateContext.Provider value={value}>{children}</EstimateContext.Provider>;

@@ -54,4 +54,9 @@ describe('InvoicesView detail tab chips', () => {
     expect(viewSrc).toMatch(/DetailActivityLog/);
     expect(viewSrc).toMatch(/entityType="invoice"/);
   });
+
+  test('linked tiles use Contacts-style half-width grid (md:grid-cols-2)', () => {
+    expect(viewSrc).toMatch(/QuickContextLinkTileGrid/);
+    expect(viewSrc).not.toMatch(/QuickContextLinkTileGrid className=\{stacked \? 'md:grid-cols-1'/);
+  });
 });

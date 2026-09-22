@@ -64,6 +64,36 @@ class EstimatesApi {
     return result.estimateNumber;
   }
 
+  async convertToInvoice(
+    id: string,
+  ): Promise<{ estimate: Estimate; invoice: { id: string; invoiceNumber?: string } }> {
+    const response = await apiFetch(`/api/estimates/${id}/convert-to-invoice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const err: Error & { status?: number; existingInvoiceId?: string } = new Error(
+        payload?.error || 'Failed to convert estimate to invoice',
+      );
+      err.status = response.status;
+      if (payload?.existingInvoiceId) {
+        err.existingInvoiceId = String(payload.existingInvoiceId);
+      }
+      throw err;
+    }
+    const estimate = payload.estimate;
+    return {
+      estimate: {
+        ...estimate,
+        validTo: new Date(estimate.validTo),
+        createdAt: new Date(estimate.createdAt),
+        updatedAt: new Date(estimate.updatedAt),
+      },
+      invoice: payload.invoice,
+    };
+  }
+
   // === FIXED PDF DOWNLOAD METHOD ===
   async downloadPDF(id: string): Promise<void> {
     try {
@@ -143,7 +173,11 @@ class EstimatesApi {
   }
 
   async getPublicEstimate(token: string): Promise<PublicEstimate> {
-    const estimate = (await this.request(`/public/${token}`)) as any;
+    const response = await fetch(`/api/estimates/public/${token}`, { method: 'GET' });
+    const estimate = (await response.json().catch(() => ({}))) as any;
+    if (!response.ok) {
+      throw new Error(estimate?.error || 'Failed to load estimate');
+    }
     return {
       ...estimate,
       validTo: new Date(estimate.validTo),
@@ -151,6 +185,27 @@ class EstimatesApi {
       updatedAt: new Date(estimate.updatedAt),
       shareValidUntil: new Date(estimate.shareValidUntil),
     };
+  }
+
+  async downloadPublicPdf(token: string): Promise<Blob> {
+    const response = await fetch(`/api/estimates/public/${token}/pdf`, { method: 'GET' });
+    if (!response.ok) {
+      let errorMessage = 'Failed to download PDF';
+      try {
+        const text = await response.text();
+        const match = text.match(/"error"\s*:\s*"([^"]+)"/);
+        if (match) {
+          errorMessage = match[1];
+        }
+      } catch {
+        // Ignore parse errors when response body isn't JSON
+      }
+      const err: any = new Error(errorMessage);
+      err.status = response.status;
+      throw err;
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return new Blob([arrayBuffer], { type: 'application/pdf' });
   }
 }
 
@@ -172,6 +227,10 @@ export const estimateShareApi = {
 
   async getPublicEstimate(token: string): Promise<PublicEstimate> {
     return estimatesApi.getPublicEstimate(token);
+  },
+
+  async downloadPublicPdf(token: string): Promise<Blob> {
+    return estimatesApi.downloadPublicPdf(token);
   },
 
   generateShareUrl(token: string): string {

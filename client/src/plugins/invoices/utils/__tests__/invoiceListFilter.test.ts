@@ -7,7 +7,7 @@ import { computeInvoiceStats } from '../invoiceStats';
 
 describe('invoiceMatchesListFilters', () => {
   it('allows all when selection is empty', () => {
-    expect(invoiceMatchesListFilters({ invoiceType: 'invoice' }, [])).toBe(true);
+    expect(invoiceMatchesListFilters({ invoiceType: 'invoice', status: 'sent' }, [])).toBe(true);
   });
 
   it('matches exclusive document types', () => {
@@ -15,6 +15,35 @@ describe('invoiceMatchesListFilters', () => {
     expect(invoiceMatchesListFilters({ invoiceType: 'credit_note' }, ['invoice'])).toBe(false);
     expect(invoiceMatchesListFilters({ invoiceType: 'cash_invoice' }, ['cash_invoice'])).toBe(true);
     expect(invoiceMatchesListFilters({ invoiceType: 'receipt' }, ['receipt'])).toBe(true);
+  });
+
+  it('matches status filters including unpaid', () => {
+    expect(invoiceMatchesSingleFilter({ status: 'draft' }, 'draft')).toBe(true);
+    expect(invoiceMatchesSingleFilter({ status: 'sent' }, 'draft')).toBe(false);
+    expect(
+      invoiceMatchesSingleFilter({ status: 'sent', amountPaid: 0, total: 100 }, 'unpaid'),
+    ).toBe(true);
+    expect(
+      invoiceMatchesSingleFilter({ status: 'paid', amountPaid: 100, total: 100 }, 'unpaid'),
+    ).toBe(false);
+    expect(
+      invoiceMatchesSingleFilter({ status: 'draft', amountPaid: 0, total: 100 }, 'unpaid'),
+    ).toBe(false);
+  });
+
+  it('ANDs status with type across exclusive groups', () => {
+    expect(
+      invoiceMatchesListFilters({ status: 'sent', invoiceType: 'credit_note' }, [
+        'sent',
+        'credit_note',
+      ]),
+    ).toBe(true);
+    expect(
+      invoiceMatchesListFilters({ status: 'sent', invoiceType: 'invoice' }, [
+        'sent',
+        'credit_note',
+      ]),
+    ).toBe(false);
   });
 
   it('treats missing invoiceType as invoice', () => {
@@ -29,6 +58,16 @@ describe('toggleInvoiceListFilter', () => {
     expect(toggleInvoiceListFilter(['credit_note'], 'receipt')).toEqual(['receipt']);
     expect(toggleInvoiceListFilter(['receipt'], 'receipt')).toEqual([]);
     expect(toggleInvoiceListFilter(['cash_invoice'], 'invoice')).toEqual(['invoice']);
+  });
+
+  it('replaces within exclusive status group and keeps type', () => {
+    expect(toggleInvoiceListFilter(['sent'], 'paid')).toEqual(['paid']);
+    expect(toggleInvoiceListFilter(['paid'], 'paid')).toEqual([]);
+    expect(toggleInvoiceListFilter(['sent', 'invoice'], 'overdue')).toEqual(['invoice', 'overdue']);
+    expect(toggleInvoiceListFilter(['sent', 'invoice'], 'credit_note')).toEqual([
+      'sent',
+      'credit_note',
+    ]);
   });
 });
 

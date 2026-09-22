@@ -107,7 +107,11 @@ function parseInvoiceViewTab(value: string | null): InvoiceViewTab {
   return 'information';
 }
 
-export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacked = false }) => {
+export const InvoicesView: React.FC<InvoiceViewProps> = ({
+  invoice,
+  item,
+  stacked: _stacked = false,
+}) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -427,7 +431,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
           </div>
         </DetailSection>
       </Card>
-      <InvoiceShareBlock />
+      <InvoiceShareBlock invoice={actualItem} />
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
@@ -600,7 +604,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
         className="p-6"
       >
         {actualItem.contactId || actualItem.contactName ? (
-          <QuickContextLinkTileGrid className={stacked ? 'md:grid-cols-1' : undefined}>
+          <QuickContextLinkTileGrid>
             <QuickContextLinkTile
               label={t('nav.contact')}
               meta={

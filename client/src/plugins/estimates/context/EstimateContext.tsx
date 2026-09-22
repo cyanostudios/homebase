@@ -57,12 +57,17 @@ export interface EstimateContextType {
   setEstimateShareShowDialog: (show: boolean) => void;
   estimateShareShowExpiredModal: boolean;
   setEstimateShareShowExpiredModal: (show: boolean) => void;
-  estimateShareIsDownloadingPdf: boolean;
   estimateShareIsCreatingShare: boolean;
+  /** Load active share for an estimate (soft preview + panel view). */
+  syncEstimateShareForEstimate: (estimateId: string | null | undefined) => Promise<void>;
+  /** Tasks-style one-click share (Export → Share). */
+  openEstimateShareForItem: (estimate: Estimate) => Promise<void>;
   handleEstimateCopyShareUrl: () => void;
   handleEstimateRevokeShare: () => void;
   quickEditDraft: Partial<{ status: string }> | null;
   setQuickEditField: (field: 'status', value: string) => void;
+  /** Open confirm/reason UI (or save immediately) for a status change — used by Send + status select. */
+  requestStatusChange: (newStatus: string, estimate?: Estimate | null) => void;
   hasQuickEditChanges: boolean;
   onApplyQuickEdit: () => Promise<void>;
   showDiscardQuickEditDialog: boolean;
@@ -87,6 +92,8 @@ export interface EstimateContextType {
   estimatesContentView: 'list' | 'settings';
   openEstimateSettings: () => void;
   closeEstimateSettingsView: () => void;
+  convertEstimateToInvoice: (estimate: Estimate) => Promise<void>;
+  isConvertingEstimateToInvoice: boolean;
 }
 
 export const EstimateContext = createContext<EstimateContextType | undefined>(undefined);
@@ -134,12 +141,14 @@ const EMPTY_ESTIMATE_CONTEXT: EstimateContextType = {
   setEstimateShareShowDialog: () => {},
   estimateShareShowExpiredModal: false,
   setEstimateShareShowExpiredModal: () => {},
-  estimateShareIsDownloadingPdf: false,
   estimateShareIsCreatingShare: false,
+  syncEstimateShareForEstimate: async () => {},
+  openEstimateShareForItem: async () => {},
   handleEstimateCopyShareUrl: () => {},
   handleEstimateRevokeShare: () => {},
   quickEditDraft: null,
   setQuickEditField: () => {},
+  requestStatusChange: () => {},
   hasQuickEditChanges: false,
   onApplyQuickEdit: async () => {},
   showDiscardQuickEditDialog: false,
@@ -163,6 +172,8 @@ const EMPTY_ESTIMATE_CONTEXT: EstimateContextType = {
   estimatesContentView: 'list',
   openEstimateSettings: () => {},
   closeEstimateSettingsView: () => {},
+  convertEstimateToInvoice: async () => {},
+  isConvertingEstimateToInvoice: false,
 };
 
 export function EstimateNullProvider({ children }: { children: React.ReactNode }) {

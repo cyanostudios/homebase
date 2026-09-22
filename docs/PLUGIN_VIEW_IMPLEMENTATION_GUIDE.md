@@ -65,11 +65,11 @@ Add a `*QuickContextPanel` as the **first card of `*View`** (mail-layout full-on
 
 **Existing production (verified 2026-09-16):**
 
-| Pattern                                          | Plugins                                                                                     |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Full-only QC in `*View` (no `variant`)           | contacts, notes, tasks, requests, teams, matches, invoices, files, garments inventory, cups |
-| Mail-layout detail column (stacked `*View`)      | slots, cups, contacts, clubdesk guides/price lists, and other mail-layout lists             |
-| List-side sticky QC (`variant="list" \| "full"`) | **none** (removed; do not reintroduce)                                                      |
+| Pattern                                          | Plugins                                                                                                    |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Full-only QC in `*View` (no `variant`)           | contacts, notes, tasks, requests, teams, matches, invoices, **estimates**, files, garments inventory, cups |
+| Mail-layout detail column (stacked `*View`)      | slots, cups, contacts, clubdesk guides/price lists, and other mail-layout lists                            |
+| List-side sticky QC (`variant="list" \| "full"`) | **none** (removed; do not reintroduce)                                                                     |
 
 Do **not** put Delete / Duplicate / Export in the quick context **body**. Mail-layout QC mounts `*DetailHeaderMenus` in the header (Actions / Export / Delete live there).
 
@@ -349,7 +349,9 @@ Do **not** change shadcn `Input` / `Textarea` / `NativeSelect` defaults — appl
 
 **Contacts create/edit tabs:** `ContactForm` uses the **same URL `?tab=` shell** as `ContactView` (`information` | `addresses` | `persons` | `linked` | `activity`). Properties is **not** a separate chip — it is card #2 on the Information tab (below the main info card). Legacy `?tab=properties` maps to `information`. View→Edit preserves the active tab when it is editable (`useItemUrl.navigateToItem` keeps `window.location.search`). Editable tabs: information, addresses, persons. **Linked and Activity** stay visible in the chip row but are **greyed out / disabled** in edit (view-only); if the URL is on those tabs when entering edit, the form redirects to information. Validation errors on a hidden editable tab show a destructive dot on that chip. Create uses the same shell (starts on information). Do **not** reintroduce the 2-column `leftSidebar` form stack for Contacts.
 
-**Information + Properties merge (all Contacts-class plugins that had both):** When a plugin previously had both chips, keep a single **Information** chip. Render the former Properties body as the second card under Information (below description / main info). Same rule for View and Form. **Requests:** on Information, order is Description → (optional Submitted details) → **Properties** → **Submitter**. Do **not** apply this merge to Estimates (Properties is the first/only “facts” tab there, not a pair with Information).
+**Information + Properties merge (all Contacts-class plugins that had both):** When a plugin previously had both chips, keep a single **Information** chip. Render the former Properties body as the second card under Information (below description / main info). Same rule for View and Form. **Requests:** on Information, order is Description → (optional Submitted details) → **Properties** → **Submitter**. **Estimates (verified 2026-09-21):** uses the same **Information** tab shell (`information` | `lines` | `linked` | `activity`); card #1 = facts (incl. order/delivery), card #2 = **Estimate properties** (status, reasons, **notes**), then Share + preview — not a separate Properties chip.
+
+**Estimates create/edit tabs:** `EstimateForm` mirrors `EstimateView` `?tab=` chips. **Linked** and **Activity** stay visible but **disabled** in edit. Invoiced estimates cannot open edit (provider + header menus). Line items on **Lines** via `EstimateLineItemsEditor` → shared invoice line editor.
 
 **Notes / Tasks / Requests create/edit tabs (same pattern):** `NoteForm`, `TaskForm`, and `RequestForm` reuse their View `?tab=` chips. Linked and/or Activity chips stay visible but **disabled** in edit; non-editable tab URLs redirect to the first editable tab. Notes focus mode (edit only) portals the editor into a **viewport-centered** overlay — see `UI_AND_UX_STANDARDS_V3.md` (Notes focus mode).
 
@@ -508,7 +510,7 @@ flex items-start justify-between gap-6
 
 **List layout:** **Table-only** (`*ListTable` / `SortableListTable`). Do not add a cards/column layout toggle. Do not add a settings **View** tab for list layout.
 
-**Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only). When `categories.length === 0` (temporary empty shell, e.g. Estimates after Columns removal), still pass required `children` and empty-state copy — do not omit `children` (TypeScript requires it).
+**Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only, **Estimates Numbering**). When `categories.length === 0` (temporary empty shell only), still pass required `children` and empty-state copy — do not omit `children` (TypeScript requires it).
 
 **List table columns:** **not** user-configurable in settings. Default visible columns are **name/title only** (required identity: `name` / `title` / `matchup` / `articleName` / `estimateNumber` / `invoiceNumber`, etc.). Extra metadata columns are decided **per plugin in code** later — keep column defs in `*ListTable` + helpers in `*TableColumns.ts` / `client/src/core/list/tableColumnsPref.ts`, and have `resolveVisible*` return code defaults (ignore any legacy `user_settings.tableColumns`). Do not add column pickers on the list toolbar or a settings **Columns** category. Garments list **checkbox** custom columns remain list-entity settings — see [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) (Person rows).
 

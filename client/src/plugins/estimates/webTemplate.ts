@@ -1,15 +1,9 @@
 // client/src/plugins/estimates/webTemplate.ts
-// TypeScript version of web template for frontend use
+// Swedish Facio-style Offert HTML (matches plugins/estimates/pdfTemplate.js + invoices Facio layout).
 
-interface _LineItem {
-  id?: string;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  discount?: number;
-  vatRate?: number;
-  lineTotal: number;
-}
+import { decodeHtmlEntities } from '@/plugins/invoices/utils/htmlText';
+
+import { resolveEstimateTotals } from './utils/estimateTotals';
 
 function escapeHtml(str: string | null | undefined): string {
   if (str === null || str === undefined) {
@@ -23,225 +17,681 @@ function escapeHtml(str: string | null | undefined): string {
     .replace(/'/g, '&#39;');
 }
 
-function formatDate(date: string | Date) {
+function escapeHtmlText(str: string | null | undefined): string {
+  return escapeHtml(decodeHtmlEntities(String(str ?? '')));
+}
+
+/** Escape for use inside double-quoted HTML attributes (keeps data: URLs intact). */
+function escapeAttr(str: string | null | undefined): string {
+  if (str === null || str === undefined) {
+    return '';
+  }
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+function formatDate(date: string | Date | null | undefined) {
+  if (!date) {
+    return '';
+  }
   return new Date(date).toLocaleDateString('sv-SE');
 }
 
-function formatCurrency(amount: number, currency = 'SEK') {
+/** Swedish number: 64 900,00 (no currency symbol). */
+function formatSvNumber(amount: number, minFrac = 2, maxFrac = 2): string {
+  const n = Number.isFinite(Number(amount)) ? Number(amount) : 0;
   return new Intl.NumberFormat('sv-SE', {
-    style: 'currency',
-    currency: currency,
-  }).format(amount);
+    minimumFractionDigits: minFrac,
+    maximumFractionDigits: maxFrac,
+  }).format(n);
 }
 
-export function generateWebHTML(estimate: any): string {
-  // Use pre-calculated totals if available, fallback to simple calculation
+function lineDescription(li: any): string {
+  const title = li.name || li.title || '';
+  const desc = li.description || '';
+  if (title && desc && title !== desc) {
+    return `${title}\n${desc}`;
+  }
+  return title || desc || 'Tjänst / vara';
+}
+
+function lineSum(li: any): number {
+  if (typeof li.lineSubtotalAfterDiscount === 'number') {
+    return li.lineSubtotalAfterDiscount;
+  }
+  if (typeof li.lineSubtotal === 'number') {
+    return li.lineSubtotal;
+  }
+  return Number(li.quantity || 0) * Number(li.unitPrice || 0);
+}
+
+function formatDisc(li: any): string {
+  const d = Number(li.discount || 0);
+  if (!Number.isFinite(d) || d <= 0) {
+    return '—';
+  }
+  return `${formatSvNumber(d, 0, 2)}%`;
+}
+
+function resolveVatLabel(lineItems: any[], _totalVat: number) {
+  const priced = Array.isArray(lineItems) ? lineItems.filter((li) => li && li.kind !== 'text') : [];
+  const rates = [
+    ...new Set(priced.map((li) => Number(li.vatRate ?? 25)).filter((r) => Number.isFinite(r))),
+  ];
+  if (rates.length === 1) {
+    return `Moms (${rates[0]}%)`;
+  }
+  if (rates.length > 1) {
+    return `Moms (${rates.map((r) => `${r}%`).join(', ')})`;
+  }
+  return 'Moms (25%)';
+}
+
+function formatQty(li: any): string {
+  const q = Number(li.quantity || 0);
+  const unit = String(li.unit || li.unitLabel || '').trim();
+  const qtyStr = formatSvNumber(q, 0, 2);
+  return unit ? `${qtyStr} ${escapeHtml(unit)}` : qtyStr;
+}
+
+/** Same Facio CSS as plugins/estimates/pdfTemplate.js / invoices webTemplate. */
+function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
+  const mobileRules = options.forceDesktop
+    ? `
+      /* Live edit preview: desktop layout, hug content (no A4 min-height / iframe scroll) */
+      html, body { overflow: hidden; }
+      body { min-width: 720px; background: #fff; margin: 0; padding: 0; }
+      .page {
+        box-shadow: none;
+        margin: 0;
+        max-width: none;
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        padding-left: 12mm;
+        padding-right: 12mm;
+        min-height: 0;
+      }
+      .footer {
+        margin-top: 36px;
+      }
+    `
+    : `
+      @media (max-width: 640px) {
+        .page { margin: 0; padding: 20px 16px; box-shadow: none; }
+        .top, .meta, .footer { grid-template-columns: 1fr; gap: 16px; }
+        .top-customer, .top-payment, .top-left-meta, .top-right-meta {
+          grid-column: 1;
+          grid-row: auto;
+        }
+      }
+    `;
+
+  return `
+      * { box-sizing: border-box; }
+      body {
+        font-family: Helvetica, Arial, 'Helvetica Neue', sans-serif;
+        color: #111827;
+        margin: 0;
+        padding: 0;
+        font-size: 12px;
+        line-height: 1.45;
+        background: #f1f5f9;
+      }
+      .page {
+        max-width: 720px;
+        margin: 24px auto;
+        padding: 8mm 12mm;
+        background: #fff;
+        box-shadow: 0 0 40px rgba(15, 23, 42, 0.06);
+        /* Match PDF: fill first A4 content box so footer sticks to bottom when short. */
+        min-height: 271mm;
+        display: flex;
+        flex-direction: column;
+      }
+      .doc-header {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        align-items: center;
+        margin-bottom: 28px;
+      }
+      .doc-header .issuer-brand {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+      }
+      .doc-header .issuer-logo {
+        display: block;
+        max-height: 64px;
+        max-width: 220px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        margin: 0;
+        flex-shrink: 0;
+      }
+      .doc-header .issuer-name {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #0f172a;
+        line-height: 1.2;
+      }
+      .doc-header .title-block {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        min-width: 0;
+      }
+      .doc-header .title-row {
+        display: block;
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        text-align: left;
+        line-height: 1.2;
+      }
+      .doc-header .doc-page-num {
+        margin: 0;
+        flex-shrink: 0;
+        font-size: 10px;
+        font-weight: 400;
+        color: #64748b;
+        line-height: 1.2;
+      }
+      .doc-header .title-row .lbl {
+        font-size: inherit;
+        font-weight: inherit;
+        color: inherit;
+      }
+      .doc-header .title-row .lbl::after { content: none; }
+      .doc-header .title-row .val {
+        font-size: inherit;
+        font-weight: inherit;
+        margin-left: 0.35em;
+      }
+      .top {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+        column-gap: 32px;
+        row-gap: 16px;
+        margin-bottom: 28px;
+        align-items: start;
+      }
+      .top-customer { grid-column: 1; grid-row: 1; }
+      .top-payment { grid-column: 2; grid-row: 1; }
+      .top-left-meta { grid-column: 1; grid-row: 2; }
+      .top-right-meta { grid-column: 2; grid-row: 2; }
+      .issuer-lines {
+        color: #334155;
+        font-size: 12px;
+      }
+      .issuer-lines p { margin: 1px 0; }
+      .summary {
+        text-align: left;
+        max-width: 220px;
+      }
+      .summary .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .summary .row.customer-row {
+        align-items: flex-start;
+        justify-content: flex-start;
+      }
+      .summary .row.plain .val {
+        font-weight: 400;
+      }
+      .summary .row.customer-row > .lbl {
+        line-height: 1.35;
+        padding-top: 0;
+        width: 7.5em;
+        flex-shrink: 0;
+      }
+      .summary .lbl {
+        font-size: 12px;
+        color: #64748b;
+        flex-shrink: 0;
+      }
+      .summary .lbl::after { content: ':'; }
+      .summary .val,
+      .summary .amount {
+        font-size: 12px;
+        font-weight: 700;
+        color: #0f172a;
+        text-align: right;
+        margin-left: auto;
+      }
+      .summary .val.details {
+        text-align: left;
+        margin-left: 0;
+        font-weight: 400;
+        line-height: 1.35;
+      }
+      .summary .val.details p {
+        margin: 0;
+        font-weight: 400;
+        color: #334155;
+        line-height: 1.35;
+      }
+      .summary .val.details p + p {
+        margin-top: 1px;
+      }
+      .summary .val.details p:first-child {
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .customer-wrap { margin-top: 22px; }
+      .rule {
+        border: 0;
+        border-top: 1px solid #93c5fd;
+        margin: 0;
+      }
+      .meta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 40px;
+        padding: 14px 0;
+        font-size: 12px;
+      }
+      .meta .pair { display: flex; gap: 6px; flex-wrap: wrap; }
+      .meta .k { color: #64748b; }
+      .meta .k::after { content: ':'; }
+      .meta .v { font-weight: 400; color: #0f172a; }
+      .items {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 18px;
+      }
+      .items th {
+        text-align: left;
+        font-size: 12px;
+        font-weight: 700;
+        color: #0f172a;
+        padding: 8px 6px 10px 0;
+        border-bottom: 1px solid #93c5fd;
+      }
+      .items th.right, .items td.right { text-align: right; }
+      .items td {
+        padding: 12px 6px 12px 0;
+        vertical-align: top;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .items .desc {
+        white-space: pre-wrap;
+        font-weight: 500;
+        color: #0f172a;
+      }
+      .items .num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .totals-wrap {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 32px;
+        margin-top: 18px;
+      }
+      .notes-block {
+        flex: 1;
+        min-width: 0;
+        max-width: 22rem;
+        margin: 0;
+        padding: 0;
+        align-self: flex-start;
+      }
+      .notes-block table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .notes-block td {
+        padding: 4px 0;
+        color: #334155;
+        line-height: 1.45;
+        vertical-align: top;
+      }
+      .notes-block tr:first-child td { padding-top: 0; }
+      .notes-block .notes-body {
+        white-space: pre-wrap;
+        color: #0f172a;
+      }
+      .totals {
+        width: 260px;
+        border-collapse: collapse;
+        font-size: 12px;
+        margin: 0 0 0 auto;
+        padding: 0;
+        flex-shrink: 0;
+        align-self: flex-start;
+      }
+      .totals td { padding: 4px 0; color: #334155; line-height: 1.45; vertical-align: top; }
+      .totals tr:first-child td { padding-top: 0; }
+      .totals .amount {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        padding-left: 24px;
+      }
+      .totals .grand td {
+        padding-top: 10px;
+        font-weight: 800;
+        font-size: 14px;
+        color: #0f172a;
+      }
+      .footer {
+        /* Stick to bottom of first page when content is short; after content when multi-page. */
+        margin-top: auto;
+        padding-top: 36px;
+        border-top: 1px solid #93c5fd;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px 24px;
+        font-size: 10px;
+        font-weight: 400;
+        color: #0f172a;
+        line-height: 1.4;
+        flex-shrink: 0;
+      }
+      .footer strong {
+        color: #0f172a;
+        font-weight: 400;
+      }
+      .footer .lab {
+        font-weight: 400;
+        color: #64748b;
+        min-width: 4rem;
+        display: inline-block;
+      }
+      .footer-company p { margin: 1px 0; color: #0f172a; }
+      .footer-company p:first-child { margin-bottom: 2px; color: #0f172a; }
+      .footer-company .footer-site {
+        margin-top: 10px;
+        color: #0f172a;
+      }
+      .footer-col > div { margin: 1px 0; color: #0f172a; }
+      .expired-banner {
+        background: #dc2626;
+        color: #fff;
+        text-align: center;
+        padding: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        border-radius: 6px;
+      }
+      ${mobileRules}
+      @media print {
+        body { background: #fff; }
+        .page { margin: 0; padding: 0; max-width: none; box-shadow: none; }
+        .expired-banner { display: none; }
+      }
+  `;
+}
+
+export function generateWebHTML(estimate: any, options: { forceDesktop?: boolean } = {}): string {
+  const forceDesktop = Boolean(options.forceDesktop || estimate?.forceDesktop);
+  const org = estimate.organization || {};
+  const address = org.address || {};
+  const billing = org.billing || {};
+  const cust = estimate.customer || {};
+
+  const resolved = resolveEstimateTotals(estimate);
   const totals = {
-    subtotal: estimate.subtotal || 0,
-    totalDiscount: estimate.totalDiscount || 0,
-    subtotalAfterDiscount: estimate.subtotalAfterDiscount || 0,
-    estimateDiscountAmount: estimate.estimateDiscountAmount || 0,
-    subtotalAfterEstimateDiscount: estimate.subtotalAfterEstimateDiscount || 0,
-    totalVat: estimate.totalVat || 0,
-    total: estimate.total || 0,
+    ...resolved,
+    estimateDiscount: Number(estimate.estimateDiscount || 0),
   };
 
-  const isExpired = new Date(estimate.shareValidUntil || estimate.validTo) < new Date();
+  const numberLabel = escapeHtml(estimate.estimateNumber || `UTKAST-${estimate.id}`);
+  const documentTitle = 'Offert';
+  const hasIssuer = Boolean(org && String(org.name || '').trim());
+  const issuerName = escapeHtml(hasIssuer ? org.name : 'Företag');
+  const logoUrl = typeof org.logoUrl === 'string' ? org.logoUrl.trim() : '';
+  const logoSrc = logoUrl ? escapeAttr(logoUrl) : '';
+  const issuerLine1 = escapeHtml(address.line1 || '');
+  const issuerLine2 = escapeHtml(address.line2 || '');
+  const issuerCity = escapeHtml([address.postalCode, address.city].filter(Boolean).join(' ') || '');
+  const issuerCountry = escapeHtml(address.country || '');
+  const issuerEmail = escapeHtml(org.email || billing.invoiceEmail || '');
+  const issuerPhone = escapeHtml(org.phone || '');
+  const issuerSite = escapeHtml(org.website || '');
+  const orgNr = escapeHtml(billing.organizationNumber || '');
+  const vatNr = escapeHtml(billing.vatNumber || '');
+  const bankgiro = escapeHtml(billing.bankgiro || '');
+  const plusgiro = escapeHtml(billing.plusgiro || '');
+  const iban = escapeHtml(billing.iban || '');
+  const bic = escapeHtml(billing.bic || '');
+  const swish = escapeHtml(billing.swishNumber || '');
+  /** Only show F-skatt when we have a real issuer profile (not the empty-org fallback). */
+  const fTaxApproved = hasIssuer && (billing.fTax || 'yes') !== 'no';
+  const notesText = escapeHtmlText(String(estimate.notes || '').trim());
+
+  const customerName = escapeHtml(cust.name || estimate.contactName || 'Kund');
+  const customerOrg = escapeHtml(cust.organizationNumber || estimate.organizationNumber || '');
+  const customerLine1 = escapeHtml(cust.line1 || '');
+  const customerLine2 = escapeHtml(cust.line2 || '');
+  const customerCity = escapeHtml([cust.postalCode, cust.city].filter(Boolean).join(' ') || '');
+  const customerCountry = escapeHtml(cust.country || '');
+  const customerReference = escapeHtml(
+    cust.reference || estimate.customerReference || estimate.customerRef || '',
+  );
+  const customerNumber = escapeHtml(
+    String(cust.customerNumber || estimate.customerNumber || '').trim(),
+  );
+  const deliveryMethod = escapeHtml(
+    String(cust.deliveryMethod || estimate.deliveryMethod || estimate.delivery || '').trim(),
+  );
+  const orderNumber = escapeHtml(
+    String(estimate.orderNumber || estimate.order_number || cust.orderNumber || '').trim(),
+  );
+  const customerBlockHtml = `
+          <div class="top-customer">
+            <div class="summary">
+              <div class="row customer-row">
+                <span class="lbl">Kund</span>
+                <div class="val details">
+                  <p>${customerName}</p>
+                  ${customerOrg ? `<p>Org.nr ${customerOrg}</p>` : ''}
+                  ${customerLine1 ? `<p>${customerLine1}</p>` : ''}
+                  ${customerLine2 ? `<p>${customerLine2}</p>` : ''}
+                  ${customerCity ? `<p>${customerCity}</p>` : ''}
+                  ${customerCountry ? `<p>${customerCountry}</p>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>`;
+  const leftMetaHtml = `
+          <div class="top-left-meta">
+            <div class="summary">
+              <div class="row customer-row">
+                <span class="lbl">Kundreferens</span>
+                <span class="val details">${customerReference || '—'}</span>
+              </div>
+              <div class="row customer-row">
+                <span class="lbl">Kundnummer</span>
+                <span class="val details">${customerNumber || '—'}</span>
+              </div>
+              <div class="row customer-row">
+                <span class="lbl">Ordernummer</span>
+                <span class="val details">${orderNumber || '—'}</span>
+              </div>
+              <div class="row customer-row">
+                <span class="lbl">Leveranssätt</span>
+                <span class="val details">${deliveryMethod || '—'}</span>
+              </div>
+            </div>
+          </div>`;
+
+  const validTo = formatDate(estimate.validTo);
+  const offerDate = formatDate(estimate.createdAt || estimate.issueDate);
+  const vatLabel = resolveVatLabel(estimate.lineItems || [], totals.totalVat);
+  const amountDuePlain = `${formatSvNumber(totals.total, 0, 2)} kr`;
+  const amountDueBold = formatSvNumber(totals.total, 0, 2);
+  const isExpired =
+    estimate.shareValidUntil && new Date(estimate.shareValidUntil).getTime() < Date.now();
+  const showEstimateDiscount = Math.abs(totals.estimateDiscountAmount) > 0.004;
+  const estimateDiscountRows = showEstimateDiscount
+    ? `
+            <tr>
+              <td>Summa</td>
+              <td class="amount">${formatSvNumber(totals.subtotalAfterDiscount)}</td>
+            </tr>
+            <tr>
+              <td>Offertrabatt ${formatSvNumber(totals.estimateDiscount, 0, 2)}%</td>
+              <td class="amount">−${formatSvNumber(Math.abs(totals.estimateDiscountAmount))}</td>
+            </tr>`
+    : '';
 
   return `
     <!DOCTYPE html>
-    <html lang="en">
+    <html lang="sv">
     <head>
       <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Estimate ${estimate.estimateNumber}</title>
-      <script src="https://cdn.tailwindcss.com"></script>
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .print-shadow { box-shadow: 0 0 40px rgba(0,0,0,0.05); }
-        @media print {
-          .no-print { display: none; }
-          body { background: white; }
-          .print-shadow { box-shadow: none; }
-        }
-      </style>
+      <meta name="viewport" content="${forceDesktop ? 'width=1024' : 'width=device-width, initial-scale=1'}">
+      <title>${documentTitle} ${numberLabel}</title>
+      <style>${facioDocumentStyles({ forceDesktop })}</style>
     </head>
-    <body class="bg-gray-100 min-h-screen py-10 px-4">
-      <div class="max-w-4xl mx-auto">
-        <!-- Document Container -->
-        <div class="bg-white rounded-lg print-shadow overflow-hidden">
-          
-          <!-- Top Bar (Alerts) -->
-          ${
-            isExpired
-              ? `
-          <div class="bg-red-600 text-white text-center py-2 text-sm font-medium no-print">
-            This estimate has expired and is no longer valid for acceptance.
+    <body>
+      <div class="page">
+        ${isExpired ? '<div class="expired-banner">Denna delningslänk har gått ut.</div>' : ''}
+
+        <header class="doc-header">
+          <div class="issuer-brand">
+            ${logoSrc ? `<img class="issuer-logo" src="${logoSrc}" alt="" />` : ''}
+            <h1 class="issuer-name">${issuerName}</h1>
           </div>
-          `
-              : ''
-          }
-          
-          <!-- Header -->
-          <div class="p-8 md:p-12 border-b border-gray-100">
-            <div class="flex flex-col md:flex-row justify-between gap-8">
-              <div>
-                <h1 class="text-4xl font-bold text-gray-900 tracking-tight">ESTIMATE</h1>
-                <div class="mt-4 space-y-1">
-                  <div class="flex items-center text-sm font-medium text-gray-500">
-                    <span class="w-24 uppercase">Number</span>
-                    <span class="text-gray-900 font-bold">${escapeHtml(estimate.estimateNumber)}</span>
-                  </div>
-                  <div class="flex items-center text-sm font-medium text-gray-500">
-                    <span class="w-24 uppercase">Date</span>
-                    <span class="text-gray-900 font-semibold">${formatDate(estimate.createdAt)}</span>
-                  </div>
-                  <div class="flex items-center text-sm font-medium text-gray-500">
-                    <span class="w-24 uppercase font-bold text-gray-900">Valid To</span>
-                    <span class="text-gray-900 font-semibold">${formatDate(estimate.validTo)}</span>
-                  </div>
-                </div>
+          <div class="title-block">
+            <div class="title-row">
+              <span class="lbl">${documentTitle}</span>
+              <span class="val">${numberLabel}</span>
+            </div>
+            <div class="doc-page-num">1 / 1</div>
+          </div>
+        </header>
+
+        <div class="top">
+          ${customerBlockHtml}
+
+          <div class="top-payment">
+            <div class="summary">
+              <div class="row">
+                <span class="lbl">Giltig t.o.m.</span>
+                <span class="val">${validTo || '—'}</span>
               </div>
-              
-              <div class="md:text-right">
-                <div class="inline-block px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4
-                  ${
-                    estimate.status === 'accepted'
-                      ? 'bg-green-100 text-green-700'
-                      : estimate.status === 'rejected'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-gray-100 text-gray-600'
-                  }">
-                  ${escapeHtml(estimate.status) || 'DRAFT'}
-                </div>
+              <div class="row">
+                <span class="lbl">Offertsumma</span>
+                <span class="amount">${amountDuePlain}</span>
+              </div>
+              <div class="row">
+                <span class="lbl">Ange referens</span>
+                <span class="val">${numberLabel}</span>
               </div>
             </div>
           </div>
-
-          <!-- Billing Details -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-12 p-8 md:p-12 bg-gray-50/50">
-            <div>
-              <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">From</h2>
-              <div class="text-gray-900">
-                <div class="font-bold text-lg">Your Organization</div>
-                <div class="text-sm text-gray-500 mt-1">
-                  <p>Billing Address Line 1</p>
-                  <p>Postal Code, City</p>
-                  <p class="mt-2">hello@organization.com</p>
-                </div>
+          ${leftMetaHtml}
+          <div class="top-right-meta">
+            <div class="summary">
+              <div class="row plain">
+                <span class="lbl">Offertedatum</span>
+                <span class="val">${offerDate || '—'}</span>
               </div>
-            </div>
-            
-            <div>
-              <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Bill To</h2>
-              <div class="text-gray-900">
-                <div class="font-bold text-lg">${escapeHtml(estimate.contactName) || 'Customer'}</div>
-                <div class="text-sm text-gray-500 mt-1">
-                  ${estimate.organizationNumber ? `<p>Org: ${escapeHtml(estimate.organizationNumber)}</p>` : ''}
-                  <p>${escapeHtml(estimate.customerEmail)}</p>
-                </div>
+              <div class="row plain">
+                <span class="lbl">Giltig t.o.m.</span>
+                <span class="val">${validTo || '—'}</span>
               </div>
-            </div>
-          </div>
-
-          <!-- Items Table -->
-          <div class="px-8 md:p-12">
-            <table class="w-full text-left">
-              <thead>
-                <tr class="border-b-2 border-gray-900">
-                  <th class="py-4 text-xs font-bold text-gray-900 uppercase tracking-widest">Description</th>
-                  <th class="py-4 text-right text-xs font-bold text-gray-900 uppercase tracking-widest w-20">Qty</th>
-                  <th class="py-4 text-right text-xs font-bold text-gray-900 uppercase tracking-widest w-32">Price</th>
-                  <th class="py-4 text-right text-xs font-bold text-gray-900 uppercase tracking-widest w-32">Amount</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-100 text-gray-700">
-                ${(estimate.lineItems || [])
-                  .map(
-                    (item: any) => `
-                <tr>
-                  <td class="py-6 align-top">
-                    <div class="font-semibold text-gray-900">${escapeHtml(item.description) || 'Service Item'}</div>
-                  </td>
-                  <td class="py-6 text-right align-top tabular-nums">${item.quantity || 1}</td>
-                  <td class="py-6 text-right align-top tabular-nums">${formatCurrency(item.unitPrice || 0, estimate.currency)}</td>
-                  <td class="py-6 text-right align-top font-semibold text-gray-900 tabular-nums">${formatCurrency(item.lineTotal || 0, estimate.currency)}</td>
-                </tr>
-                `,
-                  )
-                  .join('')}
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Summary Section -->
-          <div class="p-8 md:p-12 bg-gray-900 text-white">
-            <div class="flex justify-end">
-              <div class="w-full max-w-xs space-y-3">
-                <div class="flex justify-between text-sm text-gray-400">
-                  <span>Subtotal</span>
-                  <span class="tabular-nums font-medium">${formatCurrency(totals.subtotal, estimate.currency)}</span>
-                </div>
-                
-                ${
-                  totals.totalDiscount > 0
-                    ? `
-                <div class="flex justify-between text-sm text-red-400">
-                  <span>Discounts</span>
-                  <span class="tabular-nums font-medium">-${formatCurrency(totals.totalDiscount, estimate.currency)}</span>
-                </div>
-                `
-                    : ''
-                }
-                
-                ${
-                  totals.estimateDiscountAmount > 0
-                    ? `
-                <div class="flex justify-between text-sm text-red-400">
-                  <span>Adjustment</span>
-                  <span class="tabular-nums font-medium">-${formatCurrency(totals.estimateDiscountAmount, estimate.currency)}</span>
-                </div>
-                `
-                    : ''
-                }
-
-                <div class="flex justify-between text-sm text-gray-400">
-                  <span>Tax (VAT)</span>
-                  <span class="tabular-nums font-medium">${formatCurrency(totals.totalVat, estimate.currency)}</span>
-                </div>
-
-                <div class="pt-4 border-t border-gray-700 mt-4 flex justify-between items-baseline">
-                  <span class="text-lg font-bold uppercase tracking-widest">Total</span>
-                  <span class="text-3xl font-bold tabular-nums tracking-tighter">${formatCurrency(totals.total, estimate.currency)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Notes Section -->
-          ${
-            estimate.notes
-              ? `
-          <div class="p-8 md:p-12 border-t border-gray-100">
-            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Terms & Notes</h2>
-            <div class="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
-              ${escapeHtml(estimate.notes)}
-            </div>
-          </div>
-          `
-              : ''
-          }
-
-          <!-- Footer -->
-          <div class="p-8 md:px-12 md:py-8 bg-gray-50 text-center">
-            <div class="text-[10px] text-gray-400 uppercase tracking-[0.2em]">
-              ${formatDate(new Date())} • PROCESSED BY HOMEBASE
             </div>
           </div>
         </div>
 
-        <!-- Floating Action Button for acceptance could be added here -->
+        <table class="items">
+          <thead>
+            <tr>
+              <th style="width:40%;">Beskrivning</th>
+              <th class="right" style="width:14%;">Antal</th>
+              <th class="right" style="width:16%;">À-pris</th>
+              <th class="right" style="width:14%;">Rabatt</th>
+              <th class="right" style="width:16%;">Summa</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(estimate.lineItems || [])
+              .map((li: any) => {
+                if (li.kind === 'text') {
+                  return `
+            <tr>
+              <td class="desc" colspan="5">${escapeHtml(lineDescription(li))}</td>
+            </tr>`;
+                }
+                return `
+            <tr>
+              <td class="desc">${escapeHtml(lineDescription(li))}</td>
+              <td class="right num">${formatQty(li)}</td>
+              <td class="right num">${formatSvNumber(li.unitPrice || 0)}</td>
+              <td class="right num">${formatDisc(li)}</td>
+              <td class="right num">${formatSvNumber(lineSum(li))}</td>
+            </tr>`;
+              })
+              .join('')}
+          </tbody>
+        </table>
+
+        <div class="totals-wrap">
+          ${
+            notesText
+              ? `<div class="notes-block">
+            <table>
+              <tr><td>Anteckningar och villkor</td></tr>
+              <tr><td class="notes-body">${notesText}</td></tr>
+            </table>
+          </div>`
+              : '<div class="notes-block"></div>'
+          }
+          <table class="totals">
+            ${estimateDiscountRows}
+            <tr>
+              <td>Summa ex moms</td>
+              <td class="amount">${formatSvNumber(totals.subtotalAfterEstimateDiscount)}</td>
+            </tr>
+            <tr>
+              <td>${vatLabel}</td>
+              <td class="amount">${formatSvNumber(totals.totalVat)}</td>
+            </tr>
+            <tr class="grand">
+              <td>Offertsumma</td>
+              <td class="amount">${amountDueBold}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="footer">
+          <div class="footer-company">
+            <p><strong>${issuerName}</strong></p>
+            ${issuerLine1 ? `<p>${issuerLine1}</p>` : ''}
+            ${issuerLine2 ? `<p>${issuerLine2}</p>` : ''}
+            ${issuerCity ? `<p>${issuerCity}</p>` : ''}
+            ${issuerCountry ? `<p>${issuerCountry}</p>` : ''}
+            ${fTaxApproved ? '<p>Godkänd för F-skatt</p>' : ''}
+            ${issuerSite ? `<p class="footer-site">${issuerSite}</p>` : ''}
+          </div>
+          <div class="footer-col">
+            ${orgNr ? `<div><span class="lab">Org.nr</span> ${orgNr}</div>` : ''}
+            ${vatNr ? `<div><span class="lab">VAT-nr</span> ${vatNr}</div>` : ''}
+            ${issuerPhone ? `<div><span class="lab">Tel</span> ${issuerPhone}</div>` : ''}
+            ${issuerEmail ? `<div><span class="lab">Mail</span> ${issuerEmail}</div>` : ''}
+          </div>
+          <div class="footer-col">
+            ${bankgiro ? `<div><span class="lab">Bankgiro</span> ${bankgiro}</div>` : ''}
+            ${plusgiro ? `<div><span class="lab">Plusgiro</span> ${plusgiro}</div>` : ''}
+            ${iban ? `<div><span class="lab">IBAN</span> ${iban}</div>` : ''}
+            ${bic ? `<div><span class="lab">BIC</span> ${bic}</div>` : ''}
+            ${swish ? `<div><span class="lab">Swish</span> ${swish}</div>` : ''}
+          </div>
+        </div>
       </div>
     </body>
     </html>

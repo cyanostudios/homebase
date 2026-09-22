@@ -97,9 +97,7 @@ export function InvoicesProvider({
 
   const [invoiceShare, setInvoiceShare] = useState<InvoiceShare | null>(null);
   const [isCreatingInvoiceShare, setIsCreatingInvoiceShare] = useState(false);
-  const [showCreateInvoiceShareModal, setShowCreateInvoiceShareModal] = useState(false);
   const [showInvoiceShareDialog, setShowInvoiceShareDialog] = useState(false);
-  const [shareValidUntil, setShareValidUntil] = useState(defaultShareValidUntilDate);
   const [shareTargetInvoice, setShareTargetInvoice] = useState<Invoice | null>(null);
   const [browseOrderIds, setBrowseOrderIdsState] = useState<string[]>([]);
   const setBrowseOrderIds = useCallback((ids: string[]) => {
@@ -354,14 +352,20 @@ export function InvoicesProvider({
         dueDate: raw.dueDate instanceof Date ? raw.dueDate.toISOString() : raw.dueDate || null,
       };
 
-      if (currentInvoice) {
-        const saved = await api.updateItem((currentInvoice as any).id, formattedData);
+      const idToUpdate = raw?.id ?? currentInvoice?.id ?? null;
+
+      if (idToUpdate) {
+        const saved = await api.updateItem(String(idToUpdate), formattedData);
         const normalized = normalizeInvoiceDates(saved);
         setInvoices((prev) =>
-          prev.map((i) => (i.id === (currentInvoice as any).id ? normalized : i)),
+          prev.map((i) => (String(i.id) === String(idToUpdate) ? normalized : i)),
         );
-        setCurrentInvoice(normalized);
-        setPanelMode('view');
+        setCurrentInvoice((prev) =>
+          prev && String(prev.id) === String(idToUpdate) ? normalized : prev,
+        );
+        if (currentInvoice && String(currentInvoice.id) === String(idToUpdate)) {
+          setPanelMode('view');
+        }
         setValidationErrors([]);
       } else {
         const saved = await api.createItem(formattedData);
@@ -500,45 +504,51 @@ export function InvoicesProvider({
       item ? formatDisplayNumber('invoices', item.invoiceNumber || item.id) : undefined,
     );
 
+  const syncInvoiceShareForInvoice = useCallback(
+    async (invoiceId: string | null | undefined) => {
+      if (!invoiceId) {
+        setInvoiceShare(null);
+        return;
+      }
+      try {
+        const shares = (await api.getShares(String(invoiceId))) as InvoiceShare[];
+        const activeShare = shares.find((share) => new Date(share.validUntil) > new Date());
+        setInvoiceShare(activeShare || null);
+      } catch (error: unknown) {
+        console.error('Failed to load existing shares:', error);
+        setInvoiceShare(null);
+      }
+    },
+    [api],
+  );
+
   useEffect(() => {
     if (!currentInvoice?.id) {
       setInvoiceShare(null);
       return;
     }
-    let cancelled = false;
-    api
-      .getShares(currentInvoice.id)
-      .then((shares: InvoiceShare[]) => {
-        if (cancelled) {
-          return;
-        }
-        const activeShare = shares.find((share) => new Date(share.validUntil) > new Date());
-        setInvoiceShare(activeShare || null);
-      })
-      .catch((error: unknown) => {
-        console.error('Failed to load existing shares:', error);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, currentInvoice?.id]);
+    void syncInvoiceShareForInvoice(currentInvoice.id);
+  }, [currentInvoice?.id, syncInvoiceShareForInvoice]);
 
+  /** Tasks-style: reuse active link or create with 30-day default — no date picker modal. */
   const openInvoiceShareForItem = useCallback(
     async (invoice: Invoice) => {
       setShareTargetInvoice(invoice);
       setIsCreatingInvoiceShare(true);
       try {
-        const shares = await api.getShares(invoice.id);
-        const activeShare = (shares as InvoiceShare[]).find(
-          (share) => new Date(share.validUntil) > new Date(),
-        );
+        const shares = (await api.getShares(invoice.id)) as InvoiceShare[];
+        const activeShare = shares.find((share) => new Date(share.validUntil) > new Date());
         if (activeShare) {
           setInvoiceShare(activeShare);
           setShowInvoiceShareDialog(true);
           return;
         }
-        setShareValidUntil(defaultShareValidUntilDate());
-        setShowCreateInvoiceShareModal(true);
+        const share = (await api.createShare(
+          invoice.id,
+          defaultShareValidUntilDate(),
+        )) as InvoiceShare;
+        setInvoiceShare(share);
+        setShowInvoiceShareDialog(true);
       } catch (error) {
         console.error('Failed to open invoice share:', error);
         alert(error instanceof Error ? error.message : 'Failed to open share');
@@ -561,25 +571,6 @@ export function InvoicesProvider({
       setShowInvoiceShareDialog(true);
     }
   }, [invoiceShare]);
-
-  const handleCreateInvoiceShare = useCallback(async () => {
-    const invoiceId = shareTargetInvoice?.id ?? currentInvoice?.id;
-    if (!invoiceId || !shareValidUntil) {
-      return;
-    }
-    try {
-      setIsCreatingInvoiceShare(true);
-      const share = await api.createShare(invoiceId, shareValidUntil);
-      setInvoiceShare(share);
-      setShowCreateInvoiceShareModal(false);
-      setShowInvoiceShareDialog(true);
-    } catch (error) {
-      console.error('Failed to create share:', error);
-      alert(error instanceof Error ? error.message : 'Failed to create share link');
-    } finally {
-      setIsCreatingInvoiceShare(false);
-    }
-  }, [api, currentInvoice?.id, shareTargetInvoice?.id, shareValidUntil]);
 
   const handleCopyInvoiceShareUrl = useCallback(() => {
     if (!invoiceShare) {
@@ -728,16 +719,12 @@ export function InvoicesProvider({
     getDeleteMessage,
     invoiceShare,
     isCreatingInvoiceShare,
-    showCreateInvoiceShareModal,
-    setShowCreateInvoiceShareModal,
     showInvoiceShareDialog,
     setShowInvoiceShareDialog,
-    shareValidUntil,
-    setShareValidUntil,
+    syncInvoiceShareForInvoice,
     openCreateInvoiceShare,
     openInvoiceShareForItem,
     openInvoiceShareDialog,
-    handleCreateInvoiceShare,
     handleCopyInvoiceShareUrl,
     handleRevokeInvoiceShare,
     shareTargetInvoice,

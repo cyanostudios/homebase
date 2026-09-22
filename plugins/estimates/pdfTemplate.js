@@ -1,322 +1,674 @@
 // plugins/estimates/pdfTemplate.js
-// PDF-optimized template for estimate rendering
+// Swedish Facio-style Offert PDF (matches invoices Facio layout; Offert semantics).
 
-const { escapeHtml } = require('../../server/core/utils/htmlEscape');
+const { escapeHtml, escapeHtmlText } = require('../../server/core/utils/htmlEscape');
+const { calculateEstimateTotals } = require('./estimateTotals');
 
-function formatDate(date) {
-  return new Date(date).toLocaleDateString('sv-SE');
+function escapeAttr(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('sv-SE');
+}
+
+/** Swedish number: 64 900,00 (no currency symbol). */
+function formatSvNumber(amount, { minFrac = 2, maxFrac = 2 } = {}) {
+  const n = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+  return new Intl.NumberFormat('sv-SE', {
+    minimumFractionDigits: minFrac,
+    maximumFractionDigits: maxFrac,
+  }).format(n);
 }
 
 function formatCurrency(amount, currency = 'SEK') {
-  return new Intl.NumberFormat('sv-SE', {
-    style: 'currency',
-    currency: currency,
-  }).format(amount);
+  const n = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+  try {
+    return new Intl.NumberFormat('sv-SE', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return `${n.toFixed(2)} ${currency}`;
+  }
 }
 
-function generatePDFHTML(estimate) {
-  const totals = {
-    subtotal: estimate.subtotal || 0,
-    totalDiscount: estimate.totalDiscount || 0,
-    subtotalAfterDiscount: estimate.subtotalAfterDiscount || 0,
-    estimateDiscountAmount: estimate.estimateDiscountAmount || 0,
-    subtotalAfterEstimateDiscount: estimate.subtotalAfterEstimateDiscount || 0,
-    totalVat: estimate.totalVat || 0,
-    total: estimate.total || 0,
-  };
+function resolveVatLabel(lineItems, _totalVat) {
+  const priced = Array.isArray(lineItems) ? lineItems.filter((li) => li && li.kind !== 'text') : [];
+  const rates = [
+    ...new Set(priced.map((li) => Number(li.vatRate ?? 25)).filter((r) => Number.isFinite(r))),
+  ];
+  if (rates.length === 1) {
+    return `Moms (${rates[0]}%)`;
+  }
+  if (rates.length > 1) {
+    return `Moms (${rates.map((r) => `${r}%`).join(', ')})`;
+  }
+  return 'Moms (25%)';
+}
+
+function lineDescription(li) {
+  const title = li.name || li.title || '';
+  const desc = li.description || '';
+  if (title && desc && title !== desc) {
+    return `${title}\n${desc}`;
+  }
+  return title || desc || 'Tjänst / vara';
+}
+
+function lineSum(li) {
+  if (typeof li.lineSubtotalAfterDiscount === 'number') {
+    return li.lineSubtotalAfterDiscount;
+  }
+  if (typeof li.lineSubtotal === 'number') {
+    return li.lineSubtotal;
+  }
+  return Number(li.quantity || 0) * Number(li.unitPrice || 0);
+}
+
+function formatDisc(li) {
+  const d = Number(li.discount || 0);
+  if (!Number.isFinite(d) || d <= 0) {
+    return '—';
+  }
+  return `${formatSvNumber(d, { minFrac: 0, maxFrac: 2 })}%`;
+}
+
+function formatQty(li) {
+  const q = Number(li.quantity || 0);
+  const unit = String(li.unit || li.unitLabel || '').trim();
+  const qtyStr = formatSvNumber(q, { minFrac: 0, maxFrac: 2 });
+  return unit ? `${qtyStr} ${escapeHtml(unit)}` : qtyStr;
+}
+
+/**
+ * Shared Facio document CSS (PDF + public web).
+ * Light-blue hairlines, generous whitespace, bold payment summary.
+ */
+function facioDocumentStyles() {
+  return `
+      * { box-sizing: border-box; }
+      body {
+        font-family: Helvetica, Arial, 'Helvetica Neue', sans-serif;
+        color: #111827;
+        margin: 0;
+        padding: 0;
+        font-size: 12px;
+        line-height: 1.45;
+        background: #fff;
+      }
+      .page {
+        max-width: 720px;
+        margin: 0 auto;
+        /* Top clearance for repeating page label is in Puppeteer margin. */
+        padding: 2mm 10mm 6mm;
+        /* Fill first A4 content box (297mm − 14mm top − 12mm bottom in puppeteerPdf). */
+        min-height: 271mm;
+        display: flex;
+        flex-direction: column;
+      }
+      .doc-header {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        align-items: center;
+        margin-bottom: 28px;
+      }
+      .doc-header .issuer-brand {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+      }
+      .doc-header .issuer-logo {
+        display: block;
+        max-height: 64px;
+        max-width: 220px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        margin: 0;
+        flex-shrink: 0;
+      }
+      .doc-header .issuer-name {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #0f172a;
+        line-height: 1.2;
+      }
+      .doc-header .title-block {
+        display: block;
+        min-width: 0;
+      }
+      .doc-header .title-row {
+        display: block;
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        text-align: left;
+        line-height: 1.2;
+      }
+      .doc-header .title-row .lbl {
+        font-size: inherit;
+        font-weight: inherit;
+        color: inherit;
+      }
+      .doc-header .title-row .lbl::after { content: none; }
+      .doc-header .title-row .val {
+        font-size: inherit;
+        font-weight: inherit;
+        margin-left: 0.35em;
+      }
+      .top {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+        column-gap: 32px;
+        row-gap: 16px;
+        margin-bottom: 28px;
+        align-items: start;
+      }
+      .top-customer { grid-column: 1; grid-row: 1; }
+      .top-payment { grid-column: 2; grid-row: 1; }
+      .top-left-meta { grid-column: 1; grid-row: 2; }
+      .top-right-meta { grid-column: 2; grid-row: 2; }
+      .issuer-lines {
+        color: #334155;
+        font-size: 12px;
+      }
+      .issuer-lines p { margin: 1px 0; }
+      .summary {
+        text-align: left;
+        max-width: 220px;
+      }
+      .summary .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .summary .row.customer-row {
+        align-items: flex-start;
+        justify-content: flex-start;
+      }
+      .summary .row.plain .val {
+        font-weight: 400;
+      }
+      .summary .row.customer-row > .lbl {
+        line-height: 1.35;
+        padding-top: 0;
+        width: 7.5em;
+        flex-shrink: 0;
+      }
+      .summary .lbl {
+        font-size: 12px;
+        color: #64748b;
+        flex-shrink: 0;
+      }
+      .summary .lbl::after { content: ':'; }
+      .summary .val,
+      .summary .amount {
+        font-size: 12px;
+        font-weight: 700;
+        color: #0f172a;
+        text-align: right;
+        margin-left: auto;
+      }
+      .summary .val.details {
+        text-align: left;
+        margin-left: 0;
+        font-weight: 400;
+        line-height: 1.35;
+      }
+      .summary .val.details p {
+        margin: 0;
+        font-weight: 400;
+        color: #334155;
+        line-height: 1.35;
+      }
+      .summary .val.details p + p {
+        margin-top: 1px;
+      }
+      .summary .val.details p:first-child {
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .customer-wrap { margin-top: 22px; }
+      .rule {
+        border: 0;
+        border-top: 1px solid #93c5fd;
+        margin: 0;
+      }
+      .meta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 40px;
+        padding: 14px 0;
+        font-size: 12px;
+      }
+      .meta .pair { display: flex; gap: 6px; flex-wrap: wrap; }
+      .meta .k { color: #64748b; }
+      .meta .k::after { content: ':'; }
+      .meta .v { font-weight: 400; color: #0f172a; }
+      .items {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 18px;
+      }
+      .items th {
+        text-align: left;
+        font-size: 12px;
+        font-weight: 700;
+        color: #0f172a;
+        padding: 8px 6px 10px 0;
+        border-bottom: 1px solid #93c5fd;
+      }
+      .items th.right, .items td.right { text-align: right; }
+      .items td {
+        padding: 12px 6px 12px 0;
+        vertical-align: top;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .items .desc {
+        white-space: pre-wrap;
+        font-weight: 500;
+        color: #0f172a;
+      }
+      .items .num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .totals-wrap {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 32px;
+        margin-top: 18px;
+      }
+      .notes-block {
+        flex: 1;
+        min-width: 0;
+        max-width: 22rem;
+        margin: 0;
+        padding: 0;
+        align-self: flex-start;
+      }
+      .notes-block table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .notes-block td {
+        padding: 4px 0;
+        color: #334155;
+        line-height: 1.45;
+        vertical-align: top;
+      }
+      .notes-block tr:first-child td { padding-top: 0; }
+      .notes-block .notes-body {
+        white-space: pre-wrap;
+        color: #0f172a;
+      }
+      .totals {
+        width: 260px;
+        border-collapse: collapse;
+        font-size: 12px;
+        margin: 0 0 0 auto;
+        padding: 0;
+        flex-shrink: 0;
+        align-self: flex-start;
+      }
+      .totals td { padding: 4px 0; color: #334155; line-height: 1.45; vertical-align: top; }
+      .totals tr:first-child td { padding-top: 0; }
+      .totals .amount {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        padding-left: 24px;
+      }
+      .totals .grand td {
+        padding-top: 10px;
+        font-weight: 800;
+        font-size: 14px;
+        color: #0f172a;
+      }
+      .footer {
+        /* Stick to bottom of first page when content is short; after content when multi-page. */
+        margin-top: auto;
+        padding-top: 36px;
+        border-top: 1px solid #93c5fd;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px 24px;
+        font-size: 10px;
+        font-weight: 400;
+        color: #0f172a;
+        line-height: 1.4;
+        flex-shrink: 0;
+      }
+      .footer strong {
+        color: #0f172a;
+        font-weight: 400;
+      }
+      .footer .lab {
+        font-weight: 400;
+        color: #64748b;
+        min-width: 4rem;
+        display: inline-block;
+      }
+      .footer-company p { margin: 1px 0; color: #0f172a; }
+      .footer-company p:first-child { margin-bottom: 2px; color: #0f172a; }
+      .footer-company .footer-site {
+        margin-top: 10px;
+        color: #0f172a;
+      }
+      .footer-col > div { margin: 1px 0; color: #0f172a; }
+      .expired-banner {
+        background: #dc2626;
+        color: #fff;
+        text-align: center;
+        padding: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        border-radius: 6px;
+      }
+      @media print {
+        .page { padding: 0; max-width: none; }
+        .expired-banner { display: none; }
+      }
+  `;
+}
+
+/**
+ * @param {object} estimate
+ * @param {object} [organization] - tenant OrganizationProfile from Settings → Account
+ * @param {object} [customer] - optional { name, organizationNumber, line1, line2, postalCode, city, country }
+ * @param {{ expired?: boolean, referencePerson?: string }} [options]
+ */
+function generatePDFHTML(estimate, organization = {}, customer = null, options = {}) {
+  const org =
+    organization && Object.keys(organization).length ? organization : estimate.organization || {};
+  const address = org.address || {};
+  const billing = org.billing || {};
+
+  const safeTotals = calculateEstimateTotals(
+    estimate.lineItems || [],
+    estimate.estimateDiscount || 0,
+  );
+
+  const numberLabel = escapeHtml(estimate.estimateNumber || `UTKAST-${estimate.id}`);
+  const documentTitle = 'Offert';
+  const hasIssuer = Boolean(org && String(org.name || '').trim());
+  const issuerName = escapeHtml(hasIssuer ? org.name : 'Företag');
+  const logoUrl = typeof org.logoUrl === 'string' ? org.logoUrl.trim() : '';
+  const logoSrc = logoUrl ? escapeAttr(logoUrl) : '';
+  const issuerLine1 = escapeHtml(address.line1 || '');
+  const issuerLine2 = escapeHtml(address.line2 || '');
+  const issuerCity = escapeHtml([address.postalCode, address.city].filter(Boolean).join(' ') || '');
+  const issuerCountry = escapeHtml(address.country || '');
+  const issuerEmail = escapeHtml(org.email || billing.invoiceEmail || '');
+  const issuerPhone = escapeHtml(org.phone || '');
+  const issuerSite = escapeHtml(org.website || '');
+  const orgNr = escapeHtml(billing.organizationNumber || '');
+  const vatNr = escapeHtml(billing.vatNumber || '');
+  const bankgiro = escapeHtml(billing.bankgiro || '');
+  const plusgiro = escapeHtml(billing.plusgiro || '');
+  const iban = escapeHtml(billing.iban || '');
+  const bic = escapeHtml(billing.bic || '');
+  const swish = escapeHtml(billing.swishNumber || '');
+  /** Only show F-skatt when we have a real issuer profile (not the empty-org fallback). */
+  const fTaxApproved = hasIssuer && (billing.fTax || 'yes') !== 'no';
+  const notesText = escapeHtmlText(String(estimate.notes || '').trim());
+
+  const cust = customer || estimate.customer || {};
+  const customerName = escapeHtml(cust.name || estimate.contactName || 'Kund');
+  const customerOrg = escapeHtml(cust.organizationNumber || estimate.organizationNumber || '');
+  const customerLine1 = escapeHtml(cust.line1 || '');
+  const customerLine2 = escapeHtml(cust.line2 || '');
+  const customerCity = escapeHtml([cust.postalCode, cust.city].filter(Boolean).join(' ') || '');
+  const customerCountry = escapeHtml(cust.country || '');
+  const customerReference = escapeHtml(
+    cust.reference || estimate.customerReference || estimate.customerRef || '',
+  );
+  const customerNumber = escapeHtml(
+    String(cust.customerNumber || estimate.customerNumber || '').trim(),
+  );
+  const deliveryMethod = escapeHtml(
+    String(cust.deliveryMethod || estimate.deliveryMethod || estimate.delivery || '').trim(),
+  );
+  const orderNumber = escapeHtml(
+    String(estimate.orderNumber || estimate.order_number || cust.orderNumber || '').trim(),
+  );
+  const customerBlockHtml = `
+        <div class="top-customer">
+          <div class="summary">
+            <div class="row customer-row">
+              <span class="lbl">Kund</span>
+              <div class="val details">
+                <p>${customerName}</p>
+                ${customerOrg ? `<p>Org.nr ${customerOrg}</p>` : ''}
+                ${customerLine1 ? `<p>${customerLine1}</p>` : ''}
+                ${customerLine2 ? `<p>${customerLine2}</p>` : ''}
+                ${customerCity ? `<p>${customerCity}</p>` : ''}
+                ${customerCountry ? `<p>${customerCountry}</p>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>`;
+  const leftMetaHtml = `
+        <div class="top-left-meta">
+          <div class="summary">
+            <div class="row customer-row">
+              <span class="lbl">Kundreferens</span>
+              <span class="val details">${customerReference || '—'}</span>
+            </div>
+            <div class="row customer-row">
+              <span class="lbl">Kundnummer</span>
+              <span class="val details">${customerNumber || '—'}</span>
+            </div>
+            <div class="row customer-row">
+              <span class="lbl">Ordernummer</span>
+              <span class="val details">${orderNumber || '—'}</span>
+            </div>
+            <div class="row customer-row">
+              <span class="lbl">Leveranssätt</span>
+              <span class="val details">${deliveryMethod || '—'}</span>
+            </div>
+          </div>
+        </div>`;
+
+  const validTo = formatDate(estimate.validTo);
+  const offerDate = formatDate(estimate.createdAt || estimate.issueDate);
+  const vatLabel = resolveVatLabel(estimate.lineItems, safeTotals.totalVat);
+  const amountDuePlain = `${formatSvNumber(safeTotals.total, { minFrac: 0, maxFrac: 2 })} kr`;
+  const amountDueBold = formatSvNumber(safeTotals.total, { minFrac: 0, maxFrac: 2 });
+  const expired = Boolean(options.expired);
+  const estimateDiscountPct = Number(estimate.estimateDiscount || 0);
+  const estimateDiscountAmount = Number(safeTotals.estimateDiscountAmount || 0);
+  const subtotalAfterDiscount = Number(
+    safeTotals.subtotalAfterDiscount ?? safeTotals.subtotal ?? 0,
+  );
+  const showEstimateDiscount = Math.abs(estimateDiscountAmount) > 0.004;
+  const estimateDiscountRows = showEstimateDiscount
+    ? `
+          <tr>
+            <td>Summa</td>
+            <td class="amount">${formatSvNumber(subtotalAfterDiscount)}</td>
+          </tr>
+          <tr>
+            <td>Offertrabatt ${formatSvNumber(estimateDiscountPct, { minFrac: 0, maxFrac: 2 })}%</td>
+            <td class="amount">−${formatSvNumber(Math.abs(estimateDiscountAmount))}</td>
+          </tr>`
+    : '';
 
   return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Estimate ${escapeHtml(estimate.estimateNumber)}</title>
-        <style>
-          body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
-            margin: 0;
-            padding: 40px;
-            font-size: 12px;
-            line-height: 1.5;
-            color: #1a1a1a;
-            background: #fff;
-          }
-          
-          .document-header {
-            border-bottom: 3px solid #000;
-            padding-bottom: 20px;
-            margin-bottom: 40px;
-            display: flex;
-            justify-content: space-between;
-          }
-          
-          .title {
-            font-size: 32px;
-            font-weight: bold;
-            letter-spacing: -1px;
-            margin: 0;
-          }
-          
-          .header-meta {
-            text-align: right;
-          }
-          
-          .meta-item {
-            margin-bottom: 5px;
-          }
-          
-          .meta-label {
-            color: #777;
-            text-transform: uppercase;
-            font-size: 10px;
-            font-weight: bold;
-            margin-right: 10px;
-          }
-          
-          .meta-value {
-            font-weight: bold;
-          }
+  <!DOCTYPE html>
+  <html lang="sv">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${documentTitle} ${numberLabel}</title>
+    <style>${facioDocumentStyles()}</style>
+  </head>
+  <body>
+    <div class="page">
+      ${expired ? '<div class="expired-banner">Denna delningslänk har gått ut.</div>' : ''}
 
-          .address-grid {
-            margin-bottom: 40px;
-          }
-          
-          .address-section {
-            width: 45%;
-            display: inline-block;
-            vertical-align: top;
-          }
-          
-          .address-label {
-            font-size: 10px;
-            font-weight: bold;
-            color: #777;
-            text-transform: uppercase;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
-          }
-          
-          .address-content {
-            font-size: 12px;
-          }
-
-          .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 40px;
-          }
-          
-          .items-table th {
-            text-align: left;
-            font-size: 10px;
-            text-transform: uppercase;
-            font-weight: bold;
-            padding: 10px 0;
-            border-bottom: 2px solid #000;
-          }
-          
-          .items-table td {
-            padding: 15px 0;
-            border-bottom: 1px solid #eee;
-            vertical-align: top;
-          }
-          
-          .text-right { text-align: right; }
-          
-          .totals-container {
-            width: 100%;
-            margin-top: 20px;
-          }
-          
-          .totals-table {
-            width: 250px;
-            float: right;
-            border-collapse: collapse;
-          }
-          
-          .totals-table td {
-            padding: 8px 0;
-          }
-          
-          .total-row td {
-            border-top: 2px solid #000;
-            padding-top: 15px;
-            font-size: 16px;
-            font-weight: bold;
-          }
-          
-          .notes-section {
-            margin-top: 60px;
-            clear: both;
-          }
-          
-          .notes-label {
-            font-size: 10px;
-            font-weight: bold;
-            color: #777;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-          }
-          
-          .notes-content {
-            font-size: 11px;
-            color: #555;
-            white-space: pre-wrap;
-          }
-          
-          .footer {
-            position: fixed;
-            bottom: 40px;
-            left: 40px;
-            right: 40px;
-            text-align: center;
-            font-size: 9px;
-            color: #aaa;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
-          }
-          
-          .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            font-size: 10px;
-            font-weight: bold;
-            text-transform: uppercase;
-            border: 1px solid #000;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="document-header">
-          <div>
-            <h1 class="title">ESTIMATE</h1>
-            <div style="margin-top: 10px;">
-              <span class="badge">${estimate.status || 'DRAFT'}</span>
-            </div>
+      <header class="doc-header">
+        <div class="issuer-brand">
+          ${logoSrc ? `<img class="issuer-logo" src="${logoSrc}" alt="" />` : ''}
+          <h1 class="issuer-name">${issuerName}</h1>
+        </div>
+        <div class="title-block">
+          <div class="title-row">
+            <span class="lbl">${documentTitle}</span>
+            <span class="val">${numberLabel}</span>
           </div>
-          <div class="header-meta">
-            <div class="meta-item">
-              <span class="meta-label">Number</span>
-              <span class="meta-value">${estimate.estimateNumber}</span>
+        </div>
+      </header>
+
+      <div class="top">
+        ${customerBlockHtml}
+
+        <div class="top-payment">
+          <div class="summary">
+            <div class="row">
+              <span class="lbl">Giltig t.o.m.</span>
+              <span class="val">${validTo || '—'}</span>
             </div>
-            <div class="meta-item">
-              <span class="meta-label">Date</span>
-              <span class="meta-value">${formatDate(estimate.createdAt)}</span>
+            <div class="row">
+              <span class="lbl">Offertsumma</span>
+              <span class="amount">${amountDuePlain}</span>
             </div>
-            <div class="meta-item">
-              <span class="meta-label">Valid Until</span>
-              <span class="meta-value">${formatDate(estimate.validTo)}</span>
+            <div class="row">
+              <span class="lbl">Ange referens</span>
+              <span class="val">${numberLabel}</span>
             </div>
           </div>
         </div>
-
-        <div class="address-grid">
-          <div class="address-section">
-            <div class="address-label">From</div>
-            <div class="address-content">
-              <strong>Your Organization</strong><br>
-              Billing Address Line 1<br>
-              Postal Code, City<br>
-              hello@organization.com
+        ${leftMetaHtml}
+        <div class="top-right-meta">
+          <div class="summary">
+            <div class="row plain">
+              <span class="lbl">Offertedatum</span>
+              <span class="val">${offerDate || '—'}</span>
             </div>
-          </div>
-          <div class="address-section" style="margin-left: 5%;">
-            <div class="address-label">Bill To</div>
-            <div class="address-content">
-              <strong>${escapeHtml(estimate.contactName || 'Customer')}</strong><br>
-              ${estimate.organizationNumber ? `Org: ${escapeHtml(estimate.organizationNumber)}<br>` : ''}
-              ${escapeHtml(estimate.customerEmail || '')}
+            <div class="row plain">
+              <span class="lbl">Giltig t.o.m.</span>
+              <span class="val">${validTo || '—'}</span>
             </div>
           </div>
         </div>
+      </div>
 
-        <table class="items-table">
-          <thead>
+      <table class="items">
+        <thead>
+          <tr>
+            <th style="width:40%;">Beskrivning</th>
+            <th class="right" style="width:14%;">Antal</th>
+            <th class="right" style="width:16%;">À-pris</th>
+            <th class="right" style="width:14%;">Rabatt</th>
+            <th class="right" style="width:16%;">Summa</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(estimate.lineItems || [])
+            .map((li) => {
+              if (li.kind === 'text') {
+                return `
             <tr>
-              <th>Description</th>
-              <th class="text-right" style="width: 60px;">Qty</th>
-              <th class="text-right" style="width: 100px;">Price</th>
-              <th class="text-right" style="width: 100px;">Amount</th>
+              <td class="desc" colspan="5">${escapeHtml(lineDescription(li))}</td>
             </tr>
-          </thead>
-          <tbody>
-            ${(estimate.lineItems || [])
-              .map(
-                (item) => `
-              <tr>
-                <td><strong>${escapeHtml(item.description || 'Service Item')}</strong></td>
-                <td class="text-right">${item.quantity || 1}</td>
-                <td class="text-right">${formatCurrency(item.unitPrice || 0, estimate.currency)}</td>
-                <td class="text-right"><strong>${formatCurrency(item.lineTotal || 0, estimate.currency)}</strong></td>
-              </tr>
-            `,
-              )
-              .join('')}
-          </tbody>
-        </table>
+          `;
+              }
+              return `
+            <tr>
+              <td class="desc">${escapeHtml(lineDescription(li))}</td>
+              <td class="right num">${formatQty(li)}</td>
+              <td class="right num">${formatSvNumber(li.unitPrice || 0)}</td>
+              <td class="right num">${formatDisc(li)}</td>
+              <td class="right num">${formatSvNumber(lineSum(li))}</td>
+            </tr>
+          `;
+            })
+            .join('')}
+        </tbody>
+      </table>
 
-        <div class="totals-container">
-          <table class="totals-table">
-            <tr>
-              <td style="color: #777;">Subtotal</td>
-              <td class="text-right">${formatCurrency(totals.subtotal, estimate.currency)}</td>
-            </tr>
-            ${
-              totals.totalDiscount > 0
-                ? `
-            <tr>
-              <td style="color: #c00;">Discounts</td>
-              <td class="text-right" style="color: #c00;">-${formatCurrency(totals.totalDiscount, estimate.currency)}</td>
-            </tr>
-            `
-                : ''
-            }
-            ${
-              totals.estimateDiscountAmount > 0
-                ? `
-            <tr>
-              <td style="color: #c00;">Adjustment</td>
-              <td class="text-right" style="color: #c00;">-${formatCurrency(totals.estimateDiscountAmount, estimate.currency)}</td>
-            </tr>
-            `
-                : ''
-            }
-            <tr>
-              <td style="color: #777;">Tax (VAT)</td>
-              <td class="text-right">${formatCurrency(totals.totalVat, estimate.currency)}</td>
-            </tr>
-            <tr class="total-row">
-              <td>TOTAL</td>
-              <td class="text-right">${formatCurrency(totals.total, estimate.currency)}</td>
-            </tr>
-          </table>
-        </div>
-
+      <div class="totals-wrap">
         ${
-          estimate.notes
-            ? `
-        <div class="notes-section">
-          <div class="address-label">Notes</div>
-          <div class="notes-content">${escapeHtml(estimate.notes)}</div>
-        </div>
-        `
-            : ''
+          notesText
+            ? `<div class="notes-block">
+          <table>
+            <tr><td>Anteckningar och villkor</td></tr>
+            <tr><td class="notes-body">${notesText}</td></tr>
+          </table>
+        </div>`
+            : '<div class="notes-block"></div>'
         }
+        <table class="totals">
+          ${estimateDiscountRows}
+          <tr>
+            <td>Summa ex moms</td>
+            <td class="amount">${formatSvNumber(
+              safeTotals.subtotalAfterEstimateDiscount ?? safeTotals.subtotal,
+            )}</td>
+          </tr>
+          <tr>
+            <td>${vatLabel}</td>
+            <td class="amount">${formatSvNumber(safeTotals.totalVat)}</td>
+          </tr>
+          <tr class="grand">
+            <td>Offertsumma</td>
+            <td class="amount">${amountDueBold}</td>
+          </tr>
+        </table>
+      </div>
 
-        <div class="footer">
-          Generated on ${formatDate(new Date())} • This estimate is valid until ${formatDate(
-            estimate.validTo,
-          )}<br>
-          PROCESSED BY HOMEBASE
+      <div class="footer">
+        <div class="footer-company">
+          <p><strong>${issuerName}</strong></p>
+          ${issuerLine1 ? `<p>${issuerLine1}</p>` : ''}
+          ${issuerLine2 ? `<p>${issuerLine2}</p>` : ''}
+          ${issuerCity ? `<p>${issuerCity}</p>` : ''}
+          ${issuerCountry ? `<p>${issuerCountry}</p>` : ''}
+          ${fTaxApproved ? '<p>Godkänd för F-skatt</p>' : ''}
+          ${issuerSite ? `<p class="footer-site">${issuerSite}</p>` : ''}
         </div>
-      </body>
-      </html>
-    `;
+        <div class="footer-col">
+          ${orgNr ? `<div><span class="lab">Org.nr</span> ${orgNr}</div>` : ''}
+          ${vatNr ? `<div><span class="lab">VAT-nr</span> ${vatNr}</div>` : ''}
+          ${issuerPhone ? `<div><span class="lab">Tel</span> ${issuerPhone}</div>` : ''}
+          ${issuerEmail ? `<div><span class="lab">Mail</span> ${issuerEmail}</div>` : ''}
+        </div>
+        <div class="footer-col">
+          ${bankgiro ? `<div><span class="lab">Bankgiro</span> ${bankgiro}</div>` : ''}
+          ${plusgiro ? `<div><span class="lab">Plusgiro</span> ${plusgiro}</div>` : ''}
+          ${iban ? `<div><span class="lab">IBAN</span> ${iban}</div>` : ''}
+          ${bic ? `<div><span class="lab">BIC</span> ${bic}</div>` : ''}
+          ${swish ? `<div><span class="lab">Swish</span> ${swish}</div>` : ''}
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>
+  `;
 }
 
 module.exports = {
   generatePDFHTML,
   formatDate,
   formatCurrency,
+  formatSvNumber,
+  facioDocumentStyles,
 };

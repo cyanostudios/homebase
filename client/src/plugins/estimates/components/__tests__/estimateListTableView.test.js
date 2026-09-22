@@ -42,6 +42,8 @@ describe('EstimateList table view wiring', () => {
     expect(tableSrc).toMatch(/status/);
     expect(tableSrc).toMatch(/validTo/);
     expect(tableSrc).toMatch(/updatedAt/);
+    expect(tableSrc).toMatch(/common\.updated/);
+    expect(tableSrc).toMatch(/formatDateTimeShort\(estimate\.updatedAt\)/);
     expect(tableSrc).toMatch(/visibleColumnIds/);
     expect(tableSrc).toMatch(/headerBarClassName="bg-sky-50/);
     expect(tableSrc).toMatch(/SectionCategoryIcon/);
@@ -72,8 +74,8 @@ describe('EstimateList table view wiring', () => {
     expect(listSrc).toMatch(/grid-rows-\[minmax\(0,1fr\)\]/);
     expect(listSrc).toMatch(/EstimatesStatisticsView/);
     expect(viewSrc).toMatch(/stacked\?: boolean/);
-    expect(viewSrc).toMatch(/EstimateDetailHeaderMenus/);
-    expect(viewSrc).toMatch(/leading=\{titleLeading\}/);
+    expect(viewSrc).toMatch(/EstimateQuickContextPanel/);
+    expect(viewSrc).toMatch(/headerBelow=\{tabChips\}/);
   });
 
   test('desktop create/edit renders EstimateForm in the detail column', () => {
