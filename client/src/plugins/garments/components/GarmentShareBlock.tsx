@@ -22,12 +22,13 @@ export function GarmentShareBlock({ list }: { list: GarmentList }) {
 
   const [copied, setCopied] = useState(false);
 
-  const shareUrl = garmentShareExistingShare
-    ? garmentShareApi.generateShareUrl(garmentShareExistingShare.shareToken)
-    : '';
-  const isShareExpired = garmentShareExistingShare
-    ? new Date(garmentShareExistingShare.validUntil) <= new Date()
-    : false;
+  const shareMatchesList =
+    garmentShareExistingShare != null &&
+    String(garmentShareExistingShare.listId) === String(list.id);
+  const activeShare = shareMatchesList ? garmentShareExistingShare : null;
+
+  const shareUrl = activeShare ? garmentShareApi.generateShareUrl(activeShare.shareToken) : '';
+  const isShareExpired = activeShare ? new Date(activeShare.validUntil) <= new Date() : false;
 
   const handleCopy = () => {
     handleGarmentCopyShareUrl();
@@ -39,7 +40,7 @@ export function GarmentShareBlock({ list }: { list: GarmentList }) {
 
   return (
     <>
-      {garmentShareExistingShare && (
+      {activeShare && (
         <div
           className={`rounded-lg border p-4 ${
             isShareExpired
@@ -88,12 +89,12 @@ export function GarmentShareBlock({ list }: { list: GarmentList }) {
           >
             <div>
               {isShareExpired ? t('garments.expiredOn') : t('garments.expiresOn')}{' '}
-              {new Date(garmentShareExistingShare.validUntil).toLocaleDateString()}
-              {garmentShareExistingShare.accessedCount > 0 && (
+              {new Date(activeShare.validUntil).toLocaleDateString()}
+              {activeShare.accessedCount > 0 && (
                 <span className="ml-2">
                   •{' '}
                   {t('garments.accessedTimes', {
-                    count: garmentShareExistingShare.accessedCount,
+                    count: activeShare.accessedCount,
                   })}
                 </span>
               )}
@@ -111,7 +112,7 @@ export function GarmentShareBlock({ list }: { list: GarmentList }) {
       )}
 
       <ShareDialog
-        isOpen={garmentShareShowDialog}
+        isOpen={garmentShareShowDialog && shareMatchesList}
         onClose={() => setGarmentShareShowDialog(false)}
         shareUrl={shareUrl}
         entityLabel={entityLabel}

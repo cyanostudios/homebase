@@ -103,7 +103,7 @@ function PublicTokenRoute({ Component }: { Component: React.ComponentType<{ toke
   }
   return (
     <React.Suspense fallback={null}>
-      <Component token={token} />
+      <Component key={token} token={token} />
     </React.Suspense>
   );
 }
