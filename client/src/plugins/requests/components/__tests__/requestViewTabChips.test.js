@@ -20,17 +20,36 @@ describe('RequestView detail tab chips', () => {
     expect(qcSrc).toMatch(/\{headerBelow \? <div className="mt-4">\{headerBelow\}<\/div> : null\}/);
   });
 
+  test('meta row shows internal/external source first', () => {
+    expect(qcSrc).toMatch(/REQUEST_SOURCE_COLORS\[request\.source\]/);
+    expect(qcSrc).toMatch(/requests\.sourceExternal/);
+    expect(qcSrc).toMatch(/requests\.sourceInternal/);
+    const metaStart = qcSrc.indexOf('<DetailHeaderMetaRow>');
+    expect(metaStart).toBeGreaterThan(-1);
+    const metaBlock = qcSrc.slice(metaStart, metaStart + 1200);
+    const sourceIdx = metaBlock.indexOf('REQUEST_SOURCE_COLORS[request.source]');
+    const typeIdx = metaBlock.indexOf('REQUEST_TYPE_ICON_SHELL_CLASS');
+    expect(sourceIdx).toBeGreaterThan(-1);
+    expect(typeIdx).toBeGreaterThan(-1);
+    expect(sourceIdx).toBeLessThan(typeIdx);
+  });
+
   test('tabs use URL ?tab= with information as default', () => {
     expect(viewSrc).toMatch(/useSearchParams/);
     expect(viewSrc).toMatch(/parseRequestViewTab/);
     expect(viewSrc).toMatch(/'information'/);
-    expect(viewSrc).toMatch(/'properties'/);
+    expect(viewSrc).toMatch(/value === 'properties'/); // legacy ?tab=properties → information
     expect(viewSrc).toMatch(/'assignees'/);
     expect(viewSrc).toMatch(/'files'/);
+    expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
-    expect(viewSrc).toMatch(/activeTab === 'properties'/);
+    expect(viewSrc).toMatch(/requests\.view\.properties[\s\S]*requests\.view\.submitter/);
+    expect(viewSrc).not.toMatch(/activeTab === 'properties'/);
     expect(viewSrc).toMatch(/activeTab === 'assignees'/);
     expect(viewSrc).toMatch(/activeTab === 'files'/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
+    expect(viewSrc).toMatch(/DetailActivityLog/);
+    expect(viewSrc).toMatch(/entityType="request"/);
   });
 });

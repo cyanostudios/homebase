@@ -3,6 +3,11 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
+import {
+  DETAIL_HEADER_BELOW_MENUS_CLASS,
+  DETAIL_HEADER_CHIP_GAP_CLASS,
+  DetailHeaderMetaRow,
+} from '@/core/ui/DetailHeaderMenus';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
@@ -14,14 +19,13 @@ import { NoteDetailHeaderMenus } from './NoteDetailHeaderMenus';
 
 export function NoteQuickContextPanel({
   note,
+  headerBelow = null,
   afterHeaderActions = null,
-  children = null,
-  cardClassName,
 }: {
   note: Note;
+  /** Optional row under the title (e.g. view tab chips). */
+  headerBelow?: React.ReactNode;
   afterHeaderActions?: React.ReactNode;
-  children?: React.ReactNode;
-  cardClassName?: string;
 }) {
   const { t } = useTranslation();
   const updatedLabel = note.updatedAt
@@ -49,30 +53,29 @@ export function NoteQuickContextPanel({
   );
 
   return (
-    <Card
-      padding="none"
-      className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col', cardClassName)}
-    >
-      <div className="border-b border-border/50 px-4 py-5">
+    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
+      <div className="px-4 py-5">
         <NoteDetailHeaderMenus
           note={note}
           leading={titleLeading}
           afterActions={afterHeaderActions}
         />
-      </div>
-
-      <div className="min-w-0 space-y-4 overflow-x-hidden px-4 py-4">
-        {updatedLabel ? (
-          <p className="text-xs text-muted-foreground">
-            {t('common.updated')} {updatedLabel}
-          </p>
-        ) : null}
-
-        {children ? (
-          <div className="min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [&_.rich-text-content]:break-words [&_.rich-text-content]:[overflow-wrap:anywhere] [&_.rich-text-content_pre]:whitespace-pre-wrap [&_.rich-text-content_pre]:break-words [&_.rich-text-content_pre]:overflow-x-hidden">
-            {children}
-          </div>
-        ) : null}
+        <div
+          className={cn(
+            DETAIL_HEADER_BELOW_MENUS_CLASS,
+            'flex min-w-0 flex-col',
+            DETAIL_HEADER_CHIP_GAP_CLASS,
+          )}
+        >
+          {updatedLabel ? (
+            <DetailHeaderMetaRow className="mt-0">
+              <p className="min-w-0 text-xs text-muted-foreground">
+                {t('common.updated')} {updatedLabel}
+              </p>
+            </DetailHeaderMetaRow>
+          ) : null}
+          {headerBelow ? <div className="mt-4">{headerBelow}</div> : null}
+        </div>
       </div>
     </Card>
   );

@@ -1,6 +1,6 @@
 import type { GarmentList, InventoryItem } from '../types/garments';
 
-export type GarmentSortField = 'name' | 'updatedAt' | 'createdAt' | 'id' | 'personCount';
+export type GarmentSortField = 'name' | 'teamId' | 'updatedAt' | 'createdAt' | 'id' | 'personCount';
 export type InventorySortField =
   | 'articleName'
   | 'brand'
@@ -10,7 +10,7 @@ export type InventorySortField =
   | 'id';
 export type GarmentSortOrder = 'asc' | 'desc';
 
-const LIST_STRING_FIELDS: GarmentSortField[] = ['name', 'id'];
+const LIST_STRING_FIELDS: GarmentSortField[] = ['name', 'id', 'teamId'];
 const INVENTORY_STRING_FIELDS: InventorySortField[] = ['articleName', 'brand', 'id'];
 
 export function isGarmentAscDefaultField(field: GarmentSortField): boolean {
@@ -22,12 +22,34 @@ export function isInventoryAscDefaultField(field: InventorySortField): boolean {
   return INVENTORY_STRING_FIELDS.includes(field);
 }
 
+function resolveTeamSortLabel(
+  teamNameById: ReadonlyMap<string, string> | undefined,
+  teamId: string | null | undefined,
+): string {
+  if (teamId == null || String(teamId).trim() === '') {
+    return '';
+  }
+  const key = String(teamId);
+  return (teamNameById?.get(key) ?? key).trim().toLowerCase();
+}
+
 export function compareGarmentListsByField(
   a: GarmentList,
   b: GarmentList,
   field: GarmentSortField,
   order: GarmentSortOrder,
+  teamNameById?: ReadonlyMap<string, string>,
 ): number {
+  if (field === 'teamId') {
+    const av = resolveTeamSortLabel(teamNameById, a.teamId);
+    const bv = resolveTeamSortLabel(teamNameById, b.teamId);
+    // Empty team sorts last in both directions.
+    if (!av && bv) return 1;
+    if (av && !bv) return -1;
+    if (!av && !bv) return 0;
+    const res = av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' });
+    return order === 'asc' ? res : -res;
+  }
   if (field === 'name' || field === 'id') {
     const av = String(field === 'name' ? a.name : a.id).toLowerCase();
     const bv = String(field === 'name' ? b.name : b.id).toLowerCase();

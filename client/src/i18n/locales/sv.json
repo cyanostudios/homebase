@@ -40,6 +40,7 @@
     "showColumn": "Visa kolumnen {{column}}",
     "updated": "Uppdaterad",
     "created": "Skapad",
+    "id": "ID",
     "selectSlot": "Välj slot",
     "unselectSlot": "Avmarkera slot",
     "discard": "Kasta",
@@ -430,8 +431,10 @@
     "openMap": "Öppna karta",
     "cannotCreateSlotFromPastMatch": "Du kan inte skapa slot från en match som redan varit.",
     "quickActionUnavailable": "Åtgärd ej tillgänglig",
+    "edit": "Redigera",
     "delete": "Ta bort",
     "duplicate": "Duplicera",
+    "headerActions": "Åtgärder",
     "contacts": "Kontakter",
     "addContact": "Lägg till kontakt...",
     "filterContactsByTag": "Filtrera efter tagg",
@@ -455,7 +458,8 @@
       "properties": "Egenskaper",
       "contacts": "Kontakter",
       "linked": "Länkat",
-      "linkedEmpty": "Inga slots kopplade till den här matchen än."
+      "linkedEmpty": "Inga slots kopplade till den här matchen än.",
+      "activity": "Aktivitet"
     },
     "relatedSlots": "Slots",
     "noRelatedSlots": "Inga slots kopplade till den här matchen än",
@@ -467,6 +471,10 @@
     "apiBaseUrl": "API-bas-URL",
     "importNow": "Importera nu",
     "importing": "Importerar...",
+    "importingTitle": "Importerar…",
+    "importingFrom": "Importerar från {{name}}…",
+    "importingFromFallback": "Importerar matcher från Fogis API…",
+    "importingHint": "Det kan ta en stund. Låt det här fönstret vara öppet.",
     "importDone": "{{imported}} importerade, {{updated}} uppdaterade.",
     "importError": "Kunde inte importera matcher. Kontrollera API-nyckel och lag-ID.",
     "noYet": "Inga matcher ännu",
@@ -479,7 +487,8 @@
       "view": "Vy",
       "viewDescription": "Standardlista eller rutnät för matcher.",
       "apiDescription": "Fogis API-bas-URL och nyckel."
-    }
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
   },
   "bulk": {
     "selected": "{{count}} valda",
@@ -610,6 +619,10 @@
     "actionInvoice": "Faktura",
     "exportOptions": "Exportalternativ",
     "activity": "Aktivitet",
+    "activityAfterSave": "Aktivitet visas efter att kontakten sparats.",
+    "linkedAfterSave": "Länkade objekt visas efter att kontakten sparats.",
+    "contactPersonsCompanyOnly": "Kontaktpersoner finns för företagskontakter.",
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge",
     "contactContent": "Kontaktinnehåll",
     "contactProperties": "Kontaktegenskaper",
     "tabs": {
@@ -617,7 +630,8 @@
       "properties": "Egenskaper",
       "addresses": "Adresser",
       "persons": "Kontaktpersoner",
-      "linked": "Kopplat"
+      "linked": "Kopplat",
+      "activity": "Aktivitet"
     },
     "relatedTeams": "Lag",
     "relatedTasks": "Uppgifter",
@@ -804,8 +818,10 @@
       "properties": "Egenskaper",
       "assignees": "Ansvariga",
       "linked": "Kopplat",
-      "linkedEmpty": "Inga nämnda kontakter ännu."
+      "linkedEmpty": "Inga nämnda kontakter ännu.",
+      "activity": "Aktivitet"
     },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge",
     "quickEditDiscardMessage": "Du har osparade ändringar i status, prioritet, förfallodatum eller ansvariga. Vill du kasta dem?",
     "assignee": "Ansvarig",
     "noAssigneesYet": "Inga ansvariga ännu.",
@@ -912,6 +928,14 @@
     "mentionedContacts": "Nämnda kontakter",
     "openContact": "Öppna kontakt",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "linked": "Länkade",
+      "linkedEmpty": "Inga nämnda kontakter ännu.",
+      "files": "Filer",
+      "activity": "Aktivitet"
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge",
     "quickActions": "Snabbåtgärder",
     "exportOptions": "Exportalternativ",
     "activity": "Aktivitet",
@@ -972,7 +996,8 @@
       "lines": "Rader",
       "payments": "Betalningar",
       "linked": "Länkade",
-      "linkedEmpty": "Ingen länkad kontakt ännu."
+      "linkedEmpty": "Ingen länkad kontakt ännu.",
+      "activity": "Aktivitet"
     },
     "quickActions": "Snabbåtgärder",
     "exportOptions": "Exportalternativ",
@@ -1050,6 +1075,15 @@
       "cash_invoice": "Kontantfaktura",
       "receipt": "Kvitto"
     },
+    "filter": {
+      "draft": "Utkast",
+      "sent": "Skickad",
+      "partiallyPaid": "Delvis betald",
+      "paid": "Betald",
+      "overdue": "Förfallen",
+      "canceled": "Annullerad",
+      "unpaid": "Obetald"
+    },
     "paymentTerms": "Betalningsvillkor",
     "paymentTermsImmediate": "Omedelbart",
     "paymentTermsDays": "{{count}} dagar",
@@ -1122,13 +1156,44 @@
   "estimates": {
     "listDescription": "Skapa, skicka och följ offerter till godkännande.",
     "settingsTitle": "Offerter – Inställningar",
-    "settingsSubtitle": "Offertinställningar visas här när de finns.",
-    "settingsEmpty": "Inga inställningskategorier ännu. Listkolumner är fasta i kod (endast offertnummer).",
+    "settingsSubtitle": "Numrering och dokumentstandard för offerter.",
+    "settingsEmpty": "Inga inställningskategorier ännu.",
     "settingsCategories": {
+      "numbering": "Numrering",
+      "numberingDescription": "Ställ in hur offertnummer genereras.",
+      "numberingHint": "Prefix, år och startnummer för nya offerter.",
       "columns": "Tabellkolumner",
       "columnsDescription": "Välj vilka kolumner som visas i offerttabellen och i vilken ordning.",
       "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Offertnummer är alltid synligt."
     },
+    "noCustomer": "Ingen kund",
+    "previewTitle": "Offertförhandsvisning",
+    "previewHelp": "Så här ser offerten ut när den delas eller exporteras som PDF.",
+    "previewDraftNumber": "UTKAST",
+    "previewPageBreak": "Sidbrytning",
+    "previewPopupBlocked": "Kunde inte öppna förhandsvisning. Tillåt popup-fönster för den här sidan och försök igen.",
+    "previewOpenFailed": "Kunde inte öppna offertförhandsvisning. Försök igen.",
+    "downloadPdf": "Ladda ner PDF",
+    "generatingPdf": "Skapar PDF…",
+    "pdfDownloadFailed": "Kunde inte ladda ner PDF. Försök igen.",
+    "shareEstimate": "Dela offert",
+    "viewShare": "Visa delning",
+    "send": "Skicka",
+    "shareExpiredBlockedTitle": "Kan inte skapa delningslänk",
+    "shareExpiredBlockedMessage": "Offert {{number}} gick ut {{date}}. Delningslänkar kan bara skapas för offerter som fortfarande är giltiga. Uppdatera \"Giltig till\" i redigeringsläge för att skapa en delningslänk.",
+    "noLineItems": "Inga rader",
+    "relations": "Relationer",
+    "subtotalAfterEstimateDiscount": "Delsumma efter offertrabatt",
+    "convertToInvoice": "Konvertera till faktura",
+    "convertToInvoiceTitle": "Konvertera till faktura?",
+    "convertToInvoiceMessage": "Skapa en fakturautkast från offert {{number}}? Offerten markeras som fakturerad och kan inte längre redigeras.",
+    "convertDisabledNotAccepted": "Endast godkända offerter kan konverteras till faktura.",
+    "convertDisabledInvoiced": "Denna offert har redan konverterats till faktura.",
+    "convertDisabledInvoicesOff": "Aktivera fakturapluginet för att konvertera offerter.",
+    "editDisabledInvoiced": "Fakturerade offerter kan inte redigeras.",
+    "convertFailed": "Kunde inte konvertera offert till faktura.",
+    "acceptanceReasons": "Godkännandeskäl",
+    "rejectionReasons": "Avslagskäl",
     "searchPlaceholder": "Sök offerter...",
     "noMatch": "Inga offerter matchar sökningen.",
     "noYet": "Inga offerter ännu",
@@ -1158,8 +1223,12 @@
     "pricingSummary": "Prisöversikt",
     "lineItemsCount": "Rader ({{count}})",
     "tabs": {
-      "properties": "Egenskaper",
+      "information": "Information",
       "lines": "Rader",
+      "linked": "Länkade",
+      "linkedEmpty": "Inga länkade poster ännu.",
+      "activity": "Aktivitet",
+      "properties": "Egenskaper",
       "notes": "Anteckningar",
       "notesEmpty": "Inga anteckningar ännu."
     },
@@ -1192,16 +1261,18 @@
       "total": "Totalt",
       "draft": "Utkast",
       "sent": "Skickad",
-      "accepted": "Godkänd"
+      "accepted": "Godkänd",
+      "invoiced": "Fakturerad"
     },
     "statistics": {
       "title": "Offertstatistik",
-      "description": "Översikt av utkast, skickade och godkända offerter.",
+      "description": "Översikt av utkast, skickade, godkända och fakturerade offerter.",
       "overview": "Översikt",
       "total": "Totalt",
       "draft": "Utkast",
       "sent": "Skickad",
-      "accepted": "Godkänd"
+      "accepted": "Godkänd",
+      "invoiced": "Fakturerad"
     }
   },
   "ingest": {
@@ -1247,6 +1318,7 @@
       "information": "Information",
       "excerpt": "Utdrag",
       "runs": "Hämtningshistorik",
+      "activity": "Aktivitet",
       "excerptEmpty": "Inget utdrag ännu. Kör en hämtning för att se senaste resultatet."
     },
     "lastFetch": "Senast hämtad",
@@ -1293,7 +1365,8 @@
       "urlInvalid": "Ange en giltig URL",
       "fetchMethodInvalid": "Välj en giltig hämtningsmetod",
       "saveFailed": "Kunde inte spara källan"
-    }
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
   },
   "instructions": {
     "listDescription": "Skapa steg-för-steg-guider för personalen.",
@@ -1451,8 +1524,11 @@
     "information": "Information",
     "tabs": {
       "information": "Information",
-      "steps": "Steg"
+      "properties": "Egenskaper",
+      "steps": "Steg",
+      "activity": "Aktivitet"
     },
+    "guideProperties": "Guideegenskaper",
     "quickActions": "Snabbåtgärder",
     "activity": "Aktivitet",
     "notVisiblePublic": "Syns inte på kiosken",
@@ -1518,9 +1594,12 @@
     "priceList": {
       "tabs": {
         "information": "Information",
+        "properties": "Egenskaper",
         "items": "Artiklar",
-        "currency": "Valuta"
+        "currency": "Valuta",
+        "activity": "Aktivitet"
       },
+      "properties": "Prislistegenskaper",
       "listDescription": "Skapa och hantera prislistor för clubdesk-kiosken.",
       "searchPlaceholder": "Sök bland {{count}} prislistor...",
       "noMatch": "Inga träffar",
@@ -1598,19 +1677,22 @@
     "siteContent": {
       "subtitle": "Texter och kort för den publika Clubdesk-appen.",
       "editorPlaceholder": "Skriv innehåll…",
+      "emptyBody": "Inget innehåll ännu. Öppna Åtgärder och välj Redigera för att lägga till text.",
       "infoTitle": "Rubrik",
       "infoTitlePlaceholder": "t.ex. Om appen",
       "homeTitlePlaceholder": "t.ex. Välkommen",
       "infoBody": "Text",
+      "infoVisible": "Visa i den publika appen",
+      "infoVisibleHint": "När den är av är Om-genvägen och Om-sidan dolda i Clubdesk-appen.",
       "loadFailed": "Kunde inte ladda innehållet.",
       "saveFailed": "Kunde inte spara innehållet. Försök igen.",
       "cards": {
         "home": "Hem",
         "homeDescription": "Introtext på startsidan",
         "homeHelp": "Rubrik och text visas ovanför genvägarna på Hem-fliken (enkel text, utan formatering).",
-        "info": "Info",
-        "infoDescription": "Text på Info-fliken",
-        "infoHelp": "Rubrik och text visas på Info-fliken i den publika appen.",
+        "info": "Om",
+        "infoDescription": "Text på Om-fliken",
+        "infoHelp": "Rubrik och text visas på Om-fliken i den publika appen.",
         "contacts": "Kontakt",
         "contactsDescription": "Kontaktlista på Hem och /kontakt/",
         "contactsHelp": "Välj kontakter från Contacts och skriv en kort text. Syns på Hem och egen Kontakt-sida när listan inte är tom.",
@@ -1664,7 +1746,8 @@
       "deleteConfirmNamed": "Är du säker på att du vill ta bort \"{{name}}\" från listan?",
       "moveUp": "Flytta upp",
       "moveDown": "Flytta ner"
-    }
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
   },
   "guides": {
     "title": "Guider",
@@ -2168,7 +2251,6 @@
     },
     "widgetCount": "Antal filer i biblioteket: {{count}}",
     "widgetOpen": "Öppna Filer",
-    "panelSubtitleSettings": "Anslut och hantera molnlagring",
     "panelSubtitleCreate": "Välj en eller flera filer att ladda upp",
     "panelSubtitleEdit": "Ändra filnamnet och spara",
     "panelUploaded": "Uppladdad {{date}}",
@@ -2663,6 +2745,12 @@
     "listDescription": "Hantera cuper, synlighet och import från ingest.",
     "addCup": "Lägg till cup",
     "importFromIngest": "Importera från Ingest",
+    "importingTitle": "Importerar…",
+    "importingFrom": "Importerar från {{name}}…",
+    "importingFromProgress": "Importerar från {{name}} ({{current}} av {{total}})…",
+    "importingFromFallback": "Importerar från Ingest…",
+    "importingSourceFallback": "källa",
+    "importingHint": "Det kan ta en stund. Låt det här fönstret vara öppet.",
     "searchPlaceholder": "Sök cuper ({{count}})",
     "sort": "Sortera",
     "sortAsc": "Stigande",
@@ -2696,11 +2784,13 @@
     "propertySanctioned": "Sanktionerad",
     "propertyFeatured": "Utvald",
     "cupProperties": "Egenskaper",
+    "activity": "Aktivitet",
     "tabs": {
       "information": "Information",
       "properties": "Egenskaper",
       "ratings": "Betyg",
-      "ingest": "Ingest"
+      "ingest": "Ingest",
+      "activity": "Aktivitet"
     },
     "quickEditDiscardMessage": "Du har osparade ändringar i cup-egenskaper. Vill du kasta dem?",
     "heroImageView": "Hjältebild (publik sajt)",
@@ -2771,7 +2861,8 @@
         "social": "Social",
         "other": "Övrigt"
       }
-    }
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
   },
   "teams": {
     "listDescription": "{{count}} lag registrerade · Säsong {{season}}",
@@ -2887,7 +2978,8 @@
       "requests": "Ärenden",
       "matches": "Matcher",
       "statistics": "Statistik",
-      "garments": "Kläder"
+      "garments": "Kläder",
+      "activity": "Aktivitet"
     },
     "externalTeam": "Kopplat FOGIS-lag",
     "externalTeamPlaceholder": "Välj FOGIS-lag",
@@ -3089,7 +3181,8 @@
       "overviewDescription": "Ordning på korten i varje lags översikt.",
       "venues": "Spelplatser",
       "venuesDescription": "Gemensamma träningsplatser för alla lag."
-    }
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
   },
   "dashboard": {
     "description": "Snabb överblick över dina aktiverade plugins—öppna ett nedan eller från sidomenyn.",
@@ -3250,7 +3343,12 @@
       "statusMixAria": "Andel aktiva, avslutade och avbrutna ärenden"
     },
     "quickContext": {
-      "title": "Snabbkontext"
+      "eyebrow": "Valt ärende",
+      "title": "Snabbkontext",
+      "openFullProfile": "Öppna hela ärendet",
+      "mentionsHint": "Klicka för att öppna",
+      "readMore": "Läs mer",
+      "showLess": "Visa mindre"
     },
     "dashboardOpen": "{{count}} öppna",
     "dashboardExternal": "{{count}} externa",
@@ -3342,8 +3440,10 @@
       "information": "Information",
       "properties": "Egenskaper",
       "assignees": "Tilldelade",
-      "files": "Filer"
+      "files": "Filer",
+      "activity": "Aktivitet"
     },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge",
     "settings": {
       "title": "Ärendeinställningar",
       "typesSection": "Ärendetyper",
@@ -3375,14 +3475,6 @@
       "intakeStepSubtitle": "Storlekar och tröjuppgifter hjälper oss förbereda klädlistan.",
       "intakeNameHint": "Namn på personen i klädlistan",
       "contactStepPrefillHint": "Används om vi behöver nå dig"
-    },
-    "quickContext": {
-      "eyebrow": "Valt ärende",
-      "title": "Snabbkontext",
-      "openFullProfile": "Öppna hela ärendet",
-      "mentionsHint": "Klicka för att öppna",
-      "readMore": "Läs mer",
-      "showLess": "Visa mindre"
     },
     "responseDue": {
       "label": "Svarsdatum",
@@ -3645,11 +3737,22 @@
     "completionPartial": "Delvis ifyllt",
     "completionComplete": "Allt ifyllt",
     "fitSummaryTitle": "Storlekssammanfattning",
-    "fitSummaryHint": "Antal per artikel, audience och storlek (statuskryss räknas inte).",
+    "fitSummaryHint": "Summerade storlekar för beställning hos leverantör. Skiljer sig från personernas Beställt-kryss i tabellen ovan.",
+    "fitSummaryPublicHint": "Antal per artikel, linje och storlek.",
     "fitSummaryFilled": "{{filled}} av {{total}} ifyllda",
     "fitSummaryNoSizes": "Inga storlekar ifyllda ännu",
     "fitSummaryAnyAudience": "—",
     "fitSummaryAnySize": "—",
+    "fitSummaryColumnAudience": "Linje",
+    "fitSummaryColumnSize": "Storlek",
+    "fitSummaryColumnNeeded": "Behov",
+    "fitSummaryColumnOrdered": "Beställt",
+    "fitSummaryColumnOrderedTitle": "Beställning till leverantör (inte per person)",
+    "fitSummaryColumnQtyOrdered": "Ant. best.",
+    "fitSummaryArticleOrderedAria": "Leverantörsbeställning lagd — alla storlekar för {{articleName}}",
+    "fitSummaryRowOrderedAria": "Leverantörsbeställning lagd — {{articleName}}, {{audience}}, storlek {{size}}",
+    "fitSummaryQtyOrderedAria": "Beställt antal — {{articleName}}, {{audience}}, storlek {{size}}",
+    "fitSummarySaveFailed": "Kunde inte spara beställningsstatus. Försök igen.",
     "importPersons": "Importera namn",
     "importPersonsTitle": "Importera personer",
     "importPersonsDescription": "Lägg till namn i listan från fil eller från Contacts med en tagg/grupp.",
@@ -3736,7 +3839,7 @@
     "brand": "Märke",
     "sku": "Art.nr",
     "skuPlaceholder": "t.ex. ART-001",
-    "audience": "Målgrupp",
+    "audience": "Linje",
     "audiencePlaceholder": "Women / Men / Kids",
     "color": "Färg",
     "colorPlaceholder": "t.ex. Svart",
@@ -3749,14 +3852,14 @@
     "variantCountLabel_one": "{{count}} variant",
     "variantCountLabel_other": "{{count}} varianter",
     "variants": "Varianter",
-    "variantsHelp": "Lägg till rader med målgrupp, färg och/eller storlek, eget art.nr och lagerantal.",
+    "variantsHelp": "Lägg till rader med linje, färg och/eller storlek, eget art.nr och lagerantal.",
     "addVariant": "Lägg till variant",
     "duplicateVariant": "Duplicera variant",
     "removeVariant": "Ta bort variant",
     "deleteVariant": "Ta bort variant",
     "deleteVariantConfirm": "Är du säker på att du vill ta bort den här varianten?",
     "noVariantsYet": "Inga varianter ännu.",
-    "variantIdentityDuplicateWarning": "Varianter delar samma målgrupp, färg och storlek",
+    "variantIdentityDuplicateWarning": "Varianter delar samma linje, färg och storlek",
     "variantSkuDuplicateWarning": "Varianter delar samma art.nr",
     "description": "Beskrivning",
     "material": "Material",
@@ -3816,7 +3919,6 @@
     "defaultColumns": "Standardkolumner",
     "defaultColumnsHelp": "Hur många kolumner kort använder som standard (1 = full bredd, 2 = halv, 3 = tredjedel).",
     "jerseyDuplicateWarning": "Vissa personer har samma tröjnummer. Du kan ändå spara.",
-    "jerseyDuplicateThisPerson": "Samma nummer finns redan på listan",
     "noPersons": "Inga personer på listan ännu.",
     "addPerson": "Lägg till person",
     "quickAdd": "Snabbperson",
@@ -3841,7 +3943,7 @@
     "deleteListConfirmGeneric": "Ta bort listan? Detta kan inte ångras.",
     "deleteInventoryConfirm": "Ta bort \"{{name}}\"? Detta kan inte ångras.",
     "deleteInventoryConfirmGeneric": "Ta bort inventarieartikeln? Detta kan inte ångras.",
-    "deleteInventoryConfirmAssigned": "Ta bort \"{{name}}\"? Den visas på {{count}} lista/listor. Vid borttagning kopplas den bort från listorna och Beställt/Levererat/Utdelat (samt storlek/audience) för artikeln rensas. Detta kan inte ångras.",
+    "deleteInventoryConfirmAssigned": "Ta bort \"{{name}}\"? Den visas på {{count}} lista/listor. Vid borttagning kopplas den bort från listorna och Beställt/Levererat/Utdelat (samt storlek/linje) för artikeln rensas. Detta kan inte ångras.",
     "deleteInventoryAssigned": "Kan inte ta bort så länge artikeln är kopplad till klädlistor.",
     "deleteInventoryFailed": "Kunde inte ta bort inventarieartikeln.",
     "publicInvalidLink": "Ogiltig delningslänk",
@@ -3856,6 +3958,7 @@
     "settingsInventorySubtitle": "Hantera taggar, tabellkolumner och importera lagerartiklar.",
     "settingsLists": "Listor – Inställningar",
     "settingsListsSubtitle": "Hantera personmatriskolumner för varje klädlista.",
+    "configurePersonColumns": "Personkolumner",
     "tags": "Taggar",
     "noTags": "Inga taggar",
     "noTagsYet": "Inga taggar ännu.",
@@ -3890,8 +3993,17 @@
       "customColumnsListHint": "Välj vilken klädlista som ska konfigureras.",
       "customColumnsListPlaceholder": "Välj en lista",
       "identityColumns": "Identitetskolumner",
-      "identityColumnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja. Namn är alltid synligt. Lag, tröjnamn, initialer och nummer är på som standard.",
+      "identityColumnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja. Namn är alltid synligt.",
       "importDescription": "Importera lagerartiklar från CSV eller Excel."
-    }
+    },
+    "tabs": {
+      "information": "Information",
+      "properties": "Egenskaper",
+      "variants": "Varianter",
+      "lists": "Listor",
+      "activity": "Aktivitet"
+    },
+    "tabUnavailableInEdit": "Tillgänglig endast i visningsläge",
+    "activity": "Aktivitet"
   }
 }

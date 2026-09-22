@@ -1,11 +1,22 @@
-import { CheckCircle2, Circle, Clock, Inbox, XCircle, type LucideIcon } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  Calendar,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Inbox,
+  Minus,
+  XCircle,
+  type LucideIcon,
+} from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS, BADGE_CHIP_COMPACT_CLASS } from '@/core/ui/badgeStyles';
 
-import { Badge } from '@/components/ui/badge';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
@@ -59,6 +70,17 @@ function requestStatusIcon(status: RequestStatus): LucideIcon {
       return XCircle;
     default:
       return Circle;
+  }
+}
+
+function requestPriorityIcon(priority: string): LucideIcon {
+  switch (priority) {
+    case 'High':
+      return ArrowUp;
+    case 'Low':
+      return ArrowDown;
+    default:
+      return Minus;
   }
 }
 
@@ -154,9 +176,7 @@ export function RequestListTable({
                     )}
                   />
                 </span>
-                <span className="min-w-0 truncate text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
-                  {typeLabel}
-                </span>
+                <span className="min-w-0 truncate text-xs text-muted-foreground">{typeLabel}</span>
               </div>
             </div>
           );
@@ -166,18 +186,24 @@ export function RequestListTable({
         field: 'status',
         header: t('requests.form.status'),
         cell: (request) => (
-          <Badge className={cn(BADGE_CHIP_CLASS, REQUEST_STATUS_COLORS[request.status])}>
+          <StatusOutlineBadge
+            icon={requestStatusIcon(request.status)}
+            className={REQUEST_STATUS_COLORS[request.status]}
+          >
             {formatRequestStatusForDisplay(request.status, t)}
-          </Badge>
+          </StatusOutlineBadge>
         ),
       },
       priority: {
         field: 'priority',
         header: t('requests.form.priority'),
         cell: (request) => (
-          <Badge className={cn(BADGE_CHIP_CLASS, REQUEST_PRIORITY_COLORS[request.priority])}>
+          <StatusOutlineBadge
+            icon={requestPriorityIcon(request.priority)}
+            className={REQUEST_PRIORITY_COLORS[request.priority]}
+          >
             {request.priority}
-          </Badge>
+          </StatusOutlineBadge>
         ),
       },
       type: {
@@ -197,13 +223,15 @@ export function RequestListTable({
         cell: (request) => {
           const daysLeft = getDaysUntilResponseDue(request.responseDueAt);
           const urgency = getResponseDueUrgency(daysLeft);
+          const DueIcon = urgency === 'red' ? AlertCircle : Calendar;
           return (
-            <Badge
-              variant="outline"
-              className={cn(BADGE_CHIP_COMPACT_CLASS, RESPONSE_DUE_URGENCY_COLORS[urgency])}
+            <StatusOutlineBadge
+              icon={DueIcon}
+              compact
+              className={RESPONSE_DUE_URGENCY_COLORS[urgency]}
             >
               {responseDueStatusLabel(daysLeft, t)}
-            </Badge>
+            </StatusOutlineBadge>
           );
         },
       },

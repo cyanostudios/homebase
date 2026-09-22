@@ -42,6 +42,10 @@ describe('App right sidebar wiring', () => {
     expect(appRightSidebar).toMatch(/UserAvatarButton/);
     expect(appRightSidebar).toMatch(/RoundIconLabelButton/);
     expect(appRightSidebar).toMatch(/navigateToSettings/);
+    expect(appRightSidebar).toMatch(/attemptNavigation/);
+    expect(appRightSidebar).toMatch(
+      /attemptNavigation\(\(\) => \{\s*closePanel\(\);\s*closeCompanionPanel\(\);\s*navigateToSettings/,
+    );
     expect(appRightSidebar).not.toMatch(/SettingsPanel/);
     expect(appRightSidebar).not.toMatch(/getTopBarWidgets/);
     expect(appRightSidebar).not.toMatch(/PanelRightOpen/);

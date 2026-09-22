@@ -140,7 +140,7 @@ export const NoteList: React.FC = () => {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openNotePanel(null)),
-    onSettings: () => openNoteSettings(),
+    onSettings: () => attemptNavigation(() => openNoteSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -688,7 +688,6 @@ export const NoteList: React.FC = () => {
           <NotesSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
             onClose={closeNoteSettingsView}
           />
         </div>
@@ -772,7 +771,7 @@ export const NoteList: React.FC = () => {
                       icon={Settings}
                       label={t('notes.settings')}
                       variant="soft"
-                      onClick={() => openNoteSettings()}
+                      onClick={() => attemptNavigation(() => openNoteSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle
@@ -905,8 +904,13 @@ export const NoteList: React.FC = () => {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <NoteForm
+                    ref={inlineFormRef}
+                    currentNote={currentNote}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeNotePanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -915,16 +919,10 @@ export const NoteList: React.FC = () => {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <NoteForm
-                      ref={inlineFormRef}
-                      currentNote={currentNote}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeNotePanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailNote ? (
                   <NoteView note={detailNote} stacked />
                 ) : (

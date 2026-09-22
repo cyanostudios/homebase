@@ -77,6 +77,8 @@ interface DetailSectionProps {
    * (same as sidebar); plugin tint is no longer applied to the icon shell.
    */
   iconPlugin?: DetailSectionIconPlugin;
+  /** Optional node rendered immediately after the title (same left group). */
+  titleAside?: React.ReactNode;
   /** Optional node rendered to the right of the title (e.g. a reset button). */
   action?: React.ReactNode;
   children: React.ReactNode;
@@ -95,6 +97,7 @@ export function DetailSection({
   title,
   icon: Icon,
   iconPlugin: _iconPlugin,
+  titleAside,
   action,
   children,
   className,
@@ -109,7 +112,7 @@ export function DetailSection({
   const titleNode = prominentTitle ? (
     <h3 className={PLUGIN_PAGE_TITLE_CLASS}>{title}</h3>
   ) : subtleTitle ? (
-    <SubtleSectionHeading title={title} icon={Icon} className="min-w-0 flex-1" />
+    <SubtleSectionHeading title={title} icon={Icon} className="min-w-0 shrink" />
   ) : (
     <Heading level={3} size="sm" className="truncate font-semibold text-foreground">
       {title}
@@ -117,6 +120,14 @@ export function DetailSection({
   );
 
   const iconNode = Icon && !subtleTitle ? <SectionCategoryIcon icon={Icon} /> : null;
+
+  const titleRow = (
+    <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+      {iconNode}
+      {titleNode}
+      {titleAside ? <div className="min-w-0 shrink-0">{titleAside}</div> : null}
+    </div>
+  );
 
   if (!collapsible) {
     return (
@@ -127,10 +138,7 @@ export function DetailSection({
             subtleTitle && 'border-b border-border/50 pb-3',
           )}
         >
-          <div className="flex min-w-0 items-center gap-2">
-            {iconNode}
-            {titleNode}
-          </div>
+          {titleRow}
           {action ? (
             <div className="flex min-w-0 w-full justify-end sm:block sm:w-auto sm:shrink-0">
               {action}
@@ -151,32 +159,43 @@ export function DetailSection({
             subtleTitle && 'border-b border-border/50 pb-3',
           )}
         >
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-expanded={open}
-              aria-label={
-                open
-                  ? t('common.collapseSection', 'Collapse section')
-                  : t('common.expandSection', 'Expand section')
-              }
-            >
-              {open ? (
-                <ChevronDown
-                  className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500"
-                  aria-hidden
-                />
-              ) : (
-                <ChevronRight
-                  className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500"
-                  aria-hidden
-                />
-              )}
-              {iconNode}
-              {titleNode}
-            </button>
-          </CollapsibleTrigger>
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex min-w-0 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-expanded={open}
+                aria-label={
+                  open
+                    ? t('common.collapseSection', 'Collapse section')
+                    : t('common.expandSection', 'Expand section')
+                }
+              >
+                {open ? (
+                  <ChevronDown
+                    className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+                    aria-hidden
+                  />
+                ) : (
+                  <ChevronRight
+                    className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+                    aria-hidden
+                  />
+                )}
+                {iconNode}
+                {titleNode}
+              </button>
+            </CollapsibleTrigger>
+            {titleAside ? (
+              <div
+                className="min-w-0 shrink-0"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                {titleAside}
+              </div>
+            ) : null}
+          </div>
           {action ? (
             <div
               className="flex min-w-0 w-full justify-end sm:block sm:w-auto sm:shrink-0"

@@ -9,7 +9,7 @@ import type { Contact, ValidationError } from '../types/contacts';
 export interface ContactContextType {
   isContactPanelOpen: boolean;
   currentContact: Contact | null;
-  panelMode: 'create' | 'edit' | 'view' | 'settings';
+  panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   contacts: Contact[];
   openContactPanel: (contact: Contact | null) => void;

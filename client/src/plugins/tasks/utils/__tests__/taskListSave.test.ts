@@ -1,6 +1,7 @@
 import {
   buildTaskListQuickFieldsSavePayload,
   buildTaskListStatusSavePayload,
+  quickEditFieldsForTask,
   shouldApplyOpenTaskSaveEffects,
 } from '../taskListSave';
 
@@ -21,6 +22,23 @@ describe('shouldApplyOpenTaskSaveEffects', () => {
 
   it('compares ids as strings', () => {
     expect(shouldApplyOpenTaskSaveEffects(1 as unknown as string, '1')).toBe(true);
+  });
+});
+
+describe('quickEditFieldsForTask', () => {
+  it('returns null when draft belongs to another task', () => {
+    expect(quickEditFieldsForTask({ taskId: '1', status: 'completed' }, '2')).toBeNull();
+  });
+
+  it('returns field overlay without taskId when ids match', () => {
+    expect(
+      quickEditFieldsForTask({ taskId: '1', status: 'completed', priority: 'High' }, '1'),
+    ).toEqual({ status: 'completed', priority: 'High' });
+  });
+
+  it('returns null when draft or taskId is missing', () => {
+    expect(quickEditFieldsForTask(null, '1')).toBeNull();
+    expect(quickEditFieldsForTask({ taskId: '1', status: 'completed' }, null)).toBeNull();
   });
 });
 

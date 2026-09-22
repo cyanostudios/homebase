@@ -373,6 +373,7 @@ function normalizeSiteContentMap(
   return {
     home: normalizeSiteCard('home', rows?.home),
     info: normalizeSiteCard('info', rows?.info),
+    contacts: normalizeSiteCard('contacts', rows?.contacts ?? emptySiteCard('contacts')),
     swish: normalizeSiteCard('swish', rows?.swish ?? emptySiteCard('swish')),
   };
 }

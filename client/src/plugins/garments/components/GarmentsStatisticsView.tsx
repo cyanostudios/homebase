@@ -4,6 +4,11 @@ import { useTranslation } from 'react-i18next';
 
 import { StatKpiTile } from '@/core/ui/charts/StatCharts';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  PLUGIN_PAGE_HEADER_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 
 import { useGarments } from '../hooks/useGarments';
 
@@ -31,16 +36,19 @@ export function GarmentsStatisticsView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-extrabold tracking-tight text-foreground">
-          {t('garments.statistics.title', { defaultValue: 'Garment statistics' })}
-        </h2>
-        <p className="mt-1 hidden text-sm text-muted-foreground md:block">
-          {t('garments.statistics.description', {
-            defaultValue: 'Overview of lists, inventory, and assignments.',
-          })}
-        </p>
+      <div className={PLUGIN_PAGE_HEADER_CLASS}>
+        <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+          <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
+            {t('garments.statistics.title', { defaultValue: 'Garment statistics' })}
+          </h2>
+        </div>
       </div>
+
+      <p className="hidden text-sm text-muted-foreground md:block">
+        {t('garments.statistics.description', {
+          defaultValue: 'Overview of lists, inventory, and assignments.',
+        })}
+      </p>
 
       <DetailSection
         title={t('garments.statistics.overview', { defaultValue: 'Overview' })}

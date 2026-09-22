@@ -1,17 +1,14 @@
-import { Tags } from 'lucide-react';
+import { CheckCircle2, FilePenLine, Tags } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
-import { cn } from '@/lib/utils';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 
 import type { ClubdeskPriceList } from '../types/priceList';
 import type { PriceListSortField, PriceListSortOrder } from '../utils/priceListListSort';
-
-const PUBLISHED_BADGE =
-  'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200';
 
 export type PriceListListTableProps = {
   priceLists: ClubdeskPriceList[];
@@ -84,19 +81,21 @@ export function PriceListListTable({
                 >
                   {label}
                 </span>
-                <Badge
-                  variant={isPublished ? 'default' : 'secondary'}
-                  className={cn(
-                    'h-4 shrink-0 px-1 py-0 text-[10px] font-normal leading-none',
-                    isPublished && PUBLISHED_BADGE,
-                  )}
+              </div>
+              <div className="flex min-w-0 items-center gap-1.5 pl-6">
+                <StatusOutlineBadge
+                  compact
+                  icon={isPublished ? CheckCircle2 : FilePenLine}
+                  className={
+                    isPublished ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.muted
+                  }
                 >
                   {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
-                </Badge>
+                </StatusOutlineBadge>
+                <span className="min-w-0 truncate text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                  {identityMeta}
+                </span>
               </div>
-              <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
-                {identityMeta}
-              </span>
             </div>
           );
         },

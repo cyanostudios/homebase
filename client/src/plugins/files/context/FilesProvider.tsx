@@ -44,7 +44,7 @@ export function FilesProvider({
 
   const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
   const [currentFile, setCurrentFile] = useState<FileItem | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<ValidationError>();
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -386,12 +386,9 @@ export function FilesProvider({
   };
 
   const getPanelSubtitle = (
-    mode: 'create' | 'edit' | 'view' | 'settings',
+    mode: 'create' | 'edit' | 'view',
     item: FileItem | null,
   ): React.ReactNode => {
-    if (mode === 'settings') {
-      return t('files.panelSubtitleSettings');
-    }
     if (mode === 'create') {
       return t('files.panelSubtitleCreate');
     }

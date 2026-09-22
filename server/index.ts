@@ -191,13 +191,14 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Tenant pool: public task/note share GET resolves tenant via main-DB routing (no session).
+// Tenant pool: public share GET resolves tenant via main-DB routing (no session).
 // Other requests use the logged-in user's tenant.
 app.use(async (req: any, res: any, next: any) => {
   try {
     const p = req.path || '';
     const isPublicShareGet =
-      req.method === 'GET' && /^\/api\/(tasks|notes)\/public\/[^/]+\/?$/.test(p);
+      req.method === 'GET' &&
+      /^\/api\/(tasks|notes|estimates|invoices|garments)\/public\/[^/]+(?:\/pdf)?\/?$/.test(p);
     if (isPublicShareGet) {
       await attachPublicShareTenantPool(req);
     } else if (req.session && req.session.tenantConnectionString) {

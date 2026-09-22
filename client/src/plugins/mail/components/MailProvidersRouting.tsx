@@ -36,8 +36,6 @@ export type MailProvidersRoutingCategory = 'global' | 'plugins';
 interface MailProvidersRoutingProps {
   selectedCategory?: MailProvidersRoutingCategory;
   onSelectedCategoryChange?: (category: MailProvidersRoutingCategory) => void;
-  /** @deprecated Category buttons live in the settings header. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
 

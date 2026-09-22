@@ -141,7 +141,7 @@ export function TeamList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openTeamPanel(null)),
-    onSettings: openTeamSettings,
+    onSettings: () => attemptNavigation(() => openTeamSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -769,7 +769,7 @@ export function TeamList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={openTeamSettings}
+                      onClick={() => attemptNavigation(() => openTeamSettings())}
                     />
                     <ExpandableIconButton
                       icon={BarChart2}
@@ -907,8 +907,13 @@ export function TeamList() {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <TeamForm
+                    ref={inlineFormRef}
+                    currentTeam={currentTeam}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeTeamPanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -917,16 +922,10 @@ export function TeamList() {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <TeamForm
-                      ref={inlineFormRef}
-                      currentTeam={currentTeam}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeTeamPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailTeam ? (
                   <TeamView team={detailTeam} stacked />
                 ) : (

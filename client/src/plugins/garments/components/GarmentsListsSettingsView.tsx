@@ -8,12 +8,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
+import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 
 import { useGarments } from '../hooks/useGarments';
@@ -24,15 +26,34 @@ import {
   personCheckboxColumnsEqual,
 } from '../utils/customCheckboxColumns';
 import { createDefaultCheckboxColumns } from '../utils/defaultCheckboxTemplate';
+import { GARMENTS_SETTINGS_KEY } from '../utils/garmentColumnCount';
+import {
+  getPersonMatrixIdentityPrefForList,
+  isPersonMatrixIdentityColumnId,
+  normalizePersonMatrixIdentityByList,
+  normalizePersonMatrixIdentityColumns,
+  personMatrixIdentityColumnsEqual,
+  reorderPersonMatrixIdentityColumns,
+  setPersonMatrixIdentityColumnHidden,
+  type PersonMatrixIdentityColumnId,
+  type PersonMatrixIdentityColumnsPref,
+  type PersonMatrixIdentityByList,
+} from '../utils/personMatrixIdentityColumns';
 import { GarmentListCustomColumnsSettingsSection } from './GarmentListCustomColumnsSettingsSection';
 
 export type GarmentsListsSettingsCategory = 'customColumns';
 
+const IDENTITY_LABEL_KEYS: Record<PersonMatrixIdentityColumnId, string> = {
+  name: 'garments.personName',
+  team: 'garments.team',
+  jerseyName: 'garments.jerseyName',
+  initials: 'garments.initials',
+  jerseyNumber: 'garments.jerseyNumber',
+};
+
 interface GarmentsListsSettingsViewProps {
   selectedCategory?: GarmentsListsSettingsCategory;
   onSelectedCategoryChange?: (category: GarmentsListsSettingsCategory) => void;
-  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
   /** Pre-select a list when opening settings from list context. */
   initialListId?: string | null;
@@ -53,6 +74,7 @@ export function GarmentsListsSettingsView({
   initialListId = null,
 }: GarmentsListsSettingsViewProps = {}) {
   const { t } = useTranslation();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { garmentLists, updateListCheckboxColumns } = useGarments();
 
   const [internalCategory, setInternalCategory] =
@@ -78,13 +100,28 @@ export function GarmentsListsSettingsView({
   const [initialPersonColumns, setInitialPersonColumns] = useState<GarmentCheckboxColumn[]>(() =>
     editableColumnsFromList(selectedList),
   );
+  const [identityColumns, setIdentityColumns] = useState<PersonMatrixIdentityColumnsPref>(() =>
+    normalizePersonMatrixIdentityColumns(null),
+  );
+  const [initialIdentityColumns, setInitialIdentityColumns] =
+    useState<PersonMatrixIdentityColumnsPref>(() => normalizePersonMatrixIdentityColumns(null));
+  const [identityByList, setIdentityByList] = useState<PersonMatrixIdentityByList>(() =>
+    normalizePersonMatrixIdentityByList(null),
+  );
+  /** False until getSettings resolves (success or empty fallback). Blocks identity persist. */
+  const [identitySettingsLoaded, setIdentitySettingsLoaded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const prevListIdRef = useRef<string | null>(null);
   const personDirtyRef = useRef(false);
+  const identityDirtyRef = useRef(false);
 
   personDirtyRef.current = !personCheckboxColumnsEqual(draftPersonColumns, initialPersonColumns);
+  identityDirtyRef.current = !personMatrixIdentityColumnsEqual(
+    identityColumns,
+    initialIdentityColumns,
+  );
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
@@ -105,11 +142,48 @@ export function GarmentsListsSettingsView({
   }, [garmentLists, selectedListId]);
 
   useEffect(() => {
+    if (!initialListId) {
+      return;
+    }
+    if (garmentLists.some((list) => list.id === initialListId)) {
+      setSelectedListId(initialListId);
+    }
+  }, [garmentLists, initialListId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIdentitySettingsLoaded(false);
+    getSettings(GARMENTS_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        setIdentityByList(
+          normalizePersonMatrixIdentityByList(settings?.personMatrixIdentityByList),
+        );
+        setIdentitySettingsLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        // Do not mark loaded — identity save must not overwrite server map with {}.
+        setIdentitySettingsLoaded(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  useEffect(() => {
     if (!selectedList) {
       prevListIdRef.current = null;
       const empty = editableColumnsFromList(null);
       setDraftPersonColumns(empty);
       setInitialPersonColumns(empty);
+      const identity = normalizePersonMatrixIdentityColumns(null);
+      setIdentityColumns(identity);
+      setInitialIdentityColumns(identity);
       setSaveError(null);
       return;
     }
@@ -123,39 +197,89 @@ export function GarmentsListsSettingsView({
       setInitialPersonColumns(next);
     }
 
+    if (identitySettingsLoaded && (listChanged || !identityDirtyRef.current)) {
+      const identity = getPersonMatrixIdentityPrefForList(
+        { personMatrixIdentityByList: identityByList },
+        selectedList.id,
+      );
+      setIdentityColumns(identity);
+      setInitialIdentityColumns(identity);
+    }
+
     if (listChanged) {
       setSaveError(null);
     }
-  }, [selectedList]);
+  }, [selectedList, identityByList, identitySettingsLoaded]);
 
   const personDirty = personDirtyRef.current;
-  const isDirty = activeCategory === 'customColumns' && selectedList != null && personDirty;
+  const identityDirty = identityDirtyRef.current;
+  const isDirty =
+    activeCategory === 'customColumns' && selectedList != null && (personDirty || identityDirty);
 
   const handleSave = useCallback(async () => {
     if (!selectedList || activeCategory !== 'customColumns') {
       return;
     }
     const checkboxDirty = !personCheckboxColumnsEqual(draftPersonColumns, initialPersonColumns);
-    if (!checkboxDirty) {
+    const identityDirtyNow = !personMatrixIdentityColumnsEqual(
+      identityColumns,
+      initialIdentityColumns,
+    );
+    if (!checkboxDirty && !identityDirtyNow) {
       return;
     }
 
     setIsSaving(true);
     setSaveError(null);
 
+    let checkboxFailed = false;
+    let identityFailed = false;
+    let identityNotReady = false;
+
     try {
-      const sourceColumns =
-        selectedList.checkboxColumns?.length > 0
-          ? selectedList.checkboxColumns
-          : createDefaultCheckboxColumns();
-      const next = applyPersonCheckboxColumnDraft(sourceColumns, draftPersonColumns);
-      const ok = await updateListCheckboxColumns(selectedList.id, next);
-      if (ok) {
-        const savedDraft = listEditablePersonCheckboxColumns(next);
-        setDraftPersonColumns(savedDraft);
-        setInitialPersonColumns(savedDraft);
-      } else {
+      if (checkboxDirty) {
+        const sourceColumns =
+          selectedList.checkboxColumns?.length > 0
+            ? selectedList.checkboxColumns
+            : createDefaultCheckboxColumns();
+        const next = applyPersonCheckboxColumnDraft(sourceColumns, draftPersonColumns);
+        const ok = await updateListCheckboxColumns(selectedList.id, next);
+        if (ok) {
+          const savedDraft = listEditablePersonCheckboxColumns(next);
+          setDraftPersonColumns(savedDraft);
+          setInitialPersonColumns(savedDraft);
+        } else {
+          checkboxFailed = true;
+        }
+      }
+
+      if (identityDirtyNow) {
+        if (!identitySettingsLoaded) {
+          identityNotReady = true;
+        } else {
+          try {
+            const normalizedIdentity = normalizePersonMatrixIdentityColumns(identityColumns);
+            const nextByList = {
+              ...identityByList,
+              [selectedList.id]: normalizedIdentity,
+            };
+            await updateSettings(GARMENTS_SETTINGS_KEY, {
+              personMatrixIdentityByList: nextByList,
+            });
+            setIdentityByList(nextByList);
+            setIdentityColumns(normalizedIdentity);
+            setInitialIdentityColumns(normalizedIdentity);
+          } catch (error) {
+            console.error('Failed to save garment identity columns:', error);
+            identityFailed = true;
+          }
+        }
+      }
+
+      if (checkboxFailed || identityFailed) {
         setSaveError(t('garments.customColumnsSaveFailed'));
+      } else if (identityNotReady) {
+        setSaveError(t('garments.customColumnsSettingsNotReady'));
       }
     } catch (error) {
       console.error('Failed to save garment list person columns:', error);
@@ -166,10 +290,15 @@ export function GarmentsListsSettingsView({
   }, [
     activeCategory,
     draftPersonColumns,
+    identityByList,
+    identityColumns,
+    identitySettingsLoaded,
+    initialIdentityColumns,
     initialPersonColumns,
     selectedList,
     t,
     updateListCheckboxColumns,
+    updateSettings,
   ]);
 
   const totalColumnCount = useMemo(() => {
@@ -240,6 +369,17 @@ export function GarmentsListsSettingsView({
 
           {selectedList ? (
             <>
+              <TableColumnsSettingsSection
+                title={t('garments.settingsCategories.identityColumns')}
+                hint={t('garments.settingsCategories.identityColumnsHint')}
+                pref={identityColumns}
+                requiredColumnId="name"
+                labelFor={(id) => t(IDENTITY_LABEL_KEYS[id])}
+                isColumnId={isPersonMatrixIdentityColumnId}
+                reorder={reorderPersonMatrixIdentityColumns}
+                setHidden={setPersonMatrixIdentityColumnHidden}
+                onChange={setIdentityColumns}
+              />
               <GarmentListCustomColumnsSettingsSection
                 title={t('garments.settingsCategories.customColumns')}
                 hint={t('garments.settingsCategories.customColumnsHint')}

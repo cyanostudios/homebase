@@ -3,6 +3,7 @@ import React, { createContext, useContext } from 'react';
 import type { ImportResult } from '@/core/utils/importUtils';
 
 import type {
+  FitSummaryProcurement,
   GarmentCheckboxColumn,
   GarmentList,
   GarmentListPayload,
@@ -40,7 +41,10 @@ export interface GarmentContextType {
 
   openGarmentsInventory: () => void;
   openGarmentsLists: () => void;
-  openGarmentsSettings: (returnView?: 'lists' | 'inventory') => void;
+  /** Open Lists or Inventory settings. Optional listId preselects that list for person-matrix columns. */
+  openGarmentsSettings: (returnView?: 'lists' | 'inventory', listId?: string | null) => void;
+  /** List id to preselect in Lists settings (person-matrix column prefs). */
+  settingsListsInitialListId: string | null;
   closeGarmentsSettingsView: () => void;
 
   assignInventoryItemToList: (listId: string, itemId: string) => Promise<boolean>;
@@ -50,6 +54,8 @@ export interface GarmentContextType {
     personId: string,
     patch: { ctSizes?: Record<string, string>; ctAudiences?: Record<string, string> },
   ) => Promise<GarmentPerson | null>;
+  /** Optimistic merge of Size summary procurement (supplier order) for a list. */
+  patchFitSummaryProcurement: (listId: string, partial: FitSummaryProcurement) => Promise<boolean>;
 
   saveGarment: (data: GarmentListPayload | InventoryItemPayload) => Promise<boolean>;
   /** Persist full checkboxColumns for a list (must include all system columns). */
@@ -153,10 +159,12 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   openGarmentsInventory: () => {},
   openGarmentsLists: () => {},
   openGarmentsSettings: () => {},
+  settingsListsInitialListId: null,
   closeGarmentsSettingsView: () => {},
   assignInventoryItemToList: async () => false,
   unassignInventoryItemFromList: async () => false,
   updatePersonCtSizes: async () => null,
+  patchFitSummaryProcurement: async () => false,
   saveGarment: async () => false,
   updateListCheckboxColumns: async () => false,
   deleteGarment: async () => {},

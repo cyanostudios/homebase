@@ -1,4 +1,9 @@
-import { DUE_DATE_BADGE_COLORS, DUE_DATE_TEXT_COLORS } from '@/core/ui/badgeStyles';
+import {
+  DUE_DATE_BADGE_COLORS,
+  DUE_DATE_TEXT_COLORS,
+  QC_PRIORITY_BADGE_COLORS,
+  QC_TASK_STATUS_BADGE_COLORS,
+} from '@/core/ui/badgeStyles';
 
 export interface Task {
   id: string;
@@ -52,20 +57,10 @@ export interface ValidationError {
   message: string;
 }
 
-// Status color mapping — solid QC fills (pair with BADGE_CHIP_*; no baked font-medium)
-export const TASK_STATUS_COLORS = {
-  'not started': 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  'in progress': 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  completed: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-} as const;
+// Status / priority — soft status-tag fills (pair with BADGE_CHIP_*)
+export const TASK_STATUS_COLORS = QC_TASK_STATUS_BADGE_COLORS;
 
-// Priority color mapping — same solid palette as Requests
-export const TASK_PRIORITY_COLORS = {
-  Low: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-  Medium: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  High: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-} as const;
+export const TASK_PRIORITY_COLORS = QC_PRIORITY_BADGE_COLORS;
 
 /** Grid card avatar background by priority. */
 export const TASK_PRIORITY_AVATAR_COLORS = {

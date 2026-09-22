@@ -1,6 +1,6 @@
+import { CheckCircle2, Circle, Clock, XCircle } from 'lucide-react';
 import React from 'react';
 
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -8,11 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  BADGE_CHIP_CLASS,
-  BADGE_CHIP_COMPACT_CLASS,
-  BADGE_SELECT_TRIGGER_CLASS,
-} from '@/core/ui/badgeStyles';
+import { BADGE_SELECT_ITEM_CLASS, BADGE_SELECT_TRIGGER_CLASS } from '@/core/ui/badgeStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
 import { TASK_STATUS_COLORS, TASK_STATUS_OPTIONS, formatStatusForDisplay } from '../types/tasks';
@@ -26,12 +23,27 @@ interface TaskStatusSelectProps {
   compact?: boolean;
 }
 
+function taskStatusIcon(status: string) {
+  switch (status) {
+    case 'in progress':
+      return Clock;
+    case 'completed':
+      return CheckCircle2;
+    case 'cancelled':
+      return XCircle;
+    default:
+      return Circle;
+  }
+}
+
 export function TaskStatusSelect({
   task,
   onStatusChange,
   hideInlineLabel = false,
   compact = false,
 }: TaskStatusSelectProps) {
+  const StatusIcon = taskStatusIcon(task.status);
+
   const selectEl = (
     <Select value={task.status} onValueChange={onStatusChange}>
       <SelectTrigger
@@ -41,34 +53,27 @@ export function TaskStatusSelect({
         )}
       >
         <SelectValue placeholder="Select status">
-          <Badge
-            variant="outline"
-            className={cn(
-              'flex items-center',
-              compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
-              TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS],
-            )}
+          <StatusOutlineBadge
+            icon={StatusIcon}
+            compact={compact}
+            className={
+              TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS] ??
+              TASK_STATUS_COLORS['not started']
+            }
           >
             {formatStatusForDisplay(task.status)}
-          </Badge>
+          </StatusOutlineBadge>
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
         {TASK_STATUS_OPTIONS.map((status) => (
-          <SelectItem
-            key={status}
-            value={status}
-            className="rounded-md py-2 text-xs focus:bg-accent"
-          >
-            <Badge
-              variant="outline"
-              className={cn(
-                BADGE_CHIP_CLASS,
-                TASK_STATUS_COLORS[status as keyof typeof TASK_STATUS_COLORS],
-              )}
+          <SelectItem key={status} value={status} className={BADGE_SELECT_ITEM_CLASS}>
+            <StatusOutlineBadge
+              icon={taskStatusIcon(status)}
+              className={TASK_STATUS_COLORS[status as keyof typeof TASK_STATUS_COLORS]}
             >
               {formatStatusForDisplay(status)}
-            </Badge>
+            </StatusOutlineBadge>
           </SelectItem>
         ))}
       </SelectContent>

@@ -156,7 +156,7 @@ export const ContactList: React.FC = () => {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openContactPanel(null)),
-    onSettings: () => openContactSettings(),
+    onSettings: () => attemptNavigation(() => openContactSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -826,7 +826,6 @@ export const ContactList: React.FC = () => {
           <ContactSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
             onClose={closeContactSettingsView}
           />
         </div>
@@ -910,7 +909,7 @@ export const ContactList: React.FC = () => {
                       icon={Settings}
                       label={t('contacts.settings')}
                       variant="soft"
-                      onClick={() => openContactSettings()}
+                      onClick={() => attemptNavigation(() => openContactSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle
@@ -1070,8 +1069,13 @@ export const ContactList: React.FC = () => {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <ContactForm
+                    ref={inlineFormRef}
+                    currentContact={currentContact}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeContactPanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -1080,16 +1084,10 @@ export const ContactList: React.FC = () => {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <ContactForm
-                      ref={inlineFormRef}
-                      currentContact={currentContact}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeContactPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailContact ? (
                   <ContactView contact={detailContact} stacked />
                 ) : (

@@ -14,6 +14,8 @@ describe('ClubdeskGuideView detail tab chips', () => {
 
   test('header card always mounts ClubdeskDetailHeaderMenus with tab chips below', () => {
     expect(viewSrc).toMatch(/ClubdeskDetailHeaderMenus/);
+    expect(viewSrc).toMatch(/DetailHeaderMetaRow/);
+    expect(viewSrc).toMatch(/StatusOutlineBadge/);
     expect(viewSrc).toMatch(/<div className="mt-4">\{tabChips\}<\/div>/);
     expect(viewSrc).toMatch(/leading=\{titleLeading\}/);
     expect(viewSrc).not.toMatch(/sidebar=\{/);
@@ -23,10 +25,25 @@ describe('ClubdeskGuideView detail tab chips', () => {
     expect(viewSrc).toMatch(/useSearchParams/);
     expect(viewSrc).toMatch(/parseClubdeskGuideViewTab/);
     expect(viewSrc).toMatch(/'information'/);
+    expect(viewSrc).toMatch(/value === 'properties'/); // legacy ?tab=properties → information
     expect(viewSrc).toMatch(/'steps'/);
+    expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
+    expect(viewSrc).toMatch(/activeTab === 'information' \? propertiesCard/);
+    // properties content still on information
+    expect(viewSrc).not.toMatch(/activeTab === 'properties'/);
     expect(viewSrc).toMatch(/activeTab === 'steps'/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
+  });
+
+  test('properties card on information hosts publication and featured controls', () => {
+    expect(viewSrc).toMatch(/ClubdeskPublicationPropertiesFields/);
+    expect(viewSrc).toMatch(/updateClubdeskPublicationStatus/);
+    expect(viewSrc).toMatch(/updateClubdeskFeatured/);
+    expect(viewSrc).toMatch(/clubdesk\.guideProperties/);
+    expect(viewSrc).toMatch(/t\('clubdesk\.guideProperties'\)/);
+    expect(viewSrc).toMatch(/showCategory/);
   });
 
   test('steps tab count uses steps.length', () => {
@@ -37,5 +54,13 @@ describe('ClubdeskGuideView detail tab chips', () => {
   test('section titles use i18n tab keys', () => {
     expect(viewSrc).toMatch(/t\('clubdesk\.tabs\.information'\)/);
     expect(viewSrc).toMatch(/t\('clubdesk\.tabs\.steps'\)/);
+  });
+
+  test('activity tab renders DetailActivityLog when selected', () => {
+    expect(viewSrc).toMatch(/'activity'/);
+    expect(viewSrc).toMatch(/clubdesk\.tabs\.activity/);
+    expect(viewSrc).toMatch(/DetailActivityLog/);
+    expect(viewSrc).toMatch(/entityType="clubdesk"/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
   });
 });

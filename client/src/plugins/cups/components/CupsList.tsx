@@ -87,6 +87,7 @@ import {
   CupIngestImportResultDialog,
   type CupIngestImportResultVariant,
 } from './CupIngestImportResultDialog';
+import { CupIngestImportProgressDialog } from './CupIngestImportProgressDialog';
 import { CupIngestPickSourceDialog } from './CupIngestPickSourceDialog';
 import { CupForm } from './CupForm';
 import { CupListTable } from './CupListTable';
@@ -143,7 +144,7 @@ export function CupsList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openCupPanel(null)),
-    onSettings: openCupSettings,
+    onSettings: () => attemptNavigation(() => openCupSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -190,6 +191,7 @@ export function CupsList() {
     defaultId: '',
   });
   const [importRunning, setImportRunning] = useState(false);
+  const [importProgressLabel, setImportProgressLabel] = useState('');
   const [importResultOpen, setImportResultOpen] = useState(false);
   const [importResult, setImportResult] = useState<{
     variant: CupIngestImportResultVariant;
@@ -514,7 +516,7 @@ export function CupsList() {
   }, [getSettings]);
 
   const handleConfirmImportFromList = useCallback(
-    async (sourceId: string) => {
+    async (sourceId: string, sourceLabel: string) => {
       const allowedIds = pickImportSettings.allowedIds;
       if (allowedIds.length > 0 && !allowedIds.includes(String(sourceId))) {
         setPickImportOpen(false);
@@ -533,6 +535,8 @@ export function CupsList() {
         setImportResultOpen(true);
         return;
       }
+      setPickImportOpen(false);
+      setImportProgressLabel(sourceLabel);
       setImportRunning(true);
       try {
         const result = await importFromIngestSource(sourceId);
@@ -546,7 +550,6 @@ export function CupsList() {
             : errs.length > 0
               ? 'partial'
               : 'success';
-        setPickImportOpen(false);
         setImportResult({
           variant,
           parsed: result.parsed ?? 0,
@@ -561,7 +564,6 @@ export function CupsList() {
         });
         setImportResultOpen(true);
       } catch (error: unknown) {
-        setPickImportOpen(false);
         setImportResult({
           variant: 'error',
           parsed: 0,
@@ -577,6 +579,7 @@ export function CupsList() {
         setImportResultOpen(true);
       } finally {
         setImportRunning(false);
+        setImportProgressLabel('');
       }
     },
     [importFromIngestSource, pickImportSettings.allowedIds],
@@ -795,7 +798,6 @@ export function CupsList() {
           <CupsSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
             onClose={closeCupSettingsView}
           />
         </div>
@@ -899,7 +901,7 @@ export function CupsList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={openCupSettings}
+                      onClick={() => attemptNavigation(() => openCupSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle
@@ -983,6 +985,8 @@ export function CupsList() {
             confirming={importRunning}
           />
 
+          <CupIngestImportProgressDialog isOpen={importRunning} sourceLabel={importProgressLabel} />
+
           {importResult && (
             <CupIngestImportResultDialog
               isOpen={importResultOpen}
@@ -1063,8 +1067,13 @@ export function CupsList() {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <CupForm
+                    ref={inlineFormRef}
+                    currentCup={currentCup}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeCupPanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -1073,16 +1082,10 @@ export function CupsList() {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <CupForm
-                      ref={inlineFormRef}
-                      currentCup={currentCup}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeCupPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailCup ? (
                   <CupView cup={detailCup} stacked />
                 ) : (

@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   FileText,
   LayoutGrid,
+  Receipt,
   Menu,
   Plus,
   Send,
@@ -136,7 +137,7 @@ export function EstimateList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openEstimatePanel(null)),
-    onSettings: openEstimateSettings,
+    onSettings: () => attemptNavigation(() => openEstimateSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -293,6 +294,7 @@ export function EstimateList() {
       draft: estimates.filter((e) => e.status === 'draft').length,
       sent: estimates.filter((e) => e.status === 'sent').length,
       accepted: estimates.filter((e) => e.status === 'accepted').length,
+      invoiced: estimates.filter((e) => e.status === 'invoiced').length,
     }),
     [estimates],
   );
@@ -450,6 +452,10 @@ export function EstimateList() {
     await inlineFormRef.current?.submit();
   }, []);
 
+  const handleInlineFormPreview = useCallback(() => {
+    inlineFormRef.current?.preview?.();
+  }, []);
+
   const handleInlineFormClose = useCallback(() => {
     if (inlineFormRef.current) {
       inlineFormRef.current.cancel();
@@ -563,6 +569,21 @@ export function EstimateList() {
         <span>
           {t('estimates.filter.accepted', { defaultValue: 'Accepted' })}{' '}
           <span className="tabular-nums font-semibold">({stats.accepted})</span>
+        </span>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => toggleFilter('invoiced')}
+        className={cn(
+          isFilterActive('invoiced') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+        )}
+      >
+        <Receipt className="h-3.5 w-3.5" />
+        <span>
+          {t('estimates.filter.invoiced', { defaultValue: 'Invoiced' })}{' '}
+          <span className="tabular-nums font-semibold">({stats.invoiced})</span>
         </span>
       </Button>
     </div>
@@ -776,7 +797,7 @@ export function EstimateList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={openEstimateSettings}
+                      onClick={() => attemptNavigation(() => openEstimateSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle
@@ -903,26 +924,27 @@ export function EstimateList() {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <EstimateForm
+                    ref={inlineFormRef}
+                    currentEstimate={currentEstimate ?? undefined}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeEstimatePanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
+                        showPreview
+                        onPreview={handleInlineFormPreview}
                         onClose={handleInlineFormClose}
                         onSave={() => {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <EstimateForm
-                      ref={inlineFormRef}
-                      currentEstimate={currentEstimate ?? undefined}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeEstimatePanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailEstimate ? (
                   <EstimateView estimate={detailEstimate} stacked />
                 ) : (

@@ -93,6 +93,13 @@ describe('FileList table view wiring', () => {
     expect(listSrc).toMatch(/FilesStatisticsView/);
   });
 
+  test('create/edit form is not legacy panel settings', () => {
+    const formSrc = fs.readFileSync(path.join(__dirname, '../FileForm.tsx'), 'utf8');
+    expect(formSrc).not.toMatch(/FileSettingsForm/);
+    expect(formSrc).not.toMatch(/panelMode === 'settings'/);
+    expect(listSrc).toMatch(/FileSettingsView/);
+  });
+
   test('desktop create/edit renders FileForm in the detail column', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/FileForm/);

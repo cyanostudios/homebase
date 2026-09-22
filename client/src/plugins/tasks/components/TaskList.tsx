@@ -147,7 +147,7 @@ export function TaskList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openTaskPanel(null)),
-    onSettings: () => openTaskSettings(),
+    onSettings: () => attemptNavigation(() => openTaskSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -855,7 +855,7 @@ export function TaskList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={() => openTaskSettings()}
+                      onClick={() => attemptNavigation(() => openTaskSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle
@@ -1000,8 +1000,13 @@ export function TaskList() {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <TaskForm
+                    ref={inlineFormRef}
+                    currentTask={currentTask}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeTaskPanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -1010,16 +1015,10 @@ export function TaskList() {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <TaskForm
-                      ref={inlineFormRef}
-                      currentTask={currentTask}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeTaskPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailTask ? (
                   <TaskView task={detailTask} stacked />
                 ) : (

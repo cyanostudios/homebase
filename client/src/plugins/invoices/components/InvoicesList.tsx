@@ -1,4 +1,6 @@
 import {
+  AlertCircle,
+  BadgeCheck,
   Banknote,
   BarChart2,
   CheckSquare,
@@ -6,6 +8,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   ChevronDown,
+  FileEdit,
   FileMinus,
   FileSpreadsheet,
   FileText,
@@ -13,8 +16,10 @@ import {
   Menu,
   Plus,
   Receipt,
+  Send,
   Settings,
   Trash2,
+  Wallet,
   XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
@@ -70,8 +75,10 @@ import { useInvoices } from '../hooks/useInvoices';
 import type { Invoice } from '../context/InvoicesContext';
 import { INVOICES_SETTINGS_KEY } from '../utils/invoiceColumnCount';
 import {
-  INVOICE_LIST_FILTERS,
+  INVOICE_STATUS_LIST_FILTERS,
+  INVOICE_TYPE_LIST_FILTERS,
   invoiceMatchesListFilters,
+  invoiceMatchesSingleFilter,
   toggleInvoiceListFilter,
   type InvoiceListFilter,
   type InvoiceListFilterSelection,
@@ -110,12 +117,42 @@ const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'issueDate', labelKey: 'invoices.issueDate' },
 ];
 
+const STATUS_FILTER_ICONS = {
+  draft: FileEdit,
+  sent: Send,
+  partially_paid: Wallet,
+  paid: BadgeCheck,
+  overdue: AlertCircle,
+  canceled: XCircle,
+  unpaid: Wallet,
+} as const;
+
 const TYPE_FILTER_ICONS = {
   invoice: FileText,
   credit_note: FileMinus,
   cash_invoice: Banknote,
   receipt: Receipt,
 } as const;
+
+const STATUS_FILTER_LABEL_KEYS: Record<(typeof INVOICE_STATUS_LIST_FILTERS)[number], string> = {
+  draft: 'invoices.filter.draft',
+  sent: 'invoices.filter.sent',
+  partially_paid: 'invoices.filter.partiallyPaid',
+  paid: 'invoices.filter.paid',
+  overdue: 'invoices.filter.overdue',
+  canceled: 'invoices.filter.canceled',
+  unpaid: 'invoices.filter.unpaid',
+};
+
+const STATUS_FILTER_DEFAULTS: Record<(typeof INVOICE_STATUS_LIST_FILTERS)[number], string> = {
+  draft: 'Draft',
+  sent: 'Sent',
+  partially_paid: 'Partially paid',
+  paid: 'Paid',
+  overdue: 'Overdue',
+  canceled: 'Canceled',
+  unpaid: 'Unpaid',
+};
 
 let pendingPreviewInvoiceId: string | null = null;
 
@@ -152,7 +189,7 @@ export function InvoicesList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openInvoicesPanel(null)),
-    onSettings: openInvoiceSettings,
+    onSettings: () => attemptNavigation(() => openInvoiceSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -320,14 +357,21 @@ export function InvoicesList() {
   };
 
   const stats = useMemo(() => {
-    const byType = Object.fromEntries(
-      INVOICE_LIST_FILTERS.map((type) => [
-        type,
-        invoices.filter((i) => invoiceMatchesListFilters(i, [type])).length,
+    const byStatus = Object.fromEntries(
+      INVOICE_STATUS_LIST_FILTERS.map((status) => [
+        status,
+        invoices.filter((i) => invoiceMatchesSingleFilter(i, status)).length,
       ]),
-    ) as Record<InvoiceListFilter, number>;
+    ) as Record<(typeof INVOICE_STATUS_LIST_FILTERS)[number], number>;
+    const byType = Object.fromEntries(
+      INVOICE_TYPE_LIST_FILTERS.map((type) => [
+        type,
+        invoices.filter((i) => invoiceMatchesSingleFilter(i, type)).length,
+      ]),
+    ) as Record<(typeof INVOICE_TYPE_LIST_FILTERS)[number], number>;
     return {
       total: invoices.length,
+      ...byStatus,
       ...byType,
     };
   }, [invoices]);
@@ -551,7 +595,31 @@ export function InvoicesList() {
           <span className="tabular-nums font-semibold">({stats.total})</span>
         </span>
       </Button>
-      {INVOICE_LIST_FILTERS.map((filter) => {
+      {INVOICE_STATUS_LIST_FILTERS.map((filter) => {
+        const Icon = STATUS_FILTER_ICONS[filter];
+        const label = t(STATUS_FILTER_LABEL_KEYS[filter], {
+          defaultValue: STATUS_FILTER_DEFAULTS[filter],
+        });
+        const count = stats[filter];
+        return (
+          <Button
+            key={filter}
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => toggleFilter(filter)}
+            className={cn(
+              isFilterActive(filter) ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            <span>
+              {label} <span className="tabular-nums font-semibold">({count})</span>
+            </span>
+          </Button>
+        );
+      })}
+      {INVOICE_TYPE_LIST_FILTERS.map((filter) => {
         const Icon = TYPE_FILTER_ICONS[filter];
         const label = t(`invoices.type.${filter}`, { defaultValue: filter });
         const count = stats[filter];
@@ -701,7 +769,6 @@ export function InvoicesList() {
           <InvoiceSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
             onClose={closeInvoiceSettingsView}
           />
         </div>
@@ -836,7 +903,7 @@ export function InvoicesList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={openInvoiceSettings}
+                      onClick={() => attemptNavigation(() => openInvoiceSettings())}
                     />
                     <ExpandableIconButton
                       icon={BarChart2}
@@ -944,8 +1011,13 @@ export function InvoicesList() {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <InvoicesForm
+                    ref={inlineFormRef}
+                    currentInvoice={currentInvoice as any}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeInvoicesPanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -956,16 +1028,10 @@ export function InvoicesList() {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <InvoicesForm
-                      ref={inlineFormRef}
-                      currentInvoice={currentInvoice as any}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeInvoicesPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailInvoice ? (
                   <InvoicesView invoice={detailInvoice} stacked />
                 ) : (

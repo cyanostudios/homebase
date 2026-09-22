@@ -1,7 +1,7 @@
+import { ArrowDown, ArrowUp, Minus, type LucideIcon } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -9,11 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  BADGE_CHIP_CLASS,
-  BADGE_CHIP_COMPACT_CLASS,
-  BADGE_SELECT_TRIGGER_CLASS,
-} from '@/core/ui/badgeStyles';
+import { BADGE_SELECT_ITEM_CLASS, BADGE_SELECT_TRIGGER_CLASS } from '@/core/ui/badgeStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
 import {
@@ -31,6 +28,17 @@ interface RequestPrioritySelectProps {
   compact?: boolean;
 }
 
+function requestPriorityIcon(priority: string): LucideIcon {
+  switch (priority) {
+    case 'High':
+      return ArrowUp;
+    case 'Low':
+      return ArrowDown;
+    default:
+      return Minus;
+  }
+}
+
 export function RequestPrioritySelect({
   request,
   onPriorityChange,
@@ -38,6 +46,7 @@ export function RequestPrioritySelect({
   compact = false,
 }: RequestPrioritySelectProps) {
   const { t } = useTranslation();
+  const PriorityIcon = requestPriorityIcon(request.priority);
 
   const selectEl = (
     <Select value={request.priority} onValueChange={(v) => onPriorityChange(v as RequestPriority)}>
@@ -48,31 +57,24 @@ export function RequestPrioritySelect({
         )}
       >
         <SelectValue placeholder="Select priority">
-          <Badge
-            variant="outline"
-            className={cn(
-              'flex items-center',
-              compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
-              REQUEST_PRIORITY_COLORS[request.priority],
-            )}
+          <StatusOutlineBadge
+            icon={PriorityIcon}
+            compact={compact}
+            className={REQUEST_PRIORITY_COLORS[request.priority]}
           >
             {request.priority}
-          </Badge>
+          </StatusOutlineBadge>
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
         {REQUEST_PRIORITIES.map((priority) => (
-          <SelectItem
-            key={priority}
-            value={priority}
-            className="rounded-md py-2 text-xs focus:bg-accent"
-          >
-            <Badge
-              variant="outline"
-              className={cn(BADGE_CHIP_CLASS, REQUEST_PRIORITY_COLORS[priority])}
+          <SelectItem key={priority} value={priority} className={BADGE_SELECT_ITEM_CLASS}>
+            <StatusOutlineBadge
+              icon={requestPriorityIcon(priority)}
+              className={REQUEST_PRIORITY_COLORS[priority]}
             >
               {priority}
-            </Badge>
+            </StatusOutlineBadge>
           </SelectItem>
         ))}
       </SelectContent>

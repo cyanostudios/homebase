@@ -20,6 +20,7 @@ import { ListTableSortIcon } from '@/core/ui/ListTableSortIcon';
 import { FORM_COMPACT_INPUT_CLASS, FORM_COMPACT_SELECT_CLASS } from '@/core/ui/formFieldStyles';
 import { createSerialLatestQueue } from '@/core/utils/serialLatestQueue';
 import type { SerialLatestSettle } from '@/core/utils/serialLatestQueue';
+import { formatDate } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
@@ -28,6 +29,7 @@ import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useGarments } from '../hooks/useGarments';
 import type {
+  FitSummaryProcurement,
   GarmentCheckboxColumn,
   GarmentList,
   GarmentPerson,
@@ -57,10 +59,12 @@ import {
 import {
   buildGarmentListFitSummary,
   filterMatrixColumns,
+  fitBreakdownKey,
   inventoryItemAudiences,
   inventoryItemIdFromGroupColumns,
   inventoryItemSizes,
   inventoryItemSizesForAudience,
+  mergeFitSummaryProcurement,
   personHasFilledInventoryItem,
   resolveMatrixColumns,
   type GarmentFitSummaryEntry,
@@ -77,46 +81,278 @@ function fitSummaryBreakdownLabel(
   };
 }
 
-function GarmentListFitSummary({ entries }: { entries: GarmentFitSummaryEntry[] }) {
+function GarmentListFitSummary({
+  entries,
+  editable = false,
+  disabled = false,
+  onPatch,
+}: {
+  entries: GarmentFitSummaryEntry[];
+  editable?: boolean;
+  disabled?: boolean;
+  onPatch?: (partial: FitSummaryProcurement) => Promise<boolean>;
+}) {
   const { t } = useTranslation();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
   if (!entries.length) {
     return null;
   }
 
+  const persist = async (partial: FitSummaryProcurement) => {
+    if (!onPatch || disabled) {
+      return;
+    }
+    setBusy(true);
+    setSaveError(null);
+    const ok = await onPatch(partial);
+    if (!ok) {
+      setSaveError(t('garments.fitSummarySaveFailed'));
+    }
+    setBusy(false);
+  };
+
+  const setRowOrdered = (
+    entry: GarmentFitSummaryEntry,
+    row: GarmentFitSummaryEntry['fitBreakdowns'][number],
+    ordered: boolean,
+  ) => {
+    const key = fitBreakdownKey(row.audience, row.size);
+    const patchRow: FitSummaryProcurement[string][string] = { ordered };
+    if (ordered && (row.qtyOrdered == null || row.qtyOrdered === undefined)) {
+      patchRow.qtyOrdered = row.count;
+    }
+    void persist({ [entry.itemId]: { [key]: patchRow } });
+  };
+
+  const setRowQty = (
+    entry: GarmentFitSummaryEntry,
+    row: GarmentFitSummaryEntry['fitBreakdowns'][number],
+    raw: string,
+  ) => {
+    const key = fitBreakdownKey(row.audience, row.size);
+    if (raw.trim() === '') {
+      void persist({ [entry.itemId]: { [key]: { qtyOrdered: null } } });
+      return;
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+      return;
+    }
+    void persist({ [entry.itemId]: { [key]: { qtyOrdered: n } } });
+  };
+
+  const toggleArticleMaster = (entry: GarmentFitSummaryEntry) => {
+    const keys = entry.fitBreakdowns.map((row) => fitBreakdownKey(row.audience, row.size));
+    const values: Record<string, boolean> = {};
+    for (const row of entry.fitBreakdowns) {
+      values[fitBreakdownKey(row.audience, row.size)] = Boolean(row.ordered);
+    }
+    const state = getMasterCheckboxState(values, keys);
+    const nextChecked = state.indeterminate || !state.checked;
+    const itemPatch: FitSummaryProcurement[string] = {};
+    for (const row of entry.fitBreakdowns) {
+      const key = fitBreakdownKey(row.audience, row.size);
+      const patchRow: FitSummaryProcurement[string][string] = { ordered: nextChecked };
+      if (nextChecked && (row.qtyOrdered == null || row.qtyOrdered === undefined)) {
+        patchRow.qtyOrdered = row.count;
+      }
+      itemPatch[key] = patchRow;
+    }
+    void persist({ [entry.itemId]: itemPatch });
+  };
+
   return (
-    <div
+    <section
       className="mt-4 space-y-3 border-t border-border/50 pt-4"
       data-testid="garment-fit-summary"
+      aria-labelledby="fit-summary-heading"
     >
-      <h3 className="text-sm font-semibold text-foreground">{t('garments.fitSummaryTitle')}</h3>
-      <p className="text-xs text-muted-foreground">{t('garments.fitSummaryHint')}</p>
-      <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2 xl:grid-cols-3">
-        {entries.flatMap((entry) =>
-          entry.fitBreakdowns.map((row) => {
-            const labels = fitSummaryBreakdownLabel(t, row);
-            const rowKey = `${entry.itemId}\0${row.audience}\0${row.size}`;
-            return (
-              <li
-                key={rowKey}
-                className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 rounded-md border border-border/60 bg-muted/15 px-3 py-2 text-sm leading-snug"
-              >
-                <span className="font-semibold text-foreground">{entry.articleName}</span>
-                <span className="text-muted-foreground/70">/</span>
-                <span className="text-muted-foreground">{labels.audience}</span>
-                <span className="text-muted-foreground/70">/</span>
-                <span className="text-base font-semibold tabular-nums text-foreground">
-                  {labels.size}
-                </span>
-                <span className="text-muted-foreground/70">—</span>
-                <span className="text-base font-semibold tabular-nums text-foreground">
-                  {row.count}
-                </span>
-              </li>
+      <div>
+        <h3 id="fit-summary-heading" className="text-sm font-semibold text-foreground">
+          {t('garments.fitSummaryTitle')}
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          {editable ? t('garments.fitSummaryHint') : t('garments.fitSummaryPublicHint')}
+        </p>
+        {saveError ? (
+          <p
+            role="status"
+            className="mt-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {saveError}
+          </p>
+        ) : null}
+      </div>
+
+      <div className={MATRIX_TABLE_SCROLL_CLASS}>
+        <table className="w-max min-w-full border-collapse text-sm">
+          {entries.map((entry) => {
+            const masterKeys = entry.fitBreakdowns.map((row) =>
+              fitBreakdownKey(row.audience, row.size),
             );
-          }),
-        )}
-      </ul>
-    </div>
+            const masterValues: Record<string, boolean> = {};
+            for (const row of entry.fitBreakdowns) {
+              masterValues[fitBreakdownKey(row.audience, row.size)] = Boolean(row.ordered);
+            }
+            const master = getMasterCheckboxState(masterValues, masterKeys);
+            const articleHeadingId = `fit-summary-article-${entry.itemId}`;
+
+            return (
+              <tbody key={entry.itemId} role="group" aria-labelledby={articleHeadingId}>
+                <tr className="border-b border-border bg-primary/5">
+                  <th
+                    scope="col"
+                    id={articleHeadingId}
+                    title={t('garments.fitSummaryColumnAudience')}
+                    className={cn(
+                      'border-r border-border px-3 py-1.5 text-left',
+                      MATRIX_HEADER_BASE,
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="min-w-0 truncate text-sm font-semibold normal-case tracking-normal text-foreground"
+                        title={entry.articleName}
+                      >
+                        {entry.articleName}
+                      </span>
+                      {editable ? (
+                        <MasterStatusCheckbox
+                          checked={master.checked}
+                          indeterminate={master.indeterminate}
+                          disabled={disabled || busy}
+                          ariaLabel={t('garments.fitSummaryArticleOrderedAria', {
+                            articleName: entry.articleName,
+                          })}
+                          onToggle={() => toggleArticleMaster(entry)}
+                        />
+                      ) : null}
+                      <span className="shrink-0 text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                        {t('garments.fitSummaryFilled', {
+                          filled: entry.filledCount,
+                          total: entry.personCount,
+                        })}
+                      </span>
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className={cn(
+                      'border-r border-border px-1.5 py-1.5 text-left',
+                      MATRIX_HEADER_BASE,
+                    )}
+                  >
+                    {t('garments.fitSummaryColumnSize')}
+                  </th>
+                  <th
+                    scope="col"
+                    className={cn(
+                      'border-r border-border px-1.5 py-1.5 text-center',
+                      MATRIX_HEADER_BASE,
+                      !editable && 'border-r-0',
+                    )}
+                  >
+                    {t('garments.fitSummaryColumnNeeded')}
+                  </th>
+                  {editable ? (
+                    <>
+                      <th
+                        scope="col"
+                        className={cn(STATUS_CHECKBOX_COL_CLASS, 'py-1.5 last:border-r-0')}
+                        title={t('garments.fitSummaryColumnOrderedTitle')}
+                      >
+                        {t('garments.fitSummaryColumnOrdered')}
+                      </th>
+                      <th
+                        scope="col"
+                        className={cn(
+                          'w-14 border-r border-border px-1 py-1.5 text-center last:border-r-0',
+                          MATRIX_HEADER_BASE,
+                        )}
+                      >
+                        {t('garments.fitSummaryColumnQtyOrdered')}
+                      </th>
+                    </>
+                  ) : null}
+                </tr>
+                {entry.fitBreakdowns.map((row) => {
+                  const labels = fitSummaryBreakdownLabel(t, row);
+                  const rowKey = `${entry.itemId}\u001f${row.audience}\u001f${row.size}`;
+                  return (
+                    <tr key={rowKey} className="border-b border-border/60">
+                      <td className="border-r border-border/50 px-3 py-1.5 text-muted-foreground">
+                        {labels.audience}
+                      </td>
+                      <td className="border-r border-border/50 px-1.5 py-1.5 font-medium tabular-nums text-foreground">
+                        {labels.size}
+                      </td>
+                      <td
+                        className={cn(
+                          'border-r border-border/50 px-1.5 py-1.5 text-center tabular-nums text-foreground',
+                          !editable && 'border-r-0',
+                        )}
+                      >
+                        {row.count}
+                      </td>
+                      {editable ? (
+                        <>
+                          <td className="flex items-center justify-center border-r border-border/50 px-2.5 py-1.5 align-middle">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(row.ordered)}
+                              disabled={disabled || busy}
+                              onChange={() => setRowOrdered(entry, row, !row.ordered)}
+                              aria-label={t('garments.fitSummaryRowOrderedAria', {
+                                articleName: entry.articleName,
+                                audience: labels.audience,
+                                size: labels.size,
+                              })}
+                              className={cn(
+                                CHECKBOX_SM_CLASS,
+                                'mx-auto block cursor-pointer disabled:cursor-default',
+                              )}
+                            />
+                          </td>
+                          <td className="border-r border-border/50 px-1 py-1.5 text-center last:border-r-0">
+                            <Input
+                              type="number"
+                              min={0}
+                              step={1}
+                              inputMode="numeric"
+                              disabled={disabled || busy}
+                              defaultValue={row.qtyOrdered != null ? String(row.qtyOrdered) : ''}
+                              key={`${rowKey}:${row.qtyOrdered ?? 'empty'}`}
+                              placeholder={String(row.count)}
+                              aria-label={t('garments.fitSummaryQtyOrderedAria', {
+                                articleName: entry.articleName,
+                                audience: labels.audience,
+                                size: labels.size,
+                              })}
+                              className={cn(
+                                MATRIX_INPUT_CENTER_CLASS,
+                                'mx-auto w-14 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+                              )}
+                              onBlur={(e) => setRowQty(entry, row, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  (e.target as HTMLInputElement).blur();
+                                }
+                              }}
+                            />
+                          </td>
+                        </>
+                      ) : null}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            );
+          })}
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -194,7 +430,7 @@ function matrixSelectTriggerClass(hasValue: boolean): string {
   return cn(MATRIX_SELECT_TRIGGER_CLASS, hasValue && '[&>span]:font-medium [&>span]:text-primary');
 }
 
-type PersonMatrixSortField = 'name' | 'team' | 'jerseyNumber';
+type PersonMatrixSortField = 'name' | 'team' | 'jerseyNumber' | 'createdAt';
 
 const MATRIX_HEADER_BASE = 'text-xs font-black leading-tight text-slate-400 dark:text-slate-500';
 
@@ -220,6 +456,12 @@ function comparePersonsByField(
   order: 'asc' | 'desc',
   teams: Team[] = [],
 ): number {
+  if (field === 'createdAt') {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return order === 'asc' ? aTime - bTime : bTime - aTime;
+  }
+
   const av =
     field === 'name'
       ? String(a.name ?? '')
@@ -279,8 +521,6 @@ export function PersonMatrix({
 }: {
   list: GarmentList;
   readOnly?: boolean;
-  /** @deprecated Unused in spreadsheet layout; kept for call-site compatibility. */
-  hideComment?: boolean;
 }) {
   const { t } = useTranslation();
   const { getSettings, settingsVersion } = useApp();
@@ -294,6 +534,7 @@ export function PersonMatrix({
     inventoryItems,
     updatePersonCtSizes,
     openGarmentsInventory,
+    patchFitSummaryProcurement,
   } = useGarments();
   const persons = list.persons ?? [];
   const listRef = useRef(list);
@@ -358,8 +599,17 @@ export function PersonMatrix({
   }, [garmentGroups, inventoryItems, showGarmentColumns]);
 
   const fitSummary = useMemo(
-    () => buildGarmentListFitSummary(persons, garmentGroups, inventoryItems),
-    [persons, garmentGroups, inventoryItems],
+    () =>
+      mergeFitSummaryProcurement(
+        buildGarmentListFitSummary(persons, garmentGroups, inventoryItems),
+        list.fitSummaryProcurement,
+      ),
+    [persons, garmentGroups, inventoryItems, list.fitSummaryProcurement],
+  );
+
+  const handleFitSummaryPatch = useCallback(
+    (partial: FitSummaryProcurement) => patchFitSummaryProcurement(list.id, partial),
+    [list.id, patchFitSummaryProcurement],
   );
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -463,11 +713,22 @@ export function PersonMatrix({
     if (readOnly) {
       return;
     }
-    const current = person.teamId ?? null;
-    if (nextTeamId === current) {
+    const current =
+      person.teamId != null && String(person.teamId).trim() !== '' ? String(person.teamId) : null;
+    const next = nextTeamId != null && String(nextTeamId).trim() !== '' ? String(nextTeamId) : null;
+    if (next === current) {
       return;
     }
-    await updatePerson(list.id, person.id, personFieldPayload(person, { teamId: nextTeamId }));
+    // Optimistic so soft-preview Select does not snap back while the PUT is in flight.
+    patchPersonLocal(list.id, person.id, { teamId: next });
+    const saved = await updatePerson(
+      list.id,
+      person.id,
+      personFieldPayload(person, { teamId: next }),
+    );
+    if (!saved) {
+      patchPersonLocal(list.id, person.id, { teamId: current });
+    }
   };
 
   const saveCtSize = async (person: GarmentPerson, itemId: string, raw: string) => {
@@ -687,20 +948,35 @@ export function PersonMatrix({
                         className={cn(
                           'border-r border-border bg-primary/5 px-3 py-2 text-left',
                           MATRIX_HEADER_BASE,
-                          'cursor-pointer select-none hover:bg-primary/10',
                         )}
-                        onClick={() => handleHeaderSort('name')}
                         aria-sort={
-                          primarySort === 'name'
+                          primarySort === 'name' || primarySort === 'createdAt'
                             ? sortOrder === 'asc'
                               ? 'ascending'
                               : 'descending'
                             : 'none'
                         }
                       >
-                        <div className="flex items-center gap-2 leading-4">
-                          <span>{t('garments.personName')}</span>
-                          <ListTableSortIcon active={primarySort === 'name'} order={sortOrder} />
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            type="button"
+                            className="flex cursor-pointer items-center gap-2 leading-4 select-none hover:text-foreground"
+                            onClick={() => handleHeaderSort('name')}
+                          >
+                            <span>{t('garments.personName')}</span>
+                            <ListTableSortIcon active={primarySort === 'name'} order={sortOrder} />
+                          </button>
+                          <button
+                            type="button"
+                            className="flex cursor-pointer items-center gap-1 text-[10px] font-semibold leading-tight text-slate-400 select-none hover:text-foreground dark:text-slate-500"
+                            onClick={() => handleHeaderSort('createdAt')}
+                          >
+                            <span>{t('common.created')}</span>
+                            <ListTableSortIcon
+                              active={primarySort === 'createdAt'}
+                              order={sortOrder}
+                            />
+                          </button>
                         </div>
                       </th>
                     );
@@ -866,12 +1142,13 @@ export function PersonMatrix({
                     <tr className="border-b border-border/60 hover:bg-muted/20">
                       {matrixIdentityColumnIds.map((columnId) => {
                         if (columnId === 'name') {
+                          const createdLabel = formatDate(person.createdAt);
                           return (
                             <td
                               key={columnId}
                               className="border-r border-border bg-background px-1 py-1.5"
                             >
-                              <div className="flex min-w-0 items-center gap-0.5">
+                              <div className="flex min-w-0 items-start gap-0.5">
                                 {showGarmentColumns ? (
                                   <button
                                     type="button"
@@ -889,38 +1166,45 @@ export function PersonMatrix({
                                 ) : null}
                                 <span
                                   className={cn(
-                                    'h-2 w-2 shrink-0 rounded-full',
+                                    'mt-2.5 h-2 w-2 shrink-0 rounded-full',
                                     personCompletionDotClass(completionStatus),
                                   )}
                                   title={completionLabel}
                                   aria-label={completionLabel}
                                 />
-                                {isEditing ? (
-                                  <Input
-                                    value={editDraft.name ?? ''}
-                                    onChange={(e) =>
-                                      setEditDraft((prev) => ({ ...prev, name: e.target.value }))
-                                    }
-                                    aria-label={t('garments.personName')}
-                                    className={cn(
-                                      MATRIX_INPUT_CLASS,
-                                      'min-w-0 flex-1',
-                                      jerseyDup && MATRIX_AMBER_RING_CLASS,
-                                    )}
-                                  />
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="min-w-0 flex-1 truncate px-1 text-left text-sm font-medium hover:underline"
-                                    onClick={() => {
-                                      if (showGarmentColumns) {
-                                        toggleExpanded(person.id);
+                                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                  {isEditing ? (
+                                    <Input
+                                      value={editDraft.name ?? ''}
+                                      onChange={(e) =>
+                                        setEditDraft((prev) => ({ ...prev, name: e.target.value }))
                                       }
-                                    }}
-                                  >
-                                    {person.name || '—'}
-                                  </button>
-                                )}
+                                      aria-label={t('garments.personName')}
+                                      className={cn(
+                                        MATRIX_INPUT_CLASS,
+                                        'min-w-0 flex-1',
+                                        jerseyDup && MATRIX_AMBER_RING_CLASS,
+                                      )}
+                                    />
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="min-w-0 truncate px-1 text-left text-sm font-medium hover:underline"
+                                      onClick={() => {
+                                        if (showGarmentColumns) {
+                                          toggleExpanded(person.id);
+                                        }
+                                      }}
+                                    >
+                                      {person.name || '—'}
+                                    </button>
+                                  )}
+                                  {createdLabel ? (
+                                    <span className="min-w-0 truncate px-1 text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                                      {createdLabel}
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
                             </td>
                           );
@@ -971,7 +1255,11 @@ export function PersonMatrix({
                                 </Select>
                               ) : (
                                 <Select
-                                  value={person.teamId ?? '__none__'}
+                                  value={
+                                    person.teamId != null && String(person.teamId).trim() !== ''
+                                      ? String(person.teamId)
+                                      : '__none__'
+                                  }
                                   onValueChange={(value) =>
                                     void saveTeamField(person, value === '__none__' ? null : value)
                                   }
@@ -1396,7 +1684,12 @@ export function PersonMatrix({
         </div>
       )}
 
-      <GarmentListFitSummary entries={fitSummary} />
+      <GarmentListFitSummary
+        entries={fitSummary}
+        editable={!readOnly}
+        disabled={readOnly}
+        onPatch={handleFitSummaryPatch}
+      />
 
       <ConfirmDialog
         isOpen={deletingId != null}
@@ -1444,7 +1737,7 @@ export function PublicPersonMatrix({ list }: { list: GarmentList }) {
   }, [persons, showGarmentColumns]);
 
   const fitSummary = useMemo(
-    () => buildGarmentListFitSummary(persons, garmentGroups, []),
+    () => mergeFitSummaryProcurement(buildGarmentListFitSummary(persons, garmentGroups, []), {}),
     [persons, garmentGroups],
   );
 
@@ -1537,7 +1830,14 @@ export function PublicPersonMatrix({ list }: { list: GarmentList }) {
                 <React.Fragment key={person.id}>
                   <tr className="border-b border-border/60">
                     <td className="border-r border-border bg-background px-3 py-1.5 text-sm font-medium">
-                      {person.name || '—'}
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="truncate">{person.name || '—'}</span>
+                        {formatDate(person.createdAt) ? (
+                          <span className="truncate text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                            {formatDate(person.createdAt)}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="border-r border-border/50 px-1 py-1.5 text-center text-xs">
                       {person.jerseyName?.trim() || '—'}
@@ -1643,7 +1943,7 @@ export function PublicPersonMatrix({ list }: { list: GarmentList }) {
           </tbody>
         </table>
       </div>
-      <GarmentListFitSummary entries={fitSummary} />
+      <GarmentListFitSummary entries={fitSummary} editable={false} />
     </div>
   );
 }

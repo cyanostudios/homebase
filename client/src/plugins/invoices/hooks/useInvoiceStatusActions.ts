@@ -1,7 +1,18 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useInvoicesContext } from '../context/InvoicesContext';
 import { Invoice } from '../types/invoices';
+
+function toIsoDate(value: unknown): string | null {
+  if (value == null || value === '') {
+    return null;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  const parsed = new Date(value as string);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
 
 export function useInvoiceStatusActions() {
   const { saveInvoice } = useInvoicesContext();
@@ -10,54 +21,63 @@ export function useInvoiceStatusActions() {
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [pendingInvoice, setPendingInvoice] = useState<Invoice | null>(null);
 
-  const handleStatusChange = (invoice: Invoice, newStatus: string) => {
-    // For 'draft' status, change immediately without confirmation
-    if (newStatus === 'draft') {
-      updateInvoiceStatus(invoice, newStatus);
-      return;
-    }
+  const updateInvoiceStatus = useCallback(
+    async (invoice: Invoice, newStatus: string) => {
+      // Build an explicit update payload with id so preview-mode (no currentInvoice) still PUTs.
+      const updateData = {
+        id: invoice.id,
+        contactId: invoice.contactId ?? null,
+        contactName: invoice.contactName ?? '',
+        organizationNumber: invoice.organizationNumber ?? '',
+        currency: invoice.currency ?? 'SEK',
+        lineItems: invoice.lineItems ?? [],
+        invoiceDiscount: invoice.invoiceDiscount ?? 0,
+        notes: invoice.notes ?? '',
+        paymentTerms: invoice.paymentTerms ?? '',
+        orderNumber: invoice.orderNumber ?? '',
+        deliveryMethod: invoice.deliveryMethod ?? '',
+        issueDate: toIsoDate(invoice.issueDate),
+        dueDate: toIsoDate(invoice.dueDate),
+        invoiceType: invoice.invoiceType ?? 'invoice',
+        estimateId: invoice.estimateId ?? null,
+        status: newStatus,
+        ...(newStatus === 'paid' ? { paidAt: new Date().toISOString() } : {}),
+      };
 
-    // For all other statuses, show confirmation modal
-    setPendingInvoice(invoice);
-    setPendingStatus(newStatus);
-    setShowStatusModal(true);
-  };
+      const ok = await saveInvoice(updateData);
+      if (!ok) {
+        alert('Failed to update invoice status. Please try again.');
+      }
+    },
+    [saveInvoice],
+  );
 
-  const handleModalConfirm = async () => {
+  const handleStatusChange = useCallback(
+    (invoice: Invoice, newStatus: string) => {
+      if (newStatus === 'draft') {
+        void updateInvoiceStatus(invoice, newStatus);
+        return;
+      }
+
+      setPendingInvoice(invoice);
+      setPendingStatus(newStatus);
+      setShowStatusModal(true);
+    },
+    [updateInvoiceStatus],
+  );
+
+  const handleModalCancel = useCallback(() => {
+    setShowStatusModal(false);
+    setPendingStatus(null);
+    setPendingInvoice(null);
+  }, []);
+
+  const handleModalConfirm = useCallback(async () => {
     if (pendingInvoice && pendingStatus) {
       await updateInvoiceStatus(pendingInvoice, pendingStatus);
     }
     handleModalCancel();
-  };
-
-  const handleModalCancel = () => {
-    setShowStatusModal(false);
-    setPendingStatus(null);
-    setPendingInvoice(null);
-  };
-
-  const updateInvoiceStatus = async (invoice: Invoice, newStatus: string) => {
-    const updateData = {
-      ...invoice,
-      status: newStatus,
-      // Handle special status transitions
-      ...(newStatus === 'sent' &&
-        !invoice.invoiceNumber &&
-        {
-          // Backend will auto-generate invoice number when status becomes 'sent'
-        }),
-      ...(newStatus === 'paid' && {
-        paidAt: new Date().toISOString(),
-      }),
-    };
-
-    try {
-      await saveInvoice(updateData);
-    } catch (error) {
-      console.error('Failed to update invoice status:', error);
-      // Could add error handling/notification here
-    }
-  };
+  }, [pendingInvoice, pendingStatus, updateInvoiceStatus, handleModalCancel]);
 
   return {
     showStatusModal,

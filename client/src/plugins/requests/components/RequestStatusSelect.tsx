@@ -1,7 +1,7 @@
+import { CheckCircle2, Circle, Clock, XCircle, type LucideIcon } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -9,11 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  BADGE_CHIP_CLASS,
-  BADGE_CHIP_COMPACT_CLASS,
-  BADGE_SELECT_TRIGGER_CLASS,
-} from '@/core/ui/badgeStyles';
+import { BADGE_SELECT_ITEM_CLASS, BADGE_SELECT_TRIGGER_CLASS } from '@/core/ui/badgeStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
 import {
@@ -32,6 +29,19 @@ interface RequestStatusSelectProps {
   compact?: boolean;
 }
 
+function requestStatusIcon(status: RequestStatus): LucideIcon {
+  switch (status) {
+    case 'in progress':
+      return Clock;
+    case 'completed':
+      return CheckCircle2;
+    case 'cancelled':
+      return XCircle;
+    default:
+      return Circle;
+  }
+}
+
 export function RequestStatusSelect({
   request,
   onStatusChange,
@@ -39,6 +49,7 @@ export function RequestStatusSelect({
   compact = false,
 }: RequestStatusSelectProps) {
   const { t } = useTranslation();
+  const StatusIcon = requestStatusIcon(request.status);
 
   const selectEl = (
     <Select value={request.status} onValueChange={(v) => onStatusChange(v as RequestStatus)}>
@@ -49,31 +60,24 @@ export function RequestStatusSelect({
         )}
       >
         <SelectValue placeholder="Select status">
-          <Badge
-            variant="outline"
-            className={cn(
-              'flex items-center',
-              compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
-              REQUEST_STATUS_COLORS[request.status],
-            )}
+          <StatusOutlineBadge
+            icon={StatusIcon}
+            compact={compact}
+            className={REQUEST_STATUS_COLORS[request.status]}
           >
             {formatRequestStatusForDisplay(request.status, t)}
-          </Badge>
+          </StatusOutlineBadge>
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
         {REQUEST_STATUSES.map((status) => (
-          <SelectItem
-            key={status}
-            value={status}
-            className="rounded-md py-2 text-xs focus:bg-accent"
-          >
-            <Badge
-              variant="outline"
-              className={cn(BADGE_CHIP_CLASS, REQUEST_STATUS_COLORS[status])}
+          <SelectItem key={status} value={status} className={BADGE_SELECT_ITEM_CLASS}>
+            <StatusOutlineBadge
+              icon={requestStatusIcon(status)}
+              className={REQUEST_STATUS_COLORS[status]}
             >
               {formatRequestStatusForDisplay(status, t)}
-            </Badge>
+            </StatusOutlineBadge>
           </SelectItem>
         ))}
       </SelectContent>

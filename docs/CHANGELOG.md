@@ -4,6 +4,487 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-22 – Teams/Schedule/Matches: drop dead settings chrome
+
+**Typ:** cleanup / UX  
+**Scope:** Matches — removed unused deprecated `renderCategoryButtonsInline` from `MatchSettingsView` / `MatchList`; settings remain via `matchesContentView === 'settings'` + `MatchSettingsView`. Schedule — removed unused deprecated `iconClassName` from `ScheduleLockToggle` (never read; round button uses standard icon size). Teams — no dead chrome (already full-page `TeamsSettingsView` via `teamsContentView`); lock-in tests only.  
+**QA:** Godkänt (scoped teams+schedule+matches 2026-09-22). **Security:** Approved (UI-only; no new API/auth surface). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Matches/Teams/Schedule settings stay full-page content views. Never-read settings/lock props are gone.
+
+**Begränsningar:** Residual `ScheduleAppSettings.locked` (migrated to `locks.default` on load) is a data-contract concern, not UI chrome. Guides/Slots may still pass `renderCategoryButtonsInline` (out of this scope).
+
+---
+
+## 2026-09-22 – Cups/Clubdesk: drop dead settings chrome
+
+**Typ:** cleanup / UX  
+**Scope:** Cups — removed unused deprecated `renderCategoryButtonsInline` from `CupsSettingsView` / `CupsList`; `panelMode` is `'create' | 'edit' | 'view'` only; settings remain via `cupsContentView === 'settings'` + `CupsSettingsView`. Clubdesk — removed orphan settings content-view API (`clubdeskContentView`, `ClubdeskSettingsTab`, `openClubdeskSettings` / `closeClubdeskSettingsView`); `ClubdeskSettingsView` was already gone; Info stays on route `/clubdesk/info` → `ClubdeskInfoView`.  
+**QA:** Godkänt (scoped cups+clubdesk 2026-09-22). **Security:** Approved (UI-only; no new API/auth surface). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Cups settings stay full-page (appearance/import). Clubdesk has no plugin settings shell — guide/price-list category catalog remains on the edit forms; site Info is a dedicated nav page.
+
+**Begränsningar:** Historical CHANGELOG/ADR rows that named `ClubdeskSettingsTab = 'view'` describe superseded chrome (repaired below / in ADR). Same-commit Tools hygiene (Files/Mail/Pulses/AI Providers) documented separately where applicable.
+
+---
+
+## 2026-09-22 – Tools: Files full-page settings only; drop dead routing prop
+
+**Typ:** cleanup / UX  
+**Scope:** Tools nav plugins — Files: removed unreachable `FileForm` `panelMode === 'settings'` branch; `panelMode` is `'create' | 'edit' | 'view'` only; settings via `filesContentView === 'settings'` + `FileSettingsView` (body still `FileSettingsForm`). Mail / Pulses / AI Providers: removed unused deprecated `renderCategoryButtonsInline` from routing list mounts and Routing prop types. Ingest: no dead chrome candidates.  
+**QA:** Godkänt (scoped Tools 2026-09-22). **Security:** Approved (UI-only; cloud settings write path unchanged). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Files settings only open as the full-page cloud-storage shell. Dead panel settings path and never-read routing category-button prop are gone.
+
+**Begränsningar:** `FileSettingsForm` remains as the settings body component (not mounted from `FileForm`). Same-commit Apps carryover (Cups/Clubdesk) documented separately where applicable.
+
+---
+
+## 2026-09-22 – Estimates/Invoices: drop dead settings prop; form header actions
+
+**Typ:** cleanup / UX  
+**Scope:** Estimates + Invoices — removed unused deprecated `renderCategoryButtonsInline` from `EstimateSettingsView` / `InvoiceSettingsView` (and no-op pass from `InvoicesList`); desktop create/edit: `InlinePanelFormActions` as `headerTrailing` in the form header card (view-chrome parity); `EstimatesStatisticsView` title uses shared `PLUGIN_PAGE_*` heading classes. Follow-on hygiene in same pass: same dead prop removed from Cups/Mail/Pulses/AI Providers routing shells; Clubdesk dead settings content-view API removed; Files no longer branches `FileForm` on `panelMode === 'settings'` (settings stay on `FileSettingsView` / `FileSettingsForm` via content view); Cups `panelMode` without `'settings'`.  
+**QA:** Godkänt (scoped Estimates/Invoices 2026-09-22). **Security:** Approved (UI-only for Estimates/Invoices). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Settings remain full-page numbering shells only. Dead category-button prop (never read) is gone. Mail-layout create/edit puts Close/Update in the form title row instead of a bar above the form — same as Contacts/Notes/Tasks.
+
+**Begränsningar:** Same-day commit carryover (fit-summary m.m.) is out of Estimates/Invoices QA scope. Tools Files dual-path removal is covered under the Tools changelog entry above (QA/Security scoped separately).
+
+---
+
+## 2026-09-22 – Contacts: remove legacy panel settings and orphan AssignmentRow
+
+**Typ:** cleanup / UX  
+**Scope:** Contacts — deleted `ContactSettingsForm` and orphan `ContactAssignmentRow`; `ContactForm` no longer branches on `panelMode === 'settings'`; `panelMode` is `'create' | 'edit' | 'view'` only; settings via `contactsContentView === 'settings'` + `ContactSettingsView`. Desktop create/edit: `InlinePanelFormActions` as `headerTrailing` in the form header card (view-chrome parity).  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Contacts settings only open as the full-page Tags/Import shell. Dead panel settings form and unreachable `panelMode: 'settings'` are gone. Unused assignment-row chrome removed (no production imports).
+
+**Begränsningar:** Older CHANGELOG rows may still name `ContactSettingsForm` as historical fact. Files dual panel-settings path removed under Tools entry (2026-09-22). Security: no new API/auth surface (ui-only delete).
+
+---
+
+## 2026-09-22 – Notes/Tasks: remove legacy panel settings; inline form header actions
+
+**Typ:** cleanup / UX  
+**Scope:** Notes — deleted `NoteSettingsForm`; `NoteForm` no longer branches on `panelMode === 'settings'`; `panelMode` is `'create' | 'edit' | 'view'` only; settings via `notesContentView === 'settings'` + `NotesSettingsView`. Notes/Tasks desktop create/edit: `InlinePanelFormActions` (Close/Update) passed as `headerTrailing` into the form header card (view-chrome parity).  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Notes settings only open as the full-page import shell (same pattern Tasks already used). Dead panel settings form and unreachable `panelMode: 'settings'` are gone. Mail-layout create/edit puts Close/Update in the form title row instead of a bar above the form.
+
+**Begränsningar:** Historical docs/CHANGELOG may still name `NoteSettingsForm` / panel `settings` mode — those describe superseded UI. Files dual panel-settings path removed under Tools entry (2026-09-22); Mail/Pulse/AI Providers `*SettingsForm` remain the registry create/edit Form (not a panel dual path).
+
+---
+
+## 2026-09-22 – Garments: remove orphan PersonBlock UI
+
+**Typ:** cleanup / docs  
+**Scope:** deleted `PersonBlock.tsx`; admin/public person UI is `PersonMatrix` / `PublicPersonMatrix` only; operator/ADR/security/guide docs synced  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Dead two-row person UI removed (no production imports). Spreadsheet matrix unchanged. Public share still clears comments via API; Team column still omitted on public.
+
+**Begränsningar:** Older CHANGELOG/qa-log rows may still name `PersonBlock` as historical fact.
+
+---
+
+## 2026-09-21 – Estimates: shared Offert footer (org + public tenant)
+
+**Typ:** bugfix  
+**Scope:** `getEstimateByShareToken` public tenant resolve; public estimate JSON org/customer; footer F-skatt only with real issuer  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Shared estimate documents now resolve the tenant pool like tasks/notes, attach organization/customer for the Facio footer, and no longer show “Godkänd för F-skatt” under the empty “Företag” fallback.
+
+---
+
+## 2026-09-21 – Estimates: public share window header (invoice parity)
+
+**Typ:** UX  
+**Scope:** `PublicEstimateView`, `GET /api/estimates/public/:token/pdf`, public estimate JSON org/customer  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Opening a share link shows the same chrome as invoices: top header with customer/number, valid-to, status badge, and Download PDF — then the Offert document iframe.
+
+---
+
+## 2026-09-21 – Estimates: Export menu visible in soft preview
+
+**Typ:** bugfix  
+**Scope:** `EstimateDetailHeaderMenus`, `EstimateProvider` share open helper, `EstimateShareBlock`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Export (Download PDF + Share) is built in the detail header like invoices, so it shows in list soft preview as well as panel view. Previously Export depended on `detailFooterActions` which was empty unless `panelMode === 'view'`.
+
+---
+
+## 2026-09-21 – Invoices: restore status filter chips with counts
+
+**Typ:** UX  
+**Scope:** `invoiceListFilter.ts`, `InvoicesList` filter chips, i18n, `docs/INVOICES_PLUGIN.md`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** List filter chips again show per-status counts (Draft / Sent / Partially paid / Paid / Overdue / Canceled / Unpaid). Document-type chips remain as a second exclusive group and can be AND-combined with status.
+
+---
+
+## 2026-09-21 – Invoices + Estimates: Tasks-style one-click Share
+
+**Typ:** UX  
+**Scope:** Invoice/estimate share create (no valid-until modal); soft-preview share sync; `InvoiceShareBlock` / `EstimateShareBlock`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Export → Share mirrors Tasks: reuse an active link or create one with a 30-day default, then open `ShareDialog`. Soft preview loads the active share for the viewed item.
+
+---
+
+## 2026-09-21 – Estimates: Facio Offert PDF/preview (from invoices)
+
+**Typ:** UX / PDF  
+**Scope:** `client/src/plugins/estimates/webTemplate.ts`, `EstimateDocumentPreview`, `plugins/estimates/pdfTemplate.js`, `plugins/estimates/controller.js` (org/customer for PDF), `docs/ESTIMATES_PLUGIN.md`  
+**QA:** `plugins/estimates/__tests__/pdfTemplate.test.js`. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Offert PDF and live/public preview use the same Facio document layout as invoices (issuer brand, customer/payment grid, line table, sticky footer). Estimate-specific labels: **Offert**, **Giltig t.o.m.**, **Offertsumma**, **Offertedatum**, **Offertrabatt** — no payment-due / bankgiro / payment-terms / late-interest chrome.
+
+---
+
+## 2026-09-21 – Estimates: invoice alignment + convert to invoice
+
+**Typ:** enhancement  
+**Scope:** Estimates plugin — `orderNumber` / `deliveryMethod`; line items `kind` / `unit` (shared invoice editor); status `invoiced` (terminal); `POST /api/estimates/:id/convert-to-invoice` (accepted only); migration 162 + `npm run migrate:estimates-invoice-alignment`; numbering settings (`numberPrefix`, `includeYear`, `numberStart`); view tabs `information` | `lines` | `linked` | `activity` with Contacts-class `EstimateQuickContextPanel`; Offert PDF/preview chrome; partial unique index on `invoices.estimate_id`  
+**QA:** Godkänt (scoped 2026-09-21). **Security:** Approved with documented residual risks (R1–R4). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Estimates now mirror invoice document fields and line-item editing where it matters, without invoice payments or multi-type invoice series. Accepted estimates can be converted to a **draft** invoice in one server transaction; the estimate becomes **invoiced** and is no longer editable via the API. Full view uses Information (facts, properties, notes, share, live preview), Lines, Linked (invoice when invoiced), and Activity. See `docs/ESTIMATES_PLUGIN.md` and ADR `docs/ai/adr/ESTIMATES_INVOICE_ALIGNMENT_AND_CONVERT.md`.
+
+---
+
+## 2026-09-21 – Invoices: Information-only facts/preview + status select parity + hygiene
+
+**Typ:** enhancement / UX + cleanup  
+**Scope:** `InvoiceQuickContextPanel` header-only; `InvoicesView` / `InvoicesForm` Information tab (facts, customer, stacked live preview); `InvoiceStatusSelect` → `BADGE_SELECT_TRIGGER_CLASS`; line items `defaultOpen`; deleted orphans `InvoicePreviewDialog` / `InvoiceStatusButtons` + unused style aliases  
+**QA:** Godkänt (scoped 2026-09-21) — `invoicesViewTabChips`, `invoicesFormEditParity`, invoices suite. **Security:** Approved (UI-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Facts and live document preview no longer follow other tabs (no sticky `DetailLayout` preview column). QC is Contacts-class header + chips only. Form: title+chips header always; customer + preview on Information; Lines keeps editor + discount/pricing. Status dropdown matches Tasks/Requests trigger alignment. Dead modal/button components removed.
+
+---
+
+## 2026-09-21 – Inventory discard + ConfirmDialog confirm race
+
+**Typ:** bugfix  
+**Scope:** `ConfirmDialog` (confirm must not call `onCancel` via `onOpenChange`); `GarmentForm` discard; `GarmentList` edit cancel → view, inventory row activate parity with lists  
+**QA:** `inventoryFormEditParity` — Godkänt. **Security:** Approved (UI-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Create/edit Discard in inventory left the form open because AlertDialog close cleared the pending leave action. Confirm no longer cancels; discard runs pending `onCancel` once; edit returns to view (desktop list cancel + DetailPanel). Inventory DetailPanel view now uses `currentInventoryItem` instead of the list proxy.
+
+---
+
+## 2026-09-21 – Merge Information + Properties into one tab
+
+**Typ:** enhancement / UX  
+**Scope:** Contacts, Tasks, Requests, Matches, Cups, Clubdesk (+ PriceList), Garments inventory — View + Form; legacy `?tab=properties` maps to `information`  
+**QA:** view tab-chip + form edit-parity tests — Godkänt. **Security:** Approved (UI-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Plugins that had both Information and Properties chips now show only Information. Properties content is card #2 under Information (below description/main info). Requests: Properties card before Submitter on Information. Estimates keeps Properties as its first tab (no Information tab).
+
+---
+
+## 2026-09-21 – Garments inventory: View/Edit `?tab=` shell
+
+**Typ:** enhancement / UX  
+**Scope:** `InventoryQuickContextPanel` + `GarmentForm` (inventory) — same chips as Contacts-class (`information` | `variants` | `lists` | `activity`); Activity greyed in edit; removed inventory `leftSidebar` 2-col  
+**QA:** `inventoryFormEditParity`, `inventoryListTableView`. **Security:** N/A. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Inventory detail and create/edit share URL tabs; stacked edit no longer shows only variants.
+
+---
+
+## 2026-09-20 – Cups: DetailHeaderMetaRow under title
+
+**Typ:** enhancement / UX  
+**Scope:** `CupView` — location + updated first; Visible/Hidden, Sanctioned, Featured badges last (`StatusOutlineBadge` / `QC_*`)  
+**QA:** `cupViewTabChips`. **Security:** N/A. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Cups detail header matches Clubdesk/Matches meta-row pattern under `CupDetailHeaderMenus`.
+
+---
+
+## 2026-09-20 – Remaining plugins: Contacts-class edit parity
+
+**Typ:** enhancement / UX  
+**Scope:** Matches, Cups, Teams, Guides (already), Clubdesk (+ PriceList), Ingest form `?tab=` shells + ghost facts + session leave; Slots, Garments, Instructions, Files leave/ghost (no View tabs)  
+**QA:** `matchFormEditParity`, `cupFormEditParity`, `teamFormEditParity`, `clubdeskFormEditParity`, `ingestSourceFormEditParity`, `waveBFormEditLeaveParity` (files). **Security:** Approved (UI-only, 2026-09-21). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Remaining mail-layout create/edit mirrors Contacts-class: soft ghost fact fields, View-matching `?tab=` chips with view-only tabs greyed, and leave confirm from list/sidebar/settings/Close (`registerUnsavedChangesChecker(..., () => true)` + `{ force: true }`). Dense/line-item editors untouched where applicable.
+
+---
+
+## 2026-09-20 – Deep-link Edit stamp: no view bounce (all mail-layout plugins)
+
+**Typ:** bugfix  
+**Scope:** Prime `*DeepLinkPathSyncedRef` before `navigateToItem` in `open*ForEdit` / `open*Panel` — Matches, Slots, Guides, Garments, Instructions, Cups; Invoices migrated off `didOpenFromUrlRef`; Estimates already fixed  
+**QA:** `pluginDeepLinkEditStamp`, `estimateProviderDeepLink`. **Security:** N/A (nav-state only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Soft-preview → Edit no longer bounces back to view. Cups also gained a proper path-synced ref (previously re-opened view on every pathname/`cups` change).
+
+---
+
+## 2026-09-20 – Estimates: Edit no longer bounces back to view
+
+**Typ:** bugfix  
+**Scope:** `EstimateProvider` — prime `estimatesDeepLinkPathSyncedRef` in `openEstimateForEdit` / `openEstimatePanel` before `navigateToItem`  
+**QA:** `estimateProviderDeepLink`. **Security:** N/A (nav-state only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Soft-preview → Actions → Edit stayed on view until a second click because URL sync re-opened view. Same Contacts/Tasks deep-link stamp pattern.
+
+---
+
+## 2026-09-20 – Business plugins: Estimates/Invoices edit parity
+
+**Typ:** enhancement / UX  
+**Scope:** `EstimateForm` / `InvoicesForm` URL tabs + ghost fact fields + session leave; list settings `attemptNavigation`; line-item editors unchanged (`FORM_COMPACT_*` / `InvoiceLineItemsEditor`)  
+**QA:** `estimateFormEditParity`, `invoicesFormEditParity`. **Security:** Pending. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Estimates and Invoices create/edit match Contacts-class edit: soft light-blue ghost on header/fact fields, same `?tab=` chips as view (Activity / Payments / Linked greyed in edit), and leave confirm from list/sidebar/settings/Close. Line items and pricing compact chrome are intentionally untouched.
+
+---
+
+## 2026-09-20 – Requests QC: source first in meta row
+
+**Typ:** enhancement / UX  
+**Scope:** `RequestQuickContextPanel` DetailHeaderMetaRow — Internal/External as first meta badge  
+**QA:** `requestViewTabChips`. **Security:** Approved (UI meta order only; covered in epic FE review). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Request detail/quick-context meta row shows source (internal/external) before type and status badges.
+
+---
+
+## 2026-09-20 – Notes edit tabs + centered focus mode
+
+**Typ:** enhancement / UX  
+**Scope:** `NoteForm` URL tabs (parity with `NoteView`; linked/activity disabled), viewport-centered focus dialog via `createPortal`, leave guard already session-based  
+**QA:** `noteFormEditParity`. **Security:** Approved (FE UI; focus portal style-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Notes create/edit uses the same `?tab=` chips as view. Focus mode opens the editor in a centered overlay over the dimmed chrome (not only centered in the detail column).
+
+---
+
+## 2026-09-20 – Tasks/Requests edit parity (tabs, ghost, leave guard)
+
+**Typ:** enhancement / UX  
+**Scope:** `TaskForm` / `RequestForm` URL tabs + ghost chrome + session leave guard; list settings `attemptNavigation`; `FORM_GHOST_TEXTAREA` / RTE ghost content inset  
+**QA:** `taskFormEditParity`, `requestFormEditParity`, list table-view tests, `formFieldStyles`. **Security:** Approved (FE UI/nav-guard; same client-only leave limit as Contacts/Notes). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Tasks and Requests create/edit match Contacts-class edit: soft light-blue ghost fields, same `?tab=` chips as view (Linked/Activity or Activity greyed in edit), and leave confirm from list/sidebar/settings/Close. Ghost textareas and RTE content get extra horizontal padding so text is not flush to the edge.
+
+---
+
+## 2026-09-20 – Edit leave: confirm list/sidebar exit
+
+**Typ:** enhancement / UX  
+**Scope:** `ContactForm` / `NoteForm` global leave guard (`() => true` while create/edit open), Close `attemptAction(..., { force: true })`, list settings via `attemptNavigation`, right-rail Settings via `attemptNavigation`, AppContent discard dialog i18n  
+**QA:** `contactFormTabs`, `contactListTableView`, `appRightSidebarWiring`. **Security:** Approved (FE UI/nav-guard; Info: client-only — hard refresh bypasses prompt). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** In Contacts/Notes create/edit, leaving via list row, plugin settings, left sidebar, or right-rail Settings always shows the discard confirm (same dialog as Close) — not only when fields are dirty. _(Tasks/Requests use the same session leave pattern — see “Tasks/Requests edit parity” above.)_
+
+**Begränsning:** Guard is client UX only (not server access control); closing the browser tab or hard-refreshing skips the prompt.
+
+---
+
+## 2026-09-20 – Edit affordance + Contacts tabs in edit
+
+**Typ:** enhancement / UI  
+**Scope:** `FORM_GHOST_*` soft light-blue idle `bg-primary/10`, `DETAIL_FORM_TITLE_INPUT_CLASS`, `RichTextEditor` ghost shell, `ContactForm` URL tabs (parity with `ContactView`), `useItemUrl` preserves `?tab=`  
+**QA:** `formFieldStyles`, `contactFormGhostFields`, `contactFormTabs`. **Security:** N/A (chrome/layout only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Ghost fact fields keep view typography but show a soft light-blue idle surface so edit mode is obvious. Contacts create/edit uses the same six `?tab=` chips as view (linked/activity read-only); View→Edit keeps the active tab.
+
+---
+
+## 2026-09-20 – Ghost fact fields in Contacts / Notes edit
+
+**Typ:** enhancement / UI  
+**Scope:** `formFieldStyles.ts` (`FORM_GHOST_*`), `ContactForm`, `NoteForm`, `RichTextEditor` (`variant="ghost"`), `DETAIL_FORM_TITLE_INPUT_CLASS` focus ring, view guide §3, design checklist, UX standards  
+**QA:** Scoped tests `formFieldStyles.test.js` + Contacts/Notes source checks. **Security:** N/A (chrome-only; no contenteditable / always-on-edit). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Detail create/edit fact fields in Contacts (and Notes title/body) use transparent **ghost** chrome matching view typography (`DETAIL_FIELD_VALUE_CLASS`) instead of compact muted `FORM_INPUT_CLASS` boxes. Filled tokens stay for settings and dense grids. Notes editor supports `variant="ghost"`. _(Superseded for idle surface by “Edit affordance + Contacts tabs in edit”; leave/session guard and Tasks/Requests/Notes tab shells superseded by later 2026-09-20 entries above.)_
+
+---
+
+## 2026-09-20 – Clubdesk guides: Properties tab
+
+**Typ:** enhancement / UI  
+**Scope:** `ClubdeskView`, `ClubdeskPublicationPropertiesFields`, `clubdesk.tabs.properties` / `guideProperties` i18n  
+**QA:** Pending. **Security:** N/A (existing update APIs). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Guide full detail har en egen **Properties**-flik (`?tab=properties`) mellan Information och Steps. Där bor publiceringsstatus och featured (omedelbar save via befintliga provider-API:er), plus kategori och slug som läsrad. Featured-chip syns även i header-meta när utvald.
+
+---
+
+## 2026-09-20 – Clubdesk price lists: Properties tab
+
+**Typ:** enhancement / UI  
+**Scope:** `PriceListView`, `ClubdeskPublicationPropertiesFields`, `clubdesk.priceList.tabs.properties` i18n  
+**QA:** Pending. **Security:** N/A (existing update APIs). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Price list full detail speglar Guides: **Properties**-flik mellan Information och Items med publiceringsstatus, featured, valuta och slug. Valuta flyttad från Information-kortet. Featured-chip i header-meta när utvald.
+
+---
+
+## 2026-09-20 – Tasks: scope quick-edit draft by task id
+
+**Typ:** bugfix / UI  
+**Scope:** `taskListSave.ts` (`TaskQuickEditDraft.taskId`, `quickEditFieldsForTask`), `TaskProvider`, `TaskContext`, `TaskView`  
+**QA:** Godkänt (scoped 2026-09-20). **Security:** N/A (client draft only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Soft preview sparade en global `quickEditDraft` som inte rensades när `currentTask` saknades, så status/prio/due läckte till nästa valda task. Draft scopas nu med `taskId`; overlay appliceras bara vid match; draft rensas efter lyckad save även utan öppet panel.
+
+---
+
+## 2026-09-20 – Teams: remove Team details sidebar card
+
+**Typ:** UI polish  
+**Scope:** `TeamView`  
+**QA:** Godkänt (scoped 2026-09-20). **Security:** N/A. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Sidebar-kortet **Team details** / Lagdetaljer (åldersgrupp + spelformat) borttaget från full detail. Samma fakta syns redan i QuickContext header-meta under titeln.
+
+---
+
+## 2026-09-20 – Notes: URL tab chips on full detail
+
+**Typ:** enhancement / UI  
+**Scope:** `NoteView`, `NoteQuickContextPanel`, `notes.tabs.*` i18n, `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`, `MENTIONS_AND_CROSS_PLUGIN_UI.md`  
+**QA:** Godkänt (scoped 2026-09-20). **Security:** Godkänt / N/A för ny attackyta (UI-only; Gate 5 2026-09-20). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Notes full detail följer samma flikmönster som Tasks/Requests: chip-rad under QuickContext (`?tab=`), paneler för **Information** (innehåll + share), **Linked** (nämnda kontakter), **Files** (när files-plugin är på) och **Activity** (sista fliken). Content ligger inte längre som QC-`children`. **Supersedes** tidigare Notes-placering som Activity stack-kort (se restore-entry nedan).
+
+---
+
+## 2026-09-20 – DetailActivityLog: always expanded (no collapse)
+
+**Typ:** UI polish  
+**Scope:** `DetailActivityLog`  
+**QA:** Pending (carryover WT). **Security:** N/A. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Activity-kortet är alltid synligt (ingen Collapsible). `defaultOpen` borttaget. Activity visar även system-ID (t.ex. `TSK-12`) som tidigare låg på Information-kortet; created syns redan i loggraderna.
+
+---
+
+## 2026-09-20 – Detail views: restore Activity (tab or stack)
+
+**Typ:** enhancement / UI  
+**Scope:** `DetailActivityLog`, entity `*View` (tasks, contacts, requests, invoices, estimates, matches, teams, cups, ingest, clubdesk guides/price lists, notes, slots, instructions); `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`  
+**QA:** Pending (carryover WT; Notes-delen ingår i Notes tabs Godkänt 2026-09-20). **Security:** N/A (existing activity API). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Entity **Activity** är tillbaka på full detail view. Delad komponent: `client/src/core/ui/DetailActivityLog.tsx`. Plugins med URL-tabbar har **`activity` som sista chip** (`?tab=activity`) och visar loggen i tabpanelen. Plugins utan tabbar (slots, instructions) har `DetailActivityLog` som **stack-kort** i detail-kolumnen. **Notes** hade tillfälligt stack-kort vid restore; **superseded 2026-09-20** — Notes använder nu URL-tabbar (se Notes tabs-entry). System-**Informations**-kort (ID/Created/Updated) i layouten är fortfarande borttaget (Contacts-kanon). Formulär som redan hade sidebar-activity är oförändrade. Tidigare regel “inga DetailActivityLog på full view” är upphävd.
+
+---
+
+## 2026-09-20 – Tasks: restore Share in soft preview
+
+**Typ:** bugfix / UI  
+**Scope:** `TaskProvider` shareDetailActions, `TaskShareBlock`  
+**QA:** Pending (carryover WT). **Security:** N/A (existing share flow). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Share task försvann i mail-layout soft preview eftersom `exportShareActions` bara fylldes när `panelMode === 'view'`. Share under **Export** syns igen utan den gate; `TaskShareBlock` synkar aktiv länk per task-id.
+
+---
+
+## 2026-09-18 – Garments: list meta + restore table column toggles
+
+**Typ:** enhancement / UI  
+**Scope:** `GarmentListTable`, Lists/Inventory settings, person-matrix identity prefs, inventory `tableColumns`  
+**QA:** Pending. **Security:** N/A (UI prefs). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:**
+
+- **Listor-index:** Lag och personantal visas som meta under namnet (inte egna kolumner).
+- **Person-matris (tabellen i en lista):** Identity-växlar (Lag, tröjnamn, …) via `personMatrixIdentityByList` under Personkolumner. Från en öppen lista: **Personkolumner** i header-menyn öppnar samma inställning med listan förvald. Skapad-datum visas som meta under personnamnet; sortering via **Skapad** under Namn-rubriken (ingen egen kolumn).
+- **Lager:** Inställningar → Tabellkolumner återställd; `resolveVisibleInventoryTableColumns` läser prefs igen. Inventory↔list-koppling ägs per artikel (**Visa i listor**); samma växlar syns nu i inventory Quick Context (inte bara full vy/redigera).
+- **Person team:** `updatePerson` synkar även `garmentLists` (som ct-sizes) så Lag-kolumnen i soft preview behåller sparat lag; optimistic `patchPersonLocal` undviker snap-back.
+
+---
+
+## 2026-09-18 – Clubdesk badges as borderless text labels
+
+**Typ:** enhancement / UI  
+**Scope:** Clubdesk guides + price lists list/detail; Swish linked-list chips  
+**QA:** Pending. **Security:** N/A (UI tokens only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Clubdesk admin använder samma borderless status-labels som Tasks/Requests (`StatusOutlineBadge` + `QC_*`): publicerad/utkast med ikon, kategori som Tag-label. I guide-/prisliste-detail ligger status under rubriken (`DetailHeaderMetaRow`), inte i Informations-kortet. Publik Clubdesk har inga status-badges (oförändrad).
+
+---
+
+## 2026-09-18 – Matches API import progress dialog
+
+**Typ:** enhancement / UI  
+**Scope:** `MatchApiImportProgressDialog`, `MatchSettingsView`; i18n  
+**QA:** Approved 2026-09-18. **Security:** N/A (UI busy dialog). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Matches **Importera nu** visar samma typ av icke-stängbar progress-dialog som Cups ingest-import (spinner + “Importerar från …” + hint) medan Fogis API-importen körs.
+
+---
+
+## 2026-09-18 – Status badges as borderless text labels
+
+**Typ:** enhancement / UI  
+**Scope:** `badgeStyles.ts`, `StatusOutlineBadge`, Tasks/Requests/Teams/Matches QC + list badges; standards; PLUGIN_VIEW  
+**QA:** Approved 2026-09-18 (efter docs-sync rework). **Security:** N/A (UI tokens only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Status-/meta-badges är inline labels: Lucide-ikon + extrabold färgad text (`BADGE_CHIP_*` / `StatusOutlineBadge`) — **ingen** fill, border, fast höjd eller padding. Färger via `QC_*` / `DUE_DATE_*`. Select-triggers använder `BADGE_SELECT_TRIGGER_CLASS` (egen chrome; värde = samma ikon+label; `SelectValue` flex, ingen `line-clamp`). Meta-rad: typ/räknare/updated först, badges sist (`DetailHeaderMetaRow`).
+
+---
+
+## 2026-09-18 – Status tags (badges ≠ action pills) — superseded
+
+**Typ:** enhancement / UI differentiation (superseded same day by borderless text labels above)  
+**Scope:** `badgeStyles.ts`, `Badge` base, Tasks/Requests/Invoices/Estimates/Teams/Guides/Cups color maps; standards  
+**QA:** Approved 2026-09-18 (then revised). **Security:** N/A (UI tokens only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Tidigare status tags (`rounded-md`, soft `/10` fill + ring) ersattes samma dag av borderless text labels enligt ovan.
+
+---
+
+## 2026-09-18 – DetailHeaderMenus chip spacing (all plugins)
+
+**Typ:** enhancement / UI density  
+**Scope:** `DetailHeaderMenus`, plugin page header chrome, Tasks/Requests QC badge row; settings header submenu  
+**QA:** Approved 2026-09-18 (same WT pass). **Security:** N/A. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Enhetligt `gap-1.5` mellan Actions/Export-triggers, submenypiller och meta-badges (`DETAIL_HEADER_CHIP_GAP_CLASS` + `DETAIL_HEADER_BELOW_MENUS_CLASS`). Minskar tidigare `gap-2.5` / `gap-3 md:gap-5` / `gap-1`-mix. Meta-rad under Actions: typ/räknare/`Updated` först, **badges sist** (Tasks, Requests, Teams, Matches m.fl.).
+
+---
+
+## 2026-09-18 – Clubdesk Info: Om/About, view→edit, public visibility, Account Profile branding; Cups import progress
+
+**Typ:** enhancement / bugfix / public app + admin UI  
+**Scope:** Clubdesk Info (admin + `public-clubdesk` / `plugins/public-clubdesk`), Cups ingest progress dialog + settings scroll; i18n; README/ADR  
+**QA:** Approved 2026-09-18 (rework after 2026-09-17 Underkänt; badge/UI WT same day). **Security:** Approved 2026-09-18 (Gate 5 reaffirmerad samma dag) — residuals **BR-1** / **CACHE-1** for TPM at release; **IC-1** TPM-accepted 2026-09-17. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:**
+
+### Admin Clubdesk → Info
+
+- Nav-knappen heter **Info**; fliken/kortet i vyn heter **Om** (sv) / **About** (en) (`cards.info`); route/API-nyckel `info` oförändrad.
+- **Hem** och **Om** öppnas i view-läge med Actions → **Redigera** (Notes-mönster); Avbryt / flikbyte discardar osparade title/body-utkast; global `registerUnsavedChangesChecker('clubdesk-info')`.
+- **Visa i den publika appen** (`meta.visible`) på Om, Kontakt och Swish (batch-save via site-content).
+- **Bugfix:** save failade på alla Info-flikar — klienten batch-sparar `contacts`, men PUT `/site-content` validerade bara `home|info|swish` (max 3) och DB CHECK saknade `contacts`. Route tillåter nu 1–4 kort inkl. `contacts`; migration **161** + `npm run migrate:clubdesk-site-content-contacts-card`.
+
+### Publik app
+
+- Hem-rader respekterar `info` / `contacts` / `swish` `visible`.
+- När dold: SSR `/swish/` och `/kontakt/` visar tom “är dold”-yta utan payee/PII; `GET /api/info_contacts.php` → `items: []`; sitemap utelämnar `/info/` och `/swish/` när dolda; Om blankas i `site_content` (befintligt).
+- Header logo + namn från **Account Profile** (`tenants.organization`) via `GET /api/branding.php` (PHP: main-DB lokalt eller proxy `APP_HOMEBASE_API_URL`) och Node `GET /api/public/clubdesk/branding`.
+
+### Cups
+
+- Import visar icke-dismissible progress-dialog (`CupIngestImportProgressDialog`) från list + settings.
+- Settings/statistics scrollport under `contentOwnsScroll` (flex `min-h-0` + `overflow-y-auto`) — committad fix `ddbcfeaa` ingår i samma arbetsyta.
+
+**Kod (urval):** `ClubdeskInfoView.tsx`, `ClubdeskPublicVisibleSwitch.tsx`, `siteContentModel.js`, `publicAppCardVisible` / `swish.php` / `kontakt.php` / `info_contacts.php` / `sitemap.php`, `branding_helpers.php`, `plugins/public-clubdesk` branding + site-content visibility, `CupIngestImportProgressDialog.tsx`, `public-clubdesk/README.md`, ADR `CLUBDESK_PUBLIC_COMPANION.md`.
+
+**Begränsningar:** Prislista-cart-Swish (profilkopplad) styrs **inte** av site-content `swish.visible`. Branding-proxy kräver korrekt `APP_HOMEBASE_API_URL` + `PUBLIC_CLUBDESK_USER_ID` i prod. Residualer **BR-1** (ops URL), **CACHE-1** (APCu TTL efter hide), **IC-1** (tenant isolation) — se ADR.
+
 ## 2026-09-17 – Public Clubdesk installable PWA (no offline)
 
 **Typ:** enhancement / public app  
@@ -2862,7 +3343,7 @@ DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:task-shares
 
 - [`ContactList.tsx`](../client/src/plugins/contacts/components/ContactList.tsx) / [`ContactListTable.tsx`](../client/src/plugins/contacts/components/ContactListTable.tsx)
 - [`contactListViewMode.ts`](../client/src/plugins/contacts/utils/contactListViewMode.ts)
-- Settings: [`ContactSettingsView.tsx`](../client/src/plugins/contacts/components/ContactSettingsView.tsx), [`ContactSettingsForm.tsx`](../client/src/plugins/contacts/components/ContactSettingsForm.tsx)
+- Settings: [`ContactSettingsView.tsx`](../client/src/plugins/contacts/components/ContactSettingsView.tsx) (full-page; former panel `ContactSettingsForm` removed 2026-09-22)
 - Standard: [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) (Contacts pilot)
 - Tester: `contactListViewMode.test.ts`, `contactListTableSort.test.ts`, `contactListTableView.test.js` (+ befintliga column/sort-tester)
 
@@ -3034,7 +3515,7 @@ DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:task-shares
 
 **Verifierat beteende (kod):**
 
-- **Clubdesk Guides:** [`ClubdeskForm.tsx`](../client/src/plugins/clubdesk/components/ClubdeskForm.tsx) — Guide category-kort (lägg till / ordna / radera / klicka för tilldela). Settings View-only ([`ClubdeskContext.tsx`](../client/src/plugins/clubdesk/context/ClubdeskContext.tsx) `ClubdeskSettingsTab = 'view'`).
+- **Clubdesk Guides:** [`ClubdeskForm.tsx`](../client/src/plugins/clubdesk/components/ClubdeskForm.tsx) — Guide category-kort (lägg till / ordna / radera / klicka för tilldela). **Superseded 2026-09-22:** no Clubdesk settings shell / `ClubdeskSettingsTab` (orphan API removed); Info is `/clubdesk/info` → `ClubdeskInfoView`.
 - **Instructions:** speglad UX i [`InstructionForm.tsx`](../client/src/plugins/instructions/components/InstructionForm.tsx); Settings View-only.
 - **Delete API:** optional body `{ moveToCategory }` — [`plugins/clubdesk/model.js`](../plugins/clubdesk/model.js), [`priceListModel.js`](../plugins/clubdesk/priceListModel.js), [`plugins/instructions/model.js`](../plugins/instructions/model.js). FE skickar options **endast** efter dialog (`withReassignment`); annars DELETE utan body.
 - **Price list:** samma delete-integritet i [`PriceListForm.tsx`](../client/src/plugins/clubdesk/components/PriceListForm.tsx).

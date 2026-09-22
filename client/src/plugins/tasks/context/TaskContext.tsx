@@ -3,6 +3,7 @@ import React, { createContext, useContext } from 'react';
 import type { ExportFormat } from '@/core/utils/exportUtils';
 
 import type { Task, TaskShare, ValidationError } from '../types/tasks';
+import type { TaskQuickEditDraft, TaskQuickEditFieldKey } from '../utils/taskListSave';
 
 export interface TaskContextType {
   isTaskPanelOpen: boolean;
@@ -54,15 +55,10 @@ export interface TaskContextType {
   exportFormats: ExportFormat[];
   onExportItem: (format: ExportFormat, item: Task) => void;
   importTasks: (data: any[]) => Promise<{ successCount: number; failureCount: number }>;
-  quickEditDraft: Partial<{
-    status: string;
-    priority: string;
-    dueDate: Date | null;
-    assignedToIds: string[];
-    teamId: string | null;
-  }> | null;
+  quickEditDraft: TaskQuickEditDraft | null;
   setQuickEditField: (
-    field: 'status' | 'priority' | 'dueDate' | 'assignedToIds' | 'teamId',
+    taskId: string,
+    field: TaskQuickEditFieldKey,
     value: string | Date | null | string[],
   ) => void;
   hasQuickEditChanges: boolean;
@@ -100,6 +96,8 @@ export interface TaskContextType {
   taskShareShowDialog: boolean;
   setTaskShareShowDialog: (show: boolean) => void;
   taskShareIsCreatingShare: boolean;
+  /** Load active share for a task (soft preview + panel view). */
+  syncTaskShareForTask: (taskId: string | null | undefined) => Promise<void>;
   handleTaskShareClick: (task: Task) => Promise<void>;
   handleTaskCopyShareUrl: () => void;
   handleTaskRevokeShare: () => void;
@@ -171,6 +169,7 @@ const EMPTY_TASK_CONTEXT: TaskContextType = {
   taskShareShowDialog: false,
   setTaskShareShowDialog: () => {},
   taskShareIsCreatingShare: false,
+  syncTaskShareForTask: async () => {},
   handleTaskShareClick: async () => {},
   handleTaskCopyShareUrl: () => {},
   handleTaskRevokeShare: () => {},

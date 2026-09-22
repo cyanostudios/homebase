@@ -72,7 +72,7 @@ export function ContactProvider({
 
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<ValidationError>();
 
@@ -820,9 +820,6 @@ export function ContactProvider({
   };
 
   const getPanelSubtitle = (mode: string, item: Contact | null) => {
-    if (mode === 'settings') {
-      return null;
-    }
     if (mode === 'view' && item) {
       // Identity (name, type, org/meta) is shown in ContactQuickContextPanel.
       return null;

@@ -819,8 +819,10 @@ export const PriceListList: React.FC = () => {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <PriceListForm
+                    ref={inlineFormRef}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -829,10 +831,10 @@ export const PriceListList: React.FC = () => {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <PriceListForm ref={inlineFormRef} stacked />
-                  </div>
+                    }
+                  />
                 ) : detailPriceList ? (
                   <PriceListView priceList={detailPriceList} stacked />
                 ) : (

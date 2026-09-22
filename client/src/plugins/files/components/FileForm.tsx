@@ -7,30 +7,33 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { FORM_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
+import { FORM_GHOST_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
+import { DETAIL_FORM_TITLE_INPUT_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
 import { useFiles } from '../hooks/useFiles';
 import type { ValidationError } from '../types/files';
 import { humanSize } from '../utils/humanSize';
 
-import { FileSettingsForm } from './FileSettingsForm';
-
 interface FileFormProps {
   currentItem?: { id?: string; name?: string } | null;
   onSave: (data: any) => Promise<boolean> | boolean;
   onCancel: () => void;
-  /** Single-column layout for mail detail column. */
+  /** Single-column layout for list detail column. */
   stacked?: boolean;
+  headerTrailing?: React.ReactNode;
 }
 
 type Picked = { id: string; file: File };
 
 export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(function FileForm(
-  { currentItem, onSave, onCancel, stacked: _stacked = false },
+  { currentItem, onSave, onCancel: _onCancel, stacked = false, headerTrailing },
   ref,
 ) {
   const { t } = useTranslation();
@@ -38,6 +41,16 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   const isEdit = !!currentItem;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+    useUnsavedChanges();
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
+    useGlobalNavigationGuard();
+
+  useEffect(() => {
+    const formKey = `file-form-${currentItem?.id || 'new'}`;
+    registerUnsavedChangesChecker(formKey, () => true);
+    return () => unregisterUnsavedChangesChecker(formKey);
+  }, [currentItem?.id, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   const getErrors = useCallback(
     (field: string) =>
@@ -62,6 +75,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
       setName('');
     }
     clearValidationErrors();
+    markClean();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, currentItem?.name]);
 
@@ -126,9 +140,6 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   };
 
   const handleSubmit = useCallback(async () => {
-    if (panelMode === 'settings') {
-      return;
-    }
     if (isSubmitting) {
       return;
     }
@@ -148,13 +159,13 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     } finally {
       setIsSubmitting(false);
     }
-  }, [panelMode, isEdit, onSave, name, items, isSubmitting]);
+  }, [isEdit, onSave, name, items, isSubmitting]);
 
   const handleCancel = useCallback(() => {
     // Core cancel-from-edit calls openForView; files has no full view and openFileForView
     // opens edit — so cancel must close the panel directly.
-    closeFilePanel();
-  }, [closeFilePanel]);
+    attemptAction(() => closeFilePanel(), { force: true });
+  }, [attemptAction, closeFilePanel]);
 
   useImperativeHandle(
     ref,
@@ -196,43 +207,113 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     </div>
   );
 
-  if (panelMode === 'settings') {
-    return (
-      <div className="p-4">
-        <FileSettingsForm onCancel={onCancel} />
-      </div>
-    );
-  }
+  const stackedEditHeader =
+    stacked && headerTrailing ? (
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+        <div className="border-b border-border/50 px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <Input
+                id="file-name"
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  markDirty();
+                  if (hasAnyError) {
+                    clearValidationErrors();
+                  }
+                }}
+                className={cn(
+                  DETAIL_FORM_TITLE_INPUT_CLASS,
+                  PLUGIN_PAGE_TITLE_CLASS,
+                  'min-w-0 tracking-[0.003em]',
+                  nameErrors.length && FORM_INPUT_ERROR_CLASS,
+                )}
+                placeholder="document.pdf"
+                aria-label={t('files.formNameLabel')}
+              />
+              {nameErrors.length > 0 ? (
+                <p className="mt-1 text-sm text-destructive">{nameErrors.join(' • ')}</p>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          </div>
+        </div>
+      </Card>
+    ) : null;
+
+  const stackedUploadHeader =
+    stacked && headerTrailing ? (
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+        <div className="border-b border-border/50 px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1 tracking-[0.003em]')}>
+              {t('files.formUploadTitle')}
+            </h3>
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          </div>
+        </div>
+      </Card>
+    ) : null;
 
   if (isEdit) {
     return (
       <div className="plugin-files">
         <DetailLayout gridClassName="grid-cols-1">
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('files.formRenameTitle')} iconPlugin="files" className="p-6">
-              <p className="mb-4 text-sm text-muted-foreground">{t('files.formRenameHelp')}</p>
-              <div className="space-y-2">
-                <Label htmlFor="file-name">{t('files.formNameLabel')}</Label>
-                <Input
-                  id="file-name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (hasAnyError) {
-                      clearValidationErrors();
-                    }
-                  }}
-                  className={cn(FORM_INPUT_CLASS, nameErrors.length && FORM_INPUT_ERROR_CLASS)}
-                  placeholder="document.pdf"
-                />
-                {nameErrors.length > 0 ? (
-                  <p className="text-sm text-destructive">{nameErrors.join(' • ')}</p>
-                ) : null}
-              </div>
-            </DetailSection>
-          </Card>
+          <div className="space-y-4">
+            {stackedEditHeader}
+            {stacked && headerTrailing ? (
+              <p className="px-1 text-sm text-muted-foreground">{t('files.formRenameHelp')}</p>
+            ) : (
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('files.formRenameTitle')}
+                  iconPlugin="files"
+                  className="p-6"
+                >
+                  <p className="mb-4 text-sm text-muted-foreground">{t('files.formRenameHelp')}</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="file-name-body">{t('files.formNameLabel')}</Label>
+                    <Input
+                      id="file-name-body"
+                      type="text"
+                      value={name}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        markDirty();
+                        if (hasAnyError) {
+                          clearValidationErrors();
+                        }
+                      }}
+                      className={cn(
+                        FORM_GHOST_INPUT_CLASS,
+                        nameErrors.length && FORM_INPUT_ERROR_CLASS,
+                      )}
+                      placeholder="document.pdf"
+                    />
+                    {nameErrors.length > 0 ? (
+                      <p className="text-sm text-destructive">{nameErrors.join(' • ')}</p>
+                    ) : null}
+                  </div>
+                </DetailSection>
+              </Card>
+            )}
+          </div>
         </DetailLayout>
+        <ConfirmDialog
+          isOpen={showWarning}
+          title={t('dialog.unsavedChanges')}
+          message={t('dialog.discardAndReturn')}
+          confirmText={t('dialog.discardChanges')}
+          cancelText={t('dialog.continueEditing')}
+          onConfirm={() => {
+            confirmDiscard();
+            closeFilePanel();
+          }}
+          onCancel={cancelDiscard}
+          variant="warning"
+        />
       </div>
     );
   }
@@ -240,115 +321,137 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   return (
     <div className="plugin-files">
       <DetailLayout gridClassName="grid-cols-1">
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection title={t('files.formUploadTitle')} iconPlugin="files" className="p-6">
-            <p className="mb-4 text-sm text-muted-foreground">{t('files.formUploadHelp')}</p>
-
-            {(filesErrors.length > 0 || generalErrors.length > 0) && (
-              <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <div>
-                  {(filesErrors.length ? filesErrors : generalErrors).map((m) => (
-                    <div key={String(m).slice(0, 80)}>{m}</div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div
-              role="button"
-              tabIndex={0}
-              onDrop={onDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!dragOver) {
-                  setDragOver(true);
-                }
-              }}
-              onDragEnter={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!dragOver) {
-                  setDragOver(true);
-                }
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDragOver(false);
-              }}
-              className={cn(
-                'cursor-pointer rounded-xl border-2 border-dashed p-8 transition-colors',
-                dragOver ? 'border-primary bg-primary/5' : 'border-border bg-muted/20',
-                filesErrors.length && 'border-destructive/50 bg-destructive/5',
-              )}
-              onClick={pick}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  pick();
-                }
-              }}
+        <div className="space-y-4">
+          {stackedUploadHeader}
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection
+              title={t('files.formUploadTitle')}
+              iconPlugin="files"
+              className="p-6"
+              subtleTitle={Boolean(stacked && headerTrailing)}
             >
-              <div className="flex flex-col items-center gap-3 text-center">
-                <Upload className="h-8 w-8 text-muted-foreground" />
-                <div className="text-sm text-muted-foreground">
-                  {t('files.formDropHint')}{' '}
-                  <span className="text-primary underline">{t('files.formChooseFiles')}</span>
-                </div>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      addFiles(e.target.files);
-                    }
-                    e.target.value = '';
-                  }}
-                />
-              </div>
-            </div>
+              <p className="mb-4 text-sm text-muted-foreground">{t('files.formUploadHelp')}</p>
 
-            {items.length > 0 ? (
-              <div className="mt-6 space-y-3">
-                <h4 className="text-sm font-medium">
-                  {t('files.formQueueTitle', { count: items.length })}
-                </h4>
-                <div className="divide-y divide-border rounded-lg border border-border bg-background">
-                  {items.map(({ id, file }) => (
-                    <div key={id} className="flex items-center justify-between gap-3 p-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <FileIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">{file.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {file.type || 'application/octet-stream'} • {humanSize(file.size)}
+              {(filesErrors.length > 0 || generalErrors.length > 0) && (
+                <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    {(filesErrors.length ? filesErrors : generalErrors).map((m) => (
+                      <div key={String(m).slice(0, 80)}>{m}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div
+                role="button"
+                tabIndex={0}
+                onDrop={onDrop}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!dragOver) {
+                    setDragOver(true);
+                  }
+                }}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!dragOver) {
+                    setDragOver(true);
+                  }
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragOver(false);
+                }}
+                className={cn(
+                  'cursor-pointer rounded-xl border-2 border-dashed p-8 transition-colors',
+                  dragOver ? 'border-primary bg-primary/5' : 'border-border bg-muted/20',
+                  filesErrors.length && 'border-destructive/50 bg-destructive/5',
+                )}
+                onClick={pick}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    pick();
+                  }
+                }}
+              >
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <div className="text-sm text-muted-foreground">
+                    {t('files.formDropHint')}{' '}
+                    <span className="text-primary underline">{t('files.formChooseFiles')}</span>
+                  </div>
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        addFiles(e.target.files);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
+              </div>
+
+              {items.length > 0 ? (
+                <div className="mt-6 space-y-3">
+                  <h4 className="text-sm font-medium">
+                    {t('files.formQueueTitle', { count: items.length })}
+                  </h4>
+                  <div className="divide-y divide-border rounded-lg border border-border bg-background">
+                    {items.map(({ id, file }) => (
+                      <div key={id} className="flex items-center justify-between gap-3 p-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <FileIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium">{file.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {file.type || 'application/octet-stream'} • {humanSize(file.size)}
+                            </div>
                           </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={Trash2}
+                          onClick={() => remove(id)}
+                          title={t('files.formRemove')}
+                          className="h-8 text-muted-foreground hover:text-destructive"
+                        >
+                          {t('files.formRemove')}
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={Trash2}
-                        onClick={() => remove(id)}
-                        title={t('files.formRemove')}
-                        className="h-8 text-muted-foreground hover:text-destructive"
-                      >
-                        {t('files.formRemove')}
-                      </Button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
 
-            {saveCancelRow}
-          </DetailSection>
-        </Card>
+              {stacked && headerTrailing ? null : saveCancelRow}
+            </DetailSection>
+          </Card>
+        </div>
       </DetailLayout>
+
+      <ConfirmDialog
+        isOpen={showWarning}
+        title={t('dialog.unsavedChanges')}
+        message={isEdit ? t('dialog.discardAndReturn') : t('dialog.discardAndClose')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
+        onConfirm={() => {
+          confirmDiscard();
+          closeFilePanel();
+        }}
+        onCancel={cancelDiscard}
+        variant="warning"
+      />
     </div>
   );
 });

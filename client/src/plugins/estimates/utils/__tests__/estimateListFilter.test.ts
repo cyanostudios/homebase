@@ -9,6 +9,8 @@ describe('estimateMatchesListFilters', () => {
     expect(estimateMatchesListFilters({ status: 'draft' }, ['draft'])).toBe(true);
     expect(estimateMatchesListFilters({ status: 'accepted' }, ['sent'])).toBe(false);
     expect(estimateMatchesListFilters({ status: 'accepted' }, ['accepted'])).toBe(true);
+    expect(estimateMatchesListFilters({ status: 'invoiced' }, ['invoiced'])).toBe(true);
+    expect(estimateMatchesListFilters({ status: 'invoiced' }, ['accepted'])).toBe(false);
   });
 });
 

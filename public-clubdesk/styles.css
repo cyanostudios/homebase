@@ -62,7 +62,7 @@
   --bottom-bar-h: 64px;
   --bottom-offset: 1.75rem;
   --page-header-pad-y: 1rem;
-  --page-header-pad-top: 2.25rem;
+  --page-header-pad-top: 1.25rem;
   --page-header-title-size: 1.5rem;
   --step-nav-h: 3rem;
   --step-media-h: 19rem;
@@ -294,7 +294,9 @@ button {
 .brand__logo {
   height: var(--header-logo-h);
   width: auto;
+  max-width: 7.5rem;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 @media (min-width: 960px) {

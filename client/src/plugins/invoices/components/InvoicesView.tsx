@@ -1,13 +1,20 @@
 import {
   Calculator,
+  Calendar,
   CreditCard,
   Eye,
+  FileText,
+  Hash,
+  History,
   Info,
   Link2,
   ListOrdered,
+  Receipt,
   Send,
+  SlidersHorizontal,
   StickyNote,
   Users,
+  Wallet,
 } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,10 +25,11 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { EMPTY_ORGANIZATION, organizationApi } from '@/core/api/organizationApi';
-import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailSection, SubtleSectionHeading } from '@/core/ui/DetailSection';
 import {
   DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_FIELD_VALUE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_PROP_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -30,6 +38,7 @@ import {
   LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
+import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
@@ -52,6 +61,7 @@ import {
   displayNameFromEmail,
   fetchLogoAsDataUrl,
 } from '../utils/invoiceDocumentIdentity';
+import { formatInvoiceDueDate, formatPaymentTermsLabel } from '../utils/invoiceDueDate';
 import {
   LINE_ITEM_LIST_ROW_CLASS,
   LINE_ITEM_MUTED_VALUE_CLASS,
@@ -80,9 +90,15 @@ interface InvoiceViewProps {
   stacked?: boolean;
 }
 
-type InvoiceViewTab = 'information' | 'lines' | 'payments' | 'linked';
+type InvoiceViewTab = 'information' | 'lines' | 'payments' | 'linked' | 'activity';
 
-const INVOICE_VIEW_TABS: InvoiceViewTab[] = ['information', 'lines', 'payments', 'linked'];
+const INVOICE_VIEW_TABS: InvoiceViewTab[] = [
+  'information',
+  'lines',
+  'payments',
+  'linked',
+  'activity',
+];
 
 function parseInvoiceViewTab(value: string | null): InvoiceViewTab {
   if (value && INVOICE_VIEW_TABS.includes(value as InvoiceViewTab)) {
@@ -91,7 +107,11 @@ function parseInvoiceViewTab(value: string | null): InvoiceViewTab {
   return 'information';
 }
 
-export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacked = false }) => {
+export const InvoicesView: React.FC<InvoiceViewProps> = ({
+  invoice,
+  item,
+  stacked: _stacked = false,
+}) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -256,6 +276,12 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
       icon: Link2,
       count: null as number | null,
     },
+    {
+      id: 'activity' as const,
+      label: t('invoices.tabs.activity'),
+      icon: History,
+      count: null as number | null,
+    },
   ];
 
   const tabChips = (
@@ -289,12 +315,93 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
     </div>
   );
 
+  const numberLabel = formatDisplayNumber('invoices', actualItem.invoiceNumber || actualItem.id);
+  const invoiceType = actualItem.invoiceType || 'invoice';
+  const typeLabel = t(`invoices.type.${invoiceType}`, { defaultValue: invoiceType });
+  const issueDateLabel = formatDate(actualItem.issueDate) || '—';
+  const dueDateLabel = formatDate(actualItem.dueDate) || '—';
+  const due = formatInvoiceDueDate(actualItem.dueDate);
+  const showDueUrgency = status !== 'paid' && status !== 'canceled';
+  const amountLabel = formatInvoiceAmount(totals.total);
+  const paymentTermsLabel = formatPaymentTermsLabel(actualItem.paymentTerms);
+  const factLabelClass =
+    'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
+  const factValueClass = 'text-base font-medium text-foreground';
+
   const informationCard = (
     <div className="space-y-4">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('invoices.information')}
           icon={Info}
+          iconPlugin="invoices"
+          subtleTitle
+          className="p-6"
+        >
+          <div className="grid grid-cols-1 gap-y-3 md:grid-cols-2 md:gap-x-4">
+            <div>
+              <div className={factLabelClass}>
+                <Hash className="h-3 w-3" />
+                {t('invoices.table.number')}
+              </div>
+              <div className={factValueClass}>{numberLabel || '—'}</div>
+            </div>
+            <div>
+              <div className={factLabelClass}>
+                <FileText className="h-3 w-3" />
+                {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
+              </div>
+              <div className={factValueClass}>{typeLabel}</div>
+            </div>
+            <div>
+              <div className={factLabelClass}>
+                <Calendar className="h-3 w-3" />
+                {t('invoices.issueDate')}
+              </div>
+              <div className={factValueClass}>{issueDateLabel}</div>
+            </div>
+            <div>
+              <div className={factLabelClass}>
+                <Calendar className="h-3 w-3" />
+                {t('invoices.fieldDueDate')}
+              </div>
+              <div
+                className={cn(
+                  DETAIL_FIELD_VALUE_CLASS,
+                  showDueUrgency && due ? due.className : undefined,
+                )}
+              >
+                {due && showDueUrgency ? due.text : dueDateLabel}
+              </div>
+            </div>
+            <div>
+              <div className={factLabelClass}>
+                <Wallet className="h-3 w-3" />
+                {t('invoices.table.total')}
+              </div>
+              <div className={cn(DETAIL_FIELD_VALUE_CLASS, 'tabular-nums')}>
+                {amountLabel} {currency}
+              </div>
+            </div>
+            <div>
+              <div className={factLabelClass}>
+                <Receipt className="h-3 w-3" />
+                {t('invoices.currency')}
+              </div>
+              <div className={factValueClass}>{currency}</div>
+            </div>
+            <div>
+              <div className={factLabelClass}>{t('invoices.paymentTerms')}</div>
+              <div className={cn(factValueClass, 'truncate')}>{paymentTermsLabel}</div>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('invoices.invoiceProperties', { defaultValue: 'Invoice Properties' })}
+          icon={SlidersHorizontal}
           iconPlugin="invoices"
           subtleTitle
           className="p-6"
@@ -308,7 +415,6 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
                 invoice={actualItem}
                 onStatusChange={(nextStatus) => handleStatusChange(statusInvoice, nextStatus)}
                 hideInlineLabel
-                filled
               />
             </div>
 
@@ -325,7 +431,66 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
           </div>
         </DetailSection>
       </Card>
-      <InvoiceShareBlock />
+      <InvoiceShareBlock invoice={actualItem} />
+
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('invoices.previewTitle', { defaultValue: 'Invoice preview' })}
+          icon={Eye}
+          subtleTitle
+          className="p-6"
+        >
+          <p className="mb-3 text-xs text-muted-foreground">
+            {t('invoices.previewHelp', {
+              defaultValue: 'This is how the invoice will look when shared or exported as PDF.',
+            })}
+          </p>
+          <div className="mx-auto w-full max-w-[794px]">
+            <InvoiceDocumentPreview
+              formData={{
+                contactId: actualItem.contactId || '',
+                contactName: actualItem.contactName || '',
+                organizationNumber: actualItem.organizationNumber || '',
+                currency,
+                lineItems,
+                invoiceDiscount,
+                notes: actualItem.notes || '',
+                paymentTerms: actualItem.paymentTerms || '30',
+                orderNumber: actualItem.orderNumber || '',
+                deliveryMethod: actualItem.deliveryMethod || '',
+                issueDate: actualItem.issueDate ? new Date(actualItem.issueDate) : null,
+                dueDate: actualItem.dueDate ? new Date(actualItem.dueDate) : null,
+                status,
+                invoiceType: actualItem.invoiceType || 'invoice',
+              }}
+              invoiceId={actualItem.id}
+              invoiceNumber={actualItem.invoiceNumber}
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              {status === 'draft' ? (
+                <RoundIconLabelButton
+                  type="button"
+                  icon={Send}
+                  label={t('invoices.send', { defaultValue: 'Send' })}
+                  variant="soft"
+                  size="xs"
+                  alwaysExpanded
+                  onClick={() => handleStatusChange(statusInvoice, 'sent')}
+                />
+              ) : null}
+              <RoundIconLabelButton
+                type="button"
+                icon={Eye}
+                label={t('common.preview')}
+                variant="secondary"
+                size="xs"
+                alwaysExpanded
+                onClick={openSharedStylePreview}
+              />
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
     </div>
   );
 
@@ -439,7 +604,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
         className="p-6"
       >
         {actualItem.contactId || actualItem.contactName ? (
-          <QuickContextLinkTileGrid className={stacked ? 'md:grid-cols-1' : undefined}>
+          <QuickContextLinkTileGrid>
             <QuickContextLinkTile
               label={t('nav.contact')}
               meta={
@@ -476,23 +641,6 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
     </Card>
   );
 
-  const previewFormData = {
-    contactId: actualItem.contactId || '',
-    contactName: actualItem.contactName || '',
-    organizationNumber: actualItem.organizationNumber || '',
-    currency,
-    lineItems,
-    invoiceDiscount,
-    notes: actualItem.notes || '',
-    paymentTerms: actualItem.paymentTerms || '30',
-    orderNumber: actualItem.orderNumber || '',
-    deliveryMethod: actualItem.deliveryMethod || '',
-    issueDate: actualItem.issueDate ? new Date(actualItem.issueDate) : null,
-    dueDate: actualItem.dueDate ? new Date(actualItem.dueDate) : null,
-    status,
-    invoiceType: actualItem.invoiceType || 'invoice',
-  };
-
   const leftColumn = (
     <div className="space-y-4">
       <InvoiceQuickContextPanel invoice={actualItem} headerBelow={tabChips} />
@@ -501,64 +649,23 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item, stacke
       {activeTab === 'lines' ? linesCard : null}
       {activeTab === 'payments' ? paymentsCard : null}
       {activeTab === 'linked' ? linkedCard : null}
-    </div>
-  );
-
-  const rightColumn = (
-    <div className="lg:sticky lg:top-4">
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('invoices.previewTitle', { defaultValue: 'Invoice preview' })}
-          icon={Eye}
-          subtleTitle
-          className="p-6"
-        >
-          <p className="mb-3 text-xs text-muted-foreground">
-            {t('invoices.previewHelp', {
-              defaultValue: 'This is how the invoice will look when shared or exported as PDF.',
-            })}
-          </p>
-          <div className="mx-auto w-full max-w-[794px]">
-            <InvoiceDocumentPreview
-              formData={previewFormData}
-              invoiceId={actualItem.id}
-              invoiceNumber={actualItem.invoiceNumber}
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              {status === 'draft' ? (
-                <RoundIconLabelButton
-                  type="button"
-                  icon={Send}
-                  label={t('invoices.send', { defaultValue: 'Send' })}
-                  variant="soft"
-                  size="xs"
-                  alwaysExpanded
-                  onClick={() => handleStatusChange(statusInvoice, 'sent')}
-                />
-              ) : null}
-              <RoundIconLabelButton
-                type="button"
-                icon={Eye}
-                label={t('common.preview')}
-                variant="secondary"
-                size="xs"
-                alwaysExpanded
-                onClick={openSharedStylePreview}
-              />
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
+      {activeTab === 'activity' ? (
+        <DetailActivityLog
+          entityType="invoice"
+          entityId={actualItem.id}
+          limit={30}
+          title={t('invoices.activity')}
+          showClearButton
+          refreshKey={String(actualItem.updatedAt ?? actualItem.id)}
+          systemId={formatDisplayNumber('invoices', actualItem.id)}
+        />
+      ) : null}
     </div>
   );
 
   return (
     <>
-      <div className="plugin-invoices">
-        <DetailLayout gridClassName="grid-cols-1" leftSidebar={leftColumn}>
-          {rightColumn}
-        </DetailLayout>
-      </div>
+      <div className="plugin-invoices">{leftColumn}</div>
 
       <ContactQuickInfoDialog
         isOpen={viewingContact !== null}

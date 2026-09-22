@@ -5,6 +5,7 @@ require_once __DIR__ . '/api/pdo_env.php';
 require_once __DIR__ . '/api/db_helpers.php';
 require_once __DIR__ . '/api/security_headers.php';
 require_once __DIR__ . '/api/pwa_head.php';
+require_once __DIR__ . '/api/branding_helpers.php';
 applyPublicAppSecurityHeaders('html');
 
 function h(?string $value): string
@@ -22,16 +23,20 @@ $baseUrl = siteBaseUrl();
 $swishPayee = '';
 $swishMessage = '';
 $loadError = false;
+$swishVisible = true;
 
 try {
     $pdo = getPdoFromEnv();
-    $q = publicAppPrimarySwishProfileSql();
-    $stmt = $pdo->prepare($q['sql']);
-    $stmt->execute($q['params']);
-    $row = $stmt->fetch();
-    if ($row) {
-        $swishPayee = trim((string) ($row['payee'] ?? ''));
-        $swishMessage = trim((string) ($row['message'] ?? ''));
+    $swishVisible = publicAppCardVisible($pdo, 'swish');
+    if ($swishVisible) {
+        $q = publicAppPrimarySwishProfileSql();
+        $stmt = $pdo->prepare($q['sql']);
+        $stmt->execute($q['params']);
+        $row = $stmt->fetch();
+        if ($row) {
+            $swishPayee = trim((string) ($row['payee'] ?? ''));
+            $swishMessage = trim((string) ($row['message'] ?? ''));
+        }
     }
 } catch (Throwable $e) {
     $loadError = true;
@@ -39,9 +44,11 @@ try {
 
 $hasPayee = $swishPayee !== '';
 $title = 'Swish';
-$description = $hasPayee
-    ? 'Föreningens Swish-nummer och QR-kod.'
-    : 'Swish-nummer saknas.';
+$description = !$swishVisible
+    ? 'Swish-sidan är dold.'
+    : ($hasPayee
+        ? 'Föreningens Swish-nummer och QR-kod.'
+        : 'Swish-nummer saknas.');
 $canonical = $baseUrl . '/swish/';
 
 $jsonLd = [
@@ -76,6 +83,7 @@ $jsonLd = [
     <a class="skip-link" href="#main">Hoppa till innehåll</a>
 
     <div class="app-shell app-shell--guide">
+<?php publicAppRenderTopBar(); ?>
       <header class="guide-header">
         <div class="guide-header__copy">
           <h1 class="guide-header__title"><?= h($title) ?></h1>
@@ -90,7 +98,9 @@ $jsonLd = [
 
       <main id="main" class="app-main no-scrollbar">
         <div class="home-sheet swish-sheet">
-<?php if ($loadError): ?>
+<?php if (!$swishVisible): ?>
+          <div class="empty-state empty-state--inset">Swish är dold</div>
+<?php elseif ($loadError): ?>
           <div class="empty-state empty-state--inset">Kunde inte hämta Swish just nu.</div>
 <?php elseif (!$hasPayee): ?>
           <div class="empty-state empty-state--inset">Inget Swish-nummer är konfigurerat ännu.</div>

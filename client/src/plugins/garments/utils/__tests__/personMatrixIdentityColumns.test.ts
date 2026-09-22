@@ -11,10 +11,10 @@ import {
 } from '../personMatrixIdentityColumns';
 
 describe('personMatrixIdentityColumns', () => {
-  it('defaults to name + jersey fields visible; team hidden', () => {
+  it('defaults to all identity columns visible', () => {
     const pref = normalizePersonMatrixIdentityColumns(null);
     expect(pref).toEqual(DEFAULT_PERSON_MATRIX_IDENTITY_COLUMNS);
-    expect(pref.hidden).toEqual(['team']);
+    expect(pref.hidden).toEqual([]);
     expect(pref.order[0]).toBe('name');
   });
 
@@ -26,7 +26,7 @@ describe('personMatrixIdentityColumns', () => {
     expect(pref.hidden).toEqual(['team', 'jerseyNumber']);
   });
 
-  it('resolveVisible always returns code defaults (settings prefs removed)', () => {
+  it('resolveVisible respects per-list settings prefs', () => {
     const settings = {
       personMatrixIdentityByList: {
         '1': {
@@ -37,18 +37,19 @@ describe('personMatrixIdentityColumns', () => {
     };
     expect(resolveVisiblePersonMatrixIdentityColumns(settings, '1')).toEqual([
       'name',
-      'jerseyName',
-      'initials',
+      'team',
       'jerseyNumber',
     ]);
     expect(resolveVisiblePersonMatrixIdentityColumns(settings, 'missing')).toEqual([
       'name',
+      'team',
       'jerseyName',
       'initials',
       'jerseyNumber',
     ]);
   });
-  it('getPersonMatrixIdentityPrefForList always returns code defaults', () => {
+
+  it('getPersonMatrixIdentityPrefForList reads per-list prefs', () => {
     const settings = {
       personMatrixIdentityByList: {
         '2': {
@@ -57,18 +58,17 @@ describe('personMatrixIdentityColumns', () => {
         },
       },
     };
-    expect(getPersonMatrixIdentityPrefForList(settings, '2')).toEqual(
-      DEFAULT_PERSON_MATRIX_IDENTITY_COLUMNS,
-    );
+    const pref = getPersonMatrixIdentityPrefForList(settings, '2');
+    expect(pref.order[0]).toBe('jerseyNumber');
+    expect(pref.hidden).toEqual(['team']);
   });
 
   it('updates per-list map and compares prefs', () => {
     const base = getPersonMatrixIdentityPrefForList(null, '9');
-    const next = setPersonMatrixIdentityColumnHidden(base, 'team', true);
-    // team already hidden in defaults — equal when already hidden
-    expect(personMatrixIdentityColumnsEqual(base, next)).toBe(true);
-    const shown = setPersonMatrixIdentityColumnHidden(base, 'team', false);
-    expect(personMatrixIdentityColumnsEqual(base, shown)).toBe(false);
+    const hidden = setPersonMatrixIdentityColumnHidden(base, 'team', true);
+    expect(personMatrixIdentityColumnsEqual(base, hidden)).toBe(false);
+    const shown = setPersonMatrixIdentityColumnHidden(hidden, 'team', false);
+    expect(personMatrixIdentityColumnsEqual(base, shown)).toBe(true);
     const reordered = {
       ...shown,
       order: reorderPersonMatrixIdentityColumns(shown.order, 'jerseyNumber', 'team'),

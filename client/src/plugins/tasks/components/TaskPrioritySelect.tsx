@@ -1,6 +1,6 @@
+import { ArrowDown, ArrowUp, Minus } from 'lucide-react';
 import React from 'react';
 
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -8,11 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  BADGE_CHIP_CLASS,
-  BADGE_CHIP_COMPACT_CLASS,
-  BADGE_SELECT_TRIGGER_CLASS,
-} from '@/core/ui/badgeStyles';
+import { BADGE_SELECT_ITEM_CLASS, BADGE_SELECT_TRIGGER_CLASS } from '@/core/ui/badgeStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
 import { TASK_PRIORITY_COLORS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
@@ -25,12 +22,25 @@ interface TaskPrioritySelectProps {
   compact?: boolean;
 }
 
+function taskPriorityIcon(priority: string) {
+  switch (priority) {
+    case 'High':
+      return ArrowUp;
+    case 'Low':
+      return ArrowDown;
+    default:
+      return Minus;
+  }
+}
+
 export function TaskPrioritySelect({
   task,
   onPriorityChange,
   hideInlineLabel = false,
   compact = false,
 }: TaskPrioritySelectProps) {
+  const PriorityIcon = taskPriorityIcon(task.priority);
+
   const selectEl = (
     <Select value={task.priority} onValueChange={onPriorityChange}>
       <SelectTrigger
@@ -40,34 +50,24 @@ export function TaskPrioritySelect({
         )}
       >
         <SelectValue placeholder="Select priority">
-          <Badge
-            variant="outline"
-            className={cn(
-              'flex items-center',
-              compact ? BADGE_CHIP_COMPACT_CLASS : BADGE_CHIP_CLASS,
-              TASK_PRIORITY_COLORS[task.priority as keyof typeof TASK_PRIORITY_COLORS],
-            )}
+          <StatusOutlineBadge
+            icon={PriorityIcon}
+            compact={compact}
+            className={TASK_PRIORITY_COLORS[task.priority as keyof typeof TASK_PRIORITY_COLORS]}
           >
             {task.priority}
-          </Badge>
+          </StatusOutlineBadge>
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
         {TASK_PRIORITY_OPTIONS.map((priority) => (
-          <SelectItem
-            key={priority}
-            value={priority}
-            className="rounded-md py-2 text-xs focus:bg-accent"
-          >
-            <Badge
-              variant="outline"
-              className={cn(
-                BADGE_CHIP_CLASS,
-                TASK_PRIORITY_COLORS[priority as keyof typeof TASK_PRIORITY_COLORS],
-              )}
+          <SelectItem key={priority} value={priority} className={BADGE_SELECT_ITEM_CLASS}>
+            <StatusOutlineBadge
+              icon={taskPriorityIcon(priority)}
+              className={TASK_PRIORITY_COLORS[priority as keyof typeof TASK_PRIORITY_COLORS]}
             >
               {priority}
-            </Badge>
+            </StatusOutlineBadge>
           </SelectItem>
         ))}
       </SelectContent>

@@ -57,9 +57,12 @@ import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
+import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useGarments } from '../hooks/useGarments';
 import type { GarmentList as GarmentListModel, InventoryItem } from '../types/garments';
@@ -104,6 +107,7 @@ import { InventoryListTable } from './InventoryListTable';
 const LIST_SORT_OPTIONS: { value: GarmentSortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'common.updated' },
   { value: 'name', labelKey: 'garments.name' },
+  { value: 'teamId', labelKey: 'garments.team' },
   { value: 'personCount', labelKey: 'garments.persons' },
   { value: 'createdAt', labelKey: 'common.created' },
 ];
@@ -137,6 +141,7 @@ export const GarmentList: React.FC = () => {
     recentlyDuplicatedListId,
     garmentsContentView,
     openGarmentsSettings,
+    settingsListsInitialListId,
     closeGarmentsSettingsView,
     isGarmentPanelOpen,
     panelMode,
@@ -152,6 +157,25 @@ export const GarmentList: React.FC = () => {
   const garmentsNavPage = pathToNavPage(location.pathname);
   const { getSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const enabledPlugins = useEnabledPlugins();
+  const hasTeams = enabledPlugins.has('teams');
+  const { teams } = useTeams();
+
+  const teamNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!hasTeams) {
+      return map;
+    }
+    for (const team of teams) {
+      map.set(String(team.id), formatTeamLabel(team) || team.name || '');
+    }
+    return map;
+  }, [hasTeams, teams]);
+
+  const listSortOptions = useMemo(
+    () => LIST_SORT_OPTIONS.filter((option) => option.value !== 'teamId' || hasTeams),
+    [hasTeams],
+  );
 
   const isInventory = garmentsNavPage === 'garments-inventory';
 
@@ -166,7 +190,8 @@ export const GarmentList: React.FC = () => {
   useMobileActions({
     onAdd: () =>
       attemptNavigation(() => (isInventory ? openInventoryPanel(null) : openGarmentPanel(null))),
-    onSettings: () => openGarmentsSettings(isInventory ? 'inventory' : 'lists'),
+    onSettings: () =>
+      attemptNavigation(() => openGarmentsSettings(isInventory ? 'inventory' : 'lists')),
   });
 
   const { searchTerm, setSearchTerm } = usePersistedListSearch('garments');
@@ -180,6 +205,14 @@ export const GarmentList: React.FC = () => {
   const [listSort, setListSort] = useState<GarmentSortField>('name');
   const [inventorySort, setInventorySort] = useState<InventorySortField>('articleName');
   const [sortOrder, setSortOrder] = useState<GarmentSortOrder>('asc');
+
+  useEffect(() => {
+    if (!hasTeams && listSort === 'teamId') {
+      setListSort('name');
+      setSortOrder('asc');
+    }
+  }, [hasTeams, listSort]);
+
   const [visibleColumnIds, setVisibleColumnIds] = useState<InventoryTableColumnId[]>(() =>
     resolveVisibleInventoryTableColumns(null),
   );
@@ -408,8 +441,10 @@ export const GarmentList: React.FC = () => {
 
   const filteredLists = useMemo(() => {
     const filtered = garmentLists.filter((item) => garmentListMatchesSearch(item, searchTerm));
-    return [...filtered].sort((a, b) => compareGarmentListsByField(a, b, listSort, sortOrder));
-  }, [garmentLists, searchTerm, listSort, sortOrder]);
+    return [...filtered].sort((a, b) =>
+      compareGarmentListsByField(a, b, listSort, sortOrder, teamNameById),
+    );
+  }, [garmentLists, searchTerm, listSort, sortOrder, teamNameById]);
 
   const filteredInventory = useMemo(() => {
     const filtered = inventoryItems.filter(
@@ -536,10 +571,18 @@ export const GarmentList: React.FC = () => {
       return;
     }
     if (isGarmentPanelOpen && modeMatchesPanel) {
-      attemptNavigation(() => {
-        closeGarmentPanel();
-        setPreviewInventory(item);
-      });
+      if (
+        panelMode === 'view' &&
+        currentInventoryItem &&
+        String(currentInventoryItem.id) === String(item.id)
+      ) {
+        attemptNavigation(() => {
+          closeGarmentPanel();
+          setPreviewInventory(null);
+        });
+        return;
+      }
+      attemptNavigation(() => openInventoryForView(item));
       return;
     }
     setPreviewInventory((current) =>
@@ -560,13 +603,35 @@ export const GarmentList: React.FC = () => {
     await inlineFormRef.current?.submit();
   }, []);
 
+  const handleInlineFormCancel = useCallback(() => {
+    if (panelMode === 'edit') {
+      if (isInventory && currentInventoryItem) {
+        openInventoryForView(currentInventoryItem);
+        return;
+      }
+      if (!isInventory && currentGarment) {
+        openGarmentForView(currentGarment);
+        return;
+      }
+    }
+    closeGarmentPanel();
+  }, [
+    closeGarmentPanel,
+    currentGarment,
+    currentInventoryItem,
+    isInventory,
+    openGarmentForView,
+    openInventoryForView,
+    panelMode,
+  ]);
+
   const handleInlineFormClose = useCallback(() => {
     if (inlineFormRef.current) {
       inlineFormRef.current.cancel();
       return;
     }
-    closeGarmentPanel();
-  }, [closeGarmentPanel]);
+    handleInlineFormCancel();
+  }, [handleInlineFormCancel]);
 
   const handleInlineFormOnSave = useCallback(
     async (data: Parameters<typeof saveGarment>[0]) => saveGarment(data),
@@ -610,7 +675,7 @@ export const GarmentList: React.FC = () => {
   const totalCount = isInventory ? inventoryItems.length : garmentLists.length;
   const filteredCount = isInventory ? filteredInventory.length : filteredLists.length;
   const primarySort = isInventory ? inventorySort : listSort;
-  const sortOptions = isInventory ? INVENTORY_SORT_OPTIONS : LIST_SORT_OPTIONS;
+  const sortOptions = isInventory ? INVENTORY_SORT_OPTIONS : listSortOptions;
 
   const handlePrimarySortChange = (field: string) => {
     if (isInventory) {
@@ -798,15 +863,14 @@ export const GarmentList: React.FC = () => {
             <GarmentsInventorySettingsView
               selectedCategory={inventorySettingsCategory}
               onSelectedCategoryChange={setInventorySettingsCategory}
-              renderCategoryButtonsInline
               onClose={closeGarmentsSettingsView}
             />
           ) : (
             <GarmentsListsSettingsView
               selectedCategory={listsSettingsCategory}
               onSelectedCategoryChange={setListsSettingsCategory}
-              renderCategoryButtonsInline
               onClose={closeGarmentsSettingsView}
+              initialListId={settingsListsInitialListId}
             />
           )}
         </div>
@@ -894,7 +958,11 @@ export const GarmentList: React.FC = () => {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={() => openGarmentsSettings(isInventory ? 'inventory' : 'lists')}
+                      onClick={() =>
+                        attemptNavigation(() =>
+                          openGarmentsSettings(isInventory ? 'inventory' : 'lists'),
+                        )
+                      }
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle
@@ -1077,8 +1145,14 @@ export const GarmentList: React.FC = () => {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <GarmentForm
+                    ref={inlineFormRef}
+                    currentGarment={isInventory ? null : currentGarment}
+                    currentItem={isInventory ? null : currentGarment}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={handleInlineFormCancel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -1087,17 +1161,10 @@ export const GarmentList: React.FC = () => {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <GarmentForm
-                      ref={inlineFormRef}
-                      currentGarment={isInventory ? null : currentGarment}
-                      currentItem={isInventory ? null : currentGarment}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeGarmentPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailOpen ? (
                   isInventory ? (
                     <GarmentView inventoryItem={detailInventory} stacked />

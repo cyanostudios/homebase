@@ -16,7 +16,7 @@ import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { formatDateTime } from '@/core/utils/dateFormat';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
-import { resolveSlug } from '@/core/utils/slugUtils';
+import { resolveSlug, buildSlug } from '@/core/utils/slugUtils';
 
 import { slotsApi } from '../api/slotsApi';
 import { SlotDetailHeaderMenus } from '../components/SlotDetailHeaderMenus';
@@ -67,8 +67,6 @@ export function SlotsProvider({
       label: t('app.createSlotFromMatch'),
       icon: Store,
       variant: 'primary',
-      className:
-        'h-9 text-xs px-3 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30',
       onClick: () => {},
     });
     return () => unregister?.();
@@ -279,6 +277,13 @@ export function SlotsProvider({
     return errors;
   }, []);
 
+  const slotsSlugField = useCallback(
+    (i: Record<string, any>) => (i.slot_time ? String(i.slot_time).slice(0, 10) : ''),
+    [],
+  );
+
+  const slotsDeepLinkPathSyncedRef = useRef<string | null>(null);
+
   const openSlotPanel = useCallback(
     (slot: Slot | null) => {
       clearSlotSelectionCore();
@@ -289,12 +294,19 @@ export function SlotsProvider({
       setValidationErrors([]);
       onCloseOtherPanels();
       if (slot) {
-        navigateToItem(slot, slots, (i: any) =>
-          i.slot_time ? String(i.slot_time).slice(0, 10) : '',
-        );
+        const slug = buildSlug(slot, slots, slotsSlugField);
+        slotsDeepLinkPathSyncedRef.current = `/slots/${slug}`;
+        navigateToItem(slot, slots, slotsSlugField);
       }
     },
-    [onCloseOtherPanels, clearSlotSelectionCore, navigateToItem, slots, setValidationErrors],
+    [
+      onCloseOtherPanels,
+      clearSlotSelectionCore,
+      navigateToItem,
+      slots,
+      slotsSlugField,
+      setValidationErrors,
+    ],
   );
 
   const openSlotForEdit = useCallback(
@@ -308,11 +320,18 @@ export function SlotsProvider({
       setIsSlotsPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
-      navigateToItem(slot, slots, (i: any) =>
-        i.slot_time ? String(i.slot_time).slice(0, 10) : '',
-      );
+      const slug = buildSlug(slot, slots, slotsSlugField);
+      slotsDeepLinkPathSyncedRef.current = `/slots/${slug}`;
+      navigateToItem(slot, slots, slotsSlugField);
     },
-    [onCloseOtherPanels, clearSlotSelectionCore, navigateToItem, slots, setValidationErrors],
+    [
+      onCloseOtherPanels,
+      clearSlotSelectionCore,
+      navigateToItem,
+      slots,
+      slotsSlugField,
+      setValidationErrors,
+    ],
   );
 
   const openSlotForView = useCallback(
@@ -325,11 +344,9 @@ export function SlotsProvider({
       setIsSlotsPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
-      navigateToItem(slot, slots, (i: any) =>
-        i.slot_time ? String(i.slot_time).slice(0, 10) : '',
-      );
+      navigateToItem(slot, slots, slotsSlugField);
     },
-    [onCloseOtherPanels, navigateToItem, slots, setValidationErrors],
+    [onCloseOtherPanels, navigateToItem, slots, slotsSlugField, setValidationErrors],
   );
 
   const openSlotForViewRef = useRef(openSlotForView);
@@ -337,12 +354,6 @@ export function SlotsProvider({
     openSlotForViewRef.current = openSlotForView;
   }, [openSlotForView]);
 
-  const slotsSlugField = useCallback(
-    (i: Record<string, any>) => (i.slot_time ? String(i.slot_time).slice(0, 10) : ''),
-    [],
-  );
-
-  const slotsDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (slots.length === 0) {
       return;

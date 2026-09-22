@@ -1,5 +1,5 @@
 import { Check, Copy, Download, ExternalLink, Unlink } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
@@ -7,23 +7,36 @@ import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import { invoicesApi } from '../api/invoicesApi';
+import type { Invoice } from '../context/InvoicesContext';
 import { useInvoices } from '../hooks/useInvoices';
 
-/** Active link panel for the main content column (mirrors NoteShareBlock / TaskShareBlock). */
-export function InvoiceShareBlock() {
+/** Active link panel (mirrors TaskShareBlock). ShareDialog lives in InvoiceShareModals / header. */
+export function InvoiceShareBlock({ invoice }: { invoice: Invoice }) {
   const { t } = useTranslation();
-  const { currentInvoice, invoiceShare, handleCopyInvoiceShareUrl, handleRevokeInvoiceShare } =
-    useInvoices();
+  const {
+    invoiceShare,
+    syncInvoiceShareForInvoice,
+    handleCopyInvoiceShareUrl,
+    handleRevokeInvoiceShare,
+  } = useInvoices();
   const [copied, setCopied] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
-  if (!invoiceShare) {
+  useEffect(() => {
+    void syncInvoiceShareForInvoice(invoice.id);
+  }, [invoice.id, syncInvoiceShareForInvoice]);
+
+  const shareMatchesInvoice =
+    invoiceShare != null && String(invoiceShare.invoiceId) === String(invoice.id);
+
+  if (!shareMatchesInvoice || !invoiceShare) {
     return null;
   }
 
   const shareUrl = `${window.location.origin}/public/invoice/${invoiceShare.shareToken}`;
   const isShareExpired = new Date(invoiceShare.validUntil) <= new Date();
   const validUntilLabel = formatDate(invoiceShare.validUntil) || '—';
+  const entityLabel = formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id);
 
   const handleCopy = () => {
     handleCopyInvoiceShareUrl();
@@ -32,19 +45,16 @@ export function InvoiceShareBlock() {
   };
 
   const handleDownloadPdf = async () => {
-    if (!currentInvoice?.id || isDownloadingPdf) {
+    if (!invoice?.id || isDownloadingPdf) {
       return;
     }
     setIsDownloadingPdf(true);
     try {
-      const blob = await invoicesApi.downloadPdf(currentInvoice.id);
+      const blob = await invoicesApi.downloadPdf(invoice.id);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `invoice-${formatDisplayNumber(
-        'invoices',
-        currentInvoice.invoiceNumber || currentInvoice.id,
-      )}.pdf`;
+      link.download = `invoice-${entityLabel}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -111,7 +121,7 @@ export function InvoiceShareBlock() {
               }
               variant="successSoft"
               alwaysExpanded
-              disabled={isDownloadingPdf || !currentInvoice?.id}
+              disabled={isDownloadingPdf}
               onClick={() => void handleDownloadPdf()}
             />
           </div>

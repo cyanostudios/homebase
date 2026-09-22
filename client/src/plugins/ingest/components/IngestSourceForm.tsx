@@ -1,7 +1,9 @@
-import { Info } from 'lucide-react';
-import React, { useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import { FileText, History, Info } from 'lucide-react';
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,14 +19,18 @@ import { Textarea } from '@/components/ui/textarea';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
-  FORM_INPUT_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
+} from '@/core/ui/detailViewCardStyles';
+import {
+  FORM_GHOST_INPUT_CLASS,
   FORM_INPUT_ERROR_CLASS,
-  FORM_TEXTAREA_CLASS,
+  FORM_GHOST_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -51,6 +57,25 @@ interface IngestSourceFormProps {
   isSubmitting?: boolean;
   /** Single-column layout for mail detail column. */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
+}
+
+type IngestFormTab = 'information' | 'excerpt' | 'runs' | 'activity';
+
+const INGEST_FORM_TABS: IngestFormTab[] = ['information', 'excerpt', 'runs', 'activity'];
+
+const INGEST_FORM_EDIT_DISABLED_TABS: ReadonlySet<IngestFormTab> = new Set([
+  'excerpt',
+  'runs',
+  'activity',
+]);
+
+function parseIngestFormTab(value: string | null): IngestFormTab {
+  if (value && INGEST_FORM_TABS.includes(value as IngestFormTab)) {
+    return value as IngestFormTab;
+  }
+  return 'information';
 }
 
 export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFormProps>(
@@ -61,20 +86,51 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
       onCancel,
       isSubmitting: externalIsSubmitting = false,
       stacked: _stacked = false,
+      headerTrailing,
     },
     ref,
   ) {
     const { t } = useTranslation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = parseIngestFormTab(searchParams.get('tab'));
+    const setActiveTab = useCallback(
+      (tab: IngestFormTab, replace = false) => {
+        if (INGEST_FORM_EDIT_DISABLED_TABS.has(tab)) {
+          return;
+        }
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            if (tab === 'information') {
+              next.delete('tab');
+            } else {
+              next.set('tab', tab);
+            }
+            return next;
+          },
+          { replace },
+        );
+      },
+      [setSearchParams],
+    );
+
+    useEffect(() => {
+      if (!INGEST_FORM_EDIT_DISABLED_TABS.has(activeTab)) {
+        return;
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('tab');
+          return next;
+        },
+        { replace: true },
+      );
+    }, [activeTab, setSearchParams]);
+
     const { validationErrors, clearValidationErrors } = useIngest();
-    const {
-      isDirty,
-      showWarning,
-      markDirty,
-      markClean,
-      attemptAction,
-      confirmDiscard,
-      cancelDiscard,
-    } = useUnsavedChanges();
+    const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+      useUnsavedChanges();
     const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
       useGlobalNavigationGuard();
 
@@ -92,9 +148,9 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
 
     useEffect(() => {
       const key = `ingest-form-${currentIngest?.id || 'new'}`;
-      registerUnsavedChangesChecker(key, () => isDirty);
+      registerUnsavedChangesChecker(key, () => true);
       return () => unregisterUnsavedChangesChecker(key);
-    }, [isDirty, currentIngest, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+    }, [currentIngest, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
     const resetForm = useCallback(() => {
       setFormData({
@@ -148,9 +204,12 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
     }, [formData, onSave, markClean, currentIngest, resetForm, isCurrentlySubmitting]);
 
     const handleCancel = useCallback(() => {
-      attemptAction(() => {
-        onCancel();
-      });
+      attemptAction(
+        () => {
+          onCancel();
+        },
+        { force: true },
+      );
     }, [attemptAction, onCancel]);
 
     const handleDiscardChanges = useCallback(() => {
@@ -182,50 +241,84 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
 
     const getFieldError = (field: string) => validationErrors.find((e) => e.field === field);
 
-    const formSidebar = currentIngest ? (
-      <div className="space-y-4">
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection
-            title={t('ingest.information')}
-            icon={Info}
-            iconPlugin="ingest"
-            className="p-4"
-            collapsible
-          >
-            <div className="space-y-4 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">ID</span>
-                <span className="font-mono font-medium">
-                  {formatDisplayNumber('ingest', currentIngest.id)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t('common.created')}</span>
-                <span className="font-medium">
-                  {currentIngest.createdAt
-                    ? new Date(currentIngest.createdAt).toLocaleDateString()
-                    : '—'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t('common.updated')}</span>
-                <span className="font-medium">
-                  {currentIngest.updatedAt
-                    ? new Date(currentIngest.updatedAt).toLocaleDateString()
-                    : '—'}
-                </span>
-              </div>
-            </div>
-          </DetailSection>
-        </Card>
+    const tabs = useMemo(
+      () => [
+        { id: 'information' as const, label: t('ingest.tabs.information'), icon: Info },
+        { id: 'excerpt' as const, label: t('ingest.tabs.excerpt'), icon: FileText },
+        { id: 'runs' as const, label: t('ingest.tabs.runs'), icon: History },
+        { id: 'activity' as const, label: t('ingest.tabs.activity'), icon: History },
+      ],
+      [t],
+    );
+
+    const tabChips = (
+      <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+        {tabs.map((tab) => {
+          const TabIcon = tab.icon;
+          const isDisabled = INGEST_FORM_EDIT_DISABLED_TABS.has(tab.id);
+          const isActive = !isDisabled && activeTab === tab.id;
+          return (
+            <Button
+              key={tab.id}
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-pressed={isActive}
+              aria-disabled={isDisabled}
+              disabled={isDisabled}
+              title={
+                isDisabled
+                  ? t('ingest.tabUnavailableInEdit', {
+                      defaultValue: 'Available in view mode only',
+                    })
+                  : undefined
+              }
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                isDisabled && 'pointer-events-none opacity-40',
+              )}
+            >
+              <TabIcon className="h-3.5 w-3.5" />
+              <span>{tab.label}</span>
+            </Button>
+          );
+        })}
       </div>
-    ) : undefined;
+    );
+
+    const formHeader = (
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+        <div className="px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="inline-flex shrink-0" aria-hidden>
+              <SectionCategoryIcon icon={Info} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <Input
+                value={formData.name}
+                onChange={(e) => updateField('name', e.target.value)}
+                placeholder={t('ingest.namePlaceholder')}
+                aria-label={t('ingest.name')}
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+            {headerTrailing ? (
+              <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+            ) : null}
+          </div>
+          <div className="mt-4">{tabChips}</div>
+        </div>
+      </Card>
+    );
 
     return (
       <>
         <div className="plugin-ingest">
-          <DetailLayout gridClassName="grid-cols-1" sidebar={formSidebar}>
+          <DetailLayout gridClassName="grid-cols-1">
             <div className="space-y-6">
+              {formHeader}
+
               {validationErrors
                 .filter((e) => e.field === 'general')
                 .map((e) => (
@@ -237,124 +330,126 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                   </Card>
                 ))}
 
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('ingest.sectionDetails')}
-                  icon={Info}
-                  iconPlugin="ingest"
-                  className="p-6"
-                >
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="ingest-name">{t('ingest.name')}</Label>
-                      <Input
-                        id="ingest-name"
-                        value={formData.name}
-                        onChange={(e) => updateField('name', e.target.value)}
-                        placeholder={t('ingest.namePlaceholder')}
-                        className={cn(
-                          'mt-1',
-                          FORM_INPUT_CLASS,
-                          getFieldError('name') && FORM_INPUT_ERROR_CLASS,
-                        )}
-                      />
-                      {getFieldError('name') && (
-                        <p className="mt-1 text-xs text-destructive">
-                          {getFieldError('name')?.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="ingest-url">{t('ingest.sourceUrl')}</Label>
-                      <Input
-                        id="ingest-url"
-                        value={formData.sourceUrl}
-                        onChange={(e) => updateField('sourceUrl', e.target.value)}
-                        placeholder="https://"
-                        className={cn(
-                          'mt-1 font-mono',
-                          FORM_INPUT_CLASS,
-                          getFieldError('sourceUrl') && FORM_INPUT_ERROR_CLASS,
-                        )}
-                      />
-                      {getFieldError('sourceUrl') && (
-                        <p className="mt-1 text-xs text-destructive">
-                          {getFieldError('sourceUrl')?.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label>{t('ingest.sourceType')}</Label>
-                      <Select
-                        value={formData.sourceType}
-                        onValueChange={(v) => updateField('sourceType', v as IngestSourceType)}
-                      >
-                        <SelectTrigger className={cn('mt-1', FORM_INPUT_CLASS)}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="html">HTML</SelectItem>
-                          <SelectItem value="pdf">PDF</SelectItem>
-                          <SelectItem value="json">JSON</SelectItem>
-                          <SelectItem value="xml">XML</SelectItem>
-                          <SelectItem value="other">{t('ingest.typeOther')}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>{t('ingest.fetchMethod')}</Label>
-                      <Select
-                        value={formData.fetchMethod}
-                        onValueChange={(v) => updateField('fetchMethod', v as IngestFetchMethod)}
-                      >
-                        <SelectTrigger
-                          id="ingest-fetch-method"
-                          className={cn('mt-1', FORM_INPUT_CLASS)}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="generic_http">
-                            {t('ingest.fetchMethodGeneric')}
-                          </SelectItem>
-                          <SelectItem value="browser_fetch">
-                            {t('ingest.fetchMethodBrowser')}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {getFieldError('fetchMethod') && (
-                        <p className="mt-1 text-xs text-destructive">
-                          {getFieldError('fetchMethod')?.message}
-                        </p>
-                      )}
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {t('ingest.fetchMethodHint')}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 rounded-md border border-border/60 p-3">
+              {activeTab === 'information' ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={t('ingest.sectionDetails')}
+                    icon={Info}
+                    iconPlugin="ingest"
+                    className="p-6"
+                  >
+                    <div className="space-y-4">
                       <div>
-                        <p className="text-sm font-medium">{t('ingest.active')}</p>
-                        <p className="text-xs text-muted-foreground">{t('ingest.activeHint')}</p>
+                        <Label htmlFor="ingest-name">{t('ingest.name')}</Label>
+                        <Input
+                          id="ingest-name"
+                          value={formData.name}
+                          onChange={(e) => updateField('name', e.target.value)}
+                          placeholder={t('ingest.namePlaceholder')}
+                          className={cn(
+                            'mt-1',
+                            FORM_GHOST_INPUT_CLASS,
+                            getFieldError('name') && FORM_INPUT_ERROR_CLASS,
+                          )}
+                        />
+                        {getFieldError('name') && (
+                          <p className="mt-1 text-xs text-destructive">
+                            {getFieldError('name')?.message}
+                          </p>
+                        )}
                       </div>
-                      <Switch
-                        checked={formData.isActive}
-                        onCheckedChange={(v) => updateField('isActive', v)}
-                      />
+                      <div>
+                        <Label htmlFor="ingest-url">{t('ingest.sourceUrl')}</Label>
+                        <Input
+                          id="ingest-url"
+                          value={formData.sourceUrl}
+                          onChange={(e) => updateField('sourceUrl', e.target.value)}
+                          placeholder="https://"
+                          className={cn(
+                            'mt-1 font-mono',
+                            FORM_GHOST_INPUT_CLASS,
+                            getFieldError('sourceUrl') && FORM_INPUT_ERROR_CLASS,
+                          )}
+                        />
+                        {getFieldError('sourceUrl') && (
+                          <p className="mt-1 text-xs text-destructive">
+                            {getFieldError('sourceUrl')?.message}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label>{t('ingest.sourceType')}</Label>
+                        <Select
+                          value={formData.sourceType}
+                          onValueChange={(v) => updateField('sourceType', v as IngestSourceType)}
+                        >
+                          <SelectTrigger className={cn('mt-1', FORM_GHOST_INPUT_CLASS)}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="html">HTML</SelectItem>
+                            <SelectItem value="pdf">PDF</SelectItem>
+                            <SelectItem value="json">JSON</SelectItem>
+                            <SelectItem value="xml">XML</SelectItem>
+                            <SelectItem value="other">{t('ingest.typeOther')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>{t('ingest.fetchMethod')}</Label>
+                        <Select
+                          value={formData.fetchMethod}
+                          onValueChange={(v) => updateField('fetchMethod', v as IngestFetchMethod)}
+                        >
+                          <SelectTrigger
+                            id="ingest-fetch-method"
+                            className={cn('mt-1', FORM_GHOST_INPUT_CLASS)}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="generic_http">
+                              {t('ingest.fetchMethodGeneric')}
+                            </SelectItem>
+                            <SelectItem value="browser_fetch">
+                              {t('ingest.fetchMethodBrowser')}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {getFieldError('fetchMethod') && (
+                          <p className="mt-1 text-xs text-destructive">
+                            {getFieldError('fetchMethod')?.message}
+                          </p>
+                        )}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {t('ingest.fetchMethodHint')}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 rounded-md border border-border/60 p-3">
+                        <div>
+                          <p className="text-sm font-medium">{t('ingest.active')}</p>
+                          <p className="text-xs text-muted-foreground">{t('ingest.activeHint')}</p>
+                        </div>
+                        <Switch
+                          checked={formData.isActive}
+                          onCheckedChange={(v) => updateField('isActive', v)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="ingest-notes">{t('ingest.notes')}</Label>
+                        <Textarea
+                          id="ingest-notes"
+                          value={formData.notes}
+                          onChange={(e) => updateField('notes', e.target.value)}
+                          rows={4}
+                          className={cn('mt-1', FORM_GHOST_TEXTAREA_CLASS)}
+                          placeholder={t('ingest.notesPlaceholder')}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="ingest-notes">{t('ingest.notes')}</Label>
-                      <Textarea
-                        id="ingest-notes"
-                        value={formData.notes}
-                        onChange={(e) => updateField('notes', e.target.value)}
-                        rows={4}
-                        className={cn('mt-1', FORM_TEXTAREA_CLASS)}
-                        placeholder={t('ingest.notesPlaceholder')}
-                      />
-                    </div>
-                  </div>
-                </DetailSection>
-              </Card>
+                  </DetailSection>
+                </Card>
+              ) : null}
             </div>
           </DetailLayout>
         </div>

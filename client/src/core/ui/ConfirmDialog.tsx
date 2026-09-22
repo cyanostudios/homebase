@@ -1,5 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
-import React from 'react';
+import React, { useRef } from 'react';
 
 import {
   AlertDialog,
@@ -43,9 +43,28 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   confirmDisabled = false,
 }) => {
   const isDanger = variant === 'danger';
+  // AlertDialogAction closes the dialog → onOpenChange(false). Without this guard that
+  // would call onCancel and clear pending discard actions before/after onConfirm runs.
+  const confirmingRef = useRef(false);
+
+  const handleConfirm = () => {
+    confirmingRef.current = true;
+    onConfirm();
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      return;
+    }
+    if (confirmingRef.current) {
+      confirmingRef.current = false;
+      return;
+    }
+    onCancel();
+  };
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
+    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <div className="flex items-center gap-3">
@@ -65,13 +84,13 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               {isDanger ? (
                 <AlertDialogRoundDelete
                   label={confirmText}
-                  onClick={onConfirm}
+                  onClick={handleConfirm}
                   disabled={confirmDisabled}
                 />
               ) : (
                 <AlertDialogRoundAction
                   label={confirmText}
-                  onClick={onConfirm}
+                  onClick={handleConfirm}
                   disabled={confirmDisabled}
                 />
               )}
@@ -79,7 +98,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           ) : (
             <AlertDialogRoundClose
               label={confirmText}
-              onClick={onConfirm}
+              onClick={handleConfirm}
               disabled={confirmDisabled}
             />
           )}

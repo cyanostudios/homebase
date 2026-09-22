@@ -20,7 +20,7 @@ interface CupIngestPickSourceDialogProps {
   onOpenChange: (open: boolean) => void;
   allowedIngestSourceIds: string[];
   defaultSourceId: string;
-  onConfirm: (sourceId: string) => void;
+  onConfirm: (sourceId: string, sourceLabel: string) => void;
   confirming: boolean;
 }
 
@@ -143,7 +143,11 @@ export function CupIngestPickSourceDialog({
             icon={Download}
             label={confirming ? 'Importing…' : 'Import'}
             disabled={confirming || !selectedId || options.length === 0}
-            onClick={() => onConfirm(selectedId)}
+            onClick={() => {
+              const selected = options.find((s) => String(s.id) === String(selectedId));
+              const label = selected?.name || selected?.sourceUrl || selectedId;
+              onConfirm(selectedId, label);
+            }}
           />
         </AlertDialogFooter>
       </AlertDialogContent>

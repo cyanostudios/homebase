@@ -1,7 +1,7 @@
 import { Globe } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
+import { BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 
 import { Badge } from '@/components/ui/badge';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
@@ -23,15 +23,15 @@ import {
 
 function statusBadgeClass(status: string) {
   if (status === 'success') {
-    return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300';
+    return QC_STATUS_BADGE_COLORS.success;
   }
   if (status === 'failed') {
-    return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300';
+    return QC_STATUS_BADGE_COLORS.danger;
   }
   if (status === 'running') {
-    return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
+    return QC_STATUS_BADGE_COLORS.info;
   }
-  return 'bg-muted text-muted-foreground';
+  return QC_STATUS_BADGE_COLORS.muted;
 }
 
 function ingestIdentityMeta(source: IngestSource, t: (key: string) => string): string | null {

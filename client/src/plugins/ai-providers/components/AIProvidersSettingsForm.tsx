@@ -1,4 +1,4 @@
-import { Info, Key, Sparkles } from 'lucide-react';
+import { Info, Key, SlidersHorizontal, Sparkles } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,9 +15,10 @@ import {
 import { Switch } from '@/components/ui/switch';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
 import { aiProvidersApi } from '../api/aiProvidersApi';
@@ -37,6 +38,7 @@ interface AIProvidersSettingsFormProps {
   onSaveSuccess?: () => void;
   /** Single-column layout for list detail column (no sidebar column). */
   stacked?: boolean;
+  headerTrailing?: React.ReactNode;
 }
 
 function buildDraftForProvider(
@@ -60,7 +62,14 @@ export const AIProvidersSettingsForm = React.forwardRef<
   PanelFormHandle,
   AIProvidersSettingsFormProps
 >(function AIProvidersSettingsForm(
-  { currentAIProvider: currentAIProviderProp, onSave, onCancel, onSaveSuccess, stacked = false },
+  {
+    currentAIProvider: currentAIProviderProp,
+    onSave,
+    onCancel,
+    onSaveSuccess,
+    stacked = false,
+    headerTrailing,
+  },
   ref,
 ) {
   const { t } = useTranslation();
@@ -244,49 +253,81 @@ export const AIProvidersSettingsForm = React.forwardRef<
   const modelId = `ai-${activeProviderKey || 'new'}-model`;
   const voiceId = `ai-${activeProviderKey || 'new'}-voice`;
 
-  const formSidebar = currentAIProvider ? (
-    <div className="space-y-4">
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('aiProviders.information', { defaultValue: 'Information' })}
-          icon={Info}
-          iconPlugin="ai-providers"
-          className="p-4"
-          collapsible
-        >
-          <div className="space-y-4 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">
-                {t('aiProviders.providerKey', { defaultValue: 'Key' })}
-              </span>
-              <span className="font-mono font-medium">{currentAIProvider.providerKey}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">{t('common.created')}</span>
-              <span className="font-medium">
-                {currentAIProvider.createdAt
-                  ? new Date(currentAIProvider.createdAt).toLocaleDateString()
-                  : '—'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">{t('common.updated')}</span>
-              <span className="font-medium">
-                {currentAIProvider.updatedAt
-                  ? new Date(currentAIProvider.updatedAt).toLocaleDateString()
-                  : '—'}
-              </span>
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
+  const titleLeading = activeProviderKey ? (
+    <div className="flex min-w-0 items-center gap-2">
+      <span
+        title={t('nav.ai-providers', { defaultValue: 'AI Providers' })}
+        className="inline-flex shrink-0"
+      >
+        <SectionCategoryIcon
+          icon={Sparkles}
+          className="h-8 w-8 bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 [&_svg]:h-4 [&_svg]:w-4"
+        />
+      </span>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>{title}</h3>
     </div>
-  ) : undefined;
+  ) : null;
+
+  const stackedFormHeader =
+    stacked && headerTrailing && activeProviderKey ? (
+      <Card
+        padding="none"
+        className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-ai-providers flex flex-col')}
+      >
+        <div className="border-b border-border/50 px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="min-w-0 flex-1">{titleLeading}</div>
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          </div>
+        </div>
+      </Card>
+    ) : null;
+
+  const formSidebar =
+    currentAIProvider && !stacked ? (
+      <div className="space-y-4">
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('aiProviders.information', { defaultValue: 'Information' })}
+            icon={Info}
+            iconPlugin="ai-providers"
+            className="p-4"
+            collapsible
+          >
+            <div className="space-y-4 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {t('aiProviders.providerKey', { defaultValue: 'Key' })}
+                </span>
+                <span className="font-mono font-medium">{currentAIProvider.providerKey}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('common.created')}</span>
+                <span className="font-medium">
+                  {currentAIProvider.createdAt
+                    ? new Date(currentAIProvider.createdAt).toLocaleDateString()
+                    : '—'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('common.updated')}</span>
+                <span className="font-medium">
+                  {currentAIProvider.updatedAt
+                    ? new Date(currentAIProvider.updatedAt).toLocaleDateString()
+                    : '—'}
+                </span>
+              </div>
+            </div>
+          </DetailSection>
+        </Card>
+      </div>
+    ) : undefined;
 
   return (
     <div className="plugin-ai-providers">
       <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
         <div className="space-y-6">
+          {stackedFormHeader}
           {error ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
               <p className="text-sm text-destructive">{error}</p>
@@ -386,10 +427,11 @@ export const AIProvidersSettingsForm = React.forwardRef<
             <>
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection
-                  title={title}
-                  icon={Sparkles}
+                  title={stacked && headerTrailing ? t('aiProviders.tabs.configuration') : title}
+                  icon={stacked && headerTrailing ? SlidersHorizontal : Sparkles}
                   iconPlugin="ai-providers"
                   className="p-6"
+                  subtleTitle={Boolean(stacked && headerTrailing)}
                 >
                   {settingsDescription ? (
                     <p className="mb-4 text-sm text-muted-foreground">{settingsDescription}</p>

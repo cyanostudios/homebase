@@ -1,3 +1,10 @@
+import {
+  DUE_DATE_BADGE_COLORS,
+  QC_PRIORITY_BADGE_COLORS,
+  QC_STATUS_BADGE_COLORS,
+  QC_TASK_STATUS_BADGE_COLORS,
+} from '@/core/ui/badgeStyles';
+
 export type RequestStatus = 'not started' | 'in progress' | 'completed' | 'cancelled';
 export type RequestPriority = 'Low' | 'Medium' | 'High';
 type RequestSource = 'internal' | 'external';
@@ -98,10 +105,10 @@ export function getTypeLabel(type: string, t: (key: string) => string): string {
 }
 
 export const REQUEST_STATUS_COLORS: Record<RequestStatus, string> = {
-  'not started': 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  'in progress': 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  completed: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  'not started': QC_TASK_STATUS_BADGE_COLORS['not started'],
+  'in progress': QC_TASK_STATUS_BADGE_COLORS['in progress'],
+  completed: QC_TASK_STATUS_BADGE_COLORS.completed,
+  cancelled: QC_TASK_STATUS_BADGE_COLORS.cancelled,
 };
 
 /** Icon shell tones for list/detail headers (SectionCategoryIcon). */
@@ -116,14 +123,14 @@ export const REQUEST_TYPE_ICON_SHELL_CLASS =
   'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300';
 
 export const REQUEST_PRIORITY_COLORS: Record<RequestPriority, string> = {
-  Low: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-  Medium: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  High: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  Low: QC_PRIORITY_BADGE_COLORS.Low,
+  Medium: QC_PRIORITY_BADGE_COLORS.Medium,
+  High: QC_PRIORITY_BADGE_COLORS.High,
 };
 
 export const REQUEST_SOURCE_COLORS: Record<RequestSource, string> = {
-  internal: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-  external: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+  internal: QC_STATUS_BADGE_COLORS.neutral,
+  external: QC_STATUS_BADGE_COLORS.purple,
 };
 
 export function parseRequestDate(iso: string | undefined): Date | null {
@@ -242,9 +249,9 @@ export function getResponseDueUrgency(daysLeft: number | null): ResponseDueUrgen
 }
 
 export const RESPONSE_DUE_URGENCY_COLORS: Record<ResponseDueUrgency, string> = {
-  green: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
-  yellow: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-  red: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
+  green: DUE_DATE_BADGE_COLORS.later,
+  yellow: DUE_DATE_BADGE_COLORS.soon,
+  red: DUE_DATE_BADGE_COLORS.overdue,
 };
 
 /** Build ISO due date = submission date + N calendar days (SLA window). */

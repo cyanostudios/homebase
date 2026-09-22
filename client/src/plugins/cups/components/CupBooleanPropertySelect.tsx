@@ -1,7 +1,7 @@
+import { Check, X } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -9,20 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
-import { cn } from '@/lib/utils';
+import { QC_STATUS_BADGE_COLORS, BADGE_SELECT_ITEM_CLASS } from '@/core/ui/badgeStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 
 const VALUE_YES = 'true';
 const VALUE_NO = 'false';
-
-const YES_BADGE_CLASS = cn(
-  BADGE_CHIP_CLASS,
-  'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-);
-const NO_BADGE_CLASS = cn(
-  BADGE_CHIP_CLASS,
-  'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-);
 
 function boolToSelectValue(value: boolean): string {
   return value ? VALUE_YES : VALUE_NO;
@@ -34,14 +25,13 @@ function selectValueToBool(value: string): boolean {
 
 function YesNoBadge({ value }: { value: boolean }) {
   const { t } = useTranslation();
-  const label = value ? t('common.yes') : t('common.no');
   return (
-    <Badge
-      variant="outline"
-      className={cn('text-xs px-2 h-5', value ? YES_BADGE_CLASS : NO_BADGE_CLASS)}
+    <StatusOutlineBadge
+      icon={value ? Check : X}
+      className={value ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.neutral}
     >
-      {label}
-    </Badge>
+      {value ? t('common.yes') : t('common.no')}
+    </StatusOutlineBadge>
   );
 }
 
@@ -67,10 +57,10 @@ export function CupBooleanPropertySelect({
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[180px]">
-        <SelectItem value={VALUE_YES} className="py-2 focus:bg-accent rounded-md text-xs">
+        <SelectItem value={VALUE_YES} className={BADGE_SELECT_ITEM_CLASS}>
           <YesNoBadge value={true} />
         </SelectItem>
-        <SelectItem value={VALUE_NO} className="py-2 focus:bg-accent rounded-md text-xs">
+        <SelectItem value={VALUE_NO} className={BADGE_SELECT_ITEM_CLASS}>
           <YesNoBadge value={false} />
         </SelectItem>
       </SelectContent>

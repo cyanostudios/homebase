@@ -1,4 +1,4 @@
-import { Copy, Edit, Share2, Trash2, Upload } from 'lucide-react';
+import { Copy, Columns3, Edit, Share2, Trash2, Upload } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -152,6 +152,7 @@ export function GarmentListDetailHeaderMenus({
     garmentShareIsCreatingShare,
     importPersons,
     addPerson,
+    openGarmentsSettings,
   } = useGarments();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -202,6 +203,15 @@ export function GarmentListDetailHeaderMenus({
     }
 
     buttons.push({
+      id: 'columns',
+      icon: Columns3,
+      label: t('garments.configurePersonColumns'),
+      variant: 'secondary',
+      contentClassName: 'text-sky-700 dark:text-sky-300',
+      onClick: () => openGarmentsSettings('lists', list.id),
+    });
+
+    buttons.push({
       id: 'import-persons',
       icon: Upload,
       label: t('garments.importPersons'),
@@ -227,6 +237,7 @@ export function GarmentListDetailHeaderMenus({
     handleGarmentShareClick,
     list,
     openGarmentForEdit,
+    openGarmentsSettings,
     t,
   ]);
 

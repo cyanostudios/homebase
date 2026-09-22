@@ -1,4 +1,4 @@
-import { Info, Search, SlidersHorizontal, Trash2, User, Users } from 'lucide-react';
+import { Info, Search, SlidersHorizontal, Store, Trash2, User, Users } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -31,7 +31,12 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from '@/core/ui/formFieldStyles';
+import { DETAIL_FORM_TITLE_INPUT_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  FORM_GHOST_INPUT_CLASS,
+  FORM_GHOST_SELECT_CLASS,
+  FORM_GHOST_TEXTAREA_CLASS,
+} from '@/core/ui/formFieldStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -100,6 +105,7 @@ interface SlotFormProps {
   onCancel: () => void;
   isSubmitting?: boolean;
   stacked?: boolean;
+  headerTrailing?: React.ReactNode;
 }
 
 /**
@@ -127,7 +133,7 @@ function toDatetimeLocal(iso: string | null | undefined): string {
 }
 
 export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(function SlotForm(
-  { currentSlot, onSave, onSaveSlots, onCancel, stacked = false },
+  { currentSlot, onSave, onSaveSlots, onCancel, stacked = false, headerTrailing },
   ref,
 ) {
   const { t } = useTranslation();
@@ -212,15 +218,6 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
     selectedContactIds: [],
   });
 
-  const hasActualChanges = useCallback(() => {
-    const normalizeIds = (ids: string[]) => [...ids].map(String).sort();
-    const sameFormData = JSON.stringify(formData) === JSON.stringify(baselineRef.current.formData);
-    const sameContacts =
-      JSON.stringify(normalizeIds(selectedContactIds)) ===
-      JSON.stringify(normalizeIds(baselineRef.current.selectedContactIds));
-    return !(sameFormData && sameContacts);
-  }, [formData, selectedContactIds]);
-
   useEffect(() => {
     let cancelled = false;
     getSettings('slots')
@@ -246,16 +243,12 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
     };
   }, [getSettings, settingsVersion]);
 
+  // While create/edit is open, block list + sidebar navigation (same discard prompt as Close).
   useEffect(() => {
     const formKey = `slot-form-${currentSlot?.id || 'new'}`;
-    registerUnsavedChangesChecker(formKey, () => hasActualChanges());
+    registerUnsavedChangesChecker(formKey, () => true);
     return () => unregisterUnsavedChangesChecker(formKey);
-  }, [
-    currentSlot,
-    hasActualChanges,
-    registerUnsavedChangesChecker,
-    unregisterUnsavedChangesChecker,
-  ]);
+  }, [currentSlot, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   const resetForm = useCallback(() => {
     const nextFormData: SlotFormState = {
@@ -412,12 +405,8 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
   ]);
 
   const handleCancel = useCallback(() => {
-    if (!hasActualChanges()) {
-      onCancel();
-      return;
-    }
-    attemptAction(() => onCancel());
-  }, [attemptAction, hasActualChanges, onCancel]);
+    attemptAction(() => onCancel(), { force: true });
+  }, [attemptAction, onCancel]);
 
   useImperativeHandle(
     ref,
@@ -446,6 +435,40 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
   const hasBlockingErrors =
     !!endBeforeStartError ||
     validationErrors.some((e) => !e.message?.toLowerCase().includes('warning'));
+
+  const listFormHeader =
+    stacked && headerTrailing ? (
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+        <div className="border-b border-border/50 px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              title={t('nav.slots', { defaultValue: 'Slots' })}
+              className="inline-flex shrink-0"
+            >
+              <SectionCategoryIcon
+                icon={Store}
+                className="h-9 w-9 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-4 [&_svg]:w-4"
+              />
+            </span>
+            <div className="min-w-0 flex-1">
+              <Input
+                id="slots-name-header"
+                value={formData.name}
+                onChange={(e) => updateField('name', e.target.value)}
+                placeholder={t('slots.namePlaceholder')}
+                aria-label={t('slots.nameLabel')}
+                className={cn(
+                  DETAIL_FORM_TITLE_INPUT_CLASS,
+                  PLUGIN_PAGE_TITLE_CLASS,
+                  'min-w-0 tracking-[0.003em]',
+                )}
+              />
+            </div>
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          </div>
+        </div>
+      </Card>
+    ) : null;
 
   const formSidebar =
     currentSlot && !stacked ? (
@@ -503,6 +526,8 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
               handleSubmit();
             }}
           >
+            {listFormHeader}
+
             {hasBlockingErrors && (
               <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
                 <div className="text-sm text-destructive font-medium">{t('common.cannotSave')}</div>
@@ -545,7 +570,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                           setSeriesCount(Math.min(20, Math.max(2, v)));
                         }
                       }}
-                      className={FORM_INPUT_CLASS}
+                      className={FORM_GHOST_INPUT_CLASS}
                     />
                   </div>
                   <div className="space-y-2">
@@ -554,7 +579,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={String(durationMinutes)}
                       onValueChange={(v) => setDurationMinutes(parseInt(v, 10))}
                     >
-                      <SelectTrigger id="series-duration" className={FORM_INPUT_CLASS}>
+                      <SelectTrigger id="series-duration" className={FORM_GHOST_INPUT_CLASS}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -572,7 +597,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={String(gapMinutes)}
                       onValueChange={(v) => setGapMinutes(parseInt(v, 10))}
                     >
-                      <SelectTrigger id="series-gap" className={FORM_INPUT_CLASS}>
+                      <SelectTrigger id="series-gap" className={FORM_GHOST_INPUT_CLASS}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -603,16 +628,18 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title={t('slots.sectionTitle')} iconPlugin="slots" className="p-6">
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="slots-name">{t('slots.nameLabel')}</Label>
-                    <Input
-                      id="slots-name"
-                      value={formData.name}
-                      onChange={(e) => updateField('name', e.target.value)}
-                      placeholder={t('slots.namePlaceholder')}
-                      className={FORM_INPUT_CLASS}
-                    />
-                  </div>
+                  {!(stacked && headerTrailing) ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="slots-name">{t('slots.nameLabel')}</Label>
+                      <Input
+                        id="slots-name"
+                        value={formData.name}
+                        onChange={(e) => updateField('name', e.target.value)}
+                        placeholder={t('slots.namePlaceholder')}
+                        className={FORM_GHOST_INPUT_CLASS}
+                      />
+                    </div>
+                  ) : null}
                   {/* Start / end (same combined date+time UI as matches DateTimePicker) */}
                   <div className={cn('grid grid-cols-1 gap-4', !stacked && 'md:grid-cols-2')}>
                     <div className="space-y-2">
@@ -658,7 +685,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={formData.location}
                       onChange={(e) => updateField('location', e.target.value)}
                       placeholder={t('slots.locationPlaceholder')}
-                      className={FORM_INPUT_CLASS}
+                      className={FORM_GHOST_INPUT_CLASS}
                     />
                   </div>
                   <div className="space-y-2">
@@ -668,7 +695,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={formData.address}
                       onChange={(e) => updateField('address', e.target.value)}
                       placeholder={t('slots.addressPlaceholder')}
-                      className={FORM_INPUT_CLASS}
+                      className={FORM_GHOST_INPUT_CLASS}
                     />
                   </div>
                   <div className={cn('grid grid-cols-1 gap-4', !stacked && 'md:grid-cols-2')}>
@@ -680,7 +707,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                           updateField('category', v === '__none__' ? '' : String(v))
                         }
                       >
-                        <SelectTrigger className={FORM_INPUT_CLASS}>
+                        <SelectTrigger className={FORM_GHOST_SELECT_CLASS}>
                           <SelectValue placeholder={t('slots.categoryPlaceholder')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -699,7 +726,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                         value={String(formData.capacity)}
                         onValueChange={(v) => updateField('capacity', parseInt(v, 10))}
                       >
-                        <SelectTrigger className={FORM_INPUT_CLASS}>
+                        <SelectTrigger className={FORM_GHOST_SELECT_CLASS}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -724,7 +751,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                       value={formData.description}
                       onChange={(e) => updateField('description', e.target.value)}
                       placeholder={t('slots.descriptionPlaceholder')}
-                      className={cn(FORM_TEXTAREA_CLASS, 'min-h-[120px] resize-y')}
+                      className={cn(FORM_GHOST_TEXTAREA_CLASS, 'min-h-[120px]')}
                       rows={4}
                     />
                   </div>
@@ -818,7 +845,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                               ? t('slots.noMoreToAdd')
                               : t('common.addContact')
                           }
-                          className={cn(FORM_INPUT_CLASS, 'pl-9')}
+                          className={cn(FORM_GHOST_INPUT_CLASS, 'pl-9')}
                           disabled={addableContactsForForm.length === 0}
                         />
                       </div>

@@ -20,6 +20,28 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(css).toMatch(/--header-logo-h:\s*2\.5rem/);
   });
 
+  test('org brand top-bar shows logo + name from account profile', () => {
+    expect(html).toMatch(/class="top-bar"/);
+    expect(html).toMatch(/org-brand-header/);
+    expect(html).toMatch(/org-brand-title/);
+    expect(js).toMatch(/BRANDING_API_URL/);
+    expect(js).toMatch(/loadOrgBranding/);
+    expect(js).toMatch(/applyOrgBranding/);
+    expect(js).toMatch(/\/api\/branding\.php/);
+    expect(guide).toMatch(/publicAppRenderTopBar/);
+    expect(priceList).toMatch(/publicAppRenderTopBar/);
+    expect(read('swish.php')).toMatch(/publicAppRenderTopBar/);
+    expect(read('kontakt.php')).toMatch(/publicAppRenderTopBar/);
+    expect(read('api/branding.php')).toMatch(/publicAppFetchBranding/);
+    const brandingHelpers = read('api/branding_helpers.php');
+    expect(brandingHelpers).toMatch(/APP_HOMEBASE_API_URL/);
+    expect(brandingHelpers).toMatch(/publicAppFetchBrandingFromAccountProfileDb/);
+    expect(brandingHelpers).toMatch(/tenants\.organization|FROM tenants/i);
+    expect(brandingHelpers).toMatch(/PUBLIC_CLUBDESK_USER_ID/);
+    expect(css).toMatch(/\.brand__logo/);
+    expect(css).toMatch(/\.brand__title/);
+  });
+
   test('brand tokens map soft gray page intent', () => {
     expect(css).toMatch(/--brand:\s*hsl\(262\s+83%\s+58%\)/);
     expect(css).toMatch(/--bg-page:\s*#f9fafb/i);
@@ -43,6 +65,10 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(js).toMatch(/renderGuideRows[\s\S]*?renderPageChrome/);
     expect(js).toMatch(/renderPriceListListing[\s\S]*?renderPageChrome/);
     expect(js).toMatch(/renderInfoListing[\s\S]*?renderPageChrome/);
+    expect(js).toMatch(/backHref:\s*'\//);
+    expect(js).toMatch(/guide-back-btn/);
+    expect(js).toMatch(/function bindInfoBackButton/);
+    expect(js).toMatch(/bindInfoBackButton\(container\)/);
   });
 
   test('home uses featured square cards plus option rows', () => {
@@ -65,8 +91,12 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(js).toMatch(/href: '\/kontakt\/'/);
     expect(js).toMatch(/__PUBLIC_APP_INFO_CONTACTS__/);
     expect(js).toMatch(
-      /renderSwishRow\(\),\s*\.\.\.\(infoContacts\.length > 0 \? \[renderKontaktRow\(\)\] : \[\]\),\s*renderInfoRow\(\)/,
+      /\.\.\.\(isPublicSwishVisible\(site\) \? \[renderSwishRow\(\)\] : \[\]\),\s*\.\.\.\(isPublicContactsVisible\(site\) && infoContacts\.length > 0 \? \[renderKontaktRow\(\)\] : \[\]\),\s*\.\.\.\(isPublicInfoVisible\(site\) \? \[renderInfoRow\(\)\] : \[\]\)/,
     );
+    expect(js).toMatch(/function isPublicInfoVisible/);
+    expect(js).toMatch(/function isPublicContactsVisible/);
+    expect(js).toMatch(/function isPublicSwishVisible/);
+    expect(js).toMatch(/info\.visible !== false/);
     expect(js).toMatch(/homeTitle \|\| 'Hem'/);
     expect(js).toMatch(/site-content-html--home/);
     expect(js).toMatch(/option-card/);
@@ -84,6 +114,8 @@ describe('public-clubdesk AppShell patterns', () => {
     const swishApp = read('swish-page-app.js');
     expect(router).toMatch(/\/swish/);
     expect(swish).toMatch(/publicAppPrimarySwishProfileSql|data-swish-payee/);
+    expect(swish).toMatch(/publicAppCardVisible/);
+    expect(swish).toMatch(/Swish är dold/);
     expect(swish).toMatch(/id="org-swish"/);
     expect(swish).toMatch(/id="org-swish-qr"/);
     expect(swish).toMatch(/id="org-swish-number"/);
@@ -106,10 +138,29 @@ describe('public-clubdesk AppShell patterns', () => {
     const kontakt = read('kontakt.php');
     expect(router).toMatch(/\/kontakt/);
     expect(kontakt).toMatch(/publicAppInfoContactsSql|kontakt-list/);
+    expect(kontakt).toMatch(/publicAppCardVisible/);
+    expect(kontakt).toMatch(/Kontakt är dold/);
     expect(kontakt).toMatch(/class="bottom-bar"/);
     expect(js).toMatch(/info_contacts\.php/);
     expect(js).toMatch(/kind:\s*'kontakt'/);
     expect(css).toMatch(/\.kontakt-card\s*\{/);
+  });
+
+  test('contacts and swish visibility gates SSR, API, and sitemap', () => {
+    const helpers = read('api/db_helpers.php');
+    const infoContacts = read('api/info_contacts.php');
+    const sitemap = read('api/sitemap.php');
+    const brandingHelpers = read('api/branding_helpers.php');
+    expect(helpers).toMatch(/function publicAppCardVisible/);
+    expect(infoContacts).toMatch(/publicAppCardVisible\(\$pdo,\s*'contacts'\)/);
+    expect(infoContacts).toMatch(/public_clubdesk_info_contacts_v2/);
+    expect(sitemap).toMatch(/publicAppCardVisible\(\$pdo,\s*'info'\)/);
+    expect(sitemap).toMatch(/publicAppCardVisible\(\$pdo,\s*'swish'\)/);
+    expect(sitemap).not.toMatch(
+      /foreach \(\['\/guides\/', '\/price-lists\/', '\/info\/', '\/swish\/'\]/,
+    );
+    expect(brandingHelpers).toMatch(/CURLOPT_FOLLOWLOCATION\s*=>\s*false/);
+    expect(brandingHelpers).toMatch(/preg_match\('#\^https\?:\/\//);
   });
 
   test('bottom nav is present on listing and detail pages', () => {
@@ -168,7 +219,8 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(priceList).toMatch(/step-nav__btn/);
     expect(priceList).toMatch(/aria-label="Visa varukorg"/);
     expect(priceList).not.toMatch(/step-subheader__bar/);
-    expect(priceList).not.toMatch(/class="top-bar"/);
+    expect(priceList).toMatch(/publicAppRenderTopBar/);
+    expect(priceList).toMatch(/branding_helpers\.php/);
     expect(priceList).toMatch(/id="cart-view"/);
     expect(priceList).toMatch(/id="cart-clear-btn"/);
     expect(priceList).toMatch(/aria-label="Nollställ varukorg"/);
@@ -263,6 +315,8 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(fs.existsSync(path.join(root, 'icons/icon-192.png'))).toBe(true);
     expect(fs.existsSync(path.join(root, 'icons/icon-512.png'))).toBe(true);
     expect(fs.existsSync(path.join(root, 'icons/apple-touch-icon.png'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'icons/favicon-32.png'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'icons/favicon-48.png'))).toBe(true);
     expect(fs.existsSync(path.join(root, 'favicon.svg'))).toBe(true);
 
     for (const surface of [html, guide, priceList, swish, kontakt]) {
@@ -274,6 +328,7 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(html).toMatch(/manifest\.webmanifest/);
     expect(html).toMatch(/theme-color/);
     expect(html).toMatch(/apple-touch-icon/);
+    expect(html).toMatch(/favicon-32\.png/);
     expect(html).toMatch(/#7c3bed/);
 
     for (const surface of [guide, priceList, swish, kontakt]) {
@@ -285,6 +340,7 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(pwaHead).toMatch(/manifest\.webmanifest/);
     expect(pwaHead).toMatch(/theme-color/);
     expect(pwaHead).toMatch(/apple-touch-icon/);
+    expect(pwaHead).toMatch(/favicon-32\.png/);
     expect(pwaHead).toMatch(/#7c3bed/);
     expect(pwaHead).toMatch(/publicClubdeskPwaHeadTags/);
     expect(pwaHead).not.toMatch(/serviceWorker/);

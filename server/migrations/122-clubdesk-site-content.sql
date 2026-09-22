@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS clubdesk_site_content (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL,
   card_key VARCHAR(32) NOT NULL
-    CHECK (card_key IN ('home', 'info', 'swish')),
+    CHECK (card_key IN ('home', 'info', 'contacts', 'swish')),
   content TEXT NOT NULL DEFAULT '',
   meta JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

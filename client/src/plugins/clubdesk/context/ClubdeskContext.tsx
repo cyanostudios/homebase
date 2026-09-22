@@ -14,9 +14,6 @@ import type {
 } from '../types/priceList';
 
 export type ClubdeskPanelMode = 'create' | 'edit' | 'view';
-export type ClubdeskContentView = 'list' | 'settings';
-/** No settings categories remain; list view prefs live on the list header. */
-export type ClubdeskSettingsTab = '';
 export type ClubdeskActiveDomain = 'guides' | 'priceLists';
 
 export interface ClubdeskContextType {
@@ -39,10 +36,6 @@ export interface ClubdeskContextType {
   priceListCategories: ClubdeskPriceListItemCategory[];
   refreshPriceListCategories: (priceListId: string) => Promise<void>;
   isSaving: boolean;
-  clubdeskContentView: ClubdeskContentView;
-  clubdeskSettingsTab: ClubdeskSettingsTab;
-  openClubdeskSettings: (options?: { tab?: ClubdeskSettingsTab }) => void;
-  closeClubdeskSettingsView: () => void;
   openClubdeskPanel: (clubdesk: Clubdesk | null) => void;
   openClubdeskForEdit: (clubdesk: Clubdesk) => void;
   openClubdeskForView: (clubdesk: Clubdesk) => void;
@@ -154,10 +147,6 @@ const EMPTY_CLUBDESK_CONTEXT: ClubdeskContextType = {
   priceListCategories: [],
   refreshPriceListCategories: async () => {},
   isSaving: false,
-  clubdeskContentView: 'list',
-  clubdeskSettingsTab: '',
-  openClubdeskSettings: () => {},
-  closeClubdeskSettingsView: () => {},
   openClubdeskPanel: () => {},
   openClubdeskForEdit: () => {},
   openClubdeskForView: () => {},

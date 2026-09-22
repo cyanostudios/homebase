@@ -5,9 +5,9 @@ $uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $docRoot = rtrim($_SERVER['DOCUMENT_ROOT'] ?? __DIR__, '/');
 $targetPath = realpath($docRoot . $uriPath);
 
-// Browsers request /favicon.ico; keep SPA fallback from serving index.html as the icon.
+// Browsers request /favicon.ico; prefer PNG so tabs show the mark reliably.
 if ($uriPath === '/favicon.ico') {
-    header('Location: /favicon.svg', true, 301);
+    header('Location: /icons/favicon-32.png', true, 301);
     return true;
 }
 

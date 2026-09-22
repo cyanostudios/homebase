@@ -17,6 +17,7 @@ import {
   InventoryDetailHeaderMenus,
 } from '../components/GarmentDetailHeaderMenus';
 import type {
+  FitSummaryProcurement,
   GarmentCheckboxColumn,
   GarmentList,
   GarmentListPayload,
@@ -30,6 +31,7 @@ import type {
   ValidationError,
 } from '../types/garments';
 import { createDefaultCheckboxColumns } from '../utils/defaultCheckboxTemplate';
+import { deepMergeFitSummaryProcurement } from '../utils/inventoryListColumns';
 import {
   buildDuplicatedItemVariantPayloads,
   validateInventoryPayload,
@@ -185,6 +187,8 @@ export function GarmentProvider({
     return () => unregisterPanelCloseFunction('garments');
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeGarmentPanel]);
 
+  const deepLinkSyncedRef = useRef<string | null>(null);
+
   const openGarmentPanel = useCallback(
     (list: GarmentList | null) => {
       setRecentlyDuplicatedInventoryId(null);
@@ -197,6 +201,8 @@ export function GarmentProvider({
       clearValidationErrors();
       onCloseOtherPanels();
       if (list) {
+        const slug = buildSlug(list, garmentLists, 'name');
+        deepLinkSyncedRef.current = `/garments/${slug}`;
         navigateToItem(list, garmentLists, 'name');
       }
     },
@@ -221,6 +227,8 @@ export function GarmentProvider({
       setIsGarmentPanelOpen(true);
       clearValidationErrors();
       onCloseOtherPanels();
+      const slug = buildSlug(list, garmentLists, 'name');
+      deepLinkSyncedRef.current = `/garments/${slug}`;
       navigateToItem(list, garmentLists, 'name');
     },
     [
@@ -340,7 +348,6 @@ export function GarmentProvider({
   );
   const nav = panelKind === 'inventory' ? inventoryNav : listNav;
 
-  const deepLinkSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (garmentLists.length === 0) {
       return;
@@ -380,10 +387,16 @@ export function GarmentProvider({
   }, [navigate]);
 
   const settingsReturnViewRef = useRef<'lists' | 'inventory'>('inventory');
+  const [settingsListsInitialListId, setSettingsListsInitialListId] = useState<string | null>(null);
 
   const openGarmentsSettings = useCallback(
-    (returnView: 'lists' | 'inventory' = 'inventory') => {
+    (returnView: 'lists' | 'inventory' = 'inventory', listId: string | null = null) => {
       settingsReturnViewRef.current = returnView;
+      setSettingsListsInitialListId(
+        returnView === 'lists' && listId != null && String(listId).trim() !== ''
+          ? String(listId)
+          : null,
+      );
       setRecentlyDuplicatedInventoryId(null);
       setRecentlyDuplicatedListId(null);
       setIsGarmentPanelOpen(false);
@@ -399,6 +412,7 @@ export function GarmentProvider({
   );
 
   const closeGarmentsSettingsView = useCallback(() => {
+    setSettingsListsInitialListId(null);
     setGarmentsContentView(settingsReturnViewRef.current);
   }, []);
 
@@ -924,14 +938,26 @@ export function GarmentProvider({
         const person = await garmentsApi.updatePerson(listId, personId, data);
         if (updateLocalState) {
           setCurrentGarment((prev) => {
-            if (!prev || prev.id !== listId || !prev.persons) {
+            if (!prev || String(prev.id) !== String(listId) || !prev.persons) {
               return prev;
             }
             return {
               ...prev,
-              persons: prev.persons.map((p) => (p.id === person.id ? person : p)),
+              persons: prev.persons.map((p) => (String(p.id) === String(person.id) ? person : p)),
             };
           });
+          // Soft preview reads persons from garmentLists — keep both in sync (same as ct-sizes).
+          setGarmentLists((prev) =>
+            prev.map((list) => {
+              if (String(list.id) !== String(listId) || !list.persons) {
+                return list;
+              }
+              return {
+                ...list,
+                persons: list.persons.map((p) => (String(p.id) === String(person.id) ? person : p)),
+              };
+            }),
+          );
         }
         return person;
       } catch (err) {
@@ -1090,6 +1116,48 @@ export function GarmentProvider({
       }
     },
     [],
+  );
+
+  const patchFitSummaryProcurement = useCallback(
+    async (listId: string, partial: FitSummaryProcurement): Promise<boolean> => {
+      const fromCurrent =
+        currentGarment && String(currentGarment.id) === String(listId)
+          ? currentGarment.fitSummaryProcurement
+          : undefined;
+      const fromLists = garmentLists.find(
+        (l) => String(l.id) === String(listId),
+      )?.fitSummaryProcurement;
+      const prevProcurement = fromCurrent ?? fromLists ?? {};
+      const optimistic = deepMergeFitSummaryProcurement(prevProcurement, partial);
+
+      const applyProcurementOnly = (procurement: FitSummaryProcurement) => {
+        setCurrentGarment((prev) =>
+          prev && String(prev.id) === String(listId)
+            ? { ...prev, fitSummaryProcurement: procurement }
+            : prev,
+        );
+        setGarmentLists((prev) =>
+          prev.map((list) =>
+            String(list.id) === String(listId)
+              ? { ...list, fitSummaryProcurement: procurement }
+              : list,
+          ),
+        );
+      };
+
+      applyProcurementOnly(optimistic);
+      try {
+        const saved = await garmentsApi.patchFitSummaryProcurement(listId, partial);
+        // Full list payload (includes persons) so soft preview stays consistent.
+        applyListUpdate(saved);
+        return true;
+      } catch (err) {
+        console.error('Failed to update fit summary procurement:', err);
+        applyProcurementOnly(prevProcurement);
+        return false;
+      }
+    },
+    [applyListUpdate, currentGarment, garmentLists],
   );
 
   const importPersons = useCallback(
@@ -1354,10 +1422,12 @@ export function GarmentProvider({
       openGarmentsInventory,
       openGarmentsLists,
       openGarmentsSettings,
+      settingsListsInitialListId,
       closeGarmentsSettingsView,
       assignInventoryItemToList,
       unassignInventoryItemFromList,
       updatePersonCtSizes,
+      patchFitSummaryProcurement,
       saveGarment,
       updateListCheckboxColumns,
       deleteGarment,
@@ -1420,10 +1490,12 @@ export function GarmentProvider({
       openGarmentsInventory,
       openGarmentsLists,
       openGarmentsSettings,
+      settingsListsInitialListId,
       closeGarmentsSettingsView,
       assignInventoryItemToList,
       unassignInventoryItemFromList,
       updatePersonCtSizes,
+      patchFitSummaryProcurement,
       saveGarment,
       updateListCheckboxColumns,
       deleteGarment,

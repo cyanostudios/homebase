@@ -40,6 +40,7 @@
     "showColumn": "Show {{column}} column",
     "updated": "Updated",
     "created": "Created",
+    "id": "ID",
     "selectSlot": "Select slot",
     "unselectSlot": "Unselect slot",
     "discard": "Discard",
@@ -439,8 +440,10 @@
     "settings": "Settings",
     "cannotCreateSlotFromPastMatch": "Cannot create slot from a past match.",
     "quickActionUnavailable": "Action not available",
+    "edit": "Edit",
     "delete": "Delete",
     "duplicate": "Duplicate",
+    "headerActions": "Actions",
     "contacts": "Contacts",
     "addContact": "Add contact...",
     "filterContactsByTag": "Filter by tag",
@@ -463,7 +466,8 @@
       "properties": "Properties",
       "contacts": "Contacts",
       "linked": "Linked",
-      "linkedEmpty": "No slots linked to this match yet."
+      "linkedEmpty": "No slots linked to this match yet.",
+      "activity": "Activity"
     },
     "relatedSlots": "Slots",
     "noRelatedSlots": "No slots linked to this match yet",
@@ -475,6 +479,10 @@
     "apiBaseUrl": "API base URL",
     "importNow": "Import now",
     "importing": "Importing...",
+    "importingTitle": "Importing…",
+    "importingFrom": "Importing from {{name}}…",
+    "importingFromFallback": "Importing matches from Fogis API…",
+    "importingHint": "This may take a moment. Keep this window open.",
     "importDone": "{{imported}} imported, {{updated}} updated.",
     "importError": "Could not import matches. Check API key and team IDs.",
     "settingsSubtitle": "Manage list view and API connection.",
@@ -485,7 +493,8 @@
       "view": "View",
       "viewDescription": "Default list or grid for matches.",
       "apiDescription": "Fogis API base URL and key."
-    }
+    },
+    "tabUnavailableInEdit": "Available in view mode only"
   },
   "bulk": {
     "selected": "{{count}} selected",
@@ -616,6 +625,10 @@
     "actionInvoice": "Invoice",
     "exportOptions": "Export options",
     "activity": "Activity",
+    "activityAfterSave": "Activity appears after the contact is saved.",
+    "linkedAfterSave": "Linked items appear after the contact is saved.",
+    "contactPersonsCompanyOnly": "Contact persons are available for company contacts.",
+    "tabUnavailableInEdit": "Available in view mode only",
     "contactContent": "Contact Content",
     "contactProperties": "Contact Properties",
     "tabs": {
@@ -623,7 +636,8 @@
       "properties": "Properties",
       "addresses": "Addresses",
       "persons": "Contact persons",
-      "linked": "Linked"
+      "linked": "Linked",
+      "activity": "Activity"
     },
     "relatedTeams": "Teams",
     "relatedTasks": "Tasks",
@@ -810,8 +824,10 @@
       "properties": "Properties",
       "assignees": "Assignees",
       "linked": "Linked",
-      "linkedEmpty": "No mentioned contacts yet."
+      "linkedEmpty": "No mentioned contacts yet.",
+      "activity": "Activity"
     },
+    "tabUnavailableInEdit": "Available in view mode only",
     "quickEditDiscardMessage": "You have unsaved changes to status, priority, due date or assignees. Do you want to discard them?",
     "assignee": "Assignee",
     "noAssigneesYet": "No assignees yet.",
@@ -918,6 +934,14 @@
     "mentionedContacts": "Mentioned Contacts",
     "openContact": "Open contact",
     "information": "Information",
+    "tabs": {
+      "information": "Information",
+      "linked": "Linked",
+      "linkedEmpty": "No mentioned contacts yet.",
+      "files": "Files",
+      "activity": "Activity"
+    },
+    "tabUnavailableInEdit": "Available in view mode only",
     "quickActions": "Quick actions",
     "exportOptions": "Export options",
     "activity": "Activity",
@@ -978,7 +1002,8 @@
       "lines": "Line items",
       "payments": "Payments",
       "linked": "Linked",
-      "linkedEmpty": "No linked contact yet."
+      "linkedEmpty": "No linked contact yet.",
+      "activity": "Activity"
     },
     "quickActions": "Quick actions",
     "exportOptions": "Export options",
@@ -1056,6 +1081,15 @@
       "cash_invoice": "Cash invoice",
       "receipt": "Receipt"
     },
+    "filter": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "partiallyPaid": "Partially paid",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "canceled": "Canceled",
+      "unpaid": "Unpaid"
+    },
     "paymentTerms": "Payment terms",
     "paymentTermsImmediate": "Immediate",
     "paymentTermsDays": "{{count}} days",
@@ -1128,13 +1162,44 @@
   "estimates": {
     "listDescription": "Draft, send, and track quotes through acceptance.",
     "settingsTitle": "Estimates – Settings",
-    "settingsSubtitle": "Estimates settings will appear here when available.",
-    "settingsEmpty": "No settings categories yet. List columns are fixed in code (estimate number only).",
+    "settingsSubtitle": "Numbering and document defaults for estimates.",
+    "settingsEmpty": "No settings categories yet.",
     "settingsCategories": {
+      "numbering": "Numbering",
+      "numberingDescription": "Configure how estimate numbers are generated.",
+      "numberingHint": "Prefix, year, and start number for new estimates.",
       "columns": "Table columns",
       "columnsDescription": "Choose which columns appear in the estimates table and their order.",
       "columnsHint": "Drag to reorder. Toggle to show or hide a column. Estimate number is always visible."
     },
+    "noCustomer": "No customer",
+    "previewTitle": "Estimate preview",
+    "previewHelp": "This is how the estimate will look when shared or exported as PDF.",
+    "previewDraftNumber": "DRAFT",
+    "previewPageBreak": "Page break",
+    "previewPopupBlocked": "Could not open preview. Allow pop-ups for this site and try again.",
+    "previewOpenFailed": "Could not open estimate preview. Try again.",
+    "downloadPdf": "Download PDF",
+    "generatingPdf": "Generating PDF…",
+    "pdfDownloadFailed": "Failed to download PDF. Please try again.",
+    "shareEstimate": "Share estimate",
+    "viewShare": "View share",
+    "send": "Send",
+    "shareExpiredBlockedTitle": "Cannot create share link",
+    "shareExpiredBlockedMessage": "Estimate {{number}} expired on {{date}}. Share links can only be created for estimates that are still valid. Update the \"Valid To\" date in edit mode to create a share link.",
+    "noLineItems": "No line items",
+    "relations": "Relations",
+    "subtotalAfterEstimateDiscount": "Subtotal after estimate discount",
+    "convertToInvoice": "Convert to invoice",
+    "convertToInvoiceTitle": "Convert to invoice?",
+    "convertToInvoiceMessage": "Create a draft invoice from estimate {{number}}? The estimate will be marked as invoiced and can no longer be edited.",
+    "convertDisabledNotAccepted": "Only accepted estimates can be converted to an invoice.",
+    "convertDisabledInvoiced": "This estimate has already been converted to an invoice.",
+    "convertDisabledInvoicesOff": "Enable the Invoices plugin to convert estimates.",
+    "editDisabledInvoiced": "Invoiced estimates cannot be edited.",
+    "convertFailed": "Could not convert estimate to invoice.",
+    "acceptanceReasons": "Acceptance reasons",
+    "rejectionReasons": "Rejection reasons",
     "searchPlaceholder": "Search estimates...",
     "noMatch": "No estimates found matching your search.",
     "noYet": "No estimates yet",
@@ -1164,8 +1229,12 @@
     "pricingSummary": "Pricing Summary",
     "lineItemsCount": "Line Items ({{count}})",
     "tabs": {
-      "properties": "Properties",
+      "information": "Information",
       "lines": "Line items",
+      "linked": "Linked",
+      "linkedEmpty": "No linked records yet.",
+      "activity": "Activity",
+      "properties": "Properties",
       "notes": "Notes",
       "notesEmpty": "No notes yet."
     },
@@ -1198,16 +1267,18 @@
       "total": "Total",
       "draft": "Draft",
       "sent": "Sent",
-      "accepted": "Accepted"
+      "accepted": "Accepted",
+      "invoiced": "Invoiced"
     },
     "statistics": {
       "title": "Estimate statistics",
-      "description": "Overview of draft, sent, and accepted estimates.",
+      "description": "Overview of draft, sent, accepted, and invoiced estimates.",
       "overview": "Overview",
       "total": "Total",
       "draft": "Draft",
       "sent": "Sent",
-      "accepted": "Accepted"
+      "accepted": "Accepted",
+      "invoiced": "Invoiced"
     }
   },
   "ingest": {
@@ -1253,6 +1324,7 @@
       "information": "Information",
       "excerpt": "Excerpt",
       "runs": "Fetch history",
+      "activity": "Activity",
       "excerptEmpty": "No excerpt yet. Run a fetch to see the latest result."
     },
     "lastFetch": "Last fetched",
@@ -1299,7 +1371,8 @@
       "urlInvalid": "Enter a valid URL",
       "fetchMethodInvalid": "Choose a valid fetch method",
       "saveFailed": "Could not save source"
-    }
+    },
+    "tabUnavailableInEdit": "Available in view mode only"
   },
   "instructions": {
     "listDescription": "Create step-by-step guides for staff.",
@@ -1457,8 +1530,11 @@
     "information": "Information",
     "tabs": {
       "information": "Information",
-      "steps": "Steps"
+      "properties": "Properties",
+      "steps": "Steps",
+      "activity": "Activity"
     },
+    "guideProperties": "Guide properties",
     "quickActions": "Quick actions",
     "activity": "Activity",
     "notVisiblePublic": "Not visible on the kiosk",
@@ -1524,9 +1600,12 @@
     "priceList": {
       "tabs": {
         "information": "Information",
+        "properties": "Properties",
         "items": "Items",
-        "currency": "Currency"
+        "currency": "Currency",
+        "activity": "Activity"
       },
+      "properties": "Price list properties",
       "listDescription": "Create and manage price lists for the clubdesk kiosk.",
       "searchPlaceholder": "Search {{count}} price lists...",
       "noMatch": "No matches",
@@ -1604,19 +1683,22 @@
     "siteContent": {
       "subtitle": "Copy and cards for the public Clubdesk app.",
       "editorPlaceholder": "Write content…",
+      "emptyBody": "No content yet. Open Actions and choose Edit to add text.",
       "infoTitle": "Heading",
       "infoTitlePlaceholder": "e.g. About the app",
       "homeTitlePlaceholder": "e.g. Welcome",
       "infoBody": "Body",
+      "infoVisible": "Show in the public app",
+      "infoVisibleHint": "When off, the About shortcut and page are hidden from the Clubdesk app.",
       "loadFailed": "Failed to load content.",
       "saveFailed": "Failed to save content. Please try again.",
       "cards": {
         "home": "Home",
         "homeDescription": "Intro text on the home screen",
         "homeHelp": "Heading and body appear above the Home tab shortcuts (plain text, no rich formatting).",
-        "info": "Info",
-        "infoDescription": "Text on the Info tab",
-        "infoHelp": "Heading and body are shown on the Info tab in the public app.",
+        "info": "About",
+        "infoDescription": "Text on the About tab",
+        "infoHelp": "Heading and body are shown on the About tab in the public app.",
         "contacts": "Contacts",
         "contactsDescription": "Contact list on Home and /kontakt/",
         "contactsHelp": "Pick contacts from Contacts and add a short note. Shown on Home and the Contacts page when the list is not empty.",
@@ -1670,7 +1752,8 @@
       "deleteConfirmNamed": "Are you sure you want to remove \"{{name}}\" from the list?",
       "moveUp": "Move up",
       "moveDown": "Move down"
-    }
+    },
+    "tabUnavailableInEdit": "Available in view mode only"
   },
   "guides": {
     "title": "Guides",
@@ -2129,7 +2212,6 @@
     },
     "widgetCount": "Files in the library: {{count}}",
     "widgetOpen": "Open Files",
-    "panelSubtitleSettings": "Connect and manage cloud storage",
     "panelSubtitleCreate": "Select one or multiple files to upload",
     "panelSubtitleEdit": "Change the file name and save",
     "panelUploaded": "Uploaded {{date}}",
@@ -2669,6 +2751,12 @@
     "listDescription": "Manage cups, visibility, and imports from ingest.",
     "addCup": "Add Cup",
     "importFromIngest": "Import from Ingest",
+    "importingTitle": "Importing…",
+    "importingFrom": "Importing from {{name}}…",
+    "importingFromProgress": "Importing from {{name}} ({{current}} of {{total}})…",
+    "importingFromFallback": "Importing from Ingest…",
+    "importingSourceFallback": "source",
+    "importingHint": "This may take a moment. Keep this window open.",
     "searchPlaceholder": "Search cups ({{count}})",
     "sort": "Sort",
     "sortAsc": "Ascending",
@@ -2702,11 +2790,13 @@
     "propertySanctioned": "Sanctioned",
     "propertyFeatured": "Featured",
     "cupProperties": "Properties",
+    "activity": "Activity",
     "tabs": {
       "information": "Information",
       "properties": "Properties",
       "ratings": "Ratings",
-      "ingest": "Ingest"
+      "ingest": "Ingest",
+      "activity": "Activity"
     },
     "quickEditDiscardMessage": "You have unsaved changes to cup properties. Do you want to discard them?",
     "heroImageView": "Hero image (public site)",
@@ -2777,7 +2867,8 @@
         "social": "Social",
         "other": "Other"
       }
-    }
+    },
+    "tabUnavailableInEdit": "Available in view mode only"
   },
   "teams": {
     "listDescription": "{{count}} teams registered · Season {{season}}",
@@ -2893,7 +2984,8 @@
       "requests": "Requests",
       "matches": "Matches",
       "garments": "Garments",
-      "statistics": "Statistics"
+      "statistics": "Statistics",
+      "activity": "Activity"
     },
     "externalTeam": "Linked FOGIS team",
     "externalTeamPlaceholder": "Select FOGIS team",
@@ -3095,7 +3187,8 @@
       "overviewDescription": "Order of cards on each team overview.",
       "venues": "Venues",
       "venuesDescription": "Shared training venues for all teams."
-    }
+    },
+    "tabUnavailableInEdit": "Available in view mode only"
   },
   "dashboard": {
     "description": "A quick overview of your enabled plugins—open one below or from the sidebar.",
@@ -3256,7 +3349,12 @@
       "statusMixAria": "Share of active, completed, and cancelled requests"
     },
     "quickContext": {
-      "title": "Quick context"
+      "eyebrow": "Selected request",
+      "title": "Quick context",
+      "openFullProfile": "Open full request",
+      "mentionsHint": "Click to open",
+      "readMore": "Read more",
+      "showLess": "Show less"
     },
     "dashboardOpen": "{{count}} open",
     "dashboardExternal": "{{count}} external",
@@ -3348,8 +3446,10 @@
       "information": "Information",
       "properties": "Properties",
       "assignees": "Assignees",
-      "files": "Files"
+      "files": "Files",
+      "activity": "Activity"
     },
+    "tabUnavailableInEdit": "Available in view mode only",
     "settings": {
       "title": "Requests settings",
       "typesSection": "Request types",
@@ -3381,14 +3481,6 @@
       "intakeStepSubtitle": "Sizes and jersey details help us prepare the kit list.",
       "intakeNameHint": "Name of the person on the kit list",
       "contactStepPrefillHint": "Used if we need to reach you"
-    },
-    "quickContext": {
-      "eyebrow": "Selected request",
-      "title": "Quick context",
-      "openFullProfile": "Open full request",
-      "mentionsHint": "Click to open",
-      "readMore": "Read more",
-      "showLess": "Show less"
     },
     "responseDue": {
       "label": "Response due",
@@ -3651,11 +3743,22 @@
     "completionPartial": "Partially filled in",
     "completionComplete": "Fully filled in",
     "fitSummaryTitle": "Size summary",
-    "fitSummaryHint": "Counts per article, audience and size (status checkboxes ignored).",
+    "fitSummaryHint": "Aggregated sizes for supplier batch orders. Separate from the per-person Ordered checkboxes in the table above.",
+    "fitSummaryPublicHint": "Counts per article, line and size.",
     "fitSummaryFilled": "{{filled}} of {{total}} filled in",
     "fitSummaryNoSizes": "No sizes filled in yet",
     "fitSummaryAnyAudience": "—",
     "fitSummaryAnySize": "—",
+    "fitSummaryColumnAudience": "Line",
+    "fitSummaryColumnSize": "Size",
+    "fitSummaryColumnNeeded": "Need",
+    "fitSummaryColumnOrdered": "Ordered",
+    "fitSummaryColumnOrderedTitle": "Batch/supplier order (not per-person status)",
+    "fitSummaryColumnQtyOrdered": "Qty ord.",
+    "fitSummaryArticleOrderedAria": "Supplier order placed — all sizes for {{articleName}}",
+    "fitSummaryRowOrderedAria": "Supplier order placed — {{articleName}}, {{audience}}, size {{size}}",
+    "fitSummaryQtyOrderedAria": "Quantity ordered — {{articleName}}, {{audience}}, size {{size}}",
+    "fitSummarySaveFailed": "Could not save order status. Try again.",
     "importPersons": "Import names",
     "importPersonsTitle": "Import persons",
     "importPersonsDescription": "Add names to this list from a file or from Contacts tagged with a group.",
@@ -3743,7 +3846,7 @@
     "brand": "Brand",
     "sku": "Article no.",
     "skuPlaceholder": "e.g. ART-001",
-    "audience": "Audience",
+    "audience": "Line",
     "audiencePlaceholder": "Women / Men / Kids",
     "color": "Color",
     "colorPlaceholder": "e.g. Black",
@@ -3756,14 +3859,14 @@
     "variantCountLabel_one": "{{count}} variant",
     "variantCountLabel_other": "{{count}} variants",
     "variants": "Variants",
-    "variantsHelp": "Add audience, color and/or size rows with their own article number and stock quantity.",
+    "variantsHelp": "Add line, color and/or size rows with their own article number and stock quantity.",
     "addVariant": "Add variant",
     "duplicateVariant": "Duplicate variant",
     "removeVariant": "Remove variant",
     "deleteVariant": "Delete variant",
     "deleteVariantConfirm": "Are you sure you want to remove this variant?",
     "noVariantsYet": "No variants yet.",
-    "variantIdentityDuplicateWarning": "Variants sharing the same audience, color and size",
+    "variantIdentityDuplicateWarning": "Variants sharing the same line, color and size",
     "variantSkuDuplicateWarning": "Variants sharing the same article number",
     "description": "Description",
     "material": "Material",
@@ -3823,12 +3926,10 @@
     "defaultColumns": "Default columns",
     "defaultColumnsHelp": "How many columns cards use by default (1 = full width, 2 = half, 3 = one third).",
     "jerseyDuplicateWarning": "Some persons share the same jersey number. You can still save.",
-    "jerseyDuplicateThisPerson": "Duplicate number on this list",
     "noPersons": "No persons on this list yet.",
     "addPerson": "Add person",
     "quickAdd": "Quick person",
     "quickAddPlaceholder": "Add person...",
-    "filterAll": "All",
     "deletePerson": "Delete person",
     "deletePersonConfirm": "Remove this person from the list?",
     "shareList": "Share list",
@@ -3848,7 +3949,7 @@
     "deleteListConfirmGeneric": "Delete this list? This cannot be undone.",
     "deleteInventoryConfirm": "Delete \"{{name}}\"? This cannot be undone.",
     "deleteInventoryConfirmGeneric": "Delete this inventory item? This cannot be undone.",
-    "deleteInventoryConfirmAssigned": "Delete \"{{name}}\"? It is shown on {{count}} list(s). Deleting removes it from those lists and clears Ordered/Delivered/Handed out (and size/audience) for this article. This cannot be undone.",
+    "deleteInventoryConfirmAssigned": "Delete \"{{name}}\"? It is shown on {{count}} list(s). Deleting removes it from those lists and clears Ordered/Delivered/Handed out (and size/line) for this article. This cannot be undone.",
     "deleteInventoryAssigned": "Cannot delete while this article is still linked to garment lists.",
     "deleteInventoryFailed": "Failed to delete inventory item.",
     "publicInvalidLink": "Invalid share link",
@@ -3863,6 +3964,7 @@
     "settingsInventorySubtitle": "Manage tags, table columns, and import inventory items.",
     "settingsLists": "Lists – Settings",
     "settingsListsSubtitle": "Manage person matrix columns for each garment list.",
+    "configurePersonColumns": "Person columns",
     "tags": "Tags",
     "noTags": "No tags",
     "noTagsYet": "No tags yet.",
@@ -3897,8 +3999,17 @@
       "customColumnsListHint": "Choose which garment list to configure.",
       "customColumnsListPlaceholder": "Select a list",
       "identityColumns": "Identity columns",
-      "identityColumnsHint": "Drag to reorder. Toggle to show or hide. Name is always visible. Team, jersey name, initials and number default on.",
+      "identityColumnsHint": "Drag to reorder. Toggle to show or hide. Name is always visible.",
       "importDescription": "Import inventory items from CSV or Excel."
-    }
+    },
+    "tabs": {
+      "information": "Information",
+      "properties": "Properties",
+      "variants": "Variants",
+      "lists": "Lists",
+      "activity": "Activity"
+    },
+    "tabUnavailableInEdit": "Available in view mode only",
+    "activity": "Activity"
   }
 }

@@ -7,11 +7,23 @@ const ServiceManager = require('../../server/core/ServiceManager');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 const {
   registerPublicShareRoute,
+  resolvePublicShareTenantFromToken,
   RESOURCE_ESTIMATE,
 } = require('../../server/core/services/publicShareRouting');
 const {
   resolveTenantConnectionStringForShare,
 } = require('../../server/core/utils/shareRoutingHelper');
+const { calculateEstimateTotals, normalizeEstimateLineItems } = require('./estimateTotals');
+const {
+  resolveEstimateNumbering,
+  buildInvoiceNumberMatchRegex,
+  buildInvoiceNumber,
+  parseSequenceFromInvoiceNumber,
+} = require('./estimateNumbering');
+const { assertClientEstimateStatus } = require('./estimateStatus');
+const { isPluginEnabledForRequest } = require('./pluginAccess');
+const { calculateInvoiceTotals } = require('../invoices/invoiceTotals');
+const InvoiceModel = require('../invoices/model');
 
 class EstimateModel {
   constructor() {
@@ -35,35 +47,24 @@ class EstimateModel {
   }
 
   calculateTotals(lineItems, estimateDiscount = 0) {
-    let subtotal = 0;
-    let totalDiscount = 0;
-    let totalVat = 0;
+    return calculateEstimateTotals(lineItems, estimateDiscount);
+  }
 
-    lineItems.forEach((item) => {
-      const lineSubtotal = item.quantity * item.unitPrice;
-      const discountAmount = lineSubtotal * (item.discount / 100);
-      const lineSubtotalAfterDiscount = lineSubtotal - discountAmount;
-      const vatAmount = lineSubtotalAfterDiscount * (item.vatRate / 100);
-
-      subtotal += lineSubtotal;
-      totalDiscount += discountAmount;
-      totalVat += vatAmount;
-    });
-
-    const subtotalAfterDiscount = subtotal - totalDiscount;
-    const estimateDiscountAmount = subtotalAfterDiscount * (estimateDiscount / 100);
-    const subtotalAfterEstimateDiscount = subtotalAfterDiscount - estimateDiscountAmount;
-    const total = subtotalAfterEstimateDiscount + totalVat;
-
-    return {
-      subtotal: Math.round(subtotal * 100) / 100,
-      totalDiscount: Math.round(totalDiscount * 100) / 100,
-      subtotalAfterDiscount: Math.round(subtotalAfterDiscount * 100) / 100,
-      estimateDiscountAmount: Math.round(estimateDiscountAmount * 100) / 100,
-      subtotalAfterEstimateDiscount: Math.round(subtotalAfterEstimateDiscount * 100) / 100,
-      totalVat: Math.round(totalVat * 100) / 100,
-      total: Math.round(total * 100) / 100,
-    };
+  async _loadEstimateNumbering(req) {
+    const context = this._getContext(req);
+    const userId = context.userId;
+    try {
+      const SettingsModel = require('../settings/model');
+      const settingsModel = new SettingsModel(ServiceManager.getMainPool());
+      const settings = await settingsModel.getCategory(userId, 'estimates');
+      return resolveEstimateNumbering(settings);
+    } catch (error) {
+      Logger.warn('Failed to load estimate numbering settings; using defaults', {
+        error: error?.message,
+        userId,
+      });
+      return resolveEstimateNumbering(null);
+    }
   }
 
   transformRow(row) {
@@ -107,6 +108,8 @@ class EstimateModel {
       lineItems: lineItems,
       estimateDiscount: parseFloat(row.estimate_discount || 0),
       notes: row.notes || '',
+      orderNumber: row.order_number || '',
+      deliveryMethod: row.delivery_method || '',
       validTo: row.valid_to,
       subtotal: parseFloat(row.subtotal || 0),
       totalDiscount: parseFloat(row.total_discount || 0),
@@ -126,40 +129,56 @@ class EstimateModel {
 
   async getNextEstimateNumber(req) {
     try {
-      const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
       const pool = context.pool;
+      const { numberPrefix, numberStart, includeYear } = await this._loadEstimateNumbering(req);
 
-      // Use direct pool for transaction (database.transaction doesn't support this pattern yet)
       const client = await pool.connect();
 
       try {
         await client.query('BEGIN');
 
         const currentYear = new Date().getFullYear();
+        const matchRegex = buildInvoiceNumberMatchRegex(numberPrefix, currentYear, includeYear);
         let attempts = 0;
         const maxAttempts = 100;
 
         do {
           const result = await client.query(
             `
-            SELECT estimate_number 
-            FROM estimates 
-            WHERE estimate_number LIKE $1
-            ORDER BY estimate_number DESC 
+            SELECT estimate_number
+            FROM estimates
+            WHERE estimate_number ~ $1
+            ORDER BY COALESCE(
+              NULLIF(substring(estimate_number from '[0-9]+$'), '')::int,
+              0
+            ) DESC
             LIMIT 1
           `,
-            [`${currentYear}-%`],
+            [matchRegex],
           );
 
-          let nextNumber = 1;
-          if (result.rows.length > 0) {
-            const lastNumber = result.rows[0].estimate_number;
-            const numberPart = parseInt(lastNumber.split('-')[1]);
-            nextNumber = numberPart + 1;
+          let nextNumber = numberStart;
+          if (result.rows.length > 0 && result.rows[0].estimate_number) {
+            const parsed = parseSequenceFromInvoiceNumber(
+              result.rows[0].estimate_number,
+              numberPrefix,
+              currentYear,
+              includeYear,
+            );
+            if (parsed != null) {
+              nextNumber = Math.max(parsed + 1, numberStart);
+            }
           }
 
-          const estimateNumber = `${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+          nextNumber += attempts;
+
+          const estimateNumber = buildInvoiceNumber(
+            numberPrefix,
+            currentYear,
+            nextNumber,
+            includeYear,
+          );
 
           const checkResult = await client.query(
             'SELECT id FROM estimates WHERE estimate_number = $1',
@@ -171,8 +190,9 @@ class EstimateModel {
             return estimateNumber;
           }
 
-          attempts++;
+          attempts += 1;
           if (attempts >= maxAttempts) {
+            await client.query('ROLLBACK');
             throw new AppError(
               'Could not find available estimate number',
               500,
@@ -181,7 +201,11 @@ class EstimateModel {
           }
         } while (true);
       } catch (error) {
-        await client.query('ROLLBACK');
+        try {
+          await client.query('ROLLBACK');
+        } catch (_) {
+          /* ignore */
+        }
         throw error;
       } finally {
         client.release();
@@ -201,6 +225,8 @@ class EstimateModel {
       const db = Database.get(req);
 
       const estimateNumber = estimateData.estimateNumber || (await this.getNextEstimateNumber(req));
+      const lineItems = normalizeEstimateLineItems(estimateData.lineItems || []);
+      const status = assertClientEstimateStatus(estimateData.status, 'draft');
       const {
         subtotal,
         totalDiscount,
@@ -209,7 +235,7 @@ class EstimateModel {
         subtotalAfterEstimateDiscount,
         totalVat,
         total,
-      } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
+      } = this.calculateTotals(lineItems, estimateData.estimateDiscount || 0);
 
       const result = await db.insert('estimates', {
         estimate_number: estimateNumber,
@@ -217,9 +243,11 @@ class EstimateModel {
         contact_name: estimateData.contactName || '',
         organization_number: estimateData.organizationNumber || '',
         currency: estimateData.currency || 'SEK',
-        line_items: JSON.stringify(estimateData.lineItems || []),
+        line_items: JSON.stringify(lineItems),
         estimate_discount: estimateData.estimateDiscount || 0,
         notes: estimateData.notes || '',
+        order_number: estimateData.orderNumber || '',
+        delivery_method: estimateData.deliveryMethod || '',
         valid_to: estimateData.validTo || null,
         subtotal: subtotal,
         total_discount: totalDiscount,
@@ -228,13 +256,10 @@ class EstimateModel {
         subtotal_after_estimate_discount: subtotalAfterEstimateDiscount,
         total_vat: totalVat,
         total: total,
-        status: estimateData.status || 'draft',
+        status,
         acceptance_reasons: JSON.stringify(estimateData.acceptanceReasons || []),
         rejection_reasons: JSON.stringify(estimateData.rejectionReasons || []),
-        status_changed_at:
-          estimateData.status === 'accepted' || estimateData.status === 'rejected'
-            ? new Date()
-            : null,
+        status_changed_at: status === 'accepted' || status === 'rejected' ? new Date() : null,
       });
 
       Logger.info('Estimate created', { estimateId: result.id, estimateNumber });
@@ -288,10 +313,22 @@ class EstimateModel {
         throw new AppError('Estimate not found', 404, AppError.CODES.NOT_FOUND);
       }
 
-      const isStatusChanging = currentEstimate.status !== estimateData.status;
-      const isBecomingAcceptedOrRejected =
-        estimateData.status === 'accepted' || estimateData.status === 'rejected';
+      if (currentEstimate.status === 'invoiced') {
+        throw new AppError(
+          'Invoiced estimates cannot be edited',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
 
+      const nextStatus = assertClientEstimateStatus(
+        estimateData.status,
+        currentEstimate.status || 'draft',
+      );
+      const isStatusChanging = currentEstimate.status !== nextStatus;
+      const isBecomingAcceptedOrRejected = nextStatus === 'accepted' || nextStatus === 'rejected';
+
+      const lineItems = normalizeEstimateLineItems(estimateData.lineItems || []);
       const {
         subtotal,
         totalDiscount,
@@ -300,16 +337,18 @@ class EstimateModel {
         subtotalAfterEstimateDiscount,
         totalVat,
         total,
-      } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
+      } = this.calculateTotals(lineItems, estimateData.estimateDiscount || 0);
 
       const result = await db.update('estimates', estimateId, {
         contact_id: estimateData.contactId || null,
         contact_name: estimateData.contactName || '',
         organization_number: estimateData.organizationNumber || '',
         currency: estimateData.currency || 'SEK',
-        line_items: JSON.stringify(estimateData.lineItems || []),
+        line_items: JSON.stringify(lineItems),
         estimate_discount: estimateData.estimateDiscount || 0,
         notes: estimateData.notes || '',
+        order_number: estimateData.orderNumber ?? currentEstimate.orderNumber ?? '',
+        delivery_method: estimateData.deliveryMethod ?? currentEstimate.deliveryMethod ?? '',
         valid_to: estimateData.validTo || null,
         subtotal: subtotal,
         total_discount: totalDiscount,
@@ -318,7 +357,7 @@ class EstimateModel {
         subtotal_after_estimate_discount: subtotalAfterEstimateDiscount,
         total_vat: totalVat,
         total: total,
-        status: estimateData.status || 'draft',
+        status: nextStatus,
         acceptance_reasons: JSON.stringify(estimateData.acceptanceReasons || []),
         rejection_reasons: JSON.stringify(estimateData.rejectionReasons || []),
         status_changed_at:
@@ -564,14 +603,19 @@ class EstimateModel {
 
   async getEstimateByShareToken(req, shareToken) {
     try {
-      const pool = req.tenantPool || this._getContext(req).pool;
+      await resolvePublicShareTenantFromToken(req, RESOURCE_ESTIMATE, shareToken);
+      if (!req.tenantPool) {
+        return null;
+      }
+      const pool = req.tenantPool;
 
       const result = await pool.query(
         `
         SELECT 
           e.*,
           es.accessed_count,
-          es.valid_until as share_valid_until
+          es.valid_until as share_valid_until,
+          e.user_id as share_owner_user_id
         FROM estimates e
         JOIN estimate_shares es ON e.id = es.estimate_id
         WHERE es.share_token = $1 AND es.valid_until > NOW()
@@ -598,6 +642,7 @@ class EstimateModel {
       const estimate = this.transformRow(row);
       estimate.shareValidUntil = row.share_valid_until;
       estimate.accessedCount = currentAccessCount + 1;
+      estimate.shareOwnerUserId = row.share_owner_user_id;
 
       return estimate;
     } catch (error) {
@@ -721,6 +766,222 @@ class EstimateModel {
     } catch (error) {
       Logger.error('Failed to clean expired shares', error);
       throw new AppError('Failed to clean expired shares', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async _allocateNextInvoiceNumberInTransaction(client, req) {
+    const invoiceModel = new InvoiceModel();
+    const { numberPrefix, numberStart, includeYear } = await invoiceModel._loadInvoiceNumbering(
+      req,
+      'invoice',
+    );
+    const currentYear = new Date().getFullYear();
+    const matchRegex = buildInvoiceNumberMatchRegex(numberPrefix, currentYear, includeYear);
+    let attempts = 0;
+    const maxAttempts = 100;
+
+    do {
+      const result = await client.query(
+        `
+        SELECT invoice_number
+        FROM invoices
+        WHERE invoice_number ~ $1
+        ORDER BY COALESCE(
+          NULLIF(substring(invoice_number from '[0-9]+$'), '')::int,
+          0
+        ) DESC
+        LIMIT 1
+      `,
+        [matchRegex],
+      );
+
+      let nextNumber = numberStart;
+      if (result.rows.length > 0 && result.rows[0].invoice_number) {
+        const parsed = parseSequenceFromInvoiceNumber(
+          result.rows[0].invoice_number,
+          numberPrefix,
+          currentYear,
+          includeYear,
+        );
+        if (parsed != null) {
+          nextNumber = Math.max(parsed + 1, numberStart);
+        }
+      }
+
+      nextNumber += attempts;
+
+      const invoiceNumber = buildInvoiceNumber(numberPrefix, currentYear, nextNumber, includeYear);
+
+      const checkResult = await client.query('SELECT id FROM invoices WHERE invoice_number = $1', [
+        invoiceNumber,
+      ]);
+
+      if (checkResult.rows.length === 0) {
+        return invoiceNumber;
+      }
+
+      attempts += 1;
+      if (attempts >= maxAttempts) {
+        throw new AppError(
+          'Failed to allocate unique invoice number',
+          500,
+          AppError.CODES.DATABASE_ERROR,
+        );
+      }
+    } while (true);
+  }
+
+  async convertToInvoice(req, estimateId) {
+    const invoicesEnabled = await isPluginEnabledForRequest(req, 'invoices');
+    if (!invoicesEnabled) {
+      throw new AppError('Invoices plugin is not enabled', 403, AppError.CODES.FORBIDDEN);
+    }
+
+    const context = this._getContext(req);
+    const pool = context.pool;
+    const userId = context.userId;
+    if (!userId) {
+      throw new AppError('User context required for convert', 400, AppError.CODES.BAD_REQUEST);
+    }
+    const client = await pool.connect();
+    const invoiceModel = new InvoiceModel();
+
+    try {
+      await client.query('BEGIN');
+
+      const existing = await client.query(
+        'SELECT id FROM invoices WHERE estimate_id = $1 LIMIT 1',
+        [estimateId],
+      );
+      if (existing.rows.length > 0) {
+        await client.query('ROLLBACK');
+        const conflict = new AppError(
+          'An invoice already exists for this estimate',
+          409,
+          AppError.CODES.CONFLICT,
+        );
+        conflict.existingInvoiceId = existing.rows[0].id.toString();
+        throw conflict;
+      }
+
+      const estimateResult = await client.query('SELECT * FROM estimates WHERE id = $1', [
+        estimateId,
+      ]);
+      if (!estimateResult.rows.length) {
+        await client.query('ROLLBACK');
+        throw new AppError('Estimate not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const estimateRow = estimateResult.rows[0];
+      if (estimateRow.status !== 'accepted') {
+        await client.query('ROLLBACK');
+        throw new AppError(
+          'Only accepted estimates can be converted to an invoice',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+
+      const lineItems = JSON.parse(JSON.stringify(this.transformRow(estimateRow).lineItems || []));
+      const invoiceDiscount = parseFloat(estimateRow.estimate_discount || 0);
+      const totals = calculateInvoiceTotals(lineItems, invoiceDiscount);
+      const invoiceNumber = await this._allocateNextInvoiceNumberInTransaction(client, req);
+
+      const contactId = estimateRow.contact_id;
+      const insertResult = await client.query(
+        `
+        INSERT INTO invoices (
+          invoice_number,
+          contact_id,
+          contact_name,
+          organization_number,
+          currency,
+          line_items,
+          invoice_discount,
+          notes,
+          payment_terms,
+          order_number,
+          delivery_method,
+          issue_date,
+          due_date,
+          invoice_type,
+          subtotal,
+          total_discount,
+          subtotal_after_discount,
+          invoice_discount_amount,
+          subtotal_after_invoice_discount,
+          total_vat,
+          total,
+          status,
+          paid_at,
+          amount_paid,
+          estimate_id,
+          user_id
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+          NULL, NULL, 'invoice',
+          $12, $13, $14, $15, $16, $17, $18,
+          'draft', NULL, 0, $19, $20
+        )
+        RETURNING *
+      `,
+        [
+          invoiceNumber,
+          contactId,
+          estimateRow.contact_name || '',
+          estimateRow.organization_number || '',
+          estimateRow.currency || 'SEK',
+          JSON.stringify(lineItems),
+          invoiceDiscount,
+          estimateRow.notes || '',
+          '',
+          estimateRow.order_number || '',
+          estimateRow.delivery_method || '',
+          totals.subtotal,
+          totals.totalDiscount,
+          totals.subtotalAfterDiscount,
+          totals.invoiceDiscountAmount,
+          totals.subtotalAfterInvoiceDiscount,
+          totals.totalVat,
+          totals.total,
+          estimateId,
+          userId,
+        ],
+      );
+
+      const updatedEstimateResult = await client.query(
+        `
+        UPDATE estimates
+        SET status = 'invoiced', status_changed_at = NOW(), updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING *
+      `,
+        [estimateId],
+      );
+
+      await client.query('COMMIT');
+
+      return {
+        estimate: this.transformRow(updatedEstimateResult.rows[0]),
+        invoice: invoiceModel.transformRow(insertResult.rows[0]),
+      };
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        /* ignore */
+      }
+      if (error instanceof AppError) {
+        throw error;
+      }
+      Logger.error('Failed to convert estimate to invoice', error, { estimateId });
+      throw new AppError(
+        'Failed to convert estimate to invoice',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
+    } finally {
+      client.release();
     }
   }
 }

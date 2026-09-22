@@ -83,10 +83,19 @@ describe('NoteList table view wiring', () => {
     expect(tableSrc).toMatch(/selectionEnabled/);
   });
 
+  test('create/edit form is not legacy panel settings', () => {
+    const formSrc = fs.readFileSync(path.join(__dirname, '../NoteForm.tsx'), 'utf8');
+    expect(formSrc).not.toMatch(/NoteSettingsForm/);
+    expect(formSrc).not.toMatch(/panelMode === 'settings'/);
+    expect(listSrc).toMatch(/NotesSettingsView/);
+    expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
+  });
+
   test('desktop create/edit renders NoteForm in the detail column', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/NoteForm/);
     expect(listSrc).toMatch(/InlinePanelFormActions/);
+    expect(listSrc).toMatch(/headerTrailing/);
     expect(listSrc).toMatch(/inlineFormRef/);
     expect(listSrc).toMatch(/isNotePanelOpen/);
     expect(listSrc).toMatch(/panelMode === 'create' \|\| panelMode === 'edit'/);
@@ -111,16 +120,16 @@ describe('NoteList table view wiring', () => {
     expect(quickContextSrc).toMatch(/NoteDetailHeaderMenus/);
     expect(quickContextSrc).toMatch(/leading=\{titleLeading\}/);
     expect(quickContextSrc).toMatch(/afterActions=\{afterHeaderActions\}/);
-    expect(quickContextSrc).toMatch(/children/);
+    expect(quickContextSrc).toMatch(/headerBelow/);
     expect(viewSrc).toMatch(/NoteQuickContextPanel/);
-    expect(quickContextSrc).toMatch(/children/);
+    expect(viewSrc).toMatch(/headerBelow=\{tabChips\}/);
     expect(viewSrc).not.toMatch(/leftSidebar=/);
     expect(viewSrc).not.toMatch(/focusMode/);
     expect(listSrc).not.toMatch(/NoteDetailHeaderMenus/);
     expect(listSrc).toMatch(/stacked/);
   });
 
-  test('full detail merges title header and content into one card', () => {
+  test('full detail uses tab panels for content mentions files and activity', () => {
     const viewSrc = fs.readFileSync(path.join(__dirname, '../NoteView.tsx'), 'utf8');
     const quickContextSrc = fs.readFileSync(
       path.join(__dirname, '../NoteQuickContextPanel.tsx'),
@@ -128,10 +137,14 @@ describe('NoteList table view wiring', () => {
     );
     expect(viewSrc).toMatch(/NoteQuickContextPanel/);
     expect(viewSrc).toMatch(/RichTextContent/);
+    expect(viewSrc).toMatch(/activeTab === 'information'/);
+    expect(viewSrc).toMatch(/activeTab === 'linked'/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
     expect(viewSrc).not.toMatch(/contentColumn/);
     expect(viewSrc).not.toMatch(/showTitleInContent/);
     expect(viewSrc).not.toMatch(/focusMode/);
-    expect(quickContextSrc).toMatch(/children/);
+    expect(quickContextSrc).toMatch(/headerBelow/);
+    expect(quickContextSrc).not.toMatch(/children\?:/);
   });
 
   test('bulk select mode shows BulkActionRoundBar under toolbar and keeps detail column visible', () => {

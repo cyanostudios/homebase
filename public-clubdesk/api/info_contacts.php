@@ -72,7 +72,8 @@ function transformInfoContact(array $row): array
 try {
     $cacheTtl = (int) (getenv('APP_CACHE_TTL') ?: 0);
     $cacheEnabled = $cacheTtl > 0 && function_exists('apcu_fetch') && filter_var(ini_get('apc.enabled'), FILTER_VALIDATE_BOOLEAN);
-    $cacheKey = 'public_clubdesk_info_contacts_v1';
+    // v2: empty payload when contacts card meta.visible === false
+    $cacheKey = 'public_clubdesk_info_contacts_v2';
 
     if ($cacheEnabled) {
         $cached = apcu_fetch($cacheKey, $ok);
@@ -86,11 +87,13 @@ try {
     }
 
     $pdo = getPdoFromEnv();
-    $sql = publicAppInfoContactsSql($pdo);
     $items = [];
-    if ($sql !== null) {
-        $stmt = $pdo->query($sql);
-        $items = array_map('transformInfoContact', $stmt->fetchAll());
+    if (publicAppCardVisible($pdo, 'contacts')) {
+        $sql = publicAppInfoContactsSql($pdo);
+        if ($sql !== null) {
+            $stmt = $pdo->query($sql);
+            $items = array_map('transformInfoContact', $stmt->fetchAll());
+        }
     }
 
     $payload = ['items' => $items];

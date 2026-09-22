@@ -80,19 +80,16 @@ export interface InvoicesContextType {
   getDeleteMessage: (item: Invoice | null) => string;
   invoiceShare: InvoiceShare | null;
   isCreatingInvoiceShare: boolean;
-  showCreateInvoiceShareModal: boolean;
-  setShowCreateInvoiceShareModal: (show: boolean) => void;
   showInvoiceShareDialog: boolean;
   setShowInvoiceShareDialog: (show: boolean) => void;
-  shareValidUntil: string;
-  setShareValidUntil: (value: string) => void;
+  /** Load active share for an invoice (soft preview + panel view). */
+  syncInvoiceShareForInvoice: (invoiceId: string | null | undefined) => Promise<void>;
   openCreateInvoiceShare: () => void;
   openInvoiceShareForItem: (invoice: Invoice) => Promise<void>;
   openInvoiceShareDialog: () => void;
-  handleCreateInvoiceShare: () => Promise<void>;
   handleCopyInvoiceShareUrl: () => void;
   handleRevokeInvoiceShare: () => Promise<void>;
-  /** Invoice used for share create/dialog when opened from list quick context. */
+  /** Invoice used for share dialog when opened from list soft preview. */
   shareTargetInvoice: Invoice | null;
   getDuplicateConfig: (
     item: Invoice | null,
@@ -162,16 +159,12 @@ const EMPTY_INVOICES_CONTEXT: InvoicesContextType = {
   getDeleteMessage: () => '',
   invoiceShare: null,
   isCreatingInvoiceShare: false,
-  showCreateInvoiceShareModal: false,
-  setShowCreateInvoiceShareModal: () => {},
   showInvoiceShareDialog: false,
   setShowInvoiceShareDialog: () => {},
-  shareValidUntil: '',
-  setShareValidUntil: () => {},
+  syncInvoiceShareForInvoice: async () => {},
   openCreateInvoiceShare: () => {},
   openInvoiceShareForItem: async () => {},
   openInvoiceShareDialog: () => {},
-  handleCreateInvoiceShare: async () => {},
   handleCopyInvoiceShareUrl: () => {},
   handleRevokeInvoiceShare: async () => {},
   shareTargetInvoice: null,

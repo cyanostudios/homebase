@@ -2,6 +2,7 @@ import {
   BarChart2,
   CalendarDays,
   Circle,
+  History,
   Inbox,
   LayoutGrid,
   Mail,
@@ -21,11 +22,12 @@ import { useApp } from '@/core/api/AppContext';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   DETAIL_EMPTY_STATE_CLASS,
-  DETAIL_INFO_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
@@ -77,7 +79,8 @@ type TeamViewTab =
   | 'requests'
   | 'matches'
   | 'garments'
-  | 'statistics';
+  | 'statistics'
+  | 'activity';
 
 const TEAM_VIEW_TABS: TeamViewTab[] = [
   'overview',
@@ -89,6 +92,7 @@ const TEAM_VIEW_TABS: TeamViewTab[] = [
   'matches',
   'garments',
   'statistics',
+  'activity',
 ];
 
 function parseTeamViewTab(value: string | null): TeamViewTab {
@@ -315,6 +319,7 @@ export function TeamView({
             },
           ]
         : []),
+      { id: 'activity' as const, label: t('teams.tabs.activity'), icon: History },
     ],
     [
       hasGarmentsPlugin,
@@ -532,38 +537,7 @@ export function TeamView({
 
   return (
     <>
-      <DetailLayout
-        gridClassName="grid-cols-1"
-        sidebar={
-          <div className="space-y-4">
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('teams.form.detailsSection')}
-                subtleTitle
-                className="p-4"
-                collapsible
-              >
-                <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('teams.form.ageGroupLabel')}
-                    </span>
-                    <span className="font-extrabold text-foreground">{team.age_group || '—'}</span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('teams.form.playingFormatLabel')}
-                    </span>
-                    <span className="font-extrabold text-foreground">
-                      {team.playing_format || '—'}
-                    </span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-          </div>
-        }
-      >
+      <DetailLayout gridClassName="grid-cols-1">
         <div className="space-y-3">
           <TeamQuickContextPanel
             team={team}
@@ -680,6 +654,18 @@ export function TeamView({
                 <TeamMatchStatsSection teamId={team.id} teamName={teamLabel} />
               </DetailSection>
             </Card>
+          )}
+
+          {activeTab === 'activity' && (
+            <DetailActivityLog
+              entityType="team"
+              entityId={team.id}
+              limit={30}
+              title={t('teams.activity')}
+              showClearButton
+              refreshKey={String(team.updated_at ?? team.id)}
+              systemId={formatDisplayNumber('teams', team.id)}
+            />
           )}
         </div>
       </DetailLayout>

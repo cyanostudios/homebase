@@ -144,7 +144,7 @@ export function MatchList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openMatchPanel(null)),
-    onSettings: () => openMatchSettings(),
+    onSettings: () => attemptNavigation(() => openMatchSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -681,7 +681,6 @@ export function MatchList() {
           <MatchSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
             onClose={closeMatchSettingsView}
           />
         </div>
@@ -777,7 +776,7 @@ export function MatchList() {
                       icon={Settings}
                       label={t('matches.settings')}
                       variant="soft"
-                      onClick={() => openMatchSettings()}
+                      onClick={() => attemptNavigation(() => openMatchSettings())}
                     />
                     <ExpandableIconButton
                       icon={BarChart2}
@@ -908,8 +907,13 @@ export function MatchList() {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <MatchForm
+                    ref={inlineFormRef}
+                    currentMatch={currentMatch}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeMatchPanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -918,16 +922,10 @@ export function MatchList() {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <MatchForm
-                      ref={inlineFormRef}
-                      currentMatch={currentMatch}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeMatchPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailMatch ? (
                   <MatchView match={detailMatch} stacked />
                 ) : (

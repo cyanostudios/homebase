@@ -1,6 +1,7 @@
 import {
   Globe,
   Hash,
+  History,
   Info,
   Link2,
   Mail,
@@ -32,6 +33,8 @@ import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -63,17 +66,20 @@ interface ContactViewProps {
   stacked?: boolean;
 }
 
-type ContactViewTab = 'information' | 'properties' | 'addresses' | 'persons' | 'linked';
+type ContactViewTab = 'information' | 'addresses' | 'persons' | 'linked' | 'activity';
 
 const CONTACT_VIEW_TABS: ContactViewTab[] = [
   'information',
-  'properties',
   'addresses',
   'persons',
   'linked',
+  'activity',
 ];
 
 function parseContactViewTab(value: string | null): ContactViewTab {
+  if (value === 'properties') {
+    return 'information';
+  }
   if (value && CONTACT_VIEW_TABS.includes(value as ContactViewTab)) {
     return value as ContactViewTab;
   }
@@ -187,12 +193,6 @@ export const ContactView = React.memo(function ContactView({
         count: null as number | null,
       },
       {
-        id: 'properties' as const,
-        label: t('contacts.tabs.properties'),
-        icon: SlidersHorizontal,
-        count: null as number | null,
-      },
-      {
         id: 'addresses' as const,
         label: t('contacts.tabs.addresses'),
         icon: MapPin,
@@ -208,6 +208,12 @@ export const ContactView = React.memo(function ContactView({
         id: 'linked' as const,
         label: t('contacts.tabs.linked'),
         icon: Link2,
+        count: null as number | null,
+      },
+      {
+        id: 'activity' as const,
+        label: t('contacts.tabs.activity'),
+        icon: History,
         count: null as number | null,
       },
     ],
@@ -656,10 +662,22 @@ export const ContactView = React.memo(function ContactView({
           <ContactQuickContextPanel contact={contact} headerBelow={tabChips} />
 
           {activeTab === 'information' ? informationCard : null}
-          {activeTab === 'properties' ? propertiesCard : null}
+
+          {activeTab === 'information' ? propertiesCard : null}
           {activeTab === 'addresses' ? addressesCard : null}
           {activeTab === 'persons' ? personsCard : null}
           {activeTab === 'linked' ? linkedCard : null}
+          {activeTab === 'activity' ? (
+            <DetailActivityLog
+              entityType="contact"
+              entityId={contact.id}
+              limit={30}
+              title={t('contacts.activity')}
+              showClearButton
+              refreshKey={String(contact.updatedAt ?? contact.id)}
+              systemId={formatDisplayNumber('contacts', contact.id)}
+            />
+          ) : null}
         </div>
       </DetailLayout>
 

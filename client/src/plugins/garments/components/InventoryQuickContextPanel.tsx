@@ -1,23 +1,45 @@
-import { Hash, Minus, Plus, ShoppingBag, Shirt, Tag } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Hash,
+  History,
+  Info,
+  Layers,
+  List,
+  Minus,
+  Package,
+  Plus,
+  ShoppingBag,
+  SlidersHorizontal,
+  Tag,
+} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { DetailHeaderMetaRow } from '@/core/ui/DetailHeaderMenus';
+import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_FIELD_LABEL_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
+  DETAIL_PROP_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { FORM_COMPACT_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
-import { useGarments } from '../hooks/useGarments';
 import type { InventoryItem, InventoryVariant } from '../types/garments';
 import { findDuplicateVariantIndices } from '../utils/inventoryValidation';
 import {
@@ -27,9 +49,21 @@ import {
 } from '../utils/variantListStyles';
 
 import { InventoryDetailHeaderMenus } from './GarmentDetailHeaderMenus';
+import { InventoryListAssignmentCheckboxes } from './InventoryListAssignmentCheckboxes';
 
-const FACT_LABEL_CLASS =
-  'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
+type InventoryViewTab = 'information' | 'variants' | 'lists' | 'activity';
+
+const INVENTORY_VIEW_TABS: InventoryViewTab[] = ['information', 'variants', 'lists', 'activity'];
+
+function parseInventoryViewTab(value: string | null): InventoryViewTab {
+  if (value === 'properties') {
+    return 'information';
+  }
+  if (value && INVENTORY_VIEW_TABS.includes(value as InventoryViewTab)) {
+    return value as InventoryViewTab;
+  }
+  return 'information';
+}
 
 function variantLabel(variant: InventoryVariant): string {
   const parts = [variant.audience?.trim(), variant.color?.trim(), variant.size?.trim()].filter(
@@ -146,24 +180,78 @@ export function InventoryQuickContextPanel({
   quantitySaving?: boolean;
 }) {
   const { t } = useTranslation();
-  const { garmentLists } = useGarments();
-  const updatedLabel = item.updatedAt
-    ? new Date(item.updatedAt).toLocaleString(undefined, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseInventoryViewTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: InventoryViewTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'information') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+
   const comment = item.comment?.trim() || '';
   const description = item.description?.trim() || '';
+  const material = item.material?.trim() || '';
   const variants = item.variants || [];
   const duplicateVariantIndices = useMemo(() => findDuplicateVariantIndices(variants), [variants]);
-  const assignedLists = useMemo(() => {
-    const ids = new Set((item.assignedListIds ?? []).map(String));
-    return garmentLists.filter((list) => ids.has(String(list.id)));
-  }, [garmentLists, item.assignedListIds]);
+  const variantCount = item.variantCount ?? variants.length;
+
+  const tabs = useMemo(
+    () => [
+      { id: 'information' as const, label: t('garments.tabs.information'), icon: Info },
+      {
+        id: 'variants' as const,
+        label: t('garments.tabs.variants'),
+        icon: Layers,
+        count: variantCount > 0 ? variantCount : null,
+      },
+      { id: 'lists' as const, label: t('garments.tabs.lists'), icon: List },
+      { id: 'activity' as const, label: t('garments.tabs.activity'), icon: History },
+    ],
+    [t, variantCount],
+  );
+
+  const tabChips = (
+    <div className={LIST_FILTER_CHIP_ROW_CLASS}>
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={isActive}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+          >
+            <TabIcon className="h-3.5 w-3.5" />
+            <span>
+              {tab.label}
+              {tab.count != null ? (
+                <>
+                  {' '}
+                  <span className="tabular-nums font-semibold">({tab.count})</span>
+                </>
+              ) : null}
+            </span>
+          </Button>
+        );
+      })}
+    </div>
+  );
 
   const titleLeading = (
     <div className="flex min-w-0 items-center gap-2">
@@ -179,200 +267,215 @@ export function InventoryQuickContextPanel({
     </div>
   );
 
-  return (
-    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
-      <div className="border-b border-border/50 px-4 py-5">
-        <InventoryDetailHeaderMenus item={item} leading={titleLeading} />
-      </div>
+  const propertyRows: { label: string; value: string }[] = [
+    { label: t('garments.brand'), value: item.brand?.trim() || '—' },
+    {
+      label: t('garments.purchasePrice'),
+      value: formatPurchasePrice(item.purchasePrice, item.currency || 'SEK'),
+    },
+    ...(item.recommendedPrice != null && !Number.isNaN(item.recommendedPrice)
+      ? [
+          {
+            label: t('garments.recommendedPrice'),
+            value: formatPurchasePrice(item.recommendedPrice, item.currency || 'SEK'),
+          },
+        ]
+      : []),
+    ...(item.salePrice != null && !Number.isNaN(item.salePrice)
+      ? [
+          {
+            label: t('garments.salePrice'),
+            value: formatPurchasePrice(item.salePrice, item.currency || 'SEK'),
+          },
+        ]
+      : []),
+    { label: t('garments.totalQuantity'), value: String(item.totalQuantity ?? 0) },
+    { label: t('garments.variantCount'), value: String(variantCount) },
+    ...(material ? [{ label: t('garments.material'), value: material }] : []),
+  ];
 
-      <div className="min-w-0 space-y-4 overflow-x-hidden px-4 py-4">
-        {updatedLabel ? (
-          <p className="text-xs text-muted-foreground">
-            {t('common.updated')} {updatedLabel}
-          </p>
-        ) : null}
-
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+  const informationCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={t('garments.tabs.information')} icon={Info} subtleTitle className="p-6">
+        <div className="space-y-4">
           <div>
-            <div className={FACT_LABEL_CLASS}>
-              <Tag className="h-3 w-3" />
-              {t('garments.brand')}
-            </div>
-            <div className={DETAIL_FIELD_VALUE_CLASS}>{item.brand?.trim() || '—'}</div>
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('garments.description')}</div>
+            {description ? (
+              <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">{description}</p>
+            ) : (
+              <p className={cn(DETAIL_EMPTY_STATE_CLASS, 'mt-0.5')}>—</p>
+            )}
           </div>
           <div>
-            <div className={FACT_LABEL_CLASS}>
-              <ShoppingBag className="h-3 w-3" />
-              {t('garments.purchasePrice')}
-            </div>
-            <div className={DETAIL_FIELD_VALUE_CLASS}>
-              {formatPurchasePrice(item.purchasePrice, item.currency || 'SEK')}
-            </div>
-          </div>
-          {item.recommendedPrice != null && !Number.isNaN(item.recommendedPrice) ? (
-            <div>
-              <div className={FACT_LABEL_CLASS}>
-                <ShoppingBag className="h-3 w-3" />
-                {t('garments.recommendedPrice')}
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('garments.comment')}</div>
+            {comment ? (
+              <div className={cn(DETAIL_NOTE_CALLOUT_CLASS, 'mt-0.5')}>
+                <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
+                  {comment}
+                </p>
               </div>
-              <div className={DETAIL_FIELD_VALUE_CLASS}>
-                {formatPurchasePrice(item.recommendedPrice, item.currency || 'SEK')}
-              </div>
-            </div>
-          ) : null}
-          {item.salePrice != null && !Number.isNaN(item.salePrice) ? (
-            <div>
-              <div className={FACT_LABEL_CLASS}>
-                <ShoppingBag className="h-3 w-3" />
-                {t('garments.salePrice')}
-              </div>
-              <div className={DETAIL_FIELD_VALUE_CLASS}>
-                {formatPurchasePrice(item.salePrice, item.currency || 'SEK')}
-              </div>
-            </div>
-          ) : null}
-          <div>
-            <div className={FACT_LABEL_CLASS}>
-              <Hash className="h-3 w-3" />
-              {t('garments.totalQuantity')}
-            </div>
-            <div className={DETAIL_FIELD_VALUE_CLASS}>{item.totalQuantity ?? 0}</div>
-          </div>
-          <div>
-            <div className={FACT_LABEL_CLASS}>
-              <Hash className="h-3 w-3" />
-              {t('garments.variantCount')}
-            </div>
-            <div className={DETAIL_FIELD_VALUE_CLASS}>{item.variantCount ?? variants.length}</div>
+            ) : (
+              <p className={cn(DETAIL_EMPTY_STATE_CLASS, 'mt-0.5')}>—</p>
+            )}
           </div>
         </div>
-
-        {Array.isArray(item.tags) && item.tags.length > 0 ? (
-          <div>
-            <div className={FACT_LABEL_CLASS}>
-              <Tag className="h-3 w-3" />
-              {t('garments.tags')}
-            </div>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {item.tags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="outline"
-                  className="rounded-md border-border/60 bg-primary/5 text-xs font-extrabold text-primary"
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {assignedLists.length > 0 ? (
-          <div>
-            <div className={FACT_LABEL_CLASS}>
-              <Shirt className="h-3 w-3" />
-              {t('garments.assignToLists')}
-            </div>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {assignedLists.map((list) => (
-                <Badge
-                  key={list.id}
-                  variant="outline"
-                  className="rounded-md border-border/60 bg-primary/5 text-xs font-extrabold text-primary"
-                >
-                  {list.name || '—'}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {description ? (
-          <div>
-            <div className="mb-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                {t('garments.description')}
-              </span>
-            </div>
-            <p className="whitespace-pre-wrap text-sm text-foreground">{description}</p>
-          </div>
-        ) : null}
-
-        {comment ? (
-          <div>
-            <div className="mb-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                {t('garments.comment')}
-              </span>
-            </div>
-            <div className={DETAIL_NOTE_CALLOUT_CLASS}>
-              <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
-                {comment}
-              </p>
-            </div>
-          </div>
-        ) : null}
-
-        <div>
-          <div className="mb-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-              {t('garments.variants')}
-            </span>
-          </div>
-          {variants.length === 0 ? (
-            <p className={DETAIL_EMPTY_STATE_CLASS}>{t('garments.noVariantsYet')}</p>
-          ) : (
-            <div className="space-y-1">
-              {duplicateVariantIndices.identity.size > 0 ? (
-                <p className="text-sm text-destructive">
-                  {t('garments.variantIdentityDuplicateWarning')}
-                </p>
-              ) : null}
-              {duplicateVariantIndices.sku.size > 0 ? (
-                <p className="text-sm text-destructive">
-                  {t('garments.variantSkuDuplicateWarning')}
-                </p>
-              ) : null}
-              {variants.map((row, index) => {
-                const rowDup = duplicateVariantIndices.any.has(index);
-                const sku = row.sku?.trim() || '';
-                return (
-                  <div key={row.id} className={VARIANT_LIST_ROW_CLASS}>
-                    <span
-                      className={
-                        rowDup ? VARIANT_WARNING_DOT_CLASS : VARIANT_WARNING_DOT_PLACEHOLDER_CLASS
-                      }
-                      aria-hidden={!rowDup}
-                      title={rowDup ? t('garments.variantIdentityDuplicateWarning') : undefined}
-                    />
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <div className="min-w-0 flex-1 truncate text-xs">
-                        <span className="font-semibold text-foreground">{variantLabel(row)}</span>
-                        {sku ? (
-                          <span
-                            className={cn(
-                              'text-muted-foreground',
-                              duplicateVariantIndices.sku.has(index) && 'text-destructive',
-                            )}
-                          >
-                            {' · '}
-                            {sku}
-                          </span>
-                        ) : null}
-                      </div>
-                      <VariantQuantityEditor
-                        variant={row}
-                        disabled={quantitySaving}
-                        onQuantityChange={onVariantQuantityChange}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+      </DetailSection>
     </Card>
+  );
+
+  const propertiesCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('garments.details')}
+        icon={SlidersHorizontal}
+        subtleTitle
+        className="p-6"
+      >
+        <div className="space-y-4">
+          <div className="space-y-0">
+            {propertyRows.map((row) => (
+              <div key={row.label} className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">{row.label}</span>
+                <span className={cn(DETAIL_FIELD_VALUE_CLASS, 'sm:text-right')}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+          {Array.isArray(item.tags) && item.tags.length > 0 ? (
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('garments.tags')}
+              </span>
+              <div className="flex flex-wrap justify-end gap-1.5">
+                {item.tags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="outline"
+                    className="rounded-md border-border/60 bg-primary/5 text-xs font-extrabold text-primary"
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const variantsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('garments.variants')}
+        icon={Layers}
+        subtleTitle
+        className="p-4 sm:p-5"
+      >
+        {variants.length === 0 ? (
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('garments.noVariantsYet')}</p>
+        ) : (
+          <div className="space-y-1">
+            {duplicateVariantIndices.identity.size > 0 ? (
+              <p className="text-sm text-destructive">
+                {t('garments.variantIdentityDuplicateWarning')}
+              </p>
+            ) : null}
+            {duplicateVariantIndices.sku.size > 0 ? (
+              <p className="text-sm text-destructive">{t('garments.variantSkuDuplicateWarning')}</p>
+            ) : null}
+            {variants.map((row, index) => {
+              const rowDup = duplicateVariantIndices.any.has(index);
+              const sku = row.sku?.trim() || '';
+              return (
+                <div key={row.id} className={VARIANT_LIST_ROW_CLASS}>
+                  <span
+                    className={
+                      rowDup ? VARIANT_WARNING_DOT_CLASS : VARIANT_WARNING_DOT_PLACEHOLDER_CLASS
+                    }
+                    aria-hidden={!rowDup}
+                    title={rowDup ? t('garments.variantIdentityDuplicateWarning') : undefined}
+                  />
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <div className="min-w-0 flex-1 truncate text-xs">
+                      <span className="font-semibold text-foreground">{variantLabel(row)}</span>
+                      {sku ? (
+                        <span
+                          className={cn(
+                            'text-muted-foreground',
+                            duplicateVariantIndices.sku.has(index) && 'text-destructive',
+                          )}
+                        >
+                          {' · '}
+                          {sku}
+                        </span>
+                      ) : null}
+                    </div>
+                    <VariantQuantityEditor
+                      variant={row}
+                      disabled={quantitySaving}
+                      onQuantityChange={onVariantQuantityChange}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </DetailSection>
+    </Card>
+  );
+
+  const listsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={t('garments.assignToLists')} icon={Package} subtleTitle className="p-6">
+        <InventoryListAssignmentCheckboxes itemId={item.id} embedded />
+      </DetailSection>
+    </Card>
+  );
+
+  return (
+    <DetailLayout gridClassName="grid-cols-1">
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
+        <div className="border-b border-border/50 px-4 py-5">
+          <InventoryDetailHeaderMenus item={item} leading={titleLeading} />
+          <DetailHeaderMetaRow>
+            {item.brand?.trim() ? (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Tag className="h-3 w-3" aria-hidden />
+                {item.brand.trim()}
+              </span>
+            ) : null}
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Hash className="h-3 w-3" aria-hidden />
+              {t('garments.qty', { count: item.totalQuantity ?? 0 })}
+            </span>
+            {item.recommendedPrice != null && !Number.isNaN(item.recommendedPrice) ? (
+              <span className="inline-flex items-center gap-1 text-xs tabular-nums text-muted-foreground">
+                <ShoppingBag className="h-3 w-3" aria-hidden />
+                {formatPurchasePrice(item.recommendedPrice, item.currency || 'SEK')}
+              </span>
+            ) : null}
+          </DetailHeaderMetaRow>
+          <div className="mt-4">{tabChips}</div>
+        </div>
+      </Card>
+
+      {activeTab === 'information' ? informationCard : null}
+
+      {activeTab === 'information' ? propertiesCard : null}
+      {activeTab === 'variants' ? variantsCard : null}
+      {activeTab === 'lists' ? listsCard : null}
+      {activeTab === 'activity' ? (
+        <DetailActivityLog
+          entityType="inventory"
+          entityId={item.id}
+          limit={30}
+          title={t('garments.activity')}
+          showClearButton
+          refreshKey={String(item.updatedAt ?? item.id)}
+          systemId={formatDisplayNumber('garments', item.id)}
+        />
+      ) : null}
+    </DetailLayout>
   );
 }

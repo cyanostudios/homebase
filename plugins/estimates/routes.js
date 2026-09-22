@@ -49,6 +49,9 @@ function createEstimateRoutes(controller, context) {
   router.get('/public/:token', publicEndpointLimiter, (req, res) =>
     controller.getPublicEstimate(req, res),
   );
+  router.get('/public/:token/pdf', publicEndpointLimiter, (req, res) =>
+    controller.generatePublicPDF(req, res),
+  );
 
   // DELETE /api/estimates/batch - Bulk delete (MUST be before '/:id' route)
   router.delete(
@@ -58,6 +61,15 @@ function createEstimateRoutes(controller, context) {
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
+  );
+
+  router.post(
+    '/:id/convert-to-invoice',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res) => controller.convertToInvoice(req, res),
   );
 
   router.get('/:id', gate, (req, res) => controller.getEstimate(req, res));

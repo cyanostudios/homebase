@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
@@ -155,6 +157,16 @@ export const InstructionView: React.FC<InstructionViewProps> = ({ instruction, i
             )}
           </DetailSection>
         </Card>
+
+        <DetailActivityLog
+          entityType="instruction"
+          entityId={viewItem.id}
+          limit={30}
+          title={t('instructions.activity')}
+          showClearButton
+          refreshKey={String(viewItem.updatedAt ?? viewItem.id)}
+          systemId={formatDisplayNumber('instructions', viewItem.id)}
+        />
       </div>
     </DetailLayout>
   );

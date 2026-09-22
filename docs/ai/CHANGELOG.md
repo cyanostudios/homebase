@@ -2,6 +2,26 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Teams/Schedule/Matches UI Hygiene — docs sync (2026-09-22)
+
+Docs efter **QA Approved** + **Security Approved** för Teams/Schedule/Matches dead settings chrome (Matches `renderCategoryButtonsInline`, Schedule `ScheduleLockToggle` unused `iconClassName`; Teams already clean). Operator: [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](../PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §7 (Teams/Matches/Schedule on verified full-page list; Matches in dead-prop removal note). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-22 Teams/Schedule/Matches. **Working tree; local-first; ej prod-release.** Security: no new API/auth surface.
+
+## Cups/Clubdesk UI Hygiene — docs sync (2026-09-22)
+
+Docs efter **QA Approved** + **Security Approved** för Cups/Clubdesk dead settings chrome (`renderCategoryButtonsInline`, Cups `panelMode` utan `'settings'`, orphan Clubdesk settings API). Operator: [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](../PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §7 (Cups on verified full-page list; Clubdesk no settings shell), [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](../NEW_PLUGIN_INTEGRATION_CHECKLIST.md). ADR: [`adr/CLUBDESK_PLUGIN_ETAPP1.md`](adr/CLUBDESK_PLUGIN_ETAPP1.md) beslut 10 supersession. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-22 Cups/Clubdesk + historical 2026-08-07 `ClubdeskSettingsTab` note. **Local-first; ej prod-release.** Security: no new API/auth surface.
+
+## Tools UI Hygiene — docs sync (2026-09-22)
+
+Docs efter **QA Approved** + **Security Approved** för Tools (files/mail/pulses/ai-providers; ingest clean): Files dual `panelMode === 'settings'` path bort; settings via `FileSettingsView` / `filesContentView`; dead `renderCategoryButtonsInline` bort från Mail/Pulses/AI Providers routing. Operator: [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](../PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §7 (Files on verified full-page list; panel-legacy example no longer cites Files `FileForm`), [`FILES_PLUGIN.md`](../FILES_PLUGIN.md) UI conventions. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-22 Tools. **Local-first; ej prod-release.** Security: no new API/auth surface; cloud OAuth write path unchanged.
+
+## Estimates/Invoices UI Hygiene — docs sync (2026-09-22)
+
+Docs efter **QA Approved** + **Security Approved** för Estimates/Invoices: dead `renderCategoryButtonsInline` bort från settings views; `headerTrailing` + `InlinePanelFormActions` i form-header (mail-layout parity). Operator: [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) (verified list includes Estimates/Invoices), [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](../PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §7 (Estimates/Invoices full-page verified; no dead `renderCategoryButtonsInline`). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-22 Estimates/Invoices. **Local-first; ej prod-release.** Security: no new API/auth surface. Out-of-scope: same-commit carryover (garments fit-summary m.m.).
+
+## Contacts UI Hygiene — docs sync (2026-09-22)
+
+Docs efter **QA Approved** + **Security Approved** för Contacts legacy panel settings delete (`ContactSettingsForm`, orphan `ContactAssignmentRow`) och full-page-only settings via `ContactSettingsView` / `contactsContentView`. Operator: [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](../PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §7 (Contacts listed with Notes/Tasks as verified full-page). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-22 Contacts + historical 2026-08-09 settings link repaired. **Working tree; local-first; ej prod-release.** Security: no new API/auth surface.
+
 ## Clubdesk public installable PWA — docs sync (2026-09-17)
 
 ADR [`adr/CLUBDESK_PUBLIC_COMPANION.md`](adr/CLUBDESK_PUBLIC_COMPANION.md) decision **9** (manifest, icons, no SW) + Security note (IC-1/SP-1 oförändrade). README `public-clubdesk/` PWA + prod ops-checklista. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-17. **Local-first; ej prod-release.** Caddyfile SSR-rutter synkade med `router.php`.

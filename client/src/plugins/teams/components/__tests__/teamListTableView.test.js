@@ -4,6 +4,7 @@ const path = require('path');
 const listSrc = fs.readFileSync(path.join(__dirname, '../TeamList.tsx'), 'utf8');
 const tableSrc = fs.readFileSync(path.join(__dirname, '../TeamListTable.tsx'), 'utf8');
 const viewSrc = fs.readFileSync(path.join(__dirname, '../TeamView.tsx'), 'utf8');
+const settingsSrc = fs.readFileSync(path.join(__dirname, '../TeamsSettingsView.tsx'), 'utf8');
 const quickContextActionsSrc = fs.readFileSync(
   path.join(__dirname, '../../../../core/ui/QuickContextHeaderActions.tsx'),
   'utf8',
@@ -68,6 +69,14 @@ describe('TeamList table view wiring', () => {
     expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });
 
+  test('settings is full-page only; no legacy panel settings or inline category buttons', () => {
+    expect(listSrc).toMatch(/teamsContentView === 'settings'/);
+    expect(listSrc).toMatch(/TeamsSettingsView/);
+    expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
+    expect(settingsSrc).not.toMatch(/renderCategoryButtonsInline/);
+    expect(settingsSrc).not.toMatch(/panelMode === 'settings'/);
+  });
+
   test('list split view previews teams on wide screens without opening the global panel', () => {
     expect(listSrc).toMatch(/previewTeam/);
     expect(listSrc).toMatch(/TeamView/);
@@ -94,6 +103,7 @@ describe('TeamList table view wiring', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/TeamForm/);
     expect(listSrc).toMatch(/InlinePanelFormActions/);
+    expect(listSrc).toMatch(/headerTrailing/);
     expect(listSrc).toMatch(/inlineFormRef/);
     expect(listSrc).toMatch(/isTeamPanelOpen/);
     expect(listSrc).toMatch(/panelMode === 'create' \|\| panelMode === 'edit'/);

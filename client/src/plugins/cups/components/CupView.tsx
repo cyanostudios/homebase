@@ -1,11 +1,27 @@
-import { Download, Globe, Info, RotateCcw, SlidersHorizontal, Star, Trophy } from 'lucide-react';
+import {
+  Download,
+  Eye,
+  EyeOff,
+  Globe,
+  History,
+  Info,
+  RotateCcw,
+  ShieldCheck,
+  SlidersHorizontal,
+  Star,
+  Trophy,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { DetailHeaderMetaRow } from '@/core/ui/DetailHeaderMenus';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
@@ -16,6 +32,7 @@ import {
   LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
 import type { IngestSource } from '@/plugins/ingest/types/ingest';
@@ -27,11 +44,14 @@ import { CupDetailHeaderMenus } from './CupDetailHeaderMenus';
 import { CupPropertiesFields } from './CupPropertiesFields';
 import { CupRatings } from './CupRatings';
 
-type CupViewTab = 'information' | 'properties' | 'ratings' | 'ingest';
+type CupViewTab = 'information' | 'ratings' | 'ingest' | 'activity';
 
-const CUP_VIEW_TABS: CupViewTab[] = ['information', 'properties', 'ratings', 'ingest'];
+const CUP_VIEW_TABS: CupViewTab[] = ['information', 'ratings', 'ingest', 'activity'];
 
 function parseCupViewTab(value: string | null): CupViewTab {
+  if (value === 'properties') {
+    return 'information';
+  }
   if (value && CUP_VIEW_TABS.includes(value as CupViewTab)) {
     return value as CupViewTab;
   }
@@ -138,12 +158,6 @@ export function CupView({
         count: null as number | null,
       },
       {
-        id: 'properties' as const,
-        label: t('cups.tabs.properties'),
-        icon: SlidersHorizontal,
-        count: null as number | null,
-      },
-      {
         id: 'ratings' as const,
         label: t('cups.tabs.ratings'),
         icon: Star,
@@ -153,6 +167,12 @@ export function CupView({
         id: 'ingest' as const,
         label: t('cups.tabs.ingest'),
         icon: Download,
+        count: null as number | null,
+      },
+      {
+        id: 'activity' as const,
+        label: t('cups.tabs.activity'),
+        icon: History,
         count: null as number | null,
       },
     ],
@@ -207,6 +227,20 @@ export function CupView({
       <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>{current.name}</h3>
     </div>
   );
+
+  const updatedLabel = current.updated_at
+    ? new Date(current.updated_at).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
+  const locationLabel = current.location?.trim() || null;
+  const isVisible = displayCup.visible !== false;
+  const isSanctioned = displayCup.sanctioned !== false;
+  const isFeatured = displayCup.featured === true;
 
   const informationCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -322,23 +356,25 @@ export function CupView({
 
   const ingestCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection title={t('cups.columnIngest')} subtleTitle className="p-4" collapsible>
+      <DetailSection title={t('cups.columnIngest')} icon={Download} subtleTitle className="p-6">
         <div>
-          <div className={DETAIL_INFO_ROW_CLASS}>
-            <span className="text-slate-500 dark:text-slate-400">Source URL</span>
-            <span className="max-w-[170px] truncate font-extrabold text-foreground">
+          <div className={cn(DETAIL_INFO_ROW_CLASS, 'items-start gap-3')}>
+            <span className="shrink-0 text-slate-500 dark:text-slate-400">Source URL</span>
+            <span className="min-w-0 flex-1 break-all text-right font-extrabold text-foreground">
               {current.source_url || '—'}
             </span>
           </div>
-          <div className={DETAIL_INFO_ROW_CLASS}>
-            <span className="text-slate-500 dark:text-slate-400">Ingest source</span>
-            <span className="font-extrabold text-foreground">
+          <div className={cn(DETAIL_INFO_ROW_CLASS, 'items-start gap-3')}>
+            <span className="shrink-0 text-slate-500 dark:text-slate-400">Ingest source</span>
+            <span className="min-w-0 flex-1 break-all text-right font-extrabold text-foreground">
               {ingestSourceName(current.ingest_source_id)}
             </span>
           </div>
-          <div className={DETAIL_INFO_ROW_CLASS}>
-            <span className="text-slate-500 dark:text-slate-400">Ingest run</span>
-            <span className="font-extrabold text-foreground">{current.ingest_run_id || '—'}</span>
+          <div className={cn(DETAIL_INFO_ROW_CLASS, 'items-start gap-3')}>
+            <span className="shrink-0 text-slate-500 dark:text-slate-400">Ingest run</span>
+            <span className="min-w-0 flex-1 break-all text-right font-extrabold text-foreground">
+              {current.ingest_run_id || '—'}
+            </span>
           </div>
         </div>
       </DetailSection>
@@ -351,6 +387,34 @@ export function CupView({
         <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
           <div className="border-b border-border/50 px-4 py-5">
             <CupDetailHeaderMenus cup={current} leading={titleLeading} />
+            <DetailHeaderMetaRow>
+              {locationLabel ? (
+                <span className="min-w-0 text-xs text-muted-foreground">{locationLabel}</span>
+              ) : null}
+              {updatedLabel ? (
+                <p className="min-w-0 text-xs text-muted-foreground">
+                  {t('common.updated')} {updatedLabel}
+                </p>
+              ) : null}
+              <StatusOutlineBadge
+                icon={isVisible ? Eye : EyeOff}
+                className={
+                  isVisible ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.muted
+                }
+              >
+                {isVisible ? t('common.visible') : t('common.hidden')}
+              </StatusOutlineBadge>
+              {isSanctioned ? (
+                <StatusOutlineBadge icon={ShieldCheck} className={QC_STATUS_BADGE_COLORS.success}>
+                  {t('cups.propertySanctioned')}
+                </StatusOutlineBadge>
+              ) : null}
+              {isFeatured ? (
+                <StatusOutlineBadge icon={Star} className={QC_STATUS_BADGE_COLORS.success}>
+                  {t('cups.featured')}
+                </StatusOutlineBadge>
+              ) : null}
+            </DetailHeaderMetaRow>
             <div className="mt-4">{tabChips}</div>
           </div>
         </Card>
@@ -383,9 +447,20 @@ export function CupView({
           </Card>
         )}
         {activeTab === 'information' ? informationCard : null}
-        {activeTab === 'properties' ? propertiesCard : null}
+        {activeTab === 'information' ? propertiesCard : null}
         {activeTab === 'ratings' ? <CupRatings cupId={current.id} /> : null}
         {activeTab === 'ingest' ? ingestCard : null}
+        {activeTab === 'activity' ? (
+          <DetailActivityLog
+            entityType="cup"
+            entityId={current.id}
+            limit={30}
+            title={t('cups.activity')}
+            showClearButton
+            refreshKey={String(current.updated_at ?? current.id)}
+            systemId={formatDisplayNumber('cups', current.id)}
+          />
+        ) : null}
       </DetailLayout>
       <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}

@@ -1,3 +1,5 @@
+import { QC_STATUS_BADGE_COLORS, QC_TEAM_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+
 export type TeamStatus = 'active' | 'dormant' | 'break';
 export type TeamGender = 'boys' | 'girls' | 'mixed';
 export type TeamPlayingFormat = '3v3' | '5v5' | '7v7' | '9v9' | '11v11';
@@ -363,20 +365,20 @@ export const SERIES_TEAM_BADGE_STYLES: Record<TeamColor, string> = {
   purple: 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300',
   teal: 'bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300',
 };
-/** Pill badge classes per status. */
+/** Status outline colors per team status. */
 export const TEAM_STATUS_BADGES: Record<TeamStatus, string> = {
-  active: 'bg-emerald-100 text-emerald-700',
-  dormant: 'bg-amber-100 text-amber-700',
-  break: 'bg-gray-100 text-gray-600',
+  active: QC_TEAM_STATUS_BADGE_COLORS.active,
+  dormant: QC_TEAM_STATUS_BADGE_COLORS.dormant,
+  break: QC_TEAM_STATUS_BADGE_COLORS.break,
 };
 
-/** Pill badge classes per responsible role. */
+/** Status outline colors per responsible role. */
 export const RESPONSIBLE_ROLE_BADGES: Record<ResponsibleRole, string> = {
-  coach: 'bg-emerald-100 text-emerald-700',
-  team_leader: 'bg-blue-100 text-blue-700',
-  parent_contact: 'bg-purple-100 text-purple-700',
-  board_member: 'bg-orange-100 text-orange-700',
-  other: 'bg-gray-100 text-gray-600',
+  coach: QC_STATUS_BADGE_COLORS.success,
+  team_leader: QC_STATUS_BADGE_COLORS.info,
+  parent_contact: QC_STATUS_BADGE_COLORS.purple,
+  board_member: QC_STATUS_BADGE_COLORS.orange,
+  other: QC_STATUS_BADGE_COLORS.neutral,
 };
 
 export type SeasonBreakTiming = 'ongoing' | 'past' | 'upcoming';

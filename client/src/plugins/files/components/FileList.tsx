@@ -127,7 +127,7 @@ export const FileList: React.FC = () => {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openFilePanel(null)),
-    onSettings: () => openFileSettings(),
+    onSettings: () => attemptNavigation(() => openFileSettings()),
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -682,7 +682,7 @@ export const FileList: React.FC = () => {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={() => openFileSettings()}
+                      onClick={() => attemptNavigation(() => openFileSettings())}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle
@@ -806,8 +806,13 @@ export const FileList: React.FC = () => {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <FileForm
+                    ref={inlineFormRef}
+                    currentItem={currentFile}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeFilePanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -816,16 +821,10 @@ export const FileList: React.FC = () => {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <FileForm
-                      ref={inlineFormRef}
-                      currentItem={currentFile}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeFilePanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailFile ? (
                   <FileView file={detailFile} stacked />
                 ) : (

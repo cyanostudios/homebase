@@ -27,10 +27,60 @@ const SITE_CONTENT_API_URL =
   window.PUBLIC_APP_SITE_CONTENT_API_URL || `${API_BASE}/api/site_content.php`;
 const INFO_CONTACTS_API_URL =
   window.PUBLIC_APP_INFO_CONTACTS_API_URL || `${API_BASE}/api/info_contacts.php`;
+const BRANDING_API_URL = window.PUBLIC_APP_BRANDING_API_URL || `${API_BASE}/api/branding.php`;
 const Urls = window.ClubdeskListingUrls;
 
 if (!Urls) {
   throw new Error('ClubdeskListingUrls saknas — ladda /lib/listingUrls.js före app.js');
+}
+
+function applyOrgBranding(branding) {
+  const link = document.getElementById('org-brand-link');
+  const titleEl = document.getElementById('org-brand-title');
+  const markEl = document.getElementById('org-brand-mark');
+  if (!link || !titleEl) return;
+
+  const name = String(branding?.name || '').trim() || 'Clubdesk';
+  const logoUrl = String(branding?.logoUrl || '').trim();
+  const safeLogo = /^https?:\/\//i.test(logoUrl) ? logoUrl : '';
+
+  titleEl.textContent = name;
+  link.setAttribute('aria-label', `${name} startsida`);
+
+  const existingLogo = link.querySelector('img.brand__logo');
+  if (safeLogo) {
+    if (markEl) markEl.hidden = true;
+    if (existingLogo) {
+      existingLogo.src = safeLogo;
+      existingLogo.alt = name;
+    } else {
+      const img = document.createElement('img');
+      img.className = 'brand__logo';
+      img.src = safeLogo;
+      img.alt = name;
+      img.width = 120;
+      img.height = 40;
+      img.decoding = 'async';
+      link.insertBefore(img, link.firstChild);
+    }
+  } else {
+    if (existingLogo) existingLogo.remove();
+    if (markEl) {
+      markEl.hidden = false;
+      markEl.textContent = name.slice(0, 1).toUpperCase();
+    }
+  }
+}
+
+async function loadOrgBranding() {
+  try {
+    const res = await fetch(BRANDING_API_URL);
+    if (!res.ok) return;
+    const data = await res.json();
+    applyOrgBranding(data);
+  } catch {
+    // keep placeholder Clubdesk brand
+  }
 }
 
 const ICON_GUIDE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
@@ -213,11 +263,29 @@ function renderPriceListCard(item) {
 function renderInfoRow() {
   return renderOptionCard({
     href: '/info/',
-    title: 'Info',
+    title: 'Om',
     description: 'Om appen och föreningen',
     kind: 'info',
     spaTab: 'info',
   });
+}
+
+function isPublicInfoVisible(site) {
+  const info = site?.info;
+  if (!info || typeof info !== 'object') return true;
+  return info.visible !== false;
+}
+
+function isPublicContactsVisible(site) {
+  const contacts = site?.contacts;
+  if (!contacts || typeof contacts !== 'object') return true;
+  return contacts.visible !== false;
+}
+
+function isPublicSwishVisible(site) {
+  const swish = site?.swish;
+  if (!swish || typeof swish !== 'object') return true;
+  return swish.visible !== false;
 }
 
 function renderSwishRow() {
@@ -343,11 +411,34 @@ function renderConvPanel({ title, subtitle, bodyHtml, panelId }) {
 }
 
 /** Shared listing chrome: beige header + white sheet (Hem layout). */
-function renderPageChrome({ title, subtitleHtml, bodyHtml, headerId }) {
+function renderPageChrome({ title, subtitleHtml, bodyHtml, headerId, backHref }) {
+  const subtitle = subtitleHtml || '';
+  if (backHref) {
+    let copySubtitle = '';
+    if (subtitle) {
+      copySubtitle = subtitle.includes('home-header__text')
+        ? subtitle.replace(/class="([^"]*home-header__text[^"]*)"/, 'class="$1 guide-header__text"')
+        : subtitle;
+    }
+    return `
+    <header class="guide-header"${headerId ? ` id="${escapeHtml(headerId)}"` : ''}>
+      <div class="guide-header__copy">
+        <h1 class="guide-header__title">${escapeHtml(title)}</h1>
+        ${copySubtitle}
+      </div>
+      <a class="guide-back-btn" href="${escapeHtml(backHref)}" id="listing-back-btn" aria-label="Tillbaka">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      </a>
+    </header>
+    <div class="home-sheet">${bodyHtml}</div>`;
+  }
+
   return `
     <header class="home-header"${headerId ? ` id="${escapeHtml(headerId)}"` : ''}>
       <h1 class="home-header__title">${escapeHtml(title)}</h1>
-      ${subtitleHtml || ''}
+      ${subtitle}
     </header>
     <div class="home-sheet">${bodyHtml}</div>`;
 }
@@ -384,9 +475,9 @@ function renderHomeHub() {
   const rowCards = [
     ...guides.map(renderGuideOptionCard),
     ...priceLists.map(renderPriceListCard),
-    renderSwishRow(),
-    ...(infoContacts.length > 0 ? [renderKontaktRow()] : []),
-    renderInfoRow(),
+    ...(isPublicSwishVisible(site) ? [renderSwishRow()] : []),
+    ...(isPublicContactsVisible(site) && infoContacts.length > 0 ? [renderKontaktRow()] : []),
+    ...(isPublicInfoVisible(site) ? [renderInfoRow()] : []),
   ];
 
   const sections = [];
@@ -494,10 +585,22 @@ function renderInfoListing() {
   if (!container) return;
   const year = String(new Date().getFullYear());
   const site = window.__PUBLIC_APP_SITE_CONTENT__ || {};
+  const chrome = { backHref: '/' };
+
+  if (!isPublicInfoVisible(site)) {
+    container.innerHTML = renderPageChrome({
+      title: 'Om',
+      subtitleHtml: plainSubtitle('Den här sidan är inte tillgänglig just nu.'),
+      bodyHtml: `<section class="home-section" id="info"><div class="empty-state empty-state--inset">Om är dold</div></section>`,
+      ...chrome,
+    });
+    bindInfoBackButton(container);
+    return;
+  }
   const infoHtml = String(site.info?.contentHtml || '').trim();
   const infoTitle = String(site.info?.title || '').trim();
 
-  const title = infoTitle || 'Info';
+  const title = infoTitle || 'Om';
   let subtitleHtml;
   let bodyInner;
   if (infoHtml) {
@@ -518,7 +621,15 @@ function renderInfoListing() {
     title,
     subtitleHtml,
     bodyHtml: `<section class="home-section" id="info">${bodyInner}</section>`,
+    ...chrome,
   });
+  bindInfoBackButton(container);
+}
+
+function bindInfoBackButton(container) {
+  const backBtn = container?.querySelector('#listing-back-btn');
+  if (!backBtn) return;
+  bindSpaLink(backBtn, () => ({ tab: 'home', filter: 'Alla' }));
 }
 
 function applyFilter() {
@@ -606,7 +717,12 @@ async function loadItems() {
 
     const guidesData = await guidesRes.json();
     const priceData = await priceRes.json();
-    let siteData = { home: { contentHtml: '', title: '' }, info: { contentHtml: '', title: '' } };
+    let siteData = {
+      home: { contentHtml: '', title: '' },
+      info: { contentHtml: '', title: '', visible: true },
+      contacts: { visible: true },
+      swish: { visible: true },
+    };
     if (siteRes.ok) {
       try {
         const parsed = await siteRes.json();
@@ -618,6 +734,13 @@ async function loadItems() {
           info: {
             contentHtml: String(parsed?.info?.contentHtml || ''),
             title: String(parsed?.info?.title || ''),
+            visible: parsed?.info?.visible !== false,
+          },
+          contacts: {
+            visible: parsed?.contacts?.visible !== false,
+          },
+          swish: {
+            visible: parsed?.swish?.visible !== false,
           },
         };
       } catch {
@@ -718,4 +841,5 @@ syncBottomBar(getActiveTab());
 initBottomBar();
 initMenuDrawer();
 initPopState();
+loadOrgBranding();
 loadItems();

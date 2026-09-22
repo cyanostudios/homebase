@@ -7,7 +7,7 @@ import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
-import { resolveSlug } from '@/core/utils/slugUtils';
+import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { cupsApi } from '../api/cupsApi';
 import { CupDetailHeaderMenus } from '../components/CupDetailHeaderMenus';
@@ -49,7 +49,7 @@ export function CupsProvider({
 
   const [isCupPanelOpen, setIsCupPanelOpen] = useState(false);
   const [currentCup, setCurrentCup] = useState<Cup | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<CupValidationError>();
   const [cups, setCups] = useState<Cup[]>([]);
@@ -102,6 +102,8 @@ export function CupsProvider({
     return () => unregisterPanelCloseFunction('cups');
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeCupPanel]);
 
+  const cupsDeepLinkPathSyncedRef = useRef<string | null>(null);
+
   const openCupPanel = useCallback(
     (cup: Cup | null) => {
       clearCupSelection();
@@ -111,6 +113,8 @@ export function CupsProvider({
       setValidationErrors([]);
       onCloseOtherPanels();
       if (cup) {
+        const slug = buildSlug(cup, cups, 'name');
+        cupsDeepLinkPathSyncedRef.current = `/cups/${slug}`;
         navigateToItem(cup, cups, 'name');
       }
     },
@@ -126,6 +130,8 @@ export function CupsProvider({
       setValidationErrors([]);
       setQuickEditDraft(null);
       onCloseOtherPanels();
+      const slug = buildSlug(cup, cups, 'name');
+      cupsDeepLinkPathSyncedRef.current = `/cups/${slug}`;
       navigateToItem(cup, cups, 'name');
     },
     [navigateToItem, cups, onCloseOtherPanels, setValidationErrors],
@@ -159,9 +165,15 @@ export function CupsProvider({
     }
     const slug = segments[1] ?? '';
     if (!slug) {
+      cupsDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (cupsDeepLinkPathSyncedRef.current === pathKey) {
       return;
     }
     const item = resolveSlug(slug, cups, 'name');
+    cupsDeepLinkPathSyncedRef.current = pathKey;
     if (item) {
       openCupForViewRef.current(item as Cup);
     }

@@ -29,8 +29,6 @@ export type NotesSettingsCategory = 'import';
 interface NotesSettingsViewProps {
   selectedCategory?: NotesSettingsCategory;
   onSelectedCategoryChange?: (category: NotesSettingsCategory) => void;
-  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
 

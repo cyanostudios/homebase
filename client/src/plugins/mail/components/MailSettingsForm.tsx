@@ -1,4 +1,4 @@
-import { Info, Mail } from 'lucide-react';
+import { Info, Mail, SlidersHorizontal } from 'lucide-react';
 import React, { useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,9 +15,10 @@ import {
 import { Switch } from '@/components/ui/switch';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
 import { useMail } from '../hooks/useMail';
@@ -31,11 +32,19 @@ interface MailSettingsFormProps {
   onCancel?: () => void;
   onSaveSuccess?: () => void;
   stacked?: boolean;
+  headerTrailing?: React.ReactNode;
 }
 
 export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFormProps>(
   function MailSettingsForm(
-    { currentMail: currentMailProp, onSave, onCancel, onSaveSuccess, stacked = false },
+    {
+      currentMail: currentMailProp,
+      onSave,
+      onCancel,
+      onSaveSuccess,
+      stacked = false,
+      headerTrailing,
+    },
     ref,
   ) {
     const { t } = useTranslation();
@@ -169,49 +178,75 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
 
     const enabledId = `mail-${activeProviderKey || 'new'}-enabled`;
 
-    const formSidebar = currentMail ? (
-      <div className="space-y-4">
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection
-            title={t('mail.information', { defaultValue: 'Information' })}
-            icon={Info}
-            iconPlugin="mail"
-            className="p-4"
-            collapsible
-          >
-            <div className="space-y-4 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {t('mail.providerKey', { defaultValue: 'Key' })}
-                </span>
-                <span className="font-mono font-medium">{currentMail.providerKey}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t('common.created')}</span>
-                <span className="font-medium">
-                  {currentMail.createdAt
-                    ? new Date(currentMail.createdAt).toLocaleDateString()
-                    : '—'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t('common.updated')}</span>
-                <span className="font-medium">
-                  {currentMail.updatedAt
-                    ? new Date(currentMail.updatedAt).toLocaleDateString()
-                    : '—'}
-                </span>
-              </div>
-            </div>
-          </DetailSection>
-        </Card>
+    const titleLeading = activeProviderKey ? (
+      <div className="flex min-w-0 items-center gap-2">
+        <span title={t('nav.mail', { defaultValue: 'Mail' })} className="inline-flex shrink-0">
+          <SectionCategoryIcon
+            icon={Mail}
+            className="h-8 w-8 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-4 [&_svg]:w-4"
+          />
+        </span>
+        <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>{title}</h3>
       </div>
-    ) : undefined;
+    ) : null;
+
+    const stackedFormHeader =
+      stacked && headerTrailing && activeProviderKey ? (
+        <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-mail flex flex-col')}>
+          <div className="border-b border-border/50 px-4 py-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="min-w-0 flex-1">{titleLeading}</div>
+              <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+            </div>
+          </div>
+        </Card>
+      ) : null;
+
+    const formSidebar =
+      currentMail && !stacked ? (
+        <div className="space-y-4">
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection
+              title={t('mail.information', { defaultValue: 'Information' })}
+              icon={Info}
+              iconPlugin="mail"
+              className="p-4"
+              collapsible
+            >
+              <div className="space-y-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">
+                    {t('mail.providerKey', { defaultValue: 'Key' })}
+                  </span>
+                  <span className="font-mono font-medium">{currentMail.providerKey}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t('common.created')}</span>
+                  <span className="font-medium">
+                    {currentMail.createdAt
+                      ? new Date(currentMail.createdAt).toLocaleDateString()
+                      : '—'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t('common.updated')}</span>
+                  <span className="font-medium">
+                    {currentMail.updatedAt
+                      ? new Date(currentMail.updatedAt).toLocaleDateString()
+                      : '—'}
+                  </span>
+                </div>
+              </div>
+            </DetailSection>
+          </Card>
+        </div>
+      ) : undefined;
 
     return (
       <div className="plugin-mail">
         <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
           <div className="space-y-6">
+            {stackedFormHeader}
             {error ? (
               <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
                 <p className="text-sm text-destructive">{error}</p>
@@ -268,7 +303,17 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
 
             {activeProviderKey ? (
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title={title} icon={Mail} iconPlugin="mail" className="p-6">
+                <DetailSection
+                  title={
+                    stacked && headerTrailing
+                      ? t('mail.tabs.configuration', { defaultValue: 'Configuration' })
+                      : title
+                  }
+                  icon={stacked && headerTrailing ? SlidersHorizontal : Mail}
+                  iconPlugin="mail"
+                  className="p-6"
+                  subtleTitle={Boolean(stacked && headerTrailing)}
+                >
                   {settingsDescription ? (
                     <p className="mb-4 text-sm text-muted-foreground">{settingsDescription}</p>
                   ) : null}

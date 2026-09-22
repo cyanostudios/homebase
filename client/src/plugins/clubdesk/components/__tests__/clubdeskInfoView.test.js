@@ -14,10 +14,15 @@ describe('Clubdesk Info settings chrome', () => {
     expect(viewSrc).toMatch(/overflow-y-auto/);
     expect(viewSrc).toMatch(/PluginSettingsPageShell/);
     expect(viewSrc).toMatch(/DetailSection/);
+    expect(viewSrc).toMatch(/subtleTitle/);
     expect(viewSrc).toMatch(/SettingsHeaderSaveButton/);
     expect(viewSrc).toMatch(/md:hidden/);
     expect(viewSrc).not.toMatch(/bg-background/);
     expect(viewSrc).not.toMatch(/px-6 py-4/);
+    expect(viewSrc).not.toMatch(/siteContent\.subtitle/);
+    expect(viewSrc).not.toMatch(/cards\.homeHelp/);
+    expect(viewSrc).not.toMatch(/cards\.infoHelp/);
+    expect(viewSrc).not.toMatch(/infoVisibleHint/);
   });
 
   test('keeps home, info, contacts, and swish editors with existing save APIs', () => {
@@ -29,7 +34,37 @@ describe('Clubdesk Info settings chrome', () => {
     expect(viewSrc).toMatch(/ClubdeskSwishProfilesPanel/);
     expect(viewSrc).toMatch(/RichTextEditor/);
     expect(viewSrc).toMatch(/clubdesk-home-title/);
-    expect(viewSrc).toMatch(/clubdesk-info-title/);
+    expect(viewSrc).toMatch(/ClubdeskPublicVisibleSwitch/);
+    expect(viewSrc).toMatch(/titleAside=/);
+    expect(viewSrc).toMatch(/publicVisible=\{contactsVisible\}/);
+    expect(viewSrc).toMatch(/publicVisible=\{swishVisible\}/);
+    expect(viewSrc).toMatch(/cardKey: 'contacts'/);
+    expect(viewSrc).toMatch(/cardKey: 'swish'/);
+    expect(contactsSrc).toMatch(/ClubdeskPublicVisibleSwitch/);
+    expect(contactsSrc).toMatch(/titleAside=/);
+    expect(swishSrc).toMatch(/ClubdeskPublicVisibleSwitch/);
+    expect(swishSrc).toMatch(/titleAside=/);
+  });
+
+  test('home and info use Notes-style view mode with Actions → Edit', () => {
+    expect(viewSrc).toMatch(/DetailHeaderMenus/);
+    expect(viewSrc).toMatch(/RichTextContent/);
+    expect(viewSrc).toMatch(/common\.edit/);
+    expect(viewSrc).toMatch(/common\.headerActions/);
+    expect(viewSrc).toMatch(/common\.cancel/);
+    expect(viewSrc).toMatch(/setHomeMode\('edit'\)/);
+    expect(viewSrc).toMatch(/setInfoMode\('edit'\)/);
+    expect(viewSrc).toMatch(/setHomeMode\('view'\)/);
+    expect(viewSrc).toMatch(/setInfoMode\('view'\)/);
+    expect(viewSrc).toMatch(/emptyBody/);
+    expect(viewSrc).toMatch(/registerUnsavedChangesChecker\('clubdesk-info'/);
+    expect(viewSrc).toMatch(/handleCategoryChange/);
+    expect(viewSrc).toMatch(/initialHomeTitle/);
+    expect(viewSrc).toMatch(/setHomeTitle\(initialHomeTitle\)/);
+    expect(viewSrc).toMatch(/setInfoTitle\(initialInfoTitle\)/);
+    // Actions live in DetailSection `action` (same row as Hem/Om heading)
+    expect(viewSrc).toMatch(/action=\{[\s\S]*?DetailHeaderMenus[\s\S]*?homeEditActions/);
+    expect(viewSrc).toMatch(/action=\{[\s\S]*?DetailHeaderMenus[\s\S]*?infoEditActions/);
   });
 
   test('contacts panel keeps search, reorder, save, and delete', () => {
@@ -41,6 +76,8 @@ describe('Clubdesk Info settings chrome', () => {
     expect(contactsSrc).toMatch(/searchContact/);
     expect(contactsSrc).toMatch(/ConfirmDialog/);
     expect(contactsSrc).toMatch(/DetailSection/);
+    expect(contactsSrc).toMatch(/subtleTitle/);
+    expect(contactsSrc).not.toMatch(/infoContacts\.help/);
     expect(contactsSrc).toMatch(/RoundIconLabelButton/);
     expect(contactsSrc).toMatch(/QUICK_CONTEXT_LINK_TILE_CLASS/);
     expect(contactsSrc).toMatch(/DETAIL_LIST_ITEM_TITLE_CLASS/);
@@ -55,7 +92,9 @@ describe('Clubdesk Info settings chrome', () => {
     expect(swishSrc).toMatch(/generateQrDataUrl/);
     expect(swishSrc).toMatch(/ConfirmDialog/);
     expect(swishSrc).toMatch(/DetailSection/);
-    expect(swishSrc).toMatch(/BADGE_CHIP_CLASS/);
+    expect(swishSrc).toMatch(/subtleTitle/);
+    expect(swishSrc).not.toMatch(/cards\.swishHelp/);
+    expect(swishSrc).toMatch(/StatusOutlineBadge/);
     expect(swishSrc).toMatch(/RoundIconLabelButton/);
     expect(swishSrc).toMatch(/QUICK_CONTEXT_LINK_TILE_CLASS/);
     expect(swishSrc).toMatch(/DETAIL_LIST_ITEM_TITLE_CLASS/);

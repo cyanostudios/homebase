@@ -124,7 +124,23 @@ echo '    <changefreq>daily</changefreq>' . "\n";
 echo '    <priority>1.0</priority>' . "\n";
 echo '  </url>' . "\n";
 
-foreach (['/guides/', '/price-lists/', '/info/', '/swish/'] as $listingPath) {
+foreach (['/guides/', '/price-lists/'] as $listingPath) {
+    echo '  <url>' . "\n";
+    echo '    <loc>' . xmlText($base . $listingPath) . '</loc>' . "\n";
+    echo '    <lastmod>' . xmlText($homeLastmod) . '</lastmod>' . "\n";
+    echo '    <changefreq>weekly</changefreq>' . "\n";
+    echo '    <priority>0.8</priority>' . "\n";
+    echo '  </url>' . "\n";
+}
+
+$optionalListingPaths = [];
+if (publicAppCardVisible($pdo, 'info')) {
+    $optionalListingPaths[] = '/info/';
+}
+if (publicAppCardVisible($pdo, 'swish')) {
+    $optionalListingPaths[] = '/swish/';
+}
+foreach ($optionalListingPaths as $listingPath) {
     echo '  <url>' . "\n";
     echo '    <loc>' . xmlText($base . $listingPath) . '</loc>' . "\n";
     echo '    <lastmod>' . xmlText($homeLastmod) . '</lastmod>' . "\n";

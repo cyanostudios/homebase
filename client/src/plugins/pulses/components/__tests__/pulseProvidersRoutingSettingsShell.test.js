@@ -28,5 +28,7 @@ describe('PulseProvidersRouting settings shell', () => {
     expect(listSrc).toMatch(/px-4 py-4 md:px-6/);
     expect(listSrc).toMatch(/selectedCategory=\{routingCategory\}/);
     expect(listSrc).toMatch(/onClose=\{closeRoutingView\}/);
+    expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
+    expect(routingSrc).not.toMatch(/renderCategoryButtonsInline/);
   });
 });

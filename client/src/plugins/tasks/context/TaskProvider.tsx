@@ -30,7 +30,12 @@ import {
   formatTaskDueDisplay,
 } from '../types/tasks';
 import { getTaskExportBaseFilename, getTasksExportConfig } from '../utils/taskExportConfig';
-import { shouldApplyOpenTaskSaveEffects } from '../utils/taskListSave';
+import {
+  type TaskQuickEditDraft,
+  type TaskQuickEditFieldKey,
+  quickEditFieldsForTask,
+  shouldApplyOpenTaskSaveEffects,
+} from '../utils/taskListSave';
 
 import { TaskContext } from './TaskContext';
 import type { TaskContextType } from './TaskContext';
@@ -65,13 +70,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksContentView, setTasksContentView] = useState<'list' | 'settings'>('list');
   const [recentlyDuplicatedTaskId, setRecentlyDuplicatedTaskId] = useState<string | null>(null);
-  const [quickEditDraft, setQuickEditDraft] = useState<Partial<{
-    status: string;
-    priority: string;
-    dueDate: Date | null;
-    assignedToIds: string[];
-    teamId: string | null;
-  }> | null>(null);
+  const [quickEditDraft, setQuickEditDraft] = useState<TaskQuickEditDraft | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
 
   const {
@@ -327,11 +326,14 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
               updatedAt: new Date(savedTask.updatedAt),
               dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
             });
-            // List (or other) saves of the open task must not leave a stale quick-edit draft.
-            setQuickEditDraft(null);
             setPanelMode('view');
             setValidationErrors([]);
           }
+          // Soft preview (no currentTask) and panel saves must both drop a matching draft
+          // so status/priority never stick onto the next selected item.
+          setQuickEditDraft((prev) =>
+            prev && String(prev.taskId) === String(idToUpdate) ? null : prev,
+          );
           // Updates of a different task (e.g. list inline status) must not force the open panel to view.
         } else {
           savedTask = await tasksApi.createTask(taskData);
@@ -378,36 +380,38 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   );
 
   const setQuickEditField = useCallback(
-    (
-      field: 'status' | 'priority' | 'dueDate' | 'assignedToIds' | 'teamId',
-      value: string | Date | null | string[],
-    ) => {
-      setQuickEditDraft((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
+    (taskId: string, field: TaskQuickEditFieldKey, value: string | Date | null | string[]) => {
+      const scopedId = String(taskId);
+      setQuickEditDraft((prev) => {
+        if (!prev || String(prev.taskId) !== scopedId) {
+          return { taskId: scopedId, [field]: value } as TaskQuickEditDraft;
+        }
+        return { ...prev, [field]: value };
+      });
     },
     [],
   );
 
+  const scopedPanelDraft = quickEditFieldsForTask(quickEditDraft, currentTask?.id);
+
   const hasQuickEditChanges = Boolean(
     currentTask &&
-      quickEditDraft &&
-      Object.keys(quickEditDraft).length > 0 &&
+      scopedPanelDraft &&
+      Object.keys(scopedPanelDraft).length > 0 &&
       (() => {
         const merged = {
-          status: (quickEditDraft.status ?? currentTask.status) as string,
-          priority: (quickEditDraft.priority ?? currentTask.priority) as string,
+          status: (scopedPanelDraft.status ?? currentTask.status) as string,
+          priority: (scopedPanelDraft.priority ?? currentTask.priority) as string,
           dueDate:
-            quickEditDraft.dueDate !== undefined ? quickEditDraft.dueDate : currentTask.dueDate,
+            scopedPanelDraft.dueDate !== undefined ? scopedPanelDraft.dueDate : currentTask.dueDate,
           assignedToIds:
-            quickEditDraft.assignedToIds !== undefined
-              ? quickEditDraft.assignedToIds
+            scopedPanelDraft.assignedToIds !== undefined
+              ? scopedPanelDraft.assignedToIds
               : (currentTask.assignedToIds ??
                 (currentTask.assignedTo ? [String(currentTask.assignedTo)] : [])),
           teamId:
-            quickEditDraft.teamId !== undefined
-              ? quickEditDraft.teamId
+            scopedPanelDraft.teamId !== undefined
+              ? scopedPanelDraft.teamId
               : (currentTask.teamId ?? null),
         };
         const sameStatus = merged.status === currentTask.status;
@@ -432,29 +436,32 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   );
 
   const onApplyQuickEdit = useCallback(async () => {
-    if (!currentTask || !quickEditDraft || Object.keys(quickEditDraft).length === 0) {
+    if (!currentTask || !scopedPanelDraft || Object.keys(scopedPanelDraft).length === 0) {
       return;
     }
     const merged = {
       title: currentTask.title,
       content: currentTask.content,
       mentions: currentTask.mentions ?? [],
-      status: quickEditDraft.status ?? currentTask.status,
-      priority: quickEditDraft.priority ?? currentTask.priority,
-      dueDate: quickEditDraft.dueDate !== undefined ? quickEditDraft.dueDate : currentTask.dueDate,
+      status: scopedPanelDraft.status ?? currentTask.status,
+      priority: scopedPanelDraft.priority ?? currentTask.priority,
+      dueDate:
+        scopedPanelDraft.dueDate !== undefined ? scopedPanelDraft.dueDate : currentTask.dueDate,
       assignedToIds:
-        quickEditDraft.assignedToIds !== undefined
-          ? quickEditDraft.assignedToIds
+        scopedPanelDraft.assignedToIds !== undefined
+          ? scopedPanelDraft.assignedToIds
           : (currentTask.assignedToIds ??
             (currentTask.assignedTo ? [String(currentTask.assignedTo)] : [])),
       teamId:
-        quickEditDraft.teamId !== undefined ? quickEditDraft.teamId : (currentTask.teamId ?? null),
+        scopedPanelDraft.teamId !== undefined
+          ? scopedPanelDraft.teamId
+          : (currentTask.teamId ?? null),
     };
     const success = await saveTask(merged, currentTask.id);
     if (success) {
       setQuickEditDraft(null);
     }
-  }, [currentTask, quickEditDraft, saveTask]);
+  }, [currentTask, scopedPanelDraft, saveTask]);
 
   const getCloseHandler = useCallback(
     (defaultClose: () => void) => {
@@ -606,29 +613,25 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [taskShareShowDialog, setTaskShareShowDialog] = useState(false);
   const [taskShareIsCreatingShare, setTaskShareIsCreatingShare] = useState(false);
 
+  const syncTaskShareForTask = useCallback(async (taskId: string | null | undefined) => {
+    if (taskId == null || String(taskId).trim() === '') {
+      setTaskShareExistingShare(null);
+      return;
+    }
+    try {
+      const shares = await taskShareApi.getShares(String(taskId));
+      const active = shares.find((s) => new Date(s.validUntil) > new Date());
+      setTaskShareExistingShare(active || null);
+    } catch {
+      setTaskShareExistingShare(null);
+    }
+  }, []);
+
   useEffect(() => {
     if (panelMode === 'view' && currentTask?.id) {
-      let cancelled = false;
-      taskShareApi
-        .getShares(currentTask.id)
-        .then((shares) => {
-          if (cancelled) {
-            return;
-          }
-          const active = shares.find((s) => new Date(s.validUntil) > new Date());
-          setTaskShareExistingShare(active || null);
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setTaskShareExistingShare(null);
-          }
-        });
-      return () => {
-        cancelled = true;
-      };
+      void syncTaskShareForTask(currentTask.id);
     }
-    setTaskShareExistingShare(null);
-  }, [panelMode, currentTask?.id]);
+  }, [panelMode, currentTask?.id, syncTaskShareForTask]);
 
   const defaultTaskShareValidUntil = useCallback((): Date => {
     const d = new Date();
@@ -686,9 +689,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   }, [taskShareExistingShare]);
 
   const shareDetailActions = useMemo(() => {
-    if (panelMode !== 'view' || !currentTask) {
-      return [];
-    }
+    // Soft preview uses TaskView without panelMode=view — still offer share under Export.
     const hasActiveShare =
       taskShareExistingShare && new Date(taskShareExistingShare.validUntil) > new Date();
     if (hasActiveShare && taskShareExistingShare) {
@@ -718,14 +719,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         disabled: taskShareIsCreatingShare,
       },
     ];
-  }, [
-    panelMode,
-    currentTask,
-    taskShareExistingShare,
-    taskShareIsCreatingShare,
-    handleTaskShareClick,
-    t,
-  ]);
+  }, [taskShareExistingShare, taskShareIsCreatingShare, handleTaskShareClick, t]);
 
   const getPanelSubtitle = useCallback(
     (mode: string, item: Task | null) => {
@@ -912,6 +906,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     taskShareShowDialog,
     setTaskShareShowDialog,
     taskShareIsCreatingShare,
+    syncTaskShareForTask,
     handleTaskShareClick,
     handleTaskCopyShareUrl,
     handleTaskRevokeShare,

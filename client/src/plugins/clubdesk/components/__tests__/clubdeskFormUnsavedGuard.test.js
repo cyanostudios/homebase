@@ -5,7 +5,7 @@ const formSrc = fs.readFileSync(path.join(__dirname, '../ClubdeskForm.tsx'), 'ut
 
 describe('ClubdeskForm guide category catalog ownership', () => {
   test('manages guide categories on the form, not via settings gear', () => {
-    expect(formSrc).not.toMatch(/openClubdeskSettings\(\{\s*tab:\s*'categories'\s*\}\)/);
+    expect(formSrc).not.toMatch(/openClubdeskSettings/);
     expect(formSrc).not.toMatch(/handleOpenCategorySettings/);
     expect(formSrc).toMatch(/guideCategoriesCard/);
     expect(formSrc).toMatch(/createClubdeskCategory/);

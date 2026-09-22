@@ -108,9 +108,10 @@ export function EstimateListTable({
             : null;
           const status = estimate.status || 'draft';
           const totalLabel = formatInvoiceMoney(estimate.total, estimate.currency || 'SEK');
+          const updatedLabel = estimate.updatedAt ? formatDateTimeShort(estimate.updatedAt) : null;
           const TypeIcon =
             contactType === 'private' ? User : contactType === 'company' ? Users : null;
-          const hasSubtitle = Boolean(contactName || TypeIcon || totalLabel);
+          const hasSubtitle = Boolean(totalLabel || updatedLabel);
 
           const numberRow = (
             <div className="flex min-w-0 items-center gap-1.5">
@@ -120,11 +121,30 @@ export function EstimateListTable({
               >
                 {number}
               </span>
+              {TypeIcon ? (
+                <span title={typeLabel ?? undefined} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={TypeIcon}
+                    className={cn(
+                      'h-5 w-5 [&_svg]:h-3 [&_svg]:w-3',
+                      contactType ? CONTACT_TYPE_ICON_SHELL_CLASS[contactType] : undefined,
+                    )}
+                  />
+                </span>
+              ) : null}
+              {contactName ? (
+                <span
+                  className="min-w-0 truncate text-xs font-medium text-foreground"
+                  title={contactName}
+                >
+                  {contactName}
+                </span>
+              ) : null}
               <Badge
                 className={cn(
+                  'shrink-0',
                   BADGE_CHIP_CLASS,
                   ESTIMATE_STATUS_COLORS[status as keyof typeof ESTIMATE_STATUS_COLORS],
-                  'h-4 shrink-0 px-1 py-0 text-[10px] font-normal leading-none',
                 )}
               >
                 {formatEstimateStatusForDisplay(status)}
@@ -140,25 +160,14 @@ export function EstimateListTable({
             <div className="flex min-w-0 flex-col gap-0.5">
               {numberRow}
               <div className="flex min-w-0 items-center gap-1.5">
-                {TypeIcon ? (
-                  <span title={typeLabel ?? undefined} className="inline-flex shrink-0">
-                    <SectionCategoryIcon
-                      icon={TypeIcon}
-                      className={cn(
-                        'h-5 w-5 [&_svg]:h-3 [&_svg]:w-3',
-                        contactType ? CONTACT_TYPE_ICON_SHELL_CLASS[contactType] : undefined,
-                      )}
-                    />
-                  </span>
-                ) : null}
-                {contactName ? (
-                  <span className="min-w-0 truncate text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
-                    {contactName}
-                  </span>
-                ) : null}
                 {totalLabel ? (
                   <span className="shrink-0 tabular-nums text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
                     {totalLabel}
+                  </span>
+                ) : null}
+                {updatedLabel ? (
+                  <span className="shrink-0 tabular-nums text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                    {t('common.updated')} {updatedLabel}
                   </span>
                 ) : null}
               </div>

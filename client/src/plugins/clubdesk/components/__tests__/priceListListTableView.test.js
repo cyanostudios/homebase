@@ -40,7 +40,11 @@ describe('PriceListList table view wiring', () => {
     expect(tableSrc).toMatch(/priceListIdentityMeta/);
     expect(tableSrc).toMatch(/SectionCategoryIcon/);
     expect(tableSrc).toMatch(/text-slate-400/);
-    expect(tableSrc).toMatch(/pl-6 text-\[10px\]/);
+    expect(tableSrc).toMatch(/pl-6/);
+    expect(tableSrc).toMatch(/text-\[10px\]/);
+    expect(tableSrc).toMatch(
+      /flex min-w-0 items-center gap-1\.5 pl-6[\s\S]*StatusOutlineBadge[\s\S]*text-\[10px\]/,
+    );
     expect(tableSrc).toMatch(/headerBarClassName="bg-sky-50/);
     expect(tableSrc).toMatch(/subtleRowDividers/);
     expect(tableSrc).toMatch(/title/);
@@ -84,6 +88,7 @@ describe('PriceListList table view wiring', () => {
     expect(listSrc).toMatch(/closeClubdeskPanel/);
     expect(listSrc).toMatch(/stacked/);
     expect(formSrc).toMatch(/stacked\?: boolean/);
+    expect(formSrc).toMatch(/!stacked \?/);
   });
 
   test('desktop detail card header shows PriceListDetailHeaderMenus when stacked', () => {

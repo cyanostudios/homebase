@@ -7,23 +7,11 @@
 import {
   FORM_COMPACT_INPUT_CLASS,
   FORM_COMPACT_SELECT_CLASS,
-  FORM_FIELD_FILLED_CHROME,
   FORM_INPUT_CLASS,
-  FORM_PROP_CONTROL_CLASS,
-  FORM_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
-
-/** @deprecated Prefer FORM_FIELD_FILLED_CHROME from `@/core/ui/formFieldStyles`. */
-export const INVOICE_FIELD_FILLED_CHROME = FORM_FIELD_FILLED_CHROME;
 
 /** @deprecated Prefer FORM_INPUT_CLASS from `@/core/ui/formFieldStyles`. */
 export const INVOICE_FORM_INPUT_CLASS = FORM_INPUT_CLASS;
-
-/** @deprecated Prefer FORM_PROP_CONTROL_CLASS from `@/core/ui/formFieldStyles`. */
-export const INVOICE_FORM_PROP_CONTROL_CLASS = FORM_PROP_CONTROL_CLASS;
-
-/** @deprecated Prefer FORM_TEXTAREA_CLASS from `@/core/ui/formFieldStyles`. */
-export const INVOICE_FORM_TEXTAREA_CLASS = FORM_TEXTAREA_CLASS;
 
 export const LINE_ITEM_LIST_ROW_CLASS =
   'flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border border-border/50 px-2 py-1';

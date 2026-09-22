@@ -20,6 +20,23 @@ describe('InvoicesView detail tab chips', () => {
     expect(qcSrc).toMatch(/\{headerBelow \? <div className="mt-4">\{headerBelow\}<\/div> : null\}/);
   });
 
+  test('QC header is Contacts-class only — facts live on Information tab', () => {
+    expect(qcSrc).not.toMatch(/invoices\.paymentTerms/);
+    expect(qcSrc).not.toMatch(/invoices\.issueDate/);
+    expect(qcSrc).not.toMatch(/formatPaymentTermsLabel/);
+    expect(viewSrc).toMatch(/activeTab === 'information' \? informationCard/);
+    expect(viewSrc).toMatch(/formatPaymentTermsLabel/);
+    expect(viewSrc).toMatch(/invoices\.paymentTerms/);
+  });
+
+  test('live preview is a stacked Information card, not a side column', () => {
+    expect(viewSrc).toMatch(/InvoiceDocumentPreview/);
+    expect(viewSrc).toMatch(/invoices\.previewTitle/);
+    expect(viewSrc).not.toMatch(/DetailLayout/);
+    expect(viewSrc).not.toMatch(/lg:sticky/);
+    expect(viewSrc).toMatch(/activeTab === 'information' \? informationCard/);
+  });
+
   test('tabs use URL ?tab= with information as default', () => {
     expect(viewSrc).toMatch(/useSearchParams/);
     expect(viewSrc).toMatch(/parseInvoiceViewTab/);
@@ -27,10 +44,19 @@ describe('InvoicesView detail tab chips', () => {
     expect(viewSrc).toMatch(/'lines'/);
     expect(viewSrc).toMatch(/'payments'/);
     expect(viewSrc).toMatch(/'linked'/);
+    expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
     expect(viewSrc).toMatch(/activeTab === 'information'/);
     expect(viewSrc).toMatch(/activeTab === 'lines'/);
     expect(viewSrc).toMatch(/activeTab === 'payments'/);
     expect(viewSrc).toMatch(/activeTab === 'linked'/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
+    expect(viewSrc).toMatch(/DetailActivityLog/);
+    expect(viewSrc).toMatch(/entityType="invoice"/);
+  });
+
+  test('linked tiles use Contacts-style half-width grid (md:grid-cols-2)', () => {
+    expect(viewSrc).toMatch(/QuickContextLinkTileGrid/);
+    expect(viewSrc).not.toMatch(/QuickContextLinkTileGrid className=\{stacked \? 'md:grid-cols-1'/);
   });
 });

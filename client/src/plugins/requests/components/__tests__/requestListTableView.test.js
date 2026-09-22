@@ -104,6 +104,7 @@ describe('RequestList table view wiring', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/RequestForm/);
     expect(listSrc).toMatch(/InlinePanelFormActions/);
+    expect(listSrc).toMatch(/headerTrailing/);
     expect(listSrc).toMatch(/inlineFormRef/);
     expect(listSrc).toMatch(/isRequestPanelOpen/);
     expect(listSrc).toMatch(/panelMode === 'create' \|\| panelMode === 'edit'/);
@@ -160,5 +161,9 @@ describe('RequestList table view wiring', () => {
     expect(quickContextActionsSrc).toMatch(/RoundIconLabelButton/);
     expect(quickContextActionsSrc).toMatch(/QuickContextOpenFullFooter/);
     expect(quickContextActionsSrc).toMatch(/common\.openFullProfile/);
+  });
+
+  test('list and settings leave edit via attemptNavigation', () => {
+    expect(listSrc).toMatch(/attemptNavigation\(\(\) => openRequestSettings\(\)\)/);
   });
 });

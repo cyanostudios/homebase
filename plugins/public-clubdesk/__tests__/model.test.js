@@ -171,7 +171,7 @@ describe('PublicClubdeskModel', () => {
     expect(clean).toMatch(/Hi/);
   });
 
-  test('getPublicSiteContent returns only home and info', async () => {
+  test('getPublicSiteContent returns home/info plus contacts/swish visibility', async () => {
     const pool = {
       query: jest.fn().mockResolvedValue({
         rows: [
@@ -184,9 +184,29 @@ describe('PublicClubdeskModel', () => {
     const payload = await model.getPublicSiteContent(pool, 3);
     expect(payload).toEqual({
       home: { contentHtml: '<p>Hem</p>', title: '' },
-      info: { contentHtml: '<p>Info</p>', title: 'Om oss' },
+      info: { contentHtml: '<p>Info</p>', title: 'Om oss', visible: true },
+      contacts: { visible: true },
+      swish: { visible: true },
     });
     expect(pool.query.mock.calls[0][1]).toEqual([3]);
-    expect(pool.query.mock.calls[0][0]).toMatch(/card_key IN \('home', 'info'\)/);
+    expect(pool.query.mock.calls[0][0]).toMatch(
+      /card_key IN \('home', 'info', 'contacts', 'swish'\)/,
+    );
+  });
+
+  test('getPublicSiteContent blanks info when meta.visible is false', async () => {
+    const pool = {
+      query: jest.fn().mockResolvedValue({
+        rows: [
+          {
+            card_key: 'info',
+            content: '<p>Hemligt</p>',
+            meta: { title: 'Dolt', visible: false },
+          },
+        ],
+      }),
+    };
+    const payload = await model.getPublicSiteContent(pool, 3);
+    expect(payload.info).toEqual({ contentHtml: '', title: '', visible: false });
   });
 });

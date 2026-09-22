@@ -81,10 +81,19 @@ describe('ContactList table view wiring', () => {
     expect(tableSrc).toMatch(/selectionEnabled/);
   });
 
+  test('create/edit form is not legacy panel settings', () => {
+    const formSrc = fs.readFileSync(path.join(__dirname, '../ContactForm.tsx'), 'utf8');
+    expect(formSrc).not.toMatch(/ContactSettingsForm/);
+    expect(formSrc).not.toMatch(/panelMode === 'settings'/);
+    expect(listSrc).toMatch(/ContactSettingsView/);
+    expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
+  });
+
   test('desktop create/edit renders ContactForm in the detail column', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/ContactForm/);
     expect(listSrc).toMatch(/InlinePanelFormActions/);
+    expect(listSrc).toMatch(/headerTrailing/);
     expect(listSrc).toMatch(/inlineFormRef/);
     expect(listSrc).toMatch(/isContactPanelOpen/);
     expect(listSrc).toMatch(/panelMode === 'create' \|\| panelMode === 'edit'/);
@@ -98,6 +107,12 @@ describe('ContactList table view wiring', () => {
     expect(appContentSrc).toMatch(/inlineDesktopPanel/);
     expect(appContentSrc).toMatch(/contentOwnsScroll/);
     expect(appContentSrc).toMatch(/isAnyPanelOpen && !inlineDesktopPanel/);
+  });
+
+  test('list and settings leave edit via attemptNavigation', () => {
+    expect(listSrc).toMatch(/attemptNavigation\(\(\) => \{\s*closeContactPanel/);
+    expect(listSrc).toMatch(/attemptNavigation\(\(\) => openContactSettings\(\)\)/);
+    expect(listSrc).toMatch(/handleRowActivate/);
   });
 
   test('desktop detail card header shows ContactDetailHeaderMenus', () => {

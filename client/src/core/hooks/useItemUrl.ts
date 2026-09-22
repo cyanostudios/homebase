@@ -43,7 +43,8 @@ export function useItemUrl(basePath: string) {
     ) => {
       if (window.location.pathname.startsWith(basePath)) {
         const slug = buildSlug(item, allItems, nameField);
-        navigate(`${basePath}/${slug}`);
+        // Preserve query (e.g. ?tab=) so View→Edit keeps the active detail tab.
+        navigate(`${basePath}/${slug}${window.location.search}`);
       }
     },
     [navigate, basePath],

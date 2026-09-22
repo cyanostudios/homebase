@@ -1,4 +1,4 @@
-import { ExternalLink, Info, Link2, Search, SlidersHorizontal, Trash2, Users } from 'lucide-react';
+import { ExternalLink, History, Info, Link2, Search, Trash2, Users } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import {
   DetailSection,
@@ -71,11 +73,14 @@ type AssignableContact = {
 
 type RelatedItem = { id: string | number; label: string; onOpen: () => void; pluginClass: string };
 
-type MatchViewTab = 'information' | 'properties' | 'contacts' | 'linked';
+type MatchViewTab = 'information' | 'contacts' | 'linked' | 'activity';
 
-const MATCH_VIEW_TABS: MatchViewTab[] = ['information', 'properties', 'contacts', 'linked'];
+const MATCH_VIEW_TABS: MatchViewTab[] = ['information', 'contacts', 'linked', 'activity'];
 
 function parseMatchViewTab(value: string | null): MatchViewTab {
+  if (value === 'properties') {
+    return 'information';
+  }
   if (value && MATCH_VIEW_TABS.includes(value as MatchViewTab)) {
     return value as MatchViewTab;
   }
@@ -147,15 +152,17 @@ function MatchInformationCard({ match }: Pick<MatchMainInfoCardProps, 'match'>) 
           <div>
             <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.mapLink')}</div>
             {match.map_link?.trim() ? (
-              <a
-                href={match.map_link}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-plugin hover:underline"
-              >
-                {t('matches.openMap')}
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              <div className={DETAIL_FIELD_VALUE_CLASS}>
+                <a
+                  href={match.map_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-plugin hover:underline"
+                >
+                  {t('matches.openMap')}
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                </a>
+              </div>
             ) : (
               <div className={DETAIL_FIELD_VALUE_CLASS}>—</div>
             )}
@@ -418,12 +425,6 @@ export function MatchView({ match: matchProp, item, stacked: _stacked = false }:
         count: null as number | null,
       },
       {
-        id: 'properties' as const,
-        label: t('matches.tabs.properties'),
-        icon: SlidersHorizontal,
-        count: null as number | null,
-      },
-      {
         id: 'contacts' as const,
         label: t('matches.tabs.contacts'),
         icon: Users,
@@ -434,6 +435,12 @@ export function MatchView({ match: matchProp, item, stacked: _stacked = false }:
         label: t('matches.tabs.linked'),
         icon: Link2,
         count: relatedSlotCount > 0 ? relatedSlotCount : null,
+      },
+      {
+        id: 'activity' as const,
+        label: t('matches.tabs.activity'),
+        icon: History,
+        count: null as number | null,
       },
     ],
     [t, contactCount, relatedSlotCount],
@@ -676,11 +683,22 @@ export function MatchView({ match: matchProp, item, stacked: _stacked = false }:
           <MatchQuickContextPanel match={match} headerBelow={tabChips} />
 
           {activeTab === 'information' ? <MatchInformationCard match={match} /> : null}
-          {activeTab === 'properties' ? (
+          {activeTab === 'information' ? (
             <MatchPropertiesCard match={match} sportLabel={sportLabel} />
           ) : null}
           {activeTab === 'contacts' ? contactsCard : null}
           {activeTab === 'linked' ? linkedCard : null}
+          {activeTab === 'activity' ? (
+            <DetailActivityLog
+              entityType="match"
+              entityId={match.id}
+              limit={30}
+              title={t('matches.activity')}
+              showClearButton
+              refreshKey={String(match.updated_at ?? match.id)}
+              systemId={formatDisplayNumber('matches', match.id)}
+            />
+          ) : null}
         </div>
       </DetailLayout>
 

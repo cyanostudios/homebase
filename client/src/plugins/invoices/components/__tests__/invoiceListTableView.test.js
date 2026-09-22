@@ -45,6 +45,8 @@ describe('InvoicesList table view wiring', () => {
     expect(tableSrc).toMatch(/contactName/);
     expect(tableSrc).toMatch(/text-\[10px\]/);
     expect(tableSrc).toMatch(/invoice\.contactName/);
+    expect(tableSrc).toMatch(/common\.updated/);
+    expect(tableSrc).toMatch(/formatDateTimeShort\(invoice\.updatedAt\)/);
     expect(tableSrc).toMatch(/status/);
     expect(tableSrc).toMatch(/dueDate/);
     expect(tableSrc).toMatch(/updatedAt/);
@@ -56,6 +58,7 @@ describe('InvoicesList table view wiring', () => {
     expect(fs.existsSync(path.join(__dirname, '../InvoiceSettingsView.tsx'))).toBe(true);
     expect(listSrc).toMatch(/InvoiceSettingsView/);
     expect(listSrc).toMatch(/openInvoiceSettings/);
+    expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
     expect(listSrc).not.toMatch(/ListColumnLayoutToggle/);
     expect(listSrc).toMatch(/resolveVisibleInvoiceTableColumns/);
     expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
@@ -81,7 +84,8 @@ describe('InvoicesList table view wiring', () => {
     expect(tableSrc).toMatch(/activeInvoiceId/);
     expect(tableSrc).toMatch(/selectionEnabled/);
     expect(viewSrc).toMatch(/stacked\?: boolean/);
-    expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
+    expect(viewSrc).not.toMatch(/DetailLayout/);
+    expect(viewSrc).toMatch(/plugin-invoices/);
   });
 
   test('desktop detail card header shows InvoiceDetailHeaderMenus', () => {

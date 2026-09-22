@@ -103,6 +103,135 @@ function parseCtAudiences(raw) {
   return out;
 }
 
+const FIT_SUMMARY_QTY_MAX = 9999;
+const FIT_SUMMARY_BREAKDOWN_KEY_MAX = 200;
+
+/**
+ * Normalize stored or API fit_summary_procurement map.
+ * Shape: { [itemId]: { [audience\\u001fsize]: { ordered?: boolean, qtyOrdered?: number|null } } }
+ */
+function normalizeFitSummaryProcurement(raw) {
+  const src = parseJsonb(raw, {});
+  if (!src || typeof src !== 'object' || Array.isArray(src)) return {};
+  const out = {};
+  for (const [itemIdRaw, breakdowns] of Object.entries(src)) {
+    const itemId = String(itemIdRaw).trim();
+    if (!/^\d+$/.test(itemId)) continue;
+    if (!breakdowns || typeof breakdowns !== 'object' || Array.isArray(breakdowns)) continue;
+    const itemOut = {};
+    for (const [breakdownKeyRaw, row] of Object.entries(breakdowns)) {
+      const breakdownKey = String(breakdownKeyRaw).slice(0, FIT_SUMMARY_BREAKDOWN_KEY_MAX);
+      if (!breakdownKey || !row || typeof row !== 'object' || Array.isArray(row)) continue;
+      const normalized = {};
+      if (Object.prototype.hasOwnProperty.call(row, 'ordered')) {
+        normalized.ordered = Boolean(row.ordered);
+      }
+      if (Object.prototype.hasOwnProperty.call(row, 'qtyOrdered')) {
+        const qty = row.qtyOrdered;
+        if (qty === null || qty === undefined || qty === '') {
+          normalized.qtyOrdered = null;
+        } else {
+          const n = Number(qty);
+          if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > FIT_SUMMARY_QTY_MAX) {
+            continue;
+          }
+          normalized.qtyOrdered = n;
+        }
+      }
+      if (Object.keys(normalized).length > 0) {
+        itemOut[breakdownKey] = normalized;
+      }
+    }
+    if (Object.keys(itemOut).length > 0) {
+      out[itemId] = itemOut;
+    }
+  }
+  return out;
+}
+
+/**
+ * Deep-merge patch into existing procurement; only assigned item ids accepted.
+ * qtyOrdered: null clears. Omitting ordered leaves previous value.
+ */
+function mergeFitSummaryProcurementPatch(existing, patch, assignedItemIds) {
+  if (patch == null || typeof patch !== 'object' || Array.isArray(patch)) {
+    throw new AppError(
+      'fitSummaryProcurement must be an object',
+      400,
+      AppError.CODES.VALIDATION_ERROR,
+    );
+  }
+  const next = normalizeFitSummaryProcurement(existing);
+  for (const [itemIdRaw, breakdowns] of Object.entries(patch)) {
+    const itemId = String(itemIdRaw).trim();
+    if (!/^\d+$/.test(itemId)) {
+      throw new AppError(
+        `Invalid inventory item id: ${itemIdRaw}`,
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    }
+    if (!assignedItemIds.has(itemId)) {
+      throw new AppError(
+        `Inventory item ${itemId} is not assigned to this list`,
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    }
+    if (!breakdowns || typeof breakdowns !== 'object' || Array.isArray(breakdowns)) {
+      throw new AppError(
+        `fitSummaryProcurement[${itemId}] must be an object`,
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    }
+    if (!next[itemId]) {
+      next[itemId] = {};
+    }
+    for (const [breakdownKeyRaw, row] of Object.entries(breakdowns)) {
+      const breakdownKey = String(breakdownKeyRaw).slice(0, FIT_SUMMARY_BREAKDOWN_KEY_MAX);
+      if (!breakdownKey) {
+        throw new AppError('Invalid breakdown key', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+      if (!row || typeof row !== 'object' || Array.isArray(row)) {
+        throw new AppError(
+          `fitSummaryProcurement[${itemId}][${breakdownKey}] must be an object`,
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+      const prev = next[itemId][breakdownKey] || {};
+      const merged = { ...prev };
+      if (Object.prototype.hasOwnProperty.call(row, 'ordered')) {
+        merged.ordered = Boolean(row.ordered);
+      }
+      if (Object.prototype.hasOwnProperty.call(row, 'qtyOrdered')) {
+        const qty = row.qtyOrdered;
+        if (qty === null || qty === undefined || qty === '') {
+          merged.qtyOrdered = null;
+        } else {
+          const n = Number(qty);
+          if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > FIT_SUMMARY_QTY_MAX) {
+            throw new AppError(
+              `qtyOrdered must be an integer 0–${FIT_SUMMARY_QTY_MAX}`,
+              400,
+              AppError.CODES.VALIDATION_ERROR,
+            );
+          }
+          merged.qtyOrdered = n;
+        }
+      }
+      next[itemId][breakdownKey] = merged;
+    }
+  }
+  for (const key of Object.keys(next)) {
+    if (!assignedItemIds.has(key)) {
+      delete next[key];
+    }
+  }
+  return next;
+}
+
 const INVENTORY_CHECKBOX_STATUSES = [
   { suffix: 'ordered', label: 'Ordered' },
   { suffix: 'delivered', label: 'Delivered' },
@@ -1547,6 +1676,25 @@ class GarmentsModel {
           [JSON.stringify(checkboxColumns), lid],
         );
 
+        const procurement = normalizeFitSummaryProcurement(
+          (
+            await client.query(`SELECT fit_summary_procurement FROM garment_lists WHERE id = $1`, [
+              lid,
+            ])
+          ).rows[0]?.fit_summary_procurement,
+        );
+        if (Object.prototype.hasOwnProperty.call(procurement, itemKey)) {
+          delete procurement[itemKey];
+          await client.query(
+            `
+            UPDATE garment_lists
+            SET fit_summary_procurement = $1::jsonb, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            `,
+            [JSON.stringify(procurement), lid],
+          );
+        }
+
         const persons = await client.query(
           `SELECT id, checkbox_values, ct_sizes, ct_audiences FROM garment_list_persons WHERE list_id = $1`,
           [lid],
@@ -1602,6 +1750,45 @@ class GarmentsModel {
       if (error instanceof AppError) throw error;
       Logger.error('Failed to unassign inventory item from list', error, { listId, itemId });
       throw new AppError('Failed to unassign inventory item', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async updateFitSummaryProcurement(req, listId, patchInput) {
+    try {
+      const pool = this._pool(req);
+      const lid = parseInt(String(listId), 10);
+      const list = await this.getListById(req, lid, { includePersons: false });
+      if (!list) {
+        throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const assignedIds = new Set((list.assignedInventoryItemIds ?? []).map(String));
+      const patch =
+        patchInput?.fitSummaryProcurement ?? patchInput?.fit_summary_procurement ?? patchInput;
+      const merged = mergeFitSummaryProcurementPatch(
+        list.fitSummaryProcurement ?? {},
+        patch,
+        assignedIds,
+      );
+
+      await pool.query(
+        `
+        UPDATE garment_lists
+        SET fit_summary_procurement = $1::jsonb, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        `,
+        [JSON.stringify(merged), lid],
+      );
+
+      return this.getListById(req, lid);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to update fit summary procurement', error, { listId });
+      throw new AppError(
+        'Failed to update fit summary procurement',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -1685,6 +1872,7 @@ class GarmentsModel {
       teamId: row.team_id != null ? String(row.team_id) : null,
       checkboxColumns: normalizeCheckboxColumns(parseJsonb(row.checkbox_columns, [])),
       assignedInventoryItemIds: [],
+      fitSummaryProcurement: normalizeFitSummaryProcurement(row.fit_summary_procurement),
       personCount: row.person_count != null ? Number(row.person_count) : undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -1784,3 +1972,5 @@ class GarmentsModel {
 }
 
 module.exports = GarmentsModel;
+module.exports.normalizeFitSummaryProcurement = normalizeFitSummaryProcurement;
+module.exports.mergeFitSummaryProcurementPatch = mergeFitSummaryProcurementPatch;

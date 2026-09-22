@@ -1,12 +1,37 @@
 import type { Task } from '../types/tasks';
 
-export type TaskQuickEditDraft = Partial<{
+export type TaskQuickEditFieldKey = 'status' | 'priority' | 'dueDate' | 'assignedToIds' | 'teamId';
+
+export type TaskQuickEditFields = Partial<{
   status: string;
   priority: string;
   dueDate: Date | null;
   assignedToIds: string[];
   teamId: string | null;
 }>;
+
+/** Soft-preview and panel share one draft; always scope by taskId so values never leak across items. */
+export type TaskQuickEditDraft = TaskQuickEditFields & {
+  taskId: string;
+};
+
+/**
+ * Returns draft field overlay for a task, or null when the draft belongs to another item.
+ * Strips `taskId` so callers can safely spread onto display models.
+ */
+export function quickEditFieldsForTask(
+  draft: TaskQuickEditDraft | null | undefined,
+  taskId: string | null | undefined,
+): TaskQuickEditFields | null {
+  if (!draft || taskId === null || taskId === undefined || taskId === '') {
+    return null;
+  }
+  if (String(draft.taskId) !== String(taskId)) {
+    return null;
+  }
+  const { taskId: _taskId, ...fields } = draft;
+  return fields;
+}
 
 type TaskListSaveBase = Pick<
   Task,
@@ -46,7 +71,7 @@ export function shouldApplyOpenTaskSaveEffects(
 function resolveAssignedToIds(
   task: TaskListSaveBase,
   patch: TaskListQuickFieldPatch,
-  draft: TaskQuickEditDraft | null | undefined,
+  draft: TaskQuickEditFields | null | undefined,
 ): string[] {
   if (patch.assignedToIds !== undefined) {
     return patch.assignedToIds.map(String);
@@ -67,7 +92,7 @@ function resolveAssignedToIds(
 export function buildTaskListQuickFieldsSavePayload(
   task: TaskListSaveBase,
   patch: TaskListQuickFieldPatch,
-  draft: TaskQuickEditDraft | null | undefined,
+  draft: TaskQuickEditFields | null | undefined,
 ): {
   title: string;
   content: string;
@@ -104,7 +129,7 @@ export function buildTaskListQuickFieldsSavePayload(
 export function buildTaskListStatusSavePayload(
   task: Omit<TaskListSaveBase, 'status'>,
   newStatus: string,
-  draft: TaskQuickEditDraft | null | undefined,
+  draft: TaskQuickEditFields | null | undefined,
 ) {
   return buildTaskListQuickFieldsSavePayload(
     { ...task, status: newStatus as TaskListSaveBase['status'] },

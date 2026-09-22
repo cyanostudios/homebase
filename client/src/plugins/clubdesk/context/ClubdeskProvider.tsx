@@ -44,9 +44,7 @@ import {
 import {
   ClubdeskContext,
   type ClubdeskActiveDomain,
-  type ClubdeskContentView,
   type ClubdeskContextType,
-  type ClubdeskSettingsTab,
 } from './ClubdeskContext';
 
 interface ClubdeskProviderProps {
@@ -122,7 +120,7 @@ export function ClubdeskProvider({
   const location = useLocation();
   const navigate = useNavigate();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
-  const { navigateToItem, navigateToBase } = useItemUrl('/clubdesk');
+  const { navigateToItem } = useItemUrl('/clubdesk');
   const { navigateToItem: navigateToPriceListItem } = useItemUrl('/clubdesk/price-list');
 
   const [isClubdeskPanelOpen, setIsClubdeskPanelOpen] = useState(false);
@@ -139,8 +137,6 @@ export function ClubdeskProvider({
     [],
   );
   const [isSaving, setIsSaving] = useState(false);
-  const [clubdeskContentView, setClubdesksContentView] = useState<ClubdeskContentView>('list');
-  const [clubdeskSettingsTab, setClubdesksSettingsTab] = useState<ClubdeskSettingsTab>('');
   const [recentlyDuplicatedClubdeskId, setRecentlyDuplicatedClubdeskId] = useState<string | null>(
     null,
   );
@@ -303,28 +299,6 @@ export function ClubdeskProvider({
     setPriceListCategories(rows);
   }, []);
 
-  const openClubdeskSettings = useCallback(
-    (options?: { tab?: ClubdeskSettingsTab }) => {
-      clearClubdeskSelectionCore();
-      setRecentlyDuplicatedClubdeskId(null);
-      setIsClubdeskPanelOpen(false);
-      setCurrentClubdesk(null);
-      setCurrentPriceList(null);
-      setActiveDomain('guides');
-      setPanelMode('create');
-      setValidationErrors([]);
-      setClubdesksSettingsTab(options?.tab ?? '');
-      setClubdesksContentView('settings');
-      onCloseOtherPanels();
-      navigateToBase();
-    },
-    [clearClubdeskSelectionCore, navigateToBase, onCloseOtherPanels, setValidationErrors],
-  );
-
-  const closeClubdeskSettingsView = useCallback(() => {
-    setClubdesksContentView('list');
-  }, []);
-
   const ensureFullClubdesk = useCallback(async (item: Clubdesk): Promise<Clubdesk> => {
     if (Array.isArray(item.steps)) {
       return item;
@@ -350,7 +324,6 @@ export function ClubdeskProvider({
     (item: Clubdesk | null) => {
       clearClubdeskSelectionCore();
       setRecentlyDuplicatedClubdeskId(null);
-      setClubdesksContentView('list');
       setActiveDomain('guides');
       setCurrentPriceList(null);
       setPriceListCategories([]);
@@ -384,7 +357,6 @@ export function ClubdeskProvider({
     (item: Clubdesk) => {
       clearClubdeskSelectionCore();
       setRecentlyDuplicatedClubdeskId(null);
-      setClubdesksContentView('list');
       setActiveDomain('guides');
       setCurrentPriceList(null);
       setPriceListCategories([]);
@@ -422,7 +394,6 @@ export function ClubdeskProvider({
         return;
       }
       setRecentlyDuplicatedClubdeskId(null);
-      setClubdesksContentView('list');
       setActiveDomain('guides');
       setCurrentPriceList(null);
       setPriceListCategories([]);
@@ -456,7 +427,6 @@ export function ClubdeskProvider({
     (priceList: ClubdeskPriceList | null) => {
       clearPriceListSelectionCore();
       setRecentlyDuplicatedPriceListId(null);
-      setClubdesksContentView('list');
       setActiveDomain('priceLists');
       setCurrentClubdesk(null);
       setCurrentPriceList(priceList);
@@ -498,7 +468,6 @@ export function ClubdeskProvider({
     (priceList: ClubdeskPriceList) => {
       clearPriceListSelectionCore();
       setRecentlyDuplicatedPriceListId(null);
-      setClubdesksContentView('list');
       setActiveDomain('priceLists');
       setCurrentClubdesk(null);
       setCurrentPriceList(priceList);
@@ -541,7 +510,6 @@ export function ClubdeskProvider({
         return;
       }
       setRecentlyDuplicatedPriceListId(null);
-      setClubdesksContentView('list');
       setActiveDomain('priceLists');
       setCurrentClubdesk(null);
       setCurrentPriceList(priceList);
@@ -1570,10 +1538,6 @@ export function ClubdeskProvider({
       priceListCategories,
       refreshPriceListCategories,
       isSaving,
-      clubdeskContentView,
-      clubdeskSettingsTab,
-      openClubdeskSettings,
-      closeClubdeskSettingsView,
       openClubdeskPanel: isPriceListUi
         ? (openPriceListPanel as unknown as typeof openClubdeskPanel)
         : openClubdeskPanel,
@@ -1662,10 +1626,6 @@ export function ClubdeskProvider({
       priceListCategories,
       refreshPriceListCategories,
       isSaving,
-      clubdeskContentView,
-      clubdeskSettingsTab,
-      openClubdeskSettings,
-      closeClubdeskSettingsView,
       openClubdeskPanel,
       openClubdeskForEdit,
       openClubdeskForView,

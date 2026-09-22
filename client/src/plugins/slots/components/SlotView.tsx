@@ -20,6 +20,7 @@ import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
@@ -661,6 +662,15 @@ export function SlotView({ slot: slotProp, item, stacked = false }: SlotViewProp
             bookings={bookings}
             bookingsLoading={bookingsLoading}
             onRequestDeleteBooking={setBookingToDelete}
+          />
+          <DetailActivityLog
+            entityType="slot"
+            entityId={slot.id}
+            limit={30}
+            title={t('slots.activity')}
+            showClearButton
+            refreshKey={String(slot.updated_at ?? slot.id)}
+            systemId={formatDisplayNumber('slots', slot.id)}
           />
         </div>
       </DetailLayout>

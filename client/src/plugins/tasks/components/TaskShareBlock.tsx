@@ -1,5 +1,5 @@
 import { Copy, Check, ExternalLink, Unlink } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
@@ -16,16 +16,24 @@ export function TaskShareBlock({ task }: { task: Task }) {
     taskShareExistingShare,
     taskShareShowDialog,
     setTaskShareShowDialog,
+    syncTaskShareForTask,
     handleTaskCopyShareUrl,
     handleTaskRevokeShare,
   } = useTasks();
 
   const [copied, setCopied] = useState(false);
 
-  const shareUrl = taskShareExistingShare
+  useEffect(() => {
+    void syncTaskShareForTask(task.id);
+  }, [syncTaskShareForTask, task.id]);
+
+  const shareMatchesTask =
+    taskShareExistingShare != null && String(taskShareExistingShare.taskId) === String(task.id);
+
+  const shareUrl = shareMatchesTask
     ? taskShareApi.generateShareUrl(taskShareExistingShare.shareToken)
     : '';
-  const isShareExpired = taskShareExistingShare
+  const isShareExpired = shareMatchesTask
     ? new Date(taskShareExistingShare.validUntil) <= new Date()
     : false;
 
@@ -39,7 +47,7 @@ export function TaskShareBlock({ task }: { task: Task }) {
 
   return (
     <>
-      {taskShareExistingShare && (
+      {shareMatchesTask && taskShareExistingShare ? (
         <div
           className={`rounded-lg border p-4 ${
             isShareExpired
@@ -105,7 +113,7 @@ export function TaskShareBlock({ task }: { task: Task }) {
             />
           </div>
         </div>
-      )}
+      ) : null}
 
       <ShareDialog
         isOpen={taskShareShowDialog}

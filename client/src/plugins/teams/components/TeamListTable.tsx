@@ -1,18 +1,16 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Users } from 'lucide-react';
+import { CheckCircle2, Circle, Moon, Pause, Users, type LucideIcon } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
-import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   SortableListTable,
   type SortableListTableColumn,
   type SortableListTableSelection,
 } from '@/core/ui/SortableListTable';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
-import { cn } from '@/lib/utils';
 
 import { isTeamOnBreak, TEAM_STATUS_BADGES, type Team, type TeamStatus } from '../types/teams';
 import { formatTeamLabel } from '../utils/formatTeamLabel';
@@ -26,6 +24,19 @@ import {
 import { TeamSeriesTeamBadges } from './TeamSeriesTeamBadges';
 
 type TeamTableColumnField = TeamSortField | 'series_teams' | 'playing_format';
+
+function teamStatusIcon(statusKey: string): LucideIcon {
+  switch (statusKey) {
+    case 'active':
+      return CheckCircle2;
+    case 'dormant':
+      return Moon;
+    case 'break':
+      return Pause;
+    default:
+      return Circle;
+  }
+}
 
 export type TeamListTableProps = {
   teams: Team[];
@@ -133,9 +144,12 @@ export function TeamListTable({
         cell: (team) => {
           const statusKey: TeamStatus = isTeamOnBreak(team) ? 'break' : team.status;
           return (
-            <Badge className={cn(BADGE_CHIP_CLASS, TEAM_STATUS_BADGES[statusKey])}>
+            <StatusOutlineBadge
+              icon={teamStatusIcon(statusKey)}
+              className={TEAM_STATUS_BADGES[statusKey]}
+            >
               {t(`teams.status.${statusKey}`)}
-            </Badge>
+            </StatusOutlineBadge>
           );
         },
       },

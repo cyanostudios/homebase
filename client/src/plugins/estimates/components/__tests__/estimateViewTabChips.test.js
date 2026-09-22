@@ -12,27 +12,50 @@ describe('EstimateView detail tab chips', () => {
     expect(viewSrc).toMatch(/h-3\.5 w-3\.5/);
   });
 
-  test('mounts tabs under header card via mt-4 (no QuickContextPanel)', () => {
-    expect(viewSrc).not.toMatch(/QuickContextPanel/);
-    expect(viewSrc).toMatch(/EstimateDetailHeaderMenus/);
-    expect(viewSrc).toMatch(/<div className="mt-4">\{tabChips\}<\/div>/);
-    expect(viewSrc).not.toMatch(/border-b border-border\/50 px-4 py-5/);
+  test('uses EstimateQuickContextPanel with tab chips in headerBelow', () => {
+    expect(viewSrc).toMatch(/EstimateQuickContextPanel/);
+    expect(viewSrc).toMatch(/headerBelow=\{tabChips\}/);
+    expect(viewSrc).not.toMatch(
+      /EstimateDetailHeaderMenus estimate=\{estimate\} leading=\{titleLeading\}/,
+    );
   });
 
-  test('tabs use URL ?tab= with properties as default', () => {
+  test('tabs use URL ?tab= with information as default', () => {
     expect(viewSrc).toMatch(/useSearchParams/);
     expect(viewSrc).toMatch(/parseEstimateViewTab/);
-    expect(viewSrc).toMatch(/'properties'/);
+    expect(viewSrc).toMatch(/'information'/);
     expect(viewSrc).toMatch(/'lines'/);
-    expect(viewSrc).toMatch(/'notes'/);
+    expect(viewSrc).toMatch(/'linked'/);
+    expect(viewSrc).toMatch(/'activity'/);
     expect(viewSrc).toMatch(/next\.delete\('tab'\)/);
-    expect(viewSrc).toMatch(/activeTab === 'properties'/);
+    expect(viewSrc).toMatch(/activeTab === 'information'/);
     expect(viewSrc).toMatch(/activeTab === 'lines'/);
-    expect(viewSrc).toMatch(/activeTab === 'notes'/);
+    expect(viewSrc).toMatch(/activeTab === 'linked'/);
+    expect(viewSrc).toMatch(/activeTab === 'activity'/);
+    expect(viewSrc).toMatch(/DetailActivityLog/);
+    expect(viewSrc).toMatch(/entityType="estimate"/);
   });
 
-  test('notes tab always renders with empty state', () => {
-    expect(viewSrc).toMatch(/estimates\.tabs\.notesEmpty/);
-    expect(viewSrc).toMatch(/DETAIL_EMPTY_STATE_CLASS/);
+  test('notes live on information tab (callout), not a separate tab', () => {
+    expect(viewSrc).toMatch(/DETAIL_NOTE_CALLOUT_CLASS/);
+    expect(viewSrc).not.toMatch(/activeTab === 'notes'/);
+  });
+
+  test('invoiced status locks status select', () => {
+    expect(viewSrc).toMatch(/disabled=\{isInvoiced\}/);
+  });
+
+  test('linked tiles use Contacts-style half-width grid (md:grid-cols-2)', () => {
+    expect(viewSrc).toMatch(/QuickContextLinkTileGrid/);
+    expect(viewSrc).not.toMatch(/QuickContextLinkTileGrid className=\{stacked \? 'md:grid-cols-1'/);
+  });
+
+  test('linked invoice opens quick-info popup before navigating', () => {
+    expect(viewSrc).toMatch(/AssignmentQuickInfoDialog/);
+    expect(viewSrc).toMatch(/setViewingInvoice/);
+    expect(viewSrc).toMatch(/contacts\.openInvoice/);
+    expect(viewSrc).not.toMatch(
+      /linkedInvoice && enabledPlugins\.has\('invoices'\)[\s\S]*?onClick=\{\(\) => \{\s*navigate\(/,
+    );
   });
 });

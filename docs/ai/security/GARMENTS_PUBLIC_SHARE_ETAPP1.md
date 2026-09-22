@@ -18,13 +18,13 @@
 | No SEO companion   | No `public-garments` crawlable site in Etapp 1                          |
 | Auth mutations     | CSRF + `requirePlugin('garments')`                                      |
 
-## Layout delta (2026-08-17)
+## Layout delta (2026-08-17; UI hygiene 2026-09-22)
 
-Person rows on admin list detail and the public page are two-row blocks with wrapping labeled checkboxes (`PersonBlock`). **No new API fields, tokens, or write endpoints.** Public still hides comments. Residual class **unchanged** (Security Approved 2026-08-17).
+Person rows on admin list detail and the public page use the **spreadsheet** matrix (`PersonMatrix` / `PublicPersonMatrix`). The former two-row `PersonBlock` UI was removed as dead code (2026-09-22); **no new API fields, tokens, or write endpoints.** Public still clears comments in the share payload. Residual class **unchanged** (Security Approved 2026-08-17; hygiene is presentation-only).
 
 ## Person teamId (2026-08-31)
 
-Admin person matrix may store optional `team_id` on `garment_list_persons` (migration **155**). Public `getListByShareToken` still clears only `comment`; transformed persons retain **`teamId`** when set. Public UI remains `PersonBlock` (no Team column). Residual class **unchanged** — numeric team id is additional link metadata within the same share-exposure class (Security Approved Gate 5, 2026-08-31).
+Admin person matrix may store optional `team_id` on `garment_list_persons` (migration **155**). Public `getListByShareToken` still clears only `comment`; transformed persons retain **`teamId`** when set. Public UI (`PublicPersonMatrix`) does not render a Team column. Residual class **unchanged** — numeric team id is additional link metadata within the same share-exposure class (Security Approved Gate 5, 2026-08-31).
 
 ## Custom person-level checkbox columns (2026-09)
 
@@ -32,7 +32,7 @@ Admin lists settings may add ungrouped `checkbox_columns` (`custom_<uuid>`, opti
 
 ## Residual risks (accepted for Etapp 1 / local)
 
-1. **Minor / youth PII** — List may include children's names and clothing sizes. Anyone with the link can read until expiry/revoke. Operators should use short validity and revoke when done. Two-row layout makes checkbox **labels** easier to read; it does not add fields. Later fields in the same class: inventory-linked sizes/audiences, optional numeric person `teamId`, and optional **custom** person-level checkbox labels/values.
+1. **Minor / youth PII** — List may include children's names and clothing sizes. Anyone with the link can read until expiry/revoke. Operators should use short validity and revoke when done. Spreadsheet columns make checkbox **labels** easier to read; they do not add fields. Later fields in the same class: inventory-linked sizes/audiences, optional numeric person `teamId`, and optional **custom** person-level checkbox labels/values.
 2. **Link leakage** — Same as Notes: treat URL as secret; no password gate in v1.
 3. **No edit on public** — v2 editable links are out of scope (reduces write abuse surface for now).
 
