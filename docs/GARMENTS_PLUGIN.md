@@ -30,6 +30,7 @@ Sidebar submenu (Clubdesk-style), URL-driven:
 - **Quantity PATCH** (`PATCH /inventory/:id/variants/:variantId/quantity`) updates quantity only.
 - **Duplicate article:** copies variants’ audience/color/size/qty; **clears all SKUs** on the copy.
 - **Duplicate variant row (form):** copies audience/color/size; **clears SKU and quantity** (qty → 0).
+- **Duplicate list:** copies list team, checkbox columns, assigned inventory articles, persons (including person **teamId**, checkbox values, **ct sizes/audiences**), and fit-summary procurement. Inventory is assigned **before** persons so audience/size columns work on the copy.
 - Closing inventory create/edit/view navigates to **`/garments/inventory`**, not `/garments`.
 - Leaving an open **list** via the sidebar (Inventory or another plugin) navigates in **one click**. Panel close does not bounce back to the lists index.
 - **Settings** is surface-scoped (`garmentsContentView: 'settings'` while URL stays on Lists or Inventory). Sidebar switch Lists ↔ Inventory **exits** settings and shows that surface’s list index — it does **not** open the other surface’s settings.
