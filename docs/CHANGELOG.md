@@ -4,6 +4,16 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-22 – Garments: share UI scoped to current list
+
+**Typ:** Fix  
+**Scope:** `GarmentShareBlock`, `GarmentProvider` share handlers, `PublicGarmentListView` / `PublicTokenRoute`  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Share block and Share action only use a link whose `listId` matches the open list (same pattern as Estimates). Stale share state from another list is cleared on switch; public share pages remount per token so a previous list cannot flash on another link.
+
+---
+
 ## 2026-09-22 – Garments: list duplicate copies team, inventory, sizes
 
 **Typ:** Fix  

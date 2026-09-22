@@ -23,15 +23,17 @@ export function PublicGarmentListView({ token }: PublicGarmentListViewProps) {
     if (!token) {
       setError(t('garments.publicInvalidLink'));
       setLoading(false);
+      setList(null);
       return;
     }
 
     let cancelled = false;
+    setList(null);
+    setLoading(true);
+    setError(null);
 
     (async () => {
       try {
-        setLoading(true);
-        setError(null);
         const publicList = await dedupeInFlightByKey(`public-garment-list:${token}`, () =>
           garmentShareApi.getPublicList(token),
         );

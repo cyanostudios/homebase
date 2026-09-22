@@ -1270,14 +1270,21 @@ export function GarmentProvider({
 
   useEffect(() => {
     if (panelMode === 'view' && panelKind === 'list' && currentGarment?.id) {
+      const listId = String(currentGarment.id);
+      // Drop previous list's share immediately so A never shows B's link.
+      setGarmentShareExistingShare(null);
       let cancelled = false;
       garmentShareApi
-        .getShares(currentGarment.id)
+        .getShares(listId)
         .then((shares) => {
           if (cancelled) {
             return;
           }
           const active = shares.find((s) => new Date(s.validUntil) > new Date());
+          if (active && String(active.listId) !== listId) {
+            setGarmentShareExistingShare(null);
+            return;
+          }
           setGarmentShareExistingShare(active || null);
         })
         .catch(() => {
@@ -1301,7 +1308,11 @@ export function GarmentProvider({
 
   const handleGarmentShareClick = useCallback(
     async (list: GarmentList) => {
-      if (garmentShareExistingShare) {
+      const shareMatchesList =
+        garmentShareExistingShare != null &&
+        String(garmentShareExistingShare.listId) === String(list.id) &&
+        new Date(garmentShareExistingShare.validUntil) > new Date();
+      if (shareMatchesList) {
         setGarmentShareShowDialog(true);
         return;
       }
@@ -1327,12 +1338,24 @@ export function GarmentProvider({
     if (!garmentShareExistingShare) {
       return;
     }
+    if (
+      currentGarment?.id != null &&
+      String(garmentShareExistingShare.listId) !== String(currentGarment.id)
+    ) {
+      return;
+    }
     const url = garmentShareApi.generateShareUrl(garmentShareExistingShare.shareToken);
     navigator.clipboard.writeText(url).catch(() => {});
-  }, [garmentShareExistingShare]);
+  }, [currentGarment?.id, garmentShareExistingShare]);
 
   const handleGarmentRevokeShare = useCallback(async () => {
     if (!garmentShareExistingShare) {
+      return;
+    }
+    if (
+      currentGarment?.id != null &&
+      String(garmentShareExistingShare.listId) !== String(currentGarment.id)
+    ) {
       return;
     }
     try {
@@ -1342,7 +1365,7 @@ export function GarmentProvider({
       console.error('Failed to revoke garment share:', error);
       alert(t('garments.shareRevokeFailed'));
     }
-  }, [garmentShareExistingShare, t]);
+  }, [currentGarment?.id, garmentShareExistingShare, t]);
 
   const getPanelTitle = useCallback(
     (mode: string, item: GarmentList | InventoryItem | null) => {
