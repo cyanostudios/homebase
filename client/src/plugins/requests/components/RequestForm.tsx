@@ -94,10 +94,12 @@ interface RequestFormProps {
   onCancel: () => void;
   /** Reserved for mail-style list detail column (form is already single-column). */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(function RequestForm(
-  { currentRequest, currentItem, onSave, onCancel, stacked: _stacked = false },
+  { currentRequest, currentItem, onSave, onCancel, stacked: _stacked = false, headerTrailing },
   ref,
 ) {
   const { t } = useTranslation();
@@ -458,23 +460,28 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
   const formHeader = (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
       <div className="px-4 py-5">
-        <div className="min-w-0 flex-1">
-          <Input
-            id="request-title"
-            value={form.title}
-            onChange={(e) => updateForm('title', e.target.value)}
-            placeholder={t('requests.form.titlePlaceholder')}
-            aria-label={t('requests.form.title')}
-            className={cn(
-              DETAIL_FORM_TITLE_INPUT_CLASS,
-              PLUGIN_PAGE_TITLE_CLASS,
-              'min-w-0 tracking-[0.003em]',
-              titleError && FORM_INPUT_ERROR_CLASS,
-            )}
-            required
-          />
-          {titleError ? (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{titleError}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <Input
+              id="request-title"
+              value={form.title}
+              onChange={(e) => updateForm('title', e.target.value)}
+              placeholder={t('requests.form.titlePlaceholder')}
+              aria-label={t('requests.form.title')}
+              className={cn(
+                DETAIL_FORM_TITLE_INPUT_CLASS,
+                PLUGIN_PAGE_TITLE_CLASS,
+                'min-w-0 tracking-[0.003em]',
+                titleError && FORM_INPUT_ERROR_CLASS,
+              )}
+              required
+            />
+            {titleError ? (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{titleError}</p>
+            ) : null}
+          </div>
+          {headerTrailing ? (
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
           ) : null}
         </div>
         <div className="mt-4">{tabChips}</div>

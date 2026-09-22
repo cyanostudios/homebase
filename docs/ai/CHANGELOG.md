@@ -2,6 +2,10 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Contacts UI Hygiene — docs sync (2026-09-22)
+
+Docs efter **QA Approved** + **Security Approved** för Contacts legacy panel settings delete (`ContactSettingsForm`, orphan `ContactAssignmentRow`) och full-page-only settings via `ContactSettingsView` / `contactsContentView`. Operator: [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](../PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §7 (Contacts listed with Notes/Tasks as verified full-page). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-22 Contacts + historical 2026-08-09 settings link repaired. **Working tree; local-first; ej prod-release.** Security: no new API/auth surface.
+
 ## Clubdesk public installable PWA — docs sync (2026-09-17)
 
 ADR [`adr/CLUBDESK_PUBLIC_COMPANION.md`](adr/CLUBDESK_PUBLIC_COMPANION.md) decision **9** (manifest, icons, no SW) + Security note (IC-1/SP-1 oförändrade). README `public-clubdesk/` PWA + prod ops-checklista. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-17. **Local-first; ej prod-release.** Caddyfile SSR-rutter synkade med `router.php`.

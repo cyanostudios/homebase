@@ -1,4 +1,4 @@
-import { Info, Smartphone } from 'lucide-react';
+import { Bell, Info, SlidersHorizontal, Smartphone } from 'lucide-react';
 import React, { useImperativeHandle, useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,9 +15,10 @@ import {
 import { Switch } from '@/components/ui/switch';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
 import { usePulses } from '../hooks/usePulses';
@@ -31,11 +32,19 @@ interface PulseSettingsFormProps {
   onCancel?: () => void;
   onSaveSuccess?: () => void;
   stacked?: boolean;
+  headerTrailing?: React.ReactNode;
 }
 
 export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettingsFormProps>(
   function PulseSettingsForm(
-    { currentPulse: currentPulseProp, onSave, onCancel, onSaveSuccess, stacked = false },
+    {
+      currentPulse: currentPulseProp,
+      onSave,
+      onCancel,
+      onSaveSuccess,
+      stacked = false,
+      headerTrailing,
+    },
     ref,
   ) {
     const { t } = useTranslation();
@@ -169,49 +178,75 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
 
     const enabledId = `pulse-${activeProviderKey || 'new'}-enabled`;
 
-    const formSidebar = currentPulse ? (
-      <div className="space-y-4">
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection
-            title={t('pulses.information', { defaultValue: 'Information' })}
-            icon={Info}
-            iconPlugin="pulses"
-            className="p-4"
-            collapsible
-          >
-            <div className="space-y-4 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {t('pulses.providerKey', { defaultValue: 'Key' })}
-                </span>
-                <span className="font-mono font-medium">{currentPulse.providerKey}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t('common.created')}</span>
-                <span className="font-medium">
-                  {currentPulse.createdAt
-                    ? new Date(currentPulse.createdAt).toLocaleDateString()
-                    : '—'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t('common.updated')}</span>
-                <span className="font-medium">
-                  {currentPulse.updatedAt
-                    ? new Date(currentPulse.updatedAt).toLocaleDateString()
-                    : '—'}
-                </span>
-              </div>
-            </div>
-          </DetailSection>
-        </Card>
+    const titleLeading = activeProviderKey ? (
+      <div className="flex min-w-0 items-center gap-2">
+        <span title={t('nav.pulses', { defaultValue: 'Pulse' })} className="inline-flex shrink-0">
+          <SectionCategoryIcon
+            icon={Bell}
+            className="h-8 w-8 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-4 [&_svg]:w-4"
+          />
+        </span>
+        <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>{title}</h3>
       </div>
-    ) : undefined;
+    ) : null;
+
+    const stackedFormHeader =
+      stacked && headerTrailing && activeProviderKey ? (
+        <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-pulses flex flex-col')}>
+          <div className="border-b border-border/50 px-4 py-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="min-w-0 flex-1">{titleLeading}</div>
+              <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+            </div>
+          </div>
+        </Card>
+      ) : null;
+
+    const formSidebar =
+      currentPulse && !stacked ? (
+        <div className="space-y-4">
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection
+              title={t('pulses.information', { defaultValue: 'Information' })}
+              icon={Info}
+              iconPlugin="pulses"
+              className="p-4"
+              collapsible
+            >
+              <div className="space-y-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">
+                    {t('pulses.providerKey', { defaultValue: 'Key' })}
+                  </span>
+                  <span className="font-mono font-medium">{currentPulse.providerKey}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t('common.created')}</span>
+                  <span className="font-medium">
+                    {currentPulse.createdAt
+                      ? new Date(currentPulse.createdAt).toLocaleDateString()
+                      : '—'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t('common.updated')}</span>
+                  <span className="font-medium">
+                    {currentPulse.updatedAt
+                      ? new Date(currentPulse.updatedAt).toLocaleDateString()
+                      : '—'}
+                  </span>
+                </div>
+              </div>
+            </DetailSection>
+          </Card>
+        </div>
+      ) : undefined;
 
     return (
       <div className="plugin-pulses">
         <DetailLayout gridClassName={stacked ? 'grid-cols-1' : undefined} sidebar={formSidebar}>
           <div className="space-y-6">
+            {stackedFormHeader}
             {error ? (
               <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
                 <p className="text-sm text-destructive">{error}</p>
@@ -282,7 +317,17 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
 
             {activeProviderKey ? (
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title={title} icon={Smartphone} iconPlugin="pulses" className="p-6">
+                <DetailSection
+                  title={
+                    stacked && headerTrailing
+                      ? t('pulses.tabs.configuration', { defaultValue: 'Configuration' })
+                      : title
+                  }
+                  icon={stacked && headerTrailing ? SlidersHorizontal : Smartphone}
+                  iconPlugin="pulses"
+                  className="p-6"
+                  subtleTitle={Boolean(stacked && headerTrailing)}
+                >
                   {settingsDescription ? (
                     <p className="mb-4 text-sm text-muted-foreground">{settingsDescription}</p>
                   ) : null}

@@ -4,6 +4,11 @@ import { useTranslation } from 'react-i18next';
 
 import { StatKpiTile } from '@/core/ui/charts/StatCharts';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  PLUGIN_PAGE_HEADER_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
+} from '@/core/ui/pluginPageStyles';
 
 import { useEstimates } from '../hooks/useEstimates';
 
@@ -28,16 +33,19 @@ export function EstimatesStatisticsView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-extrabold tracking-tight text-foreground">
-          {t('estimates.statistics.title', { defaultValue: 'Estimate statistics' })}
-        </h2>
-        <p className="mt-1 hidden text-sm text-muted-foreground md:block">
-          {t('estimates.statistics.description', {
-            defaultValue: 'Overview of draft, sent, and accepted estimates.',
-          })}
-        </p>
+      <div className={PLUGIN_PAGE_HEADER_CLASS}>
+        <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
+          <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
+            {t('estimates.statistics.title', { defaultValue: 'Estimate statistics' })}
+          </h2>
+        </div>
       </div>
+
+      <p className="hidden text-sm text-muted-foreground md:block">
+        {t('estimates.statistics.description', {
+          defaultValue: 'Overview of draft, sent, and accepted estimates.',
+        })}
+      </p>
 
       <DetailSection
         title={t('estimates.statistics.overview', { defaultValue: 'Overview' })}

@@ -924,8 +924,13 @@ export function EstimateList() {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <EstimateForm
+                    ref={inlineFormRef}
+                    currentEstimate={currentEstimate ?? undefined}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeEstimatePanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -936,16 +941,10 @@ export function EstimateList() {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <EstimateForm
-                      ref={inlineFormRef}
-                      currentEstimate={currentEstimate ?? undefined}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeEstimatePanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailEstimate ? (
                   <EstimateView estimate={detailEstimate} stacked />
                 ) : (

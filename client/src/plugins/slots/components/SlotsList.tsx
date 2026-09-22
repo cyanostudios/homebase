@@ -1011,8 +1011,13 @@ export function SlotsList() {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <SlotForm
+                    ref={inlineFormRef}
+                    currentSlot={currentSlot}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeSlotPanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -1021,16 +1026,10 @@ export function SlotsList() {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <SlotForm
-                      ref={inlineFormRef}
-                      currentSlot={currentSlot}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeSlotPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailSlot ? (
                   <SlotView slot={detailSlot} stacked />
                 ) : (

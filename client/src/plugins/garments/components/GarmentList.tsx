@@ -863,14 +863,12 @@ export const GarmentList: React.FC = () => {
             <GarmentsInventorySettingsView
               selectedCategory={inventorySettingsCategory}
               onSelectedCategoryChange={setInventorySettingsCategory}
-              renderCategoryButtonsInline
               onClose={closeGarmentsSettingsView}
             />
           ) : (
             <GarmentsListsSettingsView
               selectedCategory={listsSettingsCategory}
               onSelectedCategoryChange={setListsSettingsCategory}
-              renderCategoryButtonsInline
               onClose={closeGarmentsSettingsView}
               initialListId={settingsListsInitialListId}
             />
@@ -1147,8 +1145,14 @@ export const GarmentList: React.FC = () => {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <GarmentForm
+                    ref={inlineFormRef}
+                    currentGarment={isInventory ? null : currentGarment}
+                    currentItem={isInventory ? null : currentGarment}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={handleInlineFormCancel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -1157,17 +1161,10 @@ export const GarmentList: React.FC = () => {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <GarmentForm
-                      ref={inlineFormRef}
-                      currentGarment={isInventory ? null : currentGarment}
-                      currentItem={isInventory ? null : currentGarment}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={handleInlineFormCancel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailOpen ? (
                   isInventory ? (
                     <GarmentView inventoryItem={detailInventory} stacked />

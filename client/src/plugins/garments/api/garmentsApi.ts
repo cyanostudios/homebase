@@ -152,6 +152,16 @@ class GarmentsApi {
     });
   }
 
+  patchFitSummaryProcurement(
+    listId: string,
+    fitSummaryProcurement: NonNullable<GarmentList['fitSummaryProcurement']>,
+  ) {
+    return apiRequest<GarmentList>(`/lists/${listId}/fit-summary-procurement`, {
+      method: 'PATCH',
+      body: JSON.stringify({ fitSummaryProcurement }),
+    });
+  }
+
   deletePerson(listId: string, personId: string) {
     return apiRequest<{ deleted: boolean }>(`/lists/${listId}/persons/${personId}`, {
       method: 'DELETE',

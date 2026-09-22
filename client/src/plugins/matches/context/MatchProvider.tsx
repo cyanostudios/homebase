@@ -552,10 +552,6 @@ export function MatchProvider({
               setShowQuickActionDialog(true);
             }
           },
-          className:
-            action.id === 'create-slot-from-match'
-              ? 'h-9 text-xs px-3 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
-              : 'h-9 text-xs px-3',
         })),
     [hasSlotsPlugin, openToSlotDialog, pluginActions, t],
   );

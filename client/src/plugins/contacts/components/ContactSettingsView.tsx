@@ -46,8 +46,6 @@ export type ContactSettingsCategory = 'tags' | 'import';
 interface ContactSettingsViewProps {
   selectedCategory?: ContactSettingsCategory;
   onSelectedCategoryChange?: (category: ContactSettingsCategory) => void;
-  /** @deprecated Category buttons live in the settings header. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
 

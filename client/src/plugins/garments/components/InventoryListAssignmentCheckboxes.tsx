@@ -180,17 +180,7 @@ export function InventoryListAssignmentCheckboxes({
   );
 
   if (embedded) {
-    return (
-      <div>
-        <div className="mb-1.5 flex items-center gap-1.5">
-          <Package className="h-3 w-3 text-slate-400" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-            {t('garments.assignToLists')}
-          </span>
-        </div>
-        {body}
-      </div>
-    );
+    return body;
   }
 
   return (

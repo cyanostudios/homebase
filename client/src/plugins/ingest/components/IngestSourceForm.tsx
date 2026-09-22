@@ -57,6 +57,8 @@ interface IngestSourceFormProps {
   isSubmitting?: boolean;
   /** Single-column layout for mail detail column. */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 type IngestFormTab = 'information' | 'excerpt' | 'runs' | 'activity';
@@ -84,6 +86,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
       onCancel,
       isSubmitting: externalIsSubmitting = false,
       stacked: _stacked = false,
+      headerTrailing,
     },
     ref,
   ) {
@@ -300,6 +303,9 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                 className={FORM_GHOST_INPUT_CLASS}
               />
             </div>
+            {headerTrailing ? (
+              <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+            ) : null}
           </div>
           <div className="mt-4">{tabChips}</div>
         </div>

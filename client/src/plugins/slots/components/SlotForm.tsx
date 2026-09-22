@@ -1,4 +1,4 @@
-import { Info, Search, SlidersHorizontal, Trash2, User, Users } from 'lucide-react';
+import { Info, Search, SlidersHorizontal, Store, Trash2, User, Users } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -31,6 +31,7 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_FORM_TITLE_INPUT_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import {
   FORM_GHOST_INPUT_CLASS,
   FORM_GHOST_SELECT_CLASS,
@@ -104,6 +105,7 @@ interface SlotFormProps {
   onCancel: () => void;
   isSubmitting?: boolean;
   stacked?: boolean;
+  headerTrailing?: React.ReactNode;
 }
 
 /**
@@ -131,7 +133,7 @@ function toDatetimeLocal(iso: string | null | undefined): string {
 }
 
 export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(function SlotForm(
-  { currentSlot, onSave, onSaveSlots, onCancel, stacked = false },
+  { currentSlot, onSave, onSaveSlots, onCancel, stacked = false, headerTrailing },
   ref,
 ) {
   const { t } = useTranslation();
@@ -434,6 +436,40 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
     !!endBeforeStartError ||
     validationErrors.some((e) => !e.message?.toLowerCase().includes('warning'));
 
+  const listFormHeader =
+    stacked && headerTrailing ? (
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+        <div className="border-b border-border/50 px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              title={t('nav.slots', { defaultValue: 'Slots' })}
+              className="inline-flex shrink-0"
+            >
+              <SectionCategoryIcon
+                icon={Store}
+                className="h-9 w-9 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-4 [&_svg]:w-4"
+              />
+            </span>
+            <div className="min-w-0 flex-1">
+              <Input
+                id="slots-name-header"
+                value={formData.name}
+                onChange={(e) => updateField('name', e.target.value)}
+                placeholder={t('slots.namePlaceholder')}
+                aria-label={t('slots.nameLabel')}
+                className={cn(
+                  DETAIL_FORM_TITLE_INPUT_CLASS,
+                  PLUGIN_PAGE_TITLE_CLASS,
+                  'min-w-0 tracking-[0.003em]',
+                )}
+              />
+            </div>
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          </div>
+        </div>
+      </Card>
+    ) : null;
+
   const formSidebar =
     currentSlot && !stacked ? (
       <div className="space-y-4">
@@ -490,6 +526,8 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
               handleSubmit();
             }}
           >
+            {listFormHeader}
+
             {hasBlockingErrors && (
               <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
                 <div className="text-sm text-destructive font-medium">{t('common.cannotSave')}</div>
@@ -590,16 +628,18 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title={t('slots.sectionTitle')} iconPlugin="slots" className="p-6">
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="slots-name">{t('slots.nameLabel')}</Label>
-                    <Input
-                      id="slots-name"
-                      value={formData.name}
-                      onChange={(e) => updateField('name', e.target.value)}
-                      placeholder={t('slots.namePlaceholder')}
-                      className={FORM_GHOST_INPUT_CLASS}
-                    />
-                  </div>
+                  {!(stacked && headerTrailing) ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="slots-name">{t('slots.nameLabel')}</Label>
+                      <Input
+                        id="slots-name"
+                        value={formData.name}
+                        onChange={(e) => updateField('name', e.target.value)}
+                        placeholder={t('slots.namePlaceholder')}
+                        className={FORM_GHOST_INPUT_CLASS}
+                      />
+                    </div>
+                  ) : null}
                   {/* Start / end (same combined date+time UI as matches DateTimePicker) */}
                   <div className={cn('grid grid-cols-1 gap-4', !stacked && 'md:grid-cols-2')}>
                     <div className="space-y-2">

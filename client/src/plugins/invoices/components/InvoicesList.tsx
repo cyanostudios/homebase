@@ -769,7 +769,6 @@ export function InvoicesList() {
           <InvoiceSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
             onClose={closeInvoiceSettingsView}
           />
         </div>
@@ -1012,8 +1011,13 @@ export function InvoicesList() {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <InvoicesForm
+                    ref={inlineFormRef}
+                    currentInvoice={currentInvoice as any}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeInvoicesPanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -1024,16 +1028,10 @@ export function InvoicesList() {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <InvoicesForm
-                      ref={inlineFormRef}
-                      currentInvoice={currentInvoice as any}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeInvoicesPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailInvoice ? (
                   <InvoicesView invoice={detailInvoice} stacked />
                 ) : (

@@ -58,6 +58,7 @@ describe('InvoicesList table view wiring', () => {
     expect(fs.existsSync(path.join(__dirname, '../InvoiceSettingsView.tsx'))).toBe(true);
     expect(listSrc).toMatch(/InvoiceSettingsView/);
     expect(listSrc).toMatch(/openInvoiceSettings/);
+    expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
     expect(listSrc).not.toMatch(/ListColumnLayoutToggle/);
     expect(listSrc).toMatch(/resolveVisibleInvoiceTableColumns/);
     expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);

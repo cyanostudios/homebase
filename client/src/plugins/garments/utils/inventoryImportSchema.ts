@@ -44,7 +44,12 @@ export function getGarmentInventoryImportSchema(): ImportSchema {
         required: false,
         aliases: ['Artikelnr', 'Artikel nr', 'Art.nr', 'Art nr', 'SKU'],
       },
-      { key: 'audience', label: 'Audience', required: false, aliases: ['Målgrupp', 'Malgrupp'] },
+      {
+        key: 'audience',
+        label: 'Line',
+        required: false,
+        aliases: ['Linje', 'Audience', 'Målgrupp', 'Malgrupp'],
+      },
       { key: 'color', label: 'Color', required: false, aliases: ['Färg', 'Farg'] },
       { key: 'size', label: 'Size', required: false, aliases: ['Storlek'] },
       { key: 'quantity', label: 'Quantity', required: false, aliases: ['Antal', 'Qty'] },

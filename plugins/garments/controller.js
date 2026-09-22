@@ -152,6 +152,15 @@ class GarmentsController {
     }
   }
 
+  async updateFitSummaryProcurement(req, res, next) {
+    try {
+      const list = await this.model.updateFitSummaryProcurement(req, req.params.id, req.body);
+      res.json(list);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async createShare(req, res, next) {
     try {
       const { listId, validUntil } = req.body;

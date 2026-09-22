@@ -688,8 +688,13 @@ export const MailProvidersList: React.FC = () => {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <MailSettingsForm
+                    ref={inlineFormRef}
+                    currentMail={currentMail}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeMailPanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={false}
@@ -698,16 +703,10 @@ export const MailProvidersList: React.FC = () => {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <MailSettingsForm
-                      ref={inlineFormRef}
-                      currentMail={currentMail}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeMailPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailProvider ? (
                   <MailProviderView mail={detailProvider} />
                 ) : (

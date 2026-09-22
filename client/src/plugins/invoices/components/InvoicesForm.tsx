@@ -154,10 +154,15 @@ interface InvoicesFormProps {
   onCancel: () => void;
   /** Reserved for mail-style list detail column (form is already single-column). */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>(
-  function InvoicesForm({ currentInvoice, onSave, onCancel, stacked: _stacked = false }, ref) {
+  function InvoicesForm(
+    { currentInvoice, onSave, onCancel, stacked: _stacked = false, headerTrailing },
+    ref,
+  ) {
     const { t } = useTranslation();
     const [searchParams, setSearchParams] = useSearchParams();
     const activeTab = parseInvoiceFormTab(searchParams.get('tab'));
@@ -711,9 +716,14 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                 className="h-8 w-8 bg-plugin-subtle text-plugin [&_svg]:h-4 [&_svg]:w-4"
               />
             </span>
-            <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 font-mono tracking-[0.003em]')}>
+            <h3
+              className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1 font-mono tracking-[0.003em]')}
+            >
               {invoiceNumberLabel || t('invoices.newInvoice', { defaultValue: 'New invoice' })}
             </h3>
+            {headerTrailing ? (
+              <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+            ) : null}
           </div>
           <div className="mt-4">{tabChips}</div>
         </div>

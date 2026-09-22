@@ -26,11 +26,26 @@ export interface GarmentList {
   checkboxColumns: GarmentCheckboxColumn[];
   /** Inventory items assigned to this list. */
   assignedInventoryItemIds?: string[];
+  /**
+   * List-level supplier/batch order progress for Size summary rows.
+   * Keyed by inventory item id → breakdown key (`audience` + U+001F + `size`).
+   * Independent of person `inv_*_ordered` checkboxes.
+   */
+  fitSummaryProcurement?: FitSummaryProcurement;
   personCount?: number;
   persons?: GarmentPerson[];
   createdAt: string;
   updatedAt: string;
 }
+
+/** One Size summary breakdown row's procurement state. */
+export type FitSummaryProcurementRow = {
+  ordered?: boolean;
+  qtyOrdered?: number | null;
+};
+
+/** itemId → breakdownKey → procurement row */
+export type FitSummaryProcurement = Record<string, Record<string, FitSummaryProcurementRow>>;
 
 export interface GarmentListPayload {
   name: string;

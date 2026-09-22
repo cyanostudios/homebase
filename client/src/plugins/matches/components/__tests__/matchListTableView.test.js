@@ -103,6 +103,7 @@ describe('MatchList table view wiring', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/MatchForm/);
     expect(listSrc).toMatch(/InlinePanelFormActions/);
+    expect(listSrc).toMatch(/headerTrailing/);
     expect(listSrc).toMatch(/inlineFormRef/);
     expect(listSrc).toMatch(/isMatchPanelOpen/);
     expect(listSrc).toMatch(/panelMode === 'create' \|\| panelMode === 'edit'/);

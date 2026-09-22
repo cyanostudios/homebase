@@ -138,10 +138,12 @@ interface TeamFormProps {
   onCancel: () => void;
   /** Single-column card stack (e.g. list detail column). */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(function TeamForm(
-  { currentTeam, currentItem, onSave, onCancel, stacked: _stacked = false },
+  { currentTeam, currentItem, onSave, onCancel, stacked: _stacked = false, headerTrailing },
   ref,
 ) {
   const { t } = useTranslation();
@@ -540,6 +542,9 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
               className={FORM_GHOST_INPUT_CLASS}
             />
           </div>
+          {headerTrailing ? (
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          ) : null}
         </div>
         <div className="mt-4">{tabChips}</div>
       </div>

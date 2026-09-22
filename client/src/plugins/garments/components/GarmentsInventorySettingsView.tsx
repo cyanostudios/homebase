@@ -54,8 +54,6 @@ export type GarmentsInventorySettingsCategory = 'tags' | 'columns' | 'import';
 interface GarmentsInventorySettingsViewProps {
   selectedCategory?: GarmentsInventorySettingsCategory;
   onSelectedCategoryChange?: (category: GarmentsInventorySettingsCategory) => void;
-  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
 

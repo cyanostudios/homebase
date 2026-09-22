@@ -158,6 +158,9 @@ export type GarmentFitSummaryBreakdown = {
   audience: string;
   size: string;
   count: number;
+  /** Merged from list.fitSummaryProcurement (display only until merged). */
+  ordered?: boolean;
+  qtyOrdered?: number | null;
 };
 
 export type GarmentFitSummaryEntry = {
@@ -181,8 +184,78 @@ function compareFitBreakdown(a: GarmentFitSummaryBreakdown, b: GarmentFitSummary
   return a.size.localeCompare(b.size, undefined, { numeric: true, sensitivity: 'base' });
 }
 
-function fitBreakdownKey(audience: string, size: string): string {
-  return `${audience}\0${size}`;
+export function fitBreakdownKey(audience: string, size: string): string {
+  // Unit separator — must not be U+0000 (PostgreSQL JSONB rejects null bytes in text).
+  return `${audience}\u001f${size}`;
+}
+
+/**
+ * Merge list-level procurement state onto derived size-summary entries.
+ * Stale procurement keys (no longer in the summary) are ignored.
+ */
+export function mergeFitSummaryProcurement(
+  entries: GarmentFitSummaryEntry[],
+  procurement:
+    | Record<string, Record<string, { ordered?: boolean; qtyOrdered?: number | null }>>
+    | undefined,
+): GarmentFitSummaryEntry[] {
+  if (!procurement || Object.keys(procurement).length === 0) {
+    return entries.map((entry) => ({
+      ...entry,
+      fitBreakdowns: entry.fitBreakdowns.map((row) => ({
+        ...row,
+        ordered: false,
+        qtyOrdered: null,
+      })),
+    }));
+  }
+  return entries.map((entry) => {
+    const itemProc = procurement[entry.itemId];
+    return {
+      ...entry,
+      fitBreakdowns: entry.fitBreakdowns.map((row) => {
+        const stored = itemProc?.[fitBreakdownKey(row.audience, row.size)];
+        const qtyRaw = stored?.qtyOrdered;
+        const qtyOrdered =
+          qtyRaw != null && Number.isFinite(Number(qtyRaw)) ? Math.trunc(Number(qtyRaw)) : null;
+        return {
+          ...row,
+          ordered: Boolean(stored?.ordered),
+          qtyOrdered,
+        };
+      }),
+    };
+  });
+}
+
+/**
+ * Deep-merge a procurement patch into an existing map (client optimistic updates).
+ */
+export function deepMergeFitSummaryProcurement(
+  existing:
+    | Record<string, Record<string, { ordered?: boolean; qtyOrdered?: number | null }>>
+    | undefined,
+  patch: Record<string, Record<string, { ordered?: boolean; qtyOrdered?: number | null }>>,
+): Record<string, Record<string, { ordered?: boolean; qtyOrdered?: number | null }>> {
+  const next: Record<
+    string,
+    Record<string, { ordered?: boolean; qtyOrdered?: number | null }>
+  > = {};
+  for (const [itemId, breakdowns] of Object.entries(existing ?? {})) {
+    next[itemId] = { ...breakdowns };
+  }
+  for (const [itemId, breakdowns] of Object.entries(patch)) {
+    if (!next[itemId]) {
+      next[itemId] = {};
+    }
+    for (const [key, row] of Object.entries(breakdowns)) {
+      next[itemId][key] = {
+        ...next[itemId][key],
+        ...row,
+      };
+    }
+  }
+  return next;
 }
 
 /**

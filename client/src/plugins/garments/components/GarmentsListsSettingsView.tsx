@@ -54,8 +54,6 @@ const IDENTITY_LABEL_KEYS: Record<PersonMatrixIdentityColumnId, string> = {
 interface GarmentsListsSettingsViewProps {
   selectedCategory?: GarmentsListsSettingsCategory;
   onSelectedCategoryChange?: (category: GarmentsListsSettingsCategory) => void;
-  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
   /** Pre-select a list when opening settings from list context. */
   initialListId?: string | null;

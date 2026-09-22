@@ -117,11 +117,14 @@ describe('Garment inventory list split view wiring', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/GarmentForm/);
     expect(listSrc).toMatch(/InlinePanelFormActions/);
+    expect(listSrc).toMatch(/headerTrailing/);
     expect(listSrc).toMatch(/isGarmentPanelOpen/);
     expect(formSrc).toMatch(/stacked\?: boolean/);
+    expect(formSrc).toMatch(/headerTrailing\?:/);
     expect(formSrc).toMatch(/gridClassName="grid-cols-1"/);
     expect(formSrc).toMatch(/INVENTORY_FORM_EDIT_DISABLED_TABS/);
     expect(formSrc).toMatch(/inventoryFormHeader/);
+    expect(formSrc).toMatch(/listFormHeader/);
     expect(formSrc).not.toMatch(/leftSidebar/);
     expect(formSrc).not.toMatch(/inventoryLeftSidebar/);
   });

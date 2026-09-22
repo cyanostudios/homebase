@@ -915,8 +915,13 @@ export function RequestList() {
                 aria-live="polite"
               >
                 {inlineForm ? (
-                  <div className="flex min-h-0 flex-col gap-3">
-                    <div className="flex shrink-0 justify-end">
+                  <RequestForm
+                    ref={inlineFormRef}
+                    currentRequest={currentRequest}
+                    onSave={handleInlineFormOnSave}
+                    onCancel={closeRequestPanel}
+                    stacked
+                    headerTrailing={
                       <InlinePanelFormActions
                         mode={panelMode === 'edit' ? 'edit' : 'create'}
                         hasBlockingErrors={inlineFormHasBlockingErrors}
@@ -925,16 +930,10 @@ export function RequestList() {
                           void handleInlineFormSave();
                         }}
                         t={t}
+                        className="flex shrink-0 items-center gap-1"
                       />
-                    </div>
-                    <RequestForm
-                      ref={inlineFormRef}
-                      currentRequest={currentRequest}
-                      onSave={handleInlineFormOnSave}
-                      onCancel={closeRequestPanel}
-                      stacked
-                    />
-                  </div>
+                    }
+                  />
                 ) : detailRequest ? (
                   <RequestView request={detailRequest} stacked />
                 ) : (

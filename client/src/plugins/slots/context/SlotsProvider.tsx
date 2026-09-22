@@ -67,8 +67,6 @@ export function SlotsProvider({
       label: t('app.createSlotFromMatch'),
       icon: Store,
       variant: 'primary',
-      className:
-        'h-9 text-xs px-3 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30',
       onClick: () => {},
     });
     return () => unregister?.();

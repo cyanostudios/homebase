@@ -94,6 +94,7 @@ describe('TeamList table view wiring', () => {
     expect(listSrc).toMatch(/inlineForm/);
     expect(listSrc).toMatch(/TeamForm/);
     expect(listSrc).toMatch(/InlinePanelFormActions/);
+    expect(listSrc).toMatch(/headerTrailing/);
     expect(listSrc).toMatch(/inlineFormRef/);
     expect(listSrc).toMatch(/isTeamPanelOpen/);
     expect(listSrc).toMatch(/panelMode === 'create' \|\| panelMode === 'edit'/);

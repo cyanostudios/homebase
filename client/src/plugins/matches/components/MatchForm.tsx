@@ -82,6 +82,8 @@ interface MatchFormProps {
   onCancel: () => void;
   /** Single-column card stack (e.g. list detail column). */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 type MatchFormTab = 'information' | 'contacts' | 'linked' | 'activity';
@@ -131,7 +133,7 @@ function toDatetimeLocal(iso: string | null): string {
 }
 
 export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(function MatchForm(
-  { currentMatch, onSave, onCancel, stacked: _stacked = false },
+  { currentMatch, onSave, onCancel, stacked: _stacked = false, headerTrailing },
   ref,
 ) {
   const { t } = useTranslation();
@@ -491,6 +493,9 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
               className={FORM_GHOST_INPUT_CLASS}
             />
           </div>
+          {headerTrailing ? (
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          ) : null}
         </div>
         <div className="mt-4">{tabChips}</div>
       </div>

@@ -152,15 +152,17 @@ function MatchInformationCard({ match }: Pick<MatchMainInfoCardProps, 'match'>) 
           <div>
             <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.mapLink')}</div>
             {match.map_link?.trim() ? (
-              <a
-                href={match.map_link}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-plugin hover:underline"
-              >
-                {t('matches.openMap')}
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              <div className={DETAIL_FIELD_VALUE_CLASS}>
+                <a
+                  href={match.map_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-plugin hover:underline"
+                >
+                  {t('matches.openMap')}
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                </a>
+              </div>
             ) : (
               <div className={DETAIL_FIELD_VALUE_CLASS}>—</div>
             )}

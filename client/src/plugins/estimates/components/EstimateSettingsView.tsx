@@ -29,7 +29,6 @@ export type EstimateSettingsCategory = 'numbering';
 interface EstimateSettingsViewProps {
   selectedCategory?: EstimateSettingsCategory;
   onSelectedCategoryChange?: (category: EstimateSettingsCategory) => void;
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
 

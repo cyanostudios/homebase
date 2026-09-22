@@ -4,6 +4,7 @@ import {
   Info,
   Layers,
   List,
+  Package,
   Plus,
   ShoppingBag,
   SlidersHorizontal,
@@ -89,6 +90,8 @@ interface GarmentFormProps {
   isSubmitting?: boolean;
   /** Single-column layout for mail detail column. */
   stacked?: boolean;
+  /** Close/Update (or similar) rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 function emptyVariant(): InventoryVariantPayload {
@@ -133,6 +136,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     onCancel,
     isSubmitting: externalIsSubmitting = false,
     stacked = false,
+    headerTrailing,
   },
   ref,
 ) {
@@ -567,7 +571,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
 
   const inventoryFormHeader = (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
-      <div className="px-4 py-5">
+      <div className="border-b border-border/50 px-4 py-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="inline-flex shrink-0" aria-hidden>
             <SectionCategoryIcon
@@ -593,11 +597,41 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
               </p>
             ) : null}
           </div>
+          {headerTrailing ? (
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          ) : null}
         </div>
         <div className="mt-4">{inventoryTabChips}</div>
       </div>
     </Card>
   );
+
+  const listFormHeader =
+    stacked && headerTrailing ? (
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+        <div className="border-b border-border/50 px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <Input
+                id="garment-name"
+                value={listForm.name}
+                onChange={(e) => updateListField('name', e.target.value)}
+                placeholder={t('garments.name')}
+                aria-label={t('garments.name')}
+                className={cn(
+                  DETAIL_FORM_TITLE_INPUT_CLASS,
+                  getFieldError('name') && FORM_INPUT_ERROR_CLASS,
+                )}
+              />
+              {getFieldError('name') ? (
+                <p className="mt-1 text-sm text-destructive">{getFieldError('name')?.message}</p>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          </div>
+        </div>
+      </Card>
+    ) : null;
 
   const inventoryInformationCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -815,8 +849,8 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
 
   const inventoryListsCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection title={t('garments.tabs.lists')} icon={List} subtleTitle className="p-6">
-        <InventoryListAssignmentCheckboxes itemId={currentInventoryItem?.id} />
+      <DetailSection title={t('garments.assignToLists')} icon={Package} subtleTitle className="p-6">
+        <InventoryListAssignmentCheckboxes itemId={currentInventoryItem?.id} embedded />
       </DetailSection>
     </Card>
   );
@@ -960,21 +994,23 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
         className="p-6"
       >
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="garment-name">{t('garments.name')}</Label>
-            <Input
-              id="garment-name"
-              value={listForm.name}
-              onChange={(e) => updateListField('name', e.target.value)}
-              className={cn(
-                FORM_GHOST_INPUT_CLASS,
-                getFieldError('name') && FORM_INPUT_ERROR_CLASS,
-              )}
-            />
-            {getFieldError('name') ? (
-              <p className="mt-1 text-sm text-destructive">{getFieldError('name')?.message}</p>
-            ) : null}
-          </div>
+          {!listFormHeader ? (
+            <div>
+              <Label htmlFor="garment-name">{t('garments.name')}</Label>
+              <Input
+                id="garment-name"
+                value={listForm.name}
+                onChange={(e) => updateListField('name', e.target.value)}
+                className={cn(
+                  FORM_GHOST_INPUT_CLASS,
+                  getFieldError('name') && FORM_INPUT_ERROR_CLASS,
+                )}
+              />
+              {getFieldError('name') ? (
+                <p className="mt-1 text-sm text-destructive">{getFieldError('name')?.message}</p>
+              ) : null}
+            </div>
+          ) : null}
           {hasTeams ? (
             <div>
               <Label htmlFor="garment-team">{t('garments.team')}</Label>
@@ -1042,7 +1078,10 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 {activeTab === 'lists' ? inventoryListsCard : null}
               </>
             ) : (
-              listDetailsCard
+              <>
+                {listFormHeader}
+                {listDetailsCard}
+              </>
             )}
           </form>
         </DetailLayout>

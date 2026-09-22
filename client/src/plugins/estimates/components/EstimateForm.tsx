@@ -105,10 +105,15 @@ interface EstimateFormProps {
   onCancel: () => void;
   /** Single-column layout for mail detail column. */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>(
-  function EstimateForm({ currentEstimate, onSave, onCancel, stacked: _stacked = false }, ref) {
+  function EstimateForm(
+    { currentEstimate, onSave, onCancel, stacked: _stacked = false, headerTrailing },
+    ref,
+  ) {
     const { t } = useTranslation();
     const [searchParams, setSearchParams] = useSearchParams();
     const activeTab = parseEstimateFormTab(searchParams.get('tab'));
@@ -634,9 +639,12 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                 className="h-8 w-8 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 [&_svg]:h-4 [&_svg]:w-4"
               />
             </span>
-            <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 tracking-[0.003em]')}>
+            <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1 tracking-[0.003em]')}>
               {estimateTitle}
             </h3>
+            {headerTrailing ? (
+              <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+            ) : null}
           </div>
           <div className="mt-4">{tabChips}</div>
         </div>

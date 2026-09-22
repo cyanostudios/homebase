@@ -357,6 +357,17 @@ function createGarmentsRoutes(controller, context) {
     (req, res, next) => controller.updatePersonCtSizes(req, res, next),
   );
 
+  router.patch(
+    '/lists/:id/fit-summary-procurement',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    body('fitSummaryProcurement').optional().isObject(),
+    body('fit_summary_procurement').optional().isObject(),
+    validateRequest,
+    (req, res, next) => controller.updateFitSummaryProcurement(req, res, next),
+  );
+
   return router;
 }
 

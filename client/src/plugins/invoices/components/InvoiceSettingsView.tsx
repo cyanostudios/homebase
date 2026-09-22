@@ -46,8 +46,6 @@ export type InvoiceSettingsCategory = 'numbering';
 interface InvoiceSettingsViewProps {
   selectedCategory?: InvoiceSettingsCategory;
   onSelectedCategoryChange?: (category: InvoiceSettingsCategory) => void;
-  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
 

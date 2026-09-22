@@ -85,6 +85,8 @@ interface ClubdeskFormProps {
   isSubmitting?: boolean;
   /** Single-column card stack (e.g. list detail column). */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 function emptyStep(order: number): ClubdeskStepPayload {
@@ -100,7 +102,9 @@ export const ClubdeskForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>
   function ClubdeskForm(props, ref) {
     const location = useLocation();
     if (pathToNavPage(location.pathname) === 'clubdesk-price-list') {
-      return <PriceListForm ref={ref} stacked={props.stacked} />;
+      return (
+        <PriceListForm ref={ref} stacked={props.stacked} headerTrailing={props.headerTrailing} />
+      );
     }
     return <ClubdeskGuideForm ref={ref} {...props} />;
   },
@@ -131,6 +135,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
       onCancel,
       isSubmitting: externalIsSubmitting = false,
       stacked = false,
+      headerTrailing,
     },
     ref,
   ) {
@@ -624,6 +629,9 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                 className={FORM_GHOST_INPUT_CLASS}
               />
             </div>
+            {headerTrailing ? (
+              <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+            ) : null}
           </div>
           <div className="mt-4">{tabChips}</div>
         </div>

@@ -57,6 +57,7 @@ describe('EstimateList table view wiring', () => {
     expect(fs.existsSync(path.join(__dirname, '../EstimateSettingsView.tsx'))).toBe(true);
     expect(listSrc).toMatch(/EstimateSettingsView/);
     expect(listSrc).toMatch(/openEstimateSettings/);
+    expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
     expect(listSrc).toMatch(/resolveVisibleEstimateTableColumns/);
     expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
   });

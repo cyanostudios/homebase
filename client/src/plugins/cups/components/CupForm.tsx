@@ -69,10 +69,12 @@ type Props = {
   onCancel: () => void;
   /** Single-column card stack (e.g. list detail column). */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 };
 
 export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm(
-  { currentCup, currentItem, onSave, onCancel, stacked = false },
+  { currentCup, currentItem, onSave, onCancel, stacked = false, headerTrailing },
   ref,
 ) {
   const { t } = useTranslation();
@@ -280,6 +282,9 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
               className={FORM_GHOST_INPUT_CLASS}
             />
           </div>
+          {headerTrailing ? (
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          ) : null}
         </div>
         <div className="mt-4">{tabChips}</div>
       </div>

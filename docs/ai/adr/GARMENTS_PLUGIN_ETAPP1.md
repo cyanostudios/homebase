@@ -72,13 +72,13 @@
 - Widening `public_share_routing` CHECK is required for share create.
 - Further product work needs a later etapp / ADR delta.
 
-## Person row UX (verified 2026-08-17)
+## Person row UX (verified 2026-08-17; UI hygiene 2026-09-22)
 
-Not a schema change. List detail and public share render each person as a **two-row block** (`PersonBlock` / `PersonMatrix`): identity (name, jersey badge, comment on admin) then sizes + wrapping labeled checkboxes. Public: `readOnly` + `hideComment`. Replaces the earlier wide HTML table in the same detail card. Security residual class unchanged — see [`GARMENTS_PUBLIC_SHARE_ETAPP1.md`](../security/GARMENTS_PUBLIC_SHARE_ETAPP1.md).
+Not a schema change. Admin list detail and public share render persons as a **spreadsheet** (`PersonMatrix` / `PublicPersonMatrix` in `PersonMatrix.tsx`): identity columns, person-level checkboxes, and expandable inventory child rows. The earlier two-row `PersonBlock` component was removed (orphan; no production imports). Public: read-only spreadsheet; comments cleared by API (not a separate `hideComment` UI prop). Security residual class unchanged — see [`GARMENTS_PUBLIC_SHARE_ETAPP1.md`](../security/GARMENTS_PUBLIC_SHARE_ETAPP1.md).
 
 ## Person-level team (verified 2026-08-31)
 
-Schema delta: migration **`155-garment-list-persons-team-id.sql`**. Admin `PersonMatrix` shows optional Team column (after name, before jersey name) when teams is enabled. Public share payload may include numeric `teamId`; public `PersonBlock` does not render Team. Operator notes: [`GARMENTS_PLUGIN.md`](../../GARMENTS_PLUGIN.md).
+Schema delta: migration **`155-garment-list-persons-team-id.sql`**. Admin `PersonMatrix` may show Team when identity prefs + teams plugin allow it (Team is hidden by default in settings). Public share payload may include numeric `teamId`; public `PublicPersonMatrix` does not render a Team column. Operator notes: [`GARMENTS_PLUGIN.md`](../../GARMENTS_PLUGIN.md).
 
 ## References
 

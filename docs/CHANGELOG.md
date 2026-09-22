@@ -3295,7 +3295,7 @@ DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:task-shares
 
 - [`ContactList.tsx`](../client/src/plugins/contacts/components/ContactList.tsx) / [`ContactListTable.tsx`](../client/src/plugins/contacts/components/ContactListTable.tsx)
 - [`contactListViewMode.ts`](../client/src/plugins/contacts/utils/contactListViewMode.ts)
-- Settings: [`ContactSettingsView.tsx`](../client/src/plugins/contacts/components/ContactSettingsView.tsx), [`ContactSettingsForm.tsx`](../client/src/plugins/contacts/components/ContactSettingsForm.tsx)
+- Settings: [`ContactSettingsView.tsx`](../client/src/plugins/contacts/components/ContactSettingsView.tsx) (full-page; former panel `ContactSettingsForm` removed 2026-09-22)
 - Standard: [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) (Contacts pilot)
 - Tester: `contactListViewMode.test.ts`, `contactListTableSort.test.ts`, `contactListTableView.test.js` (+ befintliga column/sort-tester)
 

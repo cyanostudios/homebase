@@ -1,11 +1,13 @@
 import {
   buildGarmentListFitSummary,
   filterMatrixColumns,
+  fitBreakdownKey,
   inventoryItemAudiences,
   inventoryItemIdFromColumnId,
   inventoryItemIdFromGroupColumns,
   inventoryItemSizes,
   inventoryItemSizesForAudience,
+  mergeFitSummaryProcurement,
   personHasFilledInventoryItem,
   personHasInventoryFitData,
   resolveMatrixColumns,
@@ -276,5 +278,35 @@ describe('inventoryListColumns', () => {
       [{ ...sampleItem, id: '3', articleName: 'Match jacket' }],
     );
     expect(emptySummary).toEqual([]);
+  });
+
+  test('mergeFitSummaryProcurement overlays ordered and qty', () => {
+    const entries = [
+      {
+        itemId: '3',
+        articleName: 'Match jacket',
+        personCount: 2,
+        filledCount: 2,
+        fitBreakdowns: [
+          { audience: 'Men', size: 'L', count: 1 },
+          { audience: 'Women', size: 'M', count: 1 },
+        ],
+      },
+    ];
+    const key = fitBreakdownKey('Men', 'L');
+    const merged = mergeFitSummaryProcurement(entries, {
+      '3': { [key]: { ordered: true, qtyOrdered: 4 } },
+    });
+    expect(merged[0].fitBreakdowns[0]).toMatchObject({
+      audience: 'Men',
+      size: 'L',
+      count: 1,
+      ordered: true,
+      qtyOrdered: 4,
+    });
+    expect(merged[0].fitBreakdowns[1]).toMatchObject({
+      ordered: false,
+      qtyOrdered: null,
+    });
   });
 });

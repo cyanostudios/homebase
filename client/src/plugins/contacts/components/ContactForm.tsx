@@ -83,7 +83,6 @@ import {
   withContactPersonInvoiceReference,
 } from '../utils/contactInvoiceReference';
 
-import { ContactSettingsForm } from './ContactSettingsForm';
 /** Same label language as ContactView (`DETAIL_FIELD_LABEL_CLASS`). */
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500';
@@ -168,6 +167,8 @@ interface ContactFormProps {
   isSubmitting?: boolean;
   /** Single-column layout for mail-style list detail column. */
   stacked?: boolean;
+  /** Close/Update rendered in the header card title row — matches view chrome. */
+  headerTrailing?: React.ReactNode;
 }
 
 export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(function ContactForm(
@@ -177,6 +178,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
     onCancel,
     isSubmitting: externalIsSubmitting = false,
     stacked: _stacked = false,
+    headerTrailing,
   },
   ref,
 ) {
@@ -218,7 +220,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
       { replace: true },
     );
   }, [activeTab, setSearchParams]);
-  const { validationErrors, clearValidationErrors, panelMode } = useContacts();
+  const { validationErrors, clearValidationErrors } = useContacts();
   const { getSettings, settingsVersion } = useApp();
   const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
     useUnsavedChanges();
@@ -677,6 +679,9 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
               </p>
             ) : null}
           </div>
+          {headerTrailing ? (
+            <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
+          ) : null}
         </div>
         <div className="mt-4">{tabChips}</div>
       </div>
@@ -1315,10 +1320,6 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
       </DetailSection>
     </Card>
   );
-
-  if (panelMode === 'settings') {
-    return <ContactSettingsForm onCancel={onCancel} />;
-  }
 
   return (
     <>

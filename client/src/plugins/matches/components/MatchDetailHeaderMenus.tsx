@@ -5,14 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/DetailHeaderMenus';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
-import { cn } from '@/lib/utils';
 
 import { useMatchContext } from '../context/MatchContext';
 import type { Match } from '../types/match';
 
+/** Icon/label tint only — RoundIconLabelButton owns shell size/padding. */
 function getMatchActionIconColorClass(actionId: string): string {
   if (actionId === 'create-slot-from-match') {
-    return 'text-green-600 dark:text-green-400';
+    return 'text-emerald-600 dark:text-emerald-400';
   }
   return '';
 }
@@ -48,7 +48,7 @@ export function MatchDetailHeaderMenus({
       {
         id: 'edit',
         icon: Edit,
-        label: t('common.edit'),
+        label: t('matches.edit'),
         variant: 'soft',
         onClick: () => openMatchForEdit(match),
       },
@@ -81,7 +81,7 @@ export function MatchDetailHeaderMenus({
           label: action.label,
           variant: 'secondary',
           disabled: action.disabled,
-          contentClassName: cn(getMatchActionIconColorClass(action.id), action.className),
+          contentClassName: getMatchActionIconColorClass(action.id),
           onClick: () => action.onClick(match),
         });
       }
@@ -94,16 +94,16 @@ export function MatchDetailHeaderMenus({
     <DetailHeaderMenus
       leading={leading}
       actions={actions}
-      actionsLabel={t('matches.headerActions', { defaultValue: t('common.headerActions') })}
+      actionsLabel={t('matches.headerActions')}
     >
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title={t('dialog.deleteItem', { label: t('nav.match') })}
         message={getDeleteMessage(match)}
-        confirmText={t('matches.delete')}
-        cancelText={t('matches.cancel')}
-        onConfirm={async () => {
-          await deleteMatch(match.id);
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        onConfirm={() => {
+          void deleteMatch(match.id);
           setShowDeleteConfirm(false);
           closeMatchPanel();
         }}
@@ -114,7 +114,7 @@ export function MatchDetailHeaderMenus({
       <DuplicateDialog
         isOpen={showDuplicateDialog}
         onConfirm={(newName) => {
-          executeDuplicate(match, newName)
+          void executeDuplicate(match, newName)
             .then(({ closePanel, highlightId }) => {
               closePanel();
               if (highlightId) {

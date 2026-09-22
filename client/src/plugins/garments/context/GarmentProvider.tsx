@@ -17,6 +17,7 @@ import {
   InventoryDetailHeaderMenus,
 } from '../components/GarmentDetailHeaderMenus';
 import type {
+  FitSummaryProcurement,
   GarmentCheckboxColumn,
   GarmentList,
   GarmentListPayload,
@@ -30,6 +31,7 @@ import type {
   ValidationError,
 } from '../types/garments';
 import { createDefaultCheckboxColumns } from '../utils/defaultCheckboxTemplate';
+import { deepMergeFitSummaryProcurement } from '../utils/inventoryListColumns';
 import {
   buildDuplicatedItemVariantPayloads,
   validateInventoryPayload,
@@ -1116,6 +1118,48 @@ export function GarmentProvider({
     [],
   );
 
+  const patchFitSummaryProcurement = useCallback(
+    async (listId: string, partial: FitSummaryProcurement): Promise<boolean> => {
+      const fromCurrent =
+        currentGarment && String(currentGarment.id) === String(listId)
+          ? currentGarment.fitSummaryProcurement
+          : undefined;
+      const fromLists = garmentLists.find(
+        (l) => String(l.id) === String(listId),
+      )?.fitSummaryProcurement;
+      const prevProcurement = fromCurrent ?? fromLists ?? {};
+      const optimistic = deepMergeFitSummaryProcurement(prevProcurement, partial);
+
+      const applyProcurementOnly = (procurement: FitSummaryProcurement) => {
+        setCurrentGarment((prev) =>
+          prev && String(prev.id) === String(listId)
+            ? { ...prev, fitSummaryProcurement: procurement }
+            : prev,
+        );
+        setGarmentLists((prev) =>
+          prev.map((list) =>
+            String(list.id) === String(listId)
+              ? { ...list, fitSummaryProcurement: procurement }
+              : list,
+          ),
+        );
+      };
+
+      applyProcurementOnly(optimistic);
+      try {
+        const saved = await garmentsApi.patchFitSummaryProcurement(listId, partial);
+        // Full list payload (includes persons) so soft preview stays consistent.
+        applyListUpdate(saved);
+        return true;
+      } catch (err) {
+        console.error('Failed to update fit summary procurement:', err);
+        applyProcurementOnly(prevProcurement);
+        return false;
+      }
+    },
+    [applyListUpdate, currentGarment, garmentLists],
+  );
+
   const importPersons = useCallback(
     async (
       listId: string,
@@ -1383,6 +1427,7 @@ export function GarmentProvider({
       assignInventoryItemToList,
       unassignInventoryItemFromList,
       updatePersonCtSizes,
+      patchFitSummaryProcurement,
       saveGarment,
       updateListCheckboxColumns,
       deleteGarment,
@@ -1450,6 +1495,7 @@ export function GarmentProvider({
       assignInventoryItemToList,
       unassignInventoryItemFromList,
       updatePersonCtSizes,
+      patchFitSummaryProcurement,
       saveGarment,
       updateListCheckboxColumns,
       deleteGarment,

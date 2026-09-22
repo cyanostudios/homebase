@@ -5,6 +5,7 @@ import {
   Layers,
   List,
   Minus,
+  Package,
   Plus,
   ShoppingBag,
   SlidersHorizontal,
@@ -426,7 +427,7 @@ export function InventoryQuickContextPanel({
 
   const listsCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-      <DetailSection title={t('garments.tabs.lists')} icon={List} subtleTitle className="p-6">
+      <DetailSection title={t('garments.assignToLists')} icon={Package} subtleTitle className="p-6">
         <InventoryListAssignmentCheckboxes itemId={item.id} embedded />
       </DetailSection>
     </Card>
