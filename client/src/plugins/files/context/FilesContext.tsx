@@ -6,7 +6,7 @@ import type { ValidationError, FileItem } from '../types/files';
 export interface FilesContextType {
   isFilesPanelOpen: boolean;
   currentFile: FileItem | null;
-  panelMode: 'create' | 'edit' | 'view' | 'settings';
+  panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   files: FileItem[];
 
@@ -22,10 +22,7 @@ export interface FilesContextType {
   clearValidationErrors: () => void;
 
   getPanelTitle: (mode: string, item: FileItem | null) => React.ReactNode;
-  getPanelSubtitle: (
-    mode: 'create' | 'edit' | 'view' | 'settings',
-    item: FileItem | null,
-  ) => React.ReactNode;
+  getPanelSubtitle: (mode: 'create' | 'edit' | 'view', item: FileItem | null) => React.ReactNode;
   getDeleteMessage: (item: FileItem | null) => string;
 
   cloudStorageSettings: {

@@ -4,6 +4,18 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-22 – Estimates/Invoices: drop dead settings prop; form header actions
+
+**Typ:** cleanup / UX  
+**Scope:** Estimates + Invoices — removed unused deprecated `renderCategoryButtonsInline` from `EstimateSettingsView` / `InvoiceSettingsView` (and no-op pass from `InvoicesList`); desktop create/edit: `InlinePanelFormActions` as `headerTrailing` in the form header card (view-chrome parity); `EstimatesStatisticsView` title uses shared `PLUGIN_PAGE_*` heading classes. Follow-on hygiene in same pass: same dead prop removed from Cups/Mail/Pulses/AI Providers routing shells; Clubdesk dead settings content-view API removed; Files no longer branches `FileForm` on `panelMode === 'settings'` (settings stay on `FileSettingsForm` via content view); Cups `panelMode` without `'settings'`.  
+**QA:** Godkänt (scoped Estimates/Invoices 2026-09-22). **Security:** Approved (UI-only for Estimates/Invoices). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Settings remain full-page numbering shells only. Dead category-button prop (never read) is gone. Mail-layout create/edit puts Close/Update in the form title row instead of a bar above the form — same as Contacts/Notes/Tasks.
+
+**Begränsningar:** Some plugins may still keep panel settings forms (e.g. Files `FileSettingsForm` mount path). Same-day commit carryover (fit-summary m.m.) is out of Estimates/Invoices QA scope.
+
+---
+
 ## 2026-09-22 – Contacts: remove legacy panel settings and orphan AssignmentRow
 
 **Typ:** cleanup / UX  

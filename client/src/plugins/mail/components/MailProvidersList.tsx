@@ -509,7 +509,6 @@ export const MailProvidersList: React.FC = () => {
           <MailProvidersRouting
             selectedCategory={routingCategory}
             onSelectedCategoryChange={setRoutingCategory}
-            renderCategoryButtonsInline
             onClose={closeRoutingView}
           />
         </div>

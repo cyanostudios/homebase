@@ -36,8 +36,6 @@ export function CupsSettingsView({
 }: {
   selectedCategory?: CupsSettingsCategory;
   onSelectedCategoryChange?: (category: CupsSettingsCategory) => void;
-  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 } = {}) {
   const { t } = useTranslation();

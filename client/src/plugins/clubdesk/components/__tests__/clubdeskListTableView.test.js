@@ -5,6 +5,10 @@ const listSrc = fs.readFileSync(path.join(__dirname, '../ClubdeskList.tsx'), 'ut
 const tableSrc = fs.readFileSync(path.join(__dirname, '../ClubdeskListTable.tsx'), 'utf8');
 const viewSrc = fs.readFileSync(path.join(__dirname, '../ClubdeskView.tsx'), 'utf8');
 const formSrc = fs.readFileSync(path.join(__dirname, '../ClubdeskForm.tsx'), 'utf8');
+const providerSrc = fs.readFileSync(
+  path.join(__dirname, '../../context/ClubdeskProvider.tsx'),
+  'utf8',
+);
 const registrySrc = fs.readFileSync(
   path.join(__dirname, '../../../../core/pluginRegistry.ts'),
   'utf8',
@@ -163,8 +167,11 @@ describe('ClubdeskGuidesList table view wiring', () => {
     expect(routesSrc).toMatch(/shouldKeepPendingGuideItemPath/);
   });
 
-  test('settings view removed; list header has no layout toggle', () => {
+  test('settings view and dead settings API are gone; list header has no layout toggle', () => {
     expect(fs.existsSync(path.join(__dirname, '../ClubdeskSettingsView.tsx'))).toBe(false);
+    expect(providerSrc).not.toMatch(/openClubdeskSettings/);
+    expect(providerSrc).not.toMatch(/clubdeskContentView/);
+    expect(providerSrc).not.toMatch(/ClubdeskSettingsTab/);
     expect(listSrc).not.toMatch(/ListColumnLayoutToggle/);
     expect(listSrc).not.toMatch(/setListViewMode/);
   });

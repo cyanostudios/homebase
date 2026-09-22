@@ -5,7 +5,7 @@ import type { Cup, CupValidationError } from '../types/cups';
 export type CupsContextType = {
   isCupPanelOpen: boolean;
   currentCup: Cup | null;
-  panelMode: 'create' | 'edit' | 'view' | 'settings';
+  panelMode: 'create' | 'edit' | 'view';
   validationErrors: CupValidationError[];
   cups: Cup[];
   cupsContentView: 'list' | 'settings' | 'statistics';

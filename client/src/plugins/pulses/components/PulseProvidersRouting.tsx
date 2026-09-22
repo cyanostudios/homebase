@@ -36,8 +36,6 @@ export type PulseProvidersRoutingCategory = 'global' | 'plugins';
 interface PulseProvidersRoutingProps {
   selectedCategory?: PulseProvidersRoutingCategory;
   onSelectedCategoryChange?: (category: PulseProvidersRoutingCategory) => void;
-  /** @deprecated Category buttons live in the settings header. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
 

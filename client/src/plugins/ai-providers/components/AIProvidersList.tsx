@@ -510,7 +510,6 @@ export const AIProvidersList: React.FC = () => {
           <AIProvidersRouting
             selectedCategory={routingCategory}
             onSelectedCategoryChange={setRoutingCategory}
-            renderCategoryButtonsInline
             onClose={closeRoutingView}
           />
         </div>

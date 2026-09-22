@@ -2251,7 +2251,6 @@
     },
     "widgetCount": "Antal filer i biblioteket: {{count}}",
     "widgetOpen": "Öppna Filer",
-    "panelSubtitleSettings": "Anslut och hantera molnlagring",
     "panelSubtitleCreate": "Välj en eller flera filer att ladda upp",
     "panelSubtitleEdit": "Ändra filnamnet och spara",
     "panelUploaded": "Uppladdad {{date}}",

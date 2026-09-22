@@ -21,8 +21,6 @@ import { useFiles } from '../hooks/useFiles';
 import type { ValidationError } from '../types/files';
 import { humanSize } from '../utils/humanSize';
 
-import { FileSettingsForm } from './FileSettingsForm';
-
 interface FileFormProps {
   currentItem?: { id?: string; name?: string } | null;
   onSave: (data: any) => Promise<boolean> | boolean;
@@ -35,7 +33,7 @@ interface FileFormProps {
 type Picked = { id: string; file: File };
 
 export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(function FileForm(
-  { currentItem, onSave, onCancel, stacked = false, headerTrailing },
+  { currentItem, onSave, onCancel: _onCancel, stacked = false, headerTrailing },
   ref,
 ) {
   const { t } = useTranslation();
@@ -49,13 +47,10 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     useGlobalNavigationGuard();
 
   useEffect(() => {
-    if (panelMode === 'settings') {
-      return;
-    }
     const formKey = `file-form-${currentItem?.id || 'new'}`;
     registerUnsavedChangesChecker(formKey, () => true);
     return () => unregisterUnsavedChangesChecker(formKey);
-  }, [currentItem?.id, panelMode, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+  }, [currentItem?.id, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   const getErrors = useCallback(
     (field: string) =>
@@ -145,9 +140,6 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   };
 
   const handleSubmit = useCallback(async () => {
-    if (panelMode === 'settings') {
-      return;
-    }
     if (isSubmitting) {
       return;
     }
@@ -167,7 +159,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     } finally {
       setIsSubmitting(false);
     }
-  }, [panelMode, isEdit, onSave, name, items, isSubmitting]);
+  }, [isEdit, onSave, name, items, isSubmitting]);
 
   const handleCancel = useCallback(() => {
     // Core cancel-from-edit calls openForView; files has no full view and openFileForView
@@ -214,14 +206,6 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
       </Button>
     </div>
   );
-
-  if (panelMode === 'settings') {
-    return (
-      <div className="p-4">
-        <FileSettingsForm onCancel={onCancel} />
-      </div>
-    );
-  }
 
   const stackedEditHeader =
     stacked && headerTrailing ? (

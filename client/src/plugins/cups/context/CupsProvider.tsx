@@ -49,7 +49,7 @@ export function CupsProvider({
 
   const [isCupPanelOpen, setIsCupPanelOpen] = useState(false);
   const [currentCup, setCurrentCup] = useState<Cup | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<CupValidationError>();
   const [cups, setCups] = useState<Cup[]>([]);

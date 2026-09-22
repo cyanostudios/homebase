@@ -168,7 +168,7 @@ Do **not** call `open*ForView` from the global Space handler. Full profile stays
 
 Use the **Contacts list header** (§4) — not `ListToolbar` — above the split. Outer page shell must use `PLUGIN_PAGE_LIST_SHELL_CLASS` (`overflow-x-clip` — `overflow-x-hidden` breaks sticky). Do **not** nest the header row inside a shrinking flex child.
 
-**Default (mail-layout):** **20/80** list|detail columns on desktop (`≥1024px` / `showDesktopSplit`). Left: table only. Right: stacked `*View`, inline `*Form` with `headerTrailing={<InlinePanelFormActions … />}` in the form header title row (Close/Update — view-chrome parity; verified Notes/Tasks), or `*StatisticsView` when nothing selected. Do **not** put a separate Close/Update bar above the form. Copy `ContactList.tsx` / `YourItemList.tsx`:
+**Default (mail-layout):** **20/80** list|detail columns on desktop (`≥1024px` / `showDesktopSplit`). Left: table only. Right: stacked `*View`, inline `*Form` with `headerTrailing={<InlinePanelFormActions … />}` in the form header title row (Close/Update — view-chrome parity; verified Contacts/Notes/Tasks/Estimates/Invoices), or `*StatisticsView` when nothing selected. Do **not** put a separate Close/Update bar above the form. Copy `ContactList.tsx` / `YourItemList.tsx`:
 
 ```tsx
 <div

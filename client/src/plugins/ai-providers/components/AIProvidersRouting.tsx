@@ -41,8 +41,6 @@ export type AIProvidersRoutingCategory = 'global' | 'plugins';
 interface AIProvidersRoutingProps {
   selectedCategory?: AIProvidersRoutingCategory;
   onSelectedCategoryChange?: (category: AIProvidersRoutingCategory) => void;
-  /** @deprecated Category buttons live in the settings header. Kept for call-site compatibility. */
-  renderCategoryButtonsInline?: boolean;
   onClose?: () => void;
 }
 

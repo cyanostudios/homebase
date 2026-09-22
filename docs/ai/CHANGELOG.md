@@ -2,6 +2,10 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Estimates/Invoices UI Hygiene — docs sync (2026-09-22)
+
+Docs efter **QA Approved** + **Security Approved** för Estimates/Invoices: dead `renderCategoryButtonsInline` bort från settings views; `headerTrailing` + `InlinePanelFormActions` i form-header (mail-layout parity). Operator: [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) (verified list includes Estimates/Invoices), [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](../PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §7 (Estimates/Invoices full-page verified; no dead `renderCategoryButtonsInline`). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-22 Estimates/Invoices. **Local-first; ej prod-release.** Security: no new API/auth surface. Out-of-scope: same-commit carryover (garments fit-summary m.m.).
+
 ## Contacts UI Hygiene — docs sync (2026-09-22)
 
 Docs efter **QA Approved** + **Security Approved** för Contacts legacy panel settings delete (`ContactSettingsForm`, orphan `ContactAssignmentRow`) och full-page-only settings via `ContactSettingsView` / `contactsContentView`. Operator: [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](../PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §7 (Contacts listed with Notes/Tasks as verified full-page). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-22 Contacts + historical 2026-08-09 settings link repaired. **Working tree; local-first; ej prod-release.** Security: no new API/auth surface.

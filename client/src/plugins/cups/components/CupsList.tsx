@@ -798,7 +798,6 @@ export function CupsList() {
           <CupsSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
-            renderCategoryButtonsInline
             onClose={closeCupSettingsView}
           />
         </div>

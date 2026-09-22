@@ -2212,7 +2212,6 @@
     },
     "widgetCount": "Files in the library: {{count}}",
     "widgetOpen": "Open Files",
-    "panelSubtitleSettings": "Connect and manage cloud storage",
     "panelSubtitleCreate": "Select one or multiple files to upload",
     "panelSubtitleEdit": "Change the file name and save",
     "panelUploaded": "Uploaded {{date}}",

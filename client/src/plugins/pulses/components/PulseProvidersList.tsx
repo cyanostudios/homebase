@@ -509,7 +509,6 @@ export const PulseProvidersList: React.FC = () => {
           <PulseProvidersRouting
             selectedCategory={routingCategory}
             onSelectedCategoryChange={setRoutingCategory}
-            renderCategoryButtonsInline
             onClose={closeRoutingView}
           />
         </div>
