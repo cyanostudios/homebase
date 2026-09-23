@@ -13,6 +13,7 @@ dotenv.config({ path: '.env' });
 const MIGRATION_FILES = [
   path.join(__dirname, '../server/migrations/033-pulses-plugin.sql'),
   path.join(__dirname, '../server/migrations/124-pulse-provider-platform.sql'),
+  path.join(__dirname, '../server/migrations/165-pulse-plugin-sms-enabled.sql'),
 ];
 
 async function runMigrationOnTenant(connectionString, tenantInfo) {

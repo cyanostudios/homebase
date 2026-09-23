@@ -1,6 +1,6 @@
 # ADR — Files storage providers and URL contract
 
-**Status:** Implemented locally. **QA Approved** + **Security Approved** (2026-09-07/08). Residuals **F-ATT-1**, **F-SEC-1** documented — **await TPM conscious acceptance**. **Local-first; not a prod release** without explicit decision.  
+**Status:** Implemented. **QA Approved** + **Security Approved** (2026-09-07/08). Residuals **F-ATT-1**, **F-SEC-1** documented — **await TPM conscious acceptance**. That acceptance is not recorded here. Production wiring (Railway `R2_*`, Neon tenant `user_files`, Cloudflare R2) is in [`../FILES_PLUGIN.md`](../FILES_PLUGIN.md).  
 **Datum:** 2026-09-08  
 **Scope:** Files plugin hybrid library + upload/attachments; storage resolution; raw vs download URLs; Drive-only cloud OAuth surface; attachment uniqueness/idempotency.
 

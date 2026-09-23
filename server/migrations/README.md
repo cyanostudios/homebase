@@ -1,5 +1,19 @@
 # Migrations
 
+## 166 – Tenant default mail texts (sep 2026)
+
+- **`166-tenants-default-texts.sql`** — **`MAIN_DB_ONLY`**. Lägger till `tenants.default_texts` JSONB (`invoiceMail`, `estimateMail`) för Settings → Default texts och BulkEmailDialog prefill.
+
+```bash
+npm run migrate:tenants-default-texts
+# local + prod when PROD_MAIN_DATABASE_URL is set:
+npm run migrate:tenants-default-texts -- --both
+```
+
+Local first; prod only on explicit release. After migrate: log out/in if Settings already open.
+
+---
+
 ## 131–143 – Garments plugin (Kläder) (aug 2026)
 
 - **`131-garments.sql`** — tenant-DB: `garment_lists`, `garment_list_persons`, `garment_list_shares`, `garment_inventory_items`.

@@ -1,7 +1,6 @@
 import { Edit, Send, Trash2 } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
 
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/DetailHeaderMenus';
@@ -12,13 +11,15 @@ import type { ProviderSettings } from '../types/aiProviders';
 export function AIProviderDetailHeaderMenus({
   provider,
   leading,
+  onTestConnection: onFocusTestCard,
 }: {
   provider: ProviderSettings;
   /** Optional leading content on the Actions row (e.g. provider name). */
   leading?: React.ReactNode;
+  /** Scroll to the stacked test card after starting a connection test. */
+  onTestConnection?: () => void;
 }) {
   const { t } = useTranslation();
-  const [, setSearchParams] = useSearchParams();
   const {
     openAIProviderForEdit,
     deleteProvider,
@@ -30,21 +31,10 @@ export function AIProviderDetailHeaderMenus({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const testing = testingProviderKey === provider.providerKey;
 
-  const openTestTab = useCallback(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('tab', 'test');
-        return next;
-      },
-      { replace: false },
-    );
-  }, [setSearchParams]);
-
   const onTestConnection = useCallback(() => {
-    openTestTab();
+    onFocusTestCard?.();
     void handleTestConnection(provider);
-  }, [handleTestConnection, openTestTab, provider]);
+  }, [handleTestConnection, onFocusTestCard, provider]);
 
   const actions = useMemo(
     (): DetailHeaderMenuAction[] => [

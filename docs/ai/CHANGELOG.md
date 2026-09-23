@@ -2,6 +2,12 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Mail / Pulse / AI Providers — stacked routing+view + Pulse `sms_enabled` (2026-09-23)
+
+Docs efter **QA Approved** + **Security Approved** för stacked Global/Per-plugin routing cards, provider detail Information/Configuration/Test utan `?tab=`, `StatusOutlineBadge`, och Pulse migration `165` / `sms_enabled` (fail-closed send; session plugin gate). Inherited residual **A1** oförändrad (väntar TPM).
+
+**Produkt:** [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-23 Mail/Pulse/AI stacked (+ supersession 2026-09-15 tabs/category). **Operator:** [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) §0.1 provider lists. **ADR:** [`adr/P-PULSE_PROVIDER_PLATFORM.md`](adr/P-PULSE_PROVIDER_PLATFORM.md) (datamodell 165, API `enabled`, UX stacked). **Working tree; local-first; ej prod-release.**
+
 ## Teams/Schedule/Matches UI Hygiene — docs sync (2026-09-22)
 
 Docs efter **QA Approved** + **Security Approved** för Teams/Schedule/Matches dead settings chrome (Matches `renderCategoryButtonsInline`, Schedule `ScheduleLockToggle` unused `iconClassName`; Teams already clean). Operator: [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](../PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §7 (Teams/Matches/Schedule on verified full-page list; Matches in dead-prop removal note). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-22 Teams/Schedule/Matches. **Working tree; local-first; ej prod-release.** Security: no new API/auth surface.

@@ -1,4 +1,13 @@
-import { ArrowUpToLine, CalendarClock, Copy, Download, Eraser, Trash2 } from 'lucide-react';
+import {
+  ArrowUpToLine,
+  CalendarClock,
+  CalendarDays,
+  Copy,
+  Download,
+  Eraser,
+  Timer,
+  Trash2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -589,6 +598,7 @@ export function ScheduleSettingsView({
                     onToggle={(nextLocked) => setLockedForSchedule(DEFAULT_SCHEDULE_ID, nextLocked)}
                   />
                 }
+                icon={CalendarDays}
                 prominentTitle
                 className="pt-0"
               >
@@ -596,6 +606,7 @@ export function ScheduleSettingsView({
               </DetailSection>
               <DetailSection
                 title={t('schedule.settings.gridHoursSection')}
+                icon={CalendarClock}
                 subtleTitle
                 className="pt-0"
               >
@@ -607,7 +618,12 @@ export function ScheduleSettingsView({
                   onSave={setGridSettingsForSchedule}
                 />
               </DetailSection>
-              <DetailSection title={t('schedule.availableHours')} subtleTitle className="pt-0">
+              <DetailSection
+                title={t('schedule.availableHours')}
+                icon={Timer}
+                subtleTitle
+                className="pt-0"
+              >
                 <ScheduleAvailableHoursFields
                   scheduleId={DEFAULT_SCHEDULE_ID}
                   availableHours={getAvailableHours(DEFAULT_SCHEDULE_ID)}
@@ -699,6 +715,7 @@ export function ScheduleSettingsView({
                           onToggle={(nextLocked) => setLockedForSchedule(plan.id, nextLocked)}
                         />
                       }
+                      icon={CalendarDays}
                       prominentTitle
                       className="pt-0"
                     >
@@ -729,6 +746,7 @@ export function ScheduleSettingsView({
                     </DetailSection>
                     <DetailSection
                       title={t('schedule.settings.gridHoursSection')}
+                      icon={CalendarClock}
                       subtleTitle
                       className="pt-0"
                     >
@@ -742,6 +760,7 @@ export function ScheduleSettingsView({
                     </DetailSection>
                     <DetailSection
                       title={t('schedule.availableHours')}
+                      icon={Timer}
                       subtleTitle
                       className="pt-0"
                     >

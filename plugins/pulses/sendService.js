@@ -25,7 +25,7 @@ async function getSmsAdapterForUser(req, opts = {}) {
   const resolved = await router.resolve(req, { pluginKey });
   if (!resolved?.providerKey) {
     throw new AppError(
-      'No SMS provider is configured. Open Pulse → Providers, add Twilio or Mock, then set routing.',
+      'No SMS provider is available for this plugin. Open Pulse → Routing, enable Pulse for the plugin, and set a global SMS provider.',
       400,
       AppError.CODES.BAD_REQUEST,
     );

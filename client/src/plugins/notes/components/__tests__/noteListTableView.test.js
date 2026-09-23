@@ -58,7 +58,7 @@ describe('NoteList table view wiring', () => {
 
   test('list resolves and passes visible table columns from settings', () => {
     expect(listSrc).toMatch(/resolveVisibleNoteTableColumns/);
-    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{tableColumnIds\}/);
   });
 
   test('list split view previews notes on wide screens without opening the global panel', () => {
@@ -71,7 +71,7 @@ describe('NoteList table view wiring', () => {
     expect(listSrc).toMatch(/activeListNoteId/);
     expect(listSrc).toMatch(/setPreviewNote\(\(current\) =>/);
     expect(listSrc).toMatch(/String\(current\.id\) === String\(note\.id\) \? null : note/);
-    expect(listSrc).toMatch(/showDesktopSplit = !isCompactViewport/);
+    expect(listSrc).toMatch(/showDesktopSplit = isCompanion \? false : !isCompactViewport/);
     expect(listSrc).toMatch(/grid-cols-\[minmax\(220px,20%\)_minmax\(0,1fr\)\]/);
     expect(listSrc).toMatch(/grid-rows-\[minmax\(0,1fr\)\]/);
     expect(listSrc).toMatch(/h-full min-h-0 overflow-y-auto overscroll-contain/);
@@ -81,6 +81,27 @@ describe('NoteList table view wiring', () => {
     expect(listSrc).toMatch(/NotesStatisticsView/);
     expect(tableSrc).toMatch(/activeNoteId/);
     expect(tableSrc).toMatch(/selectionEnabled/);
+  });
+
+  test('notes companion is view-only inside the flyout', () => {
+    expect(listSrc).toMatch(/isCompanion\?: boolean/);
+    expect(listSrc).toMatch(/COMPANION_VISIBLE_COLUMN_IDS/);
+    expect(listSrc).toMatch(/tableColumnIds/);
+    expect(listSrc).toMatch(/isCompanion && previewNote/);
+    expect(listSrc).toMatch(/readOnly/);
+    expect(listSrc).toMatch(/headerTrailing/);
+    expect(listSrc).toMatch(/ExternalLink/);
+    expect(listSrc).toMatch(/openNoteForView\(note\)/);
+    expect(listSrc).toMatch(/closeCompanionPanel/);
+    expect(listSrc).toMatch(/setPreviewNote\(null\)/);
+    expect(listSrc).toMatch(/showDesktopSplit = isCompanion \? false : !isCompactViewport/);
+    const viewSrc = fs.readFileSync(path.join(__dirname, '../NoteView.tsx'), 'utf8');
+    expect(viewSrc).toMatch(/readOnly\?: boolean/);
+    expect(viewSrc).toMatch(/NOTE_VIEW_READONLY_TABS/);
+    expect(viewSrc).toMatch(/localTab/);
+    const qcSrc = fs.readFileSync(path.join(__dirname, '../NoteQuickContextPanel.tsx'), 'utf8');
+    expect(qcSrc).toMatch(/readOnly/);
+    expect(qcSrc).toMatch(/headerTrailing/);
   });
 
   test('create/edit form is not legacy panel settings', () => {
@@ -157,7 +178,7 @@ describe('NoteList table view wiring', () => {
     expect(listSrc).toMatch(/BulkActionRoundBar/);
     expect(listSrc).toMatch(/common\.clear/);
     expect(listSrc).not.toMatch(/common\.headerActions/);
-    expect(listSrc).toMatch(/showDesktopSplit = !isCompactViewport/);
+    expect(listSrc).toMatch(/showDesktopSplit = isCompanion \? false : !isCompactViewport/);
     expect(listSrc).toMatch(/bulkRoundActions/);
   });
 

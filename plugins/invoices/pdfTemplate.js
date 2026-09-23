@@ -517,6 +517,7 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
 
   const dueDate = formatDate(invoice.dueDate);
   const issueDate = formatDate(invoice.issueDate || invoice.createdAt);
+  const supplyDate = formatDate(invoice.supplyDate || invoice.issueDate || invoice.createdAt);
   const vatLabel = resolveVatLabel(invoice.lineItems, safeTotals.totalVat);
   const amountDuePlain = `${formatSvNumber(safeTotals.total, { minFrac: 0, maxFrac: 2 })} kr`;
   const amountDueBold = formatSvNumber(safeTotals.total, { minFrac: 0, maxFrac: 2 });
@@ -538,6 +539,40 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
             <td class="amount">−${formatSvNumber(Math.abs(invoiceDiscountAmount))}</td>
           </tr>`
     : '';
+
+  const breakdown = Array.isArray(invoice.vatBreakdown) ? invoice.vatBreakdown : [];
+  const vatBreakdownRows =
+    breakdown.length > 0
+      ? breakdown
+          .map(
+            (row) => `
+          <tr>
+            <td>Moms ${formatSvNumber(row.rate, { minFrac: 0, maxFrac: 0 })}% på ${formatSvNumber(row.taxBase)}</td>
+            <td class="amount">${formatSvNumber(row.vatAmount)}</td>
+          </tr>`,
+          )
+          .join('')
+      : `
+          <tr>
+            <td>${vatLabel}</td>
+            <td class="amount">${formatSvNumber(safeTotals.totalVat)}</td>
+          </tr>`;
+
+  const creditImprint =
+    String(invoice.invoiceType || '').trim() === 'credit_note' && invoice.creditedInvoiceNumber
+      ? `<div class="row">
+              <span class="lbl">Kredit mot faktura</span>
+              <span class="val">${escapeHtml(String(invoice.creditedInvoiceNumber))}</span>
+            </div>
+            ${
+              invoice.correctionSummary
+                ? `<div class="row">
+              <span class="lbl">Ändring</span>
+              <span class="val details">${escapeHtml(String(invoice.correctionSummary))}</span>
+            </div>`
+                : ''
+            }`
+      : '';
 
   return `
   <!DOCTYPE html>
@@ -590,6 +625,7 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
             </div>`
                 : ''
             }
+            ${creditImprint}
           </div>
         </div>
         ${leftMetaHtml}
@@ -598,6 +634,10 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
             <div class="row plain">
               <span class="lbl">Fakturadatum</span>
               <span class="val">${issueDate || '—'}</span>
+            </div>
+            <div class="row plain">
+              <span class="lbl">Leveransdatum</span>
+              <span class="val">${supplyDate || '—'}</span>
             </div>
             <div class="row plain">
               <span class="lbl">Betalningsvillkor</span>
@@ -664,10 +704,7 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
               safeTotals.subtotalAfterInvoiceDiscount ?? safeTotals.subtotal,
             )}</td>
           </tr>
-          <tr>
-            <td>${vatLabel}</td>
-            <td class="amount">${formatSvNumber(safeTotals.totalVat)}</td>
-          </tr>
+          ${vatBreakdownRows}
           <tr class="grand">
             <td>Summa att betala</td>
             <td class="amount">${amountDueBold}</td>

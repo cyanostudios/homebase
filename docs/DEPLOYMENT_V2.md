@@ -109,23 +109,21 @@ WHERE user_id = 1;
 
 - `node scripts/create-test-user.js` (skapar användare och triggar tenant-provisioning enligt `TENANT_PROVIDER`).
 
-#### Cloud Storage (if using R2 or S3)
+#### Cloud storage (Cloudflare R2)
+
+File uploads use `R2StorageAdapter` when all five variables below are set on the **Homebase** process. Bytes go to R2. Metadata (`user_files`) goes to the Neon **tenant** database. There is no AWS S3 upload adapter. `AWS_*` and `R2_BUCKET` in `config/services.js` are not read by this path — set `R2_BUCKET_NAME`.
 
 ```bash
-# R2 (Cloudflare)
 R2_ACCOUNT_ID=your-account-id
 R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-key
 R2_BUCKET_NAME=your-bucket-name
 R2_PUBLIC_URL=https://images.example.com
-R2_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
-
-# OR S3 (AWS)
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_REGION=us-east-1
-AWS_S3_BUCKET=your-bucket-name
+# Optional. Default endpoint is https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com
+R2_ENDPOINT=
 ```
+
+See [`FILES_PLUGIN.md`](./FILES_PLUGIN.md) and [`RAILWAY_HOMEBASE_SETUP.md`](./RAILWAY_HOMEBASE_SETUP.md).
 
 #### Email Service (if using Resend or SendGrid)
 
@@ -194,9 +192,9 @@ See also **[RAILWAY_HOMEBASE_SETUP.md](./RAILWAY_HOMEBASE_SETUP.md)** for a focu
    - **Homebase:** use **Neon main** via `DATABASE_URL` (do not add Railway Postgres for this service). See `RAILWAY_HOMEBASE_SETUP.md`.
    - Run migrations: `npm run railway:migrate` or `node scripts/setup-database.js` with Neon URL.
 
-5. **Storage (files / cup images)**
-   - Railway disk is ephemeral — use **R2** env vars (`R2_*` in `.env.example`), not local `server/uploads/` in production.
-   - Configure in Railway Variables; files plugin uses R2 when vars are set.
+5. **Storage (all file uploads)**
+   - Railway disk is ephemeral. Set the five `R2_*` variables on the **Homebase** service (`R2_BUCKET_NAME`, not `R2_BUCKET`).
+   - When they are set, uploads go to Cloudflare R2 and `user_files` rows go to the Neon tenant database. Public sites only store and render the public URL.
 
 ### Vercel
 

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
-import { useInvoicesContext } from '../context/InvoicesContext';
-import { Invoice } from '../types/invoices';
+import { useInvoicesContext, type Invoice } from '../context/InvoicesContext';
+import { buildInvoiceStatusUpdatePayload, isInvoiceIssued } from '../utils/invoiceMlCompliance';
 
 function toIsoDate(value: unknown): string | null {
   if (value == null || value === '') {
@@ -23,7 +23,17 @@ export function useInvoiceStatusActions() {
 
   const updateInvoiceStatus = useCallback(
     async (invoice: Invoice, newStatus: string) => {
-      // Build an explicit update payload with id so preview-mode (no currentInvoice) still PUTs.
+      // Issued: status-only PUT (QA B2). Never unlock via draft (QA B1).
+      if (isInvoiceIssued(invoice.status)) {
+        const issuedPayload = buildInvoiceStatusUpdatePayload(invoice, newStatus);
+        if (!issuedPayload) {
+          return;
+        }
+        await saveInvoice(issuedPayload);
+        return;
+      }
+
+      // Draft → leave-draft / issue still needs full document fields.
       const updateData = {
         id: invoice.id,
         contactId: invoice.contactId ?? null,
@@ -37,23 +47,28 @@ export function useInvoiceStatusActions() {
         orderNumber: invoice.orderNumber ?? '',
         deliveryMethod: invoice.deliveryMethod ?? '',
         issueDate: toIsoDate(invoice.issueDate),
+        supplyDate: toIsoDate(invoice.supplyDate),
         dueDate: toIsoDate(invoice.dueDate),
         invoiceType: invoice.invoiceType ?? 'invoice',
         estimateId: invoice.estimateId ?? null,
+        contentProfile: invoice.contentProfile,
+        creditedInvoiceId: invoice.creditedInvoiceId,
+        creditedInvoiceNumber: invoice.creditedInvoiceNumber,
+        correctionSummary: invoice.correctionSummary,
         status: newStatus,
-        ...(newStatus === 'paid' ? { paidAt: new Date().toISOString() } : {}),
       };
 
-      const ok = await saveInvoice(updateData);
-      if (!ok) {
-        alert('Failed to update invoice status. Please try again.');
-      }
+      await saveInvoice(updateData);
     },
     [saveInvoice],
   );
 
   const handleStatusChange = useCallback(
     (invoice: Invoice, newStatus: string) => {
+      if (isInvoiceIssued(invoice.status) && newStatus === 'draft') {
+        return;
+      }
+
       if (newStatus === 'draft') {
         void updateInvoiceStatus(invoice, newStatus);
         return;

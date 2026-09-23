@@ -563,6 +563,7 @@ export function generateInvoiceWebHTML(
 
   const dueDate = formatDate(invoice.dueDate);
   const issueDate = formatDate(invoice.issueDate || invoice.createdAt);
+  const supplyDate = formatDate(invoice.supplyDate || invoice.issueDate || invoice.createdAt);
   const vatLabel = resolveVatLabel(invoice.lineItems || [], totals.totalVat);
   const amountDuePlain = `${formatSvNumber(totals.total, 0, 2)} kr`;
   const amountDueBold = formatSvNumber(totals.total, 0, 2);
@@ -641,6 +642,10 @@ export function generateInvoiceWebHTML(
               <div class="row plain">
                 <span class="lbl">Fakturadatum</span>
                 <span class="val">${issueDate || '—'}</span>
+              </div>
+              <div class="row plain">
+                <span class="lbl">Leveransdatum</span>
+                <span class="val">${supplyDate || '—'}</span>
               </div>
               <div class="row plain">
                 <span class="lbl">Betalningsvillkor</span>

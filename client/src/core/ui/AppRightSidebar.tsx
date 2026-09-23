@@ -6,6 +6,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useCompanionPanel } from '@/core/app/CompanionPanelContext';
 import { getCompanionCandidates } from '@/core/companion/getCompanionCandidates';
+import {
+  resolveCompanionRailIcon,
+  resolveCompanionRailTitleNavPage,
+  shouldHideCompanionRailForPrimary,
+} from '@/core/companion/companionPrimarySurface';
 import type { NavPage } from '@/core/navigation/navTypes';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { pathToNavPage } from '@/core/routing/routeMap';
@@ -19,6 +24,7 @@ import { PomodoroProvider } from '@/core/ui/rightSidebar/PomodoroContext';
 import { PomodoroPanel } from '@/core/ui/rightSidebar/PomodoroPanel';
 import { PomodoroRailButton } from '@/core/ui/rightSidebar/PomodoroRailButton';
 import { RightSidebarFlyout } from '@/core/ui/rightSidebar/RightSidebarFlyout';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { TimerProvider } from '@/core/ui/rightSidebar/TimerContext';
 import { TimerPanel } from '@/core/ui/rightSidebar/TimerPanel';
 import { TimerRailButton } from '@/core/ui/rightSidebar/TimerRailButton';
@@ -39,7 +45,10 @@ export function AppRightSidebar() {
   const enabledPlugins = useEnabledPlugins();
   const currentPage = useMemo(() => pathToNavPage(location.pathname), [location.pathname]);
   const companionCandidates = useMemo(
-    () => getCompanionCandidates(enabledPlugins).filter((entry) => entry.name !== currentPage),
+    () =>
+      getCompanionCandidates(enabledPlugins).filter(
+        (entry) => !shouldHideCompanionRailForPrimary(entry, currentPage),
+      ),
     [enabledPlugins, currentPage],
   );
 
@@ -58,7 +67,7 @@ export function AppRightSidebar() {
   const companionOpen = Boolean(companionPlugin && CompanionListComp);
 
   const companionTitle = companionRegistryEntry
-    ? t(`nav.${companionRegistryEntry.name}`, {
+    ? t(`nav.${resolveCompanionRailTitleNavPage(companionRegistryEntry)}`, {
         defaultValue: companionRegistryEntry.navigation?.label ?? companionRegistryEntry.name,
       })
     : '';
@@ -138,6 +147,9 @@ export function AppRightSidebar() {
             open={companionOpen}
             onClose={closeCompanionPanel}
             widthPx={RIGHT_SIDEBAR_COMPANION_FLYOUT_WIDTH_PX}
+            className="bg-slate-100 dark:bg-slate-900"
+            bodyClassName="p-0"
+            titleClassName={PLUGIN_PAGE_TITLE_CLASS}
           >
             {CompanionListComp ? (
               <React.Suspense fallback={null}>
@@ -162,7 +174,7 @@ export function AppRightSidebar() {
                   ? t('rightSidebar.darkMode', { defaultValue: 'Dark mode' })
                   : t('rightSidebar.lightMode', { defaultValue: 'Light mode' })
               }
-              variant="secondary"
+              variant="category"
               size="xs"
               expandOnHover={false}
               onClick={toggleTheme}
@@ -170,7 +182,7 @@ export function AppRightSidebar() {
             <RoundIconLabelButton
               icon={Settings2}
               label={t('rightSidebar.settings')}
-              variant="secondary"
+              variant="category"
               size="xs"
               expandOnHover={false}
               onClick={handleOpenSettingsPage}
@@ -188,11 +200,12 @@ export function AppRightSidebar() {
             {companionCandidates.length > 0 ? (
               <div className="flex flex-col items-start gap-2 pt-4">
                 {companionCandidates.map((entry) => {
-                  const Icon = entry.navigation?.icon;
+                  const Icon = resolveCompanionRailIcon(entry);
                   if (!Icon) {
                     return null;
                   }
-                  const pluginTitle = t(`nav.${entry.name}`, {
+                  const titleNavPage = resolveCompanionRailTitleNavPage(entry);
+                  const pluginTitle = t(`nav.${titleNavPage}`, {
                     defaultValue: entry.navigation?.label ?? entry.name,
                   });
                   const open = companionPlugin === entry.name;
@@ -201,7 +214,7 @@ export function AppRightSidebar() {
                       key={entry.name}
                       icon={Icon}
                       label={t('rightSidebar.openCompanion', { name: pluginTitle })}
-                      variant={open ? 'soft' : 'secondary'}
+                      variant={open ? 'soft' : 'category'}
                       size="xs"
                       expandOnHover={false}
                       aria-pressed={open}

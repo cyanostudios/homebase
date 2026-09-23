@@ -2,18 +2,30 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { InvoiceTotals } from '../utils/invoiceTotals';
+import { buildInvoiceVatBreakdown } from '../utils/invoiceMlCompliance';
 import { formatInvoiceMoney } from '../utils/formatInvoiceAmount';
+import type { InvoiceLineItem } from '../types/invoices';
 
 export function InvoicePricingSummary({
   totals,
   currency,
   invoiceDiscount = 0,
+  lineItems,
+  invoiceType,
 }: {
   totals: InvoiceTotals;
   currency: string;
   invoiceDiscount?: number;
+  lineItems?: InvoiceLineItem[] | null;
+  invoiceType?: string | null;
 }) {
   const { t } = useTranslation();
+  const sign = String(invoiceType || '').trim() === 'credit_note' ? -1 : 1;
+  const breakdown = buildInvoiceVatBreakdown(lineItems, invoiceDiscount).map((row) => ({
+    ...row,
+    taxBase: sign * Math.abs(row.taxBase),
+    vatAmount: sign * Math.abs(row.vatAmount),
+  }));
 
   return (
     <div className="space-y-2 text-sm">
@@ -25,17 +37,17 @@ export function InvoicePricingSummary({
           {formatInvoiceMoney(totals.subtotal, currency)}
         </span>
       </div>
-      {totals.totalDiscount > 0 ? (
+      {totals.totalDiscount > 0 || totals.totalDiscount < 0 ? (
         <div className="flex justify-between gap-3">
           <span className="text-muted-foreground">
             {t('invoices.lineDiscounts', { defaultValue: 'Line Discounts' })}
           </span>
           <span className="text-xs font-medium tabular-nums text-foreground">
-            −{formatInvoiceMoney(totals.totalDiscount, currency)}
+            −{formatInvoiceMoney(Math.abs(totals.totalDiscount), currency)}
           </span>
         </div>
       ) : null}
-      {totals.totalDiscount > 0 ? (
+      {totals.totalDiscount > 0 || totals.totalDiscount < 0 ? (
         <div className="flex justify-between gap-3 border-t border-border pt-2">
           <span className="text-muted-foreground">
             {t('invoices.subtotalAfterLineDiscounts', {
@@ -55,7 +67,7 @@ export function InvoicePricingSummary({
               {invoiceDiscount}%):
             </span>
             <span className="text-xs font-medium tabular-nums text-foreground">
-              −{formatInvoiceMoney(totals.invoiceDiscountAmount, currency)}
+              −{formatInvoiceMoney(Math.abs(totals.invoiceDiscountAmount), currency)}
             </span>
           </div>
           <div className="flex justify-between gap-3 border-t border-border pt-2">
@@ -70,6 +82,20 @@ export function InvoicePricingSummary({
           </div>
         </>
       ) : null}
+      {breakdown.map((row) => (
+        <div key={row.rate} className="flex justify-between gap-3">
+          <span className="text-muted-foreground">
+            {t('invoices.vatOnRate', {
+              rate: row.rate,
+              base: formatInvoiceMoney(row.taxBase, currency),
+              defaultValue: 'VAT {{rate}}% on {{base}}',
+            })}
+          </span>
+          <span className="text-xs font-medium tabular-nums text-foreground">
+            {formatInvoiceMoney(row.vatAmount, currency)}
+          </span>
+        </div>
+      ))}
       <div className="flex justify-between gap-3">
         <span className="text-muted-foreground">
           {t('invoices.totalVat', { defaultValue: 'Total VAT' })}

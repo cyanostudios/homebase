@@ -19,7 +19,9 @@ describe('AIProvidersList table view wiring', () => {
     expect(tableSrc).toMatch(/aiProviderIdentityMeta/);
     expect(tableSrc).toMatch(/SectionCategoryIcon/);
     expect(tableSrc).toMatch(/text-slate-400/);
-    expect(tableSrc).toMatch(/pl-6 text-\[10px\]/);
+    expect(tableSrc).toMatch(/pl-6/);
+    expect(tableSrc).toMatch(/font-extrabold leading-tight/);
+    expect(tableSrc).toMatch(/text-\[10px\]/);
     expect(tableSrc).toMatch(/'provider'/);
     expect(tableSrc).toMatch(/'status'/);
     expect(tableSrc).toMatch(/'defaultModel'/);
@@ -27,11 +29,19 @@ describe('AIProvidersList table view wiring', () => {
     expect(tableSrc).toMatch(/visibleColumnIds/);
   });
 
-  test('detail view embeds AIProviderDetailHeaderMenus with leading identity and tabs', () => {
+  test('detail view embeds AIProviderDetailHeaderMenus with leading identity (stacked cards, no tabs)', () => {
     expect(viewSrc).toMatch(/AIProviderDetailHeaderMenus/);
     expect(viewSrc).toMatch(/leading=\{titleLeading\}/);
     expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
-    expect(viewSrc).toMatch(/useSearchParams/);
+    expect(viewSrc).toMatch(/DetailHeaderMetaRow/);
+    expect(viewSrc).toMatch(/StatusOutlineBadge/);
+    expect(viewSrc).not.toMatch(/useSearchParams/);
     expect(listSrc).not.toMatch(/AIProviderDetailHeaderMenus/);
+  });
+
+  test('table status uses StatusOutlineBadge (Tasks/Mail/Pulse pattern)', () => {
+    expect(tableSrc).toMatch(/StatusOutlineBadge/);
+    expect(tableSrc).toMatch(/QC_STATUS_BADGE_COLORS/);
+    expect(tableSrc).not.toMatch(/from '@\/components\/ui\/badge'/);
   });
 });

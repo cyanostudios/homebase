@@ -15,6 +15,7 @@ const SETTINGS_CATEGORY_LABELS: Record<string, string> = {
   preferences: 'Preferences',
   'activity-log': 'Activity Log',
   team: 'Team',
+  'default-texts': 'Default texts',
 };
 
 export interface SettingsContextType {

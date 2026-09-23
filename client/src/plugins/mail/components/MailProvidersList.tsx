@@ -70,7 +70,7 @@ import {
 
 import { MailProviderView } from './MailProviderView';
 import { MailProvidersListTable } from './MailProvidersListTable';
-import { MailProvidersRouting, type MailProvidersRoutingCategory } from './MailProvidersRouting';
+import { MailProvidersRouting } from './MailProvidersRouting';
 import { MailProvidersStatisticsView } from './MailProvidersStatisticsView';
 import { MailSettingsForm } from './MailSettingsForm';
 
@@ -131,7 +131,6 @@ export const MailProvidersList: React.FC = () => {
     }),
   });
 
-  const [routingCategory, setRoutingCategory] = useState<MailProvidersRoutingCategory>('global');
   const [primarySort, setPrimarySort] = useState<MailProviderSortField>('providerKey');
   const [sortOrder, setSortOrder] = useState<MailProviderSortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<MailProvidersListFilterSelection>([]);
@@ -506,11 +505,7 @@ export const MailProvidersList: React.FC = () => {
     return (
       <div className="plugin-mail flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
         <div className="px-4 py-4 md:px-6">
-          <MailProvidersRouting
-            selectedCategory={routingCategory}
-            onSelectedCategoryChange={setRoutingCategory}
-            onClose={closeRoutingView}
-          />
+          <MailProvidersRouting onClose={closeRoutingView} />
         </div>
       </div>
     );

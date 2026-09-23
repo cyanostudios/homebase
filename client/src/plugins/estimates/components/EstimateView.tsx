@@ -10,7 +10,6 @@ import {
   ListOrdered,
   Package,
   Receipt,
-  Send,
   SlidersHorizontal,
   StickyNote,
   Truck,
@@ -466,17 +465,6 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
               estimateNumber={estimate.estimateNumber}
             />
             <div className="mt-4 flex justify-end gap-2">
-              {estimate.status === 'draft' ? (
-                <RoundIconLabelButton
-                  type="button"
-                  icon={Send}
-                  label={t('estimates.send', { defaultValue: 'Send' })}
-                  variant="soft"
-                  size="xs"
-                  alwaysExpanded
-                  onClick={() => requestStatusChange('sent', estimate)}
-                />
-              ) : null}
               <RoundIconLabelButton
                 type="button"
                 icon={Eye}

@@ -14,6 +14,7 @@ import {
   MapPin,
   ListOrdered,
   Sparkles,
+  Package,
 } from 'lucide-react';
 import React from 'react';
 
@@ -115,10 +116,15 @@ export interface PluginRegistryEntry {
   /**
    * When set (non-empty), this plugin's List can open as a global companion flyout on the
    * desktop right rail (wider than widget flyouts). Host page entries are reserved/ignored —
-   * availability is platform-wide when the plugin is enabled. Rail hides the button while that
-   * plugin is the primary page. Rail icon uses `navigation.icon`.
+   * availability is platform-wide when the plugin is enabled.
    */
   canOpenAsCompanionFor?: NavPage[];
+  /** Primary nav pages where companion rail hides and an open flyout closes (see companion helper). */
+  companionHideOnPrimaryPages?: NavPage[];
+  /** Companion rail / flyout title uses `nav.{companionRailTitleNavPage}` when set. */
+  companionRailTitleNavPage?: NavPage;
+  /** Companion rail icon; defaults to `navigation.icon`. */
+  companionRailIcon?: AppIcon;
 }
 
 // ─── Static imports: NullProviders + hooks (lean, eager – used at app init) ──
@@ -575,6 +581,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentOwnsScroll: true,
     slugField: 'companyName',
     contentViewKey: 'contactsContentView',
+    canOpenAsCompanionFor: ['teams'],
+    companionHideOnPrimaryPages: ['contacts'],
+    companionRailTitleNavPage: 'contacts',
+    companionRailIcon: Users,
   },
   {
     name: 'notes',
@@ -601,6 +611,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentOwnsScroll: true,
     slugField: 'title',
     noPrimaryAction: true,
+    canOpenAsCompanionFor: ['teams'],
+    companionHideOnPrimaryPages: ['notes'],
+    companionRailTitleNavPage: 'notes',
+    companionRailIcon: StickyNote,
   },
   {
     name: 'tasks',
@@ -627,6 +641,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentOwnsScroll: true,
     slugField: 'title',
     contentViewKey: 'tasksContentView',
+    canOpenAsCompanionFor: ['teams'],
+    companionHideOnPrimaryPages: ['tasks'],
+    companionRailTitleNavPage: 'tasks',
+    companionRailIcon: CheckSquare,
   },
   {
     name: 'estimates',
@@ -750,6 +768,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     noPrimaryAction: true,
     contentViewKey: 'scheduleContentView',
     canOpenAsCompanionFor: ['teams'],
+    companionHideOnPrimaryPages: ['schedule'],
   },
   {
     name: 'matches',
@@ -797,6 +816,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     slugField: 'name',
     contentViewKey: 'garmentsContentView',
     noPrimaryAction: true,
+    canOpenAsCompanionFor: ['teams'],
+    companionHideOnPrimaryPages: ['garments-inventory'],
+    companionRailTitleNavPage: 'garments-inventory',
+    companionRailIcon: Package,
     getViewExtraProps: (context: any) =>
       context?.panelKind === 'inventory' && context?.currentInventoryItem
         ? { inventoryItem: context.currentInventoryItem }
@@ -828,6 +851,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     slugField: 'title',
     contentViewKey: 'requestsContentView',
     noPrimaryAction: true,
+    canOpenAsCompanionFor: ['teams'],
+    companionHideOnPrimaryPages: ['requests'],
+    companionRailTitleNavPage: 'requests',
+    companionRailIcon: Inbox,
   },
   {
     name: 'slots',

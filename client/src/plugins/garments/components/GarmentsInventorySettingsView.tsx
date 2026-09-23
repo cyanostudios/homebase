@@ -14,7 +14,6 @@ import {
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
-import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
@@ -26,30 +25,9 @@ import {
   GARMENT_INVENTORY_IMPORT_EXAMPLE_ROWS,
   getGarmentInventoryImportSchema,
 } from '../utils/inventoryImportSchema';
-import {
-  inventoryTableColumnsEqual,
-  isInventoryTableColumnId,
-  normalizeInventoryTableColumns,
-  reorderInventoryTableColumns,
-  setInventoryTableColumnHidden,
-  type InventoryTableColumnId,
-  type InventoryTableColumnsPref,
-} from '../utils/inventoryTableColumns';
 import { inventoryTagsEqual, normalizeInventoryTags } from '../utils/inventoryTags';
 
-const COLUMN_LABEL_KEYS: Record<InventoryTableColumnId, string> = {
-  articleName: 'garments.articleName',
-  brand: 'garments.brand',
-  tags: 'garments.tags',
-  variantCount: 'garments.variantCount',
-  totalQuantity: 'garments.totalQuantity',
-  material: 'garments.material',
-  salePrice: 'garments.salePrice',
-  createdAt: 'common.created',
-  updatedAt: 'common.updated',
-};
-
-export type GarmentsInventorySettingsCategory = 'tags' | 'columns' | 'import';
+export type GarmentsInventorySettingsCategory = 'tags' | 'import';
 
 interface GarmentsInventorySettingsViewProps {
   selectedCategory?: GarmentsInventorySettingsCategory;
@@ -75,12 +53,6 @@ export function GarmentsInventorySettingsView({
   const [tags, setTags] = useState<string[]>([]);
   const [initialTags, setInitialTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
-  const [tableColumns, setTableColumns] = useState<InventoryTableColumnsPref>(() =>
-    normalizeInventoryTableColumns(null),
-  );
-  const [initialTableColumns, setInitialTableColumns] = useState<InventoryTableColumnsPref>(() =>
-    normalizeInventoryTableColumns(null),
-  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -93,12 +65,6 @@ export function GarmentsInventorySettingsView({
         label: t('garments.settingsCategories.tags'),
         description: t('garments.settingsCategories.tagsDescription'),
         icon: SETTINGS_CATEGORY_ICONS.tags,
-      },
-      {
-        id: 'columns',
-        label: t('garments.settingsCategories.columns'),
-        description: t('garments.settingsCategories.columnsDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.columns,
       },
       {
         id: 'import',
@@ -120,9 +86,6 @@ export function GarmentsInventorySettingsView({
         const loadedTags = normalizeInventoryTags(settings?.tags);
         setTags(loadedTags);
         setInitialTags(loadedTags);
-        const loaded = normalizeInventoryTableColumns(settings?.tableColumns);
-        setTableColumns(loaded);
-        setInitialTableColumns(loaded);
       })
       .catch(() => {})
       .finally(() => {
@@ -136,40 +99,24 @@ export function GarmentsInventorySettingsView({
   }, [getSettings, settingsVersion]);
 
   const tagsDirty = !inventoryTagsEqual(tags, initialTags);
-  const columnsDirty = !inventoryTableColumnsEqual(tableColumns, initialTableColumns);
-  const isDirty =
-    (activeCategory === 'tags' && tagsDirty) || (activeCategory === 'columns' && columnsDirty);
+  const isDirty = activeCategory === 'tags' && tagsDirty;
 
   const handleSave = useCallback(async () => {
-    if (activeCategory === 'tags') {
-      setIsSaving(true);
-      try {
-        const next = normalizeInventoryTags(tags);
-        await updateSettings(GARMENTS_SETTINGS_KEY, { tags: next });
-        setTags(next);
-        setInitialTags(next);
-      } catch (error) {
-        console.error('Failed to save garments inventory tags:', error);
-      } finally {
-        setIsSaving(false);
-      }
-      return;
-    }
-    if (activeCategory !== 'columns') {
+    if (activeCategory !== 'tags') {
       return;
     }
     setIsSaving(true);
     try {
-      const next = normalizeInventoryTableColumns(tableColumns);
-      await updateSettings(GARMENTS_SETTINGS_KEY, { tableColumns: next });
-      setTableColumns(next);
-      setInitialTableColumns(next);
+      const next = normalizeInventoryTags(tags);
+      await updateSettings(GARMENTS_SETTINGS_KEY, { tags: next });
+      setTags(next);
+      setInitialTags(next);
     } catch (error) {
-      console.error('Failed to save garments inventory table columns:', error);
+      console.error('Failed to save garments inventory tags:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [activeCategory, tableColumns, tags, updateSettings]);
+  }, [activeCategory, tags, updateSettings]);
 
   const addTag = useCallback(() => {
     const next = newTag.trim();
@@ -216,7 +163,12 @@ export function GarmentsInventorySettingsView({
         }
       >
         {activeCategory === 'tags' && (
-          <DetailSection title={t('garments.settingsCategories.tags')} className="pt-0">
+          <DetailSection
+            title={t('garments.settingsCategories.tags')}
+            icon={SETTINGS_CATEGORY_ICONS.tags}
+            subtleTitle
+            className="pt-0"
+          >
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 {t('garments.settingsCategories.tagsHint')}
@@ -270,22 +222,13 @@ export function GarmentsInventorySettingsView({
           </DetailSection>
         )}
 
-        {activeCategory === 'columns' && (
-          <TableColumnsSettingsSection
-            title={t('garments.settingsCategories.columns')}
-            hint={t('garments.settingsCategories.columnsHint')}
-            pref={tableColumns}
-            requiredColumnId="articleName"
-            labelFor={(id) => t(COLUMN_LABEL_KEYS[id])}
-            isColumnId={isInventoryTableColumnId}
-            reorder={reorderInventoryTableColumns}
-            setHidden={setInventoryTableColumnHidden}
-            onChange={setTableColumns}
-          />
-        )}
-
         {activeCategory === 'import' && (
-          <DetailSection title={t('garments.importInventory')} className="pt-0">
+          <DetailSection
+            title={t('garments.importInventory')}
+            icon={SETTINGS_CATEGORY_ICONS.import}
+            subtleTitle
+            className="pt-0"
+          >
             <p className="mb-4 text-sm text-muted-foreground">
               {t('garments.importInventoryDescription')}
             </p>

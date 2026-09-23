@@ -174,16 +174,28 @@ export function InventoryQuickContextPanel({
   item,
   onVariantQuantityChange,
   quantitySaving = false,
+  readOnly = false,
+  headerTrailing,
 }: {
   item: InventoryItem;
   onVariantQuantityChange?: (variantId: string, quantity: number) => void | Promise<void>;
   quantitySaving?: boolean;
+  /** Companion / browse-only: no edit chrome, local tabs (do not mutate URL). */
+  readOnly?: boolean;
+  /** Optional trailing control on the title row (e.g. companion close). */
+  headerTrailing?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = parseInventoryViewTab(searchParams.get('tab'));
+  const [localTab, setLocalTab] = useState<InventoryViewTab>('information');
+  const urlTab = parseInventoryViewTab(searchParams.get('tab'));
+  const activeTab = readOnly ? localTab : urlTab;
   const setActiveTab = useCallback(
     (tab: InventoryViewTab) => {
+      if (readOnly) {
+        setLocalTab(tab);
+        return;
+      }
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -197,8 +209,14 @@ export function InventoryQuickContextPanel({
         { replace: false },
       );
     },
-    [setSearchParams],
+    [readOnly, setSearchParams],
   );
+
+  useEffect(() => {
+    if (readOnly) {
+      setLocalTab('information');
+    }
+  }, [item.id, readOnly]);
 
   const comment = item.comment?.trim() || '';
   const description = item.description?.trim() || '';
@@ -363,6 +381,8 @@ export function InventoryQuickContextPanel({
     </Card>
   );
 
+  const quantityChangeHandler = readOnly ? undefined : onVariantQuantityChange;
+
   const variantsCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
@@ -413,7 +433,7 @@ export function InventoryQuickContextPanel({
                     <VariantQuantityEditor
                       variant={row}
                       disabled={quantitySaving}
-                      onQuantityChange={onVariantQuantityChange}
+                      onQuantityChange={quantityChangeHandler}
                     />
                   </div>
                 </div>
@@ -428,7 +448,7 @@ export function InventoryQuickContextPanel({
   const listsCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection title={t('garments.assignToLists')} icon={Package} subtleTitle className="p-6">
-        <InventoryListAssignmentCheckboxes itemId={item.id} embedded />
+        <InventoryListAssignmentCheckboxes itemId={item.id} embedded readOnly={readOnly} />
       </DetailSection>
     </Card>
   );
@@ -437,7 +457,14 @@ export function InventoryQuickContextPanel({
     <DetailLayout gridClassName="grid-cols-1">
       <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
         <div className="border-b border-border/50 px-4 py-5">
-          <InventoryDetailHeaderMenus item={item} leading={titleLeading} />
+          {readOnly ? (
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">{titleLeading}</div>
+              {headerTrailing ? <div className="shrink-0">{headerTrailing}</div> : null}
+            </div>
+          ) : (
+            <InventoryDetailHeaderMenus item={item} leading={titleLeading} />
+          )}
           <DetailHeaderMetaRow>
             {item.brand?.trim() ? (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -471,7 +498,7 @@ export function InventoryQuickContextPanel({
           entityId={item.id}
           limit={30}
           title={t('garments.activity')}
-          showClearButton
+          showClearButton={!readOnly}
           refreshKey={String(item.updatedAt ?? item.id)}
           systemId={formatDisplayNumber('garments', item.id)}
         />

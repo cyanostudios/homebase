@@ -100,6 +100,7 @@ export const CloudStorageSettings: React.FC = () => {
         title={t('files.cloudStorageTitle')}
         icon={Cloud}
         iconPlugin="files"
+        subtleTitle
         className="space-y-4"
       >
         <p className="text-sm text-muted-foreground">{t('files.settingsSubtitle')}</p>

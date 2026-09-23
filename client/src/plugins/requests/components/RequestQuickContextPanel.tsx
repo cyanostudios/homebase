@@ -65,9 +65,15 @@ function requestPriorityIcon(priority: string): LucideIcon {
 export function RequestQuickContextPanel({
   request,
   headerBelow = null,
+  readOnly = false,
+  headerTrailing,
 }: {
   request: Request;
   headerBelow?: React.ReactNode;
+  /** Companion / browse-only: no edit chrome. */
+  readOnly?: boolean;
+  /** Optional trailing control on the title row (e.g. companion Open full + Close). */
+  headerTrailing?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const updatedLabel = request.updated_at
@@ -132,7 +138,14 @@ export function RequestQuickContextPanel({
   return (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
       <div className="px-4 py-5">
-        <RequestDetailHeaderMenus request={request} leading={titleLeading} />
+        {readOnly ? (
+          <div className="flex min-w-0 items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">{titleLeading}</div>
+            {headerTrailing ? <div className="shrink-0">{headerTrailing}</div> : null}
+          </div>
+        ) : (
+          <RequestDetailHeaderMenus request={request} leading={titleLeading} />
+        )}
         <DetailHeaderMetaRow>
           <StatusOutlineBadge className={REQUEST_SOURCE_COLORS[request.source]}>
             {request.source === 'external'

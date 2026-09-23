@@ -7,8 +7,8 @@ Swedish invoicing with Facio-style PDF/public documents.
 Facio-inspired Swedish invoice layout (matches uploaded reference):
 
 - **Header:** logo + company name · document type title (Faktura / Kreditfaktura / Kontantfaktura / Kvitto) + number. PDF page label `X / Y` is a repeating print header (every page, with top margin clearance on continuation pages). Live preview shows `1 / 1` in the document header and dashed **approximate** page-break guides when content exceeds one A4 page.
-- **Below header:** customer block left (kund, kundreferens, kundnummer, ordernummer, leveranssätt) · payment summary right (förfallo, summa, referens, bankgiro, then fakturadatum, betalningsvillkor, dröjsmålsränta).
-- **Rule** then line items and totals (summa → fakturarabatt when set → ex moms / moms / summa att betala).
+- **Below header:** customer block left (kund, kundreferens, kundnummer, ordernummer, leveranssätt) · payment summary right (förfallo, summa, referens, bankgiro, then fakturadatum, leveransdatum, betalningsvillkor, dröjsmålsränta).
+- **Rule** then line items and totals (summa → fakturarabatt when set → **per-rate VAT rows** when `vatBreakdown` is present → ex moms / moms / summa att betala). Credit notes show **Kredit mot faktura {number}** plus correction summary when set. Supply date appears in the payment-summary / date band when present.
 - **Footer (3 columns):** (1) company name + address + F-skatt, with website as a sub-line under the column · (2) Org.nr, VAT-nr, Tel, Mail · (3) payment methods (Bankgiro, Plusgiro, IBAN, BIC, Swish when set). On short single-page PDFs the footer sticks to the bottom of the A4 content box (`min-height: 271mm` + flex); on multi-page documents it follows the content on the last page. Live column preview (`forceDesktop`) drops the A4 min-height so the iframe hugs content (no inner scrollbar); PDF / share window keep A4 fill.
 
 - **Issuer** from Settings → Account (`GET /api/organization`): **logo** (`logoUrl`) + **name**, address, email, phone, website, org-nr, VAT, payment methods, F-tax, interest.
@@ -19,11 +19,50 @@ Facio-inspired Swedish invoice layout (matches uploaded reference):
   - **Bridge:** `requestInvoiceCreateFromContact` in `pendingInvoiceCreate.ts` sets module-scoped pending prefill and notifies subscribers; `InvoicesProvider` subscribes and navigates/opens create (`flushPendingInvoiceCreate`). Pending survives React Strict Mode remount (peek/open, deferred `take`).
   - **App shell:** `AppContent` keeps panels with `panelMode === 'create'` open on the plugin list URL (no slug). `useItemUrl.navigateToBase` only navigates when an item segment is present (avoids no-op `/invoices` → `/invoices` loops).
 - **Linked on Contacts:** `ContactLinkedItemsSection` loads invoices via `GET /api/invoices` then filters by `contactId` (same auth privilege as the invoices list; tenant `user_id` via DB adapter). Quick context: max **2** tiles then “X more linked items”; full contact view shows all. Open → `openInvoiceForView` (valid here: Linked section renders under both providers).
-- **Leveranssätt** / **Ordernummer** are editable on the invoice form and stored on the invoice; shown on the document when set, otherwise `—`.
+- **Leveranssätt** / **Ordernummer** are editable on the invoice form **while draft** and stored on the invoice; shown on the document when set, otherwise `—`. After issue, ML fields are immutable (see [ML VAT compliance](#ml-vat-compliance-epics-ae)).
 - **From estimates:** converting an accepted estimate (`POST /api/estimates/:id/convert-to-invoice`) creates a draft invoice with `estimateId` set on the invoice row; see [`ESTIMATES_PLUGIN.md`](ESTIMATES_PLUGIN.md).
 - **Language:** Swedish labels.
 
 **Security (2026-09-04 review, contacts↔invoices):** Approved. Prefill/bridge is client UI intent only; create still requires session + plugin gate + CSRF. Linked list fetch does not expand privilege beyond the invoices list. No TPM-accepted residual risks for this slice.
+
+## ML VAT compliance (epics A–E)
+
+Swedish momslag (ML) alignment for domestic invoicing. Design: [`docs/ai/design/INVOICES_ML_VAT_COMPLIANCE_UX.md`](ai/design/INVOICES_ML_VAT_COMPLIANCE_UX.md). Server authority: `plugins/invoices/vatEngine.js`, `mlLock.js`, `model.js`. Client mirrors: `client/src/plugins/invoices/utils/invoiceMlCompliance.ts`.
+
+### Issue lock (leave draft)
+
+- **Draft** (`status === 'draft'`): ML content is editable; soft validation (credit-note link/summary when type is `credit_note`).
+- **Issue:** any transition to a non-draft status runs the VAT/content-profile gate, freezes ML fields, and inserts one row into `invoice_issue_snapshots` (`content_hash` + `snapshot_json`; `ON CONFLICT (invoice_id) DO NOTHING`). UI: issue confirm (`InvoiceStatusModal` / Send) warns that content locks.
+- **Issued update:** `PUT` never rewrites ML columns. Only workflow status may change via `resolveIssuedStatusTransition` allowlist: `sent` | `overdue` | `canceled`. Client `paid` / `partially_paid` are ignored (ledger owns paid). **`draft` is refused** with **409** `INVOICE_ML_LOCKED`.
+- **UI:** Edit/Delete disabled when issued (`InvoiceDetailHeaderMenus`). Status select omits Draft; paid/partially_paid appear only if already current. View status changes send **`{ id, status }` only** (`buildInvoiceStatusUpdatePayload`).
+- **Delete:** issued invoices cannot be deleted (`assertDraftDeletable` → 409 `INVOICE_ML_LOCKED`).
+
+### Credit notes (hard link)
+
+- Create path remains **Actions → Create credit note** on an **issued** `invoiceType === 'invoice'` (client `canCreateCreditNoteFromInvoice`; blank create cannot pick `credit_note` as an untied type).
+- Payload persists **`creditedInvoiceId`**, **`creditedInvoiceNumber`** (server-owned imprint from original), and **`correctionSummary`** (required). Notes may still mention the original for UX; they are **not** the legal link.
+- Server rejects credit notes without a valid issued standard-invoice link (`CREDIT_LINK_REQUIRED`) or empty correction summary (`CORRECTION_SUMMARY_REQUIRED`).
+- Totals still use positive line amounts and **negative** signed document totals via `resolveInvoiceTotals`. No automatic payment adjustment on the original.
+
+### Supply date, content profile, VAT
+
+| Concern           | Behavior                                                                                                                                                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supplyDate`      | Stored; defaults toward issue date when issuing if empty. Shown on form, view, live preview, and PDF (falls back to issue date when empty).                                                                                                             |
+| `contentProfile`  | `full` \| `simplified`. `invoice` / `credit_note` always **full**. `receipt` / `cash_invoice` may be **simplified** when currency is SEK and total incl. VAT ≤ **4 000** (`FORENKLAD_TOTAL_CEILING_SEK`); otherwise full / gate error `FORENKLAD_GATE`. |
+| Currency at issue | Editable on draft (defaults from contact). Options: SEK / EUR / USD / NOK / DKK.                                                                                                                                                                        |
+| Line VAT rates    | Allowlist **0 / 6 / 12 / 25** (same as contact tax rate). Defaults from contact `taxRate` when customer is selected; each line can be changed.                                                                                                          |
+| Refused postures  | Reverse charge / exemption / export → `VAT_POSTURE_REFUSED` (no UI to select them in v1).                                                                                                                                                               |
+| `vatBreakdown`    | Per-rate `{ rate, taxBase, vatAmount }` cache on save; shown in `InvoicePricingSummary` and PDF/web totals.                                                                                                                                             |
+
+### Schema & migrate
+
+Migration **`164-invoices-ml-vat-compliance.sql`**: `supply_date`, `content_profile`, `credited_invoice_id` (FK `ON DELETE RESTRICT`), `credited_invoice_number`, `correction_summary`, `vat_breakdown`, table `invoice_issue_snapshots`. No hard CHECK that every legacy credit note has a link — application enforces on create/update.  
+Script: `npm run migrate:invoices-ml-vat-compliance`. **Local-first; prod only on explicit release.**
+
+**Out of scope (this ship):** bokföringsmässig journal, long retention policy productization, kassaregister — see [`docs/ai/external/LEGAL_ACCOUNTED_INVOICES_REQUEST.md`](ai/external/LEGAL_ACCOUNTED_INVOICES_REQUEST.md).
+
+**QA / Security status (this epic):** QA verified B1/B2 lock fixes in rework; docs gap (B3) addressed here — **re-review still required**. **Security Expert has not approved this epic yet.**
 
 Routes:
 
@@ -88,7 +127,7 @@ Canonical key `numberingByType` holds one series per document type (`invoice` | 
 **UI:** When Numbering is active, document-type pills sit on a **header submenu row** under Columns/Numbering (`PluginSettingsPageShell.headerSubmenu`, DetailHeaderMenus pattern). Form fields use the full content width (responsive grid). Phone keeps type pills in the body (settings header is `md+` only). Warns when another type shares the same prefix + year flag.  
 **Allocation:** `GET /api/invoices/number/next?type=` (default `invoice` via `sanitizeInvoiceNumberingType`; unknown types → `invoice`). Create/duplicate use the document’s `invoiceType`. Series identity is the number-format regex (use distinct prefixes to separate sequences). See ADR `docs/ai/adr/INVOICES_NUMBERING_BY_TYPE.md`.
 
-**Security (2026-09-08 review, this epic):** Approved. Numbering `type` is allowlisted; prefix sanitized to `[A-Z0-9]` (max 12); regex uses `escapeRegExp`; create/update mutations keep CSRF + plugin gate. PDF/web document HTML escapes user/org fields. **Follow-ups (Low, not TPM-accepted residual — recommended hardenings):** (1) persist `invoice_type` via `sanitizeInvoiceNumberingType` on create/update (today raw body / `|| 'invoice'`); (2) on update, align persisted `invoice_type` with the totals fallback chain (`invoiceData.invoiceType || currentInvoice.invoiceType || 'invoice'`) so omitting the field cannot demote a stored credit note to `invoice` while totals still use the current type. **Info:** “Create credit note” eligibility is **client-only** (`canCreateCreditNoteFromInvoice`); the API does not separately gate credit-note creation from an original invoice. Preview iframe `sandbox="allow-scripts allow-same-origin"` is pre-existing (same pattern as Estimates public docs).
+**Security (2026-09-08 review, numbering epic):** Approved. Numbering `type` is allowlisted; prefix sanitized to `[A-Z0-9]` (max 12); regex uses `escapeRegExp`; create/update mutations keep CSRF + plugin gate. PDF/web document HTML escapes user/org fields. **Superseded follow-ups from that review:** (1) create/update now persist `invoice_type` via `sanitizeInvoiceNumberingType`; (2) credit-note creation is gated on the server (`CREDIT_LINK_REQUIRED` / issued standard invoice + `CORRECTION_SUMMARY_REQUIRED`) in addition to client `canCreateCreditNoteFromInvoice`. Preview iframe `sandbox="allow-scripts allow-same-origin"` is pre-existing (same pattern as Estimates public docs). **ML VAT epic Security:** not yet reviewed (see [ML VAT compliance](#ml-vat-compliance-epics-ae)).
 
 Settings UI field order per type: **Prefix → Year → Start number**, with a checkbox to show/hide year in the allocated number.
 
@@ -98,19 +137,23 @@ Full-view Quick Context (`InvoiceQuickContextPanel`): Contacts-style **header on
 
 Aligned with Contacts / Notes / Tasks chrome (see also `docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`). **View and edit are a single stacked column** (no sticky preview side column).
 
-| Mode          | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Full view     | Single column: QC header + `?tab=` chips; **Information** stacks fact card + status/notes + Share + **preview** card. Other tabs swap content under the header (no preview). Line items tab: list + pricing; section **open by default**.                                                                                                                                                                                                                                                                                                      |
-| Edit / create | Header card (number + tab chips) always visible. **Information** tab: customer + notes + Invoice Properties + preview. **Lines** tab: line items + discount/pricing (no preview). Payments / Linked / Activity greyed in edit.                                                                                                                                                                                                                                                                                                                 |
-| Duplicate     | `usePluginDuplicate` + `DuplicateDialog`; list row highlight via `recentlyDuplicatedInvoiceId`                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Credit note   | Full-view **Actions → Create credit note** (UI only when `invoiceType === 'invoice'` via `canCreateCreditNoteFromInvoice` — **not** enforced as a separate server gate). Creates a **draft** `credit_note` with the same customer and **positive** line amounts; `resolveInvoiceTotals` signs money totals **negative** (list, preview, PDF, denormalized DB cache, statistics). Number from the `credit_note` series; notes “Credit against invoice …”. Opens the new draft in edit. No DB link field; no payment adjustment on the original. |
-| Share         | Tasks-style: Export → Share creates (or reuses) a 30-day link and opens `ShareDialog` — no valid-until picker. Active share panel + public share page include **Download PDF** (`GET /api/invoices/public/:token/pdf`).                                                                                                                                                                                                                                                                                                                        |
+| Mode          | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Full view     | Single column: QC header + `?tab=` chips; **Information** stacks fact card + status/notes + Share + **preview** card. Other tabs swap content under the header (no preview). Line items tab: list + pricing; section **open by default**.                                                                                                                                                                                                                                                                                                                          |
+| Edit / create | Header card (number + tab chips) always visible. **Information** tab: customer + notes + Invoice Properties + preview. **Lines** tab: line items + discount/pricing (no preview). Payments / Linked / Activity greyed in edit.                                                                                                                                                                                                                                                                                                                                     |
+| Duplicate     | `usePluginDuplicate` + `DuplicateDialog`; list row highlight via `recentlyDuplicatedInvoiceId`                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Credit note   | Full-view **Actions → Create credit note** when `invoiceType === 'invoice'` **and** the document is **issued** (`canCreateCreditNoteFromInvoice`). Creates a **draft** `credit_note` with the same customer and **positive** line amounts; `resolveInvoiceTotals` signs money totals **negative**. Persists **`creditedInvoiceId` / `creditedInvoiceNumber` / `correctionSummary`** (server-enforced). Number from the `credit_note` series. Opens the new draft in edit. No payment adjustment on the original. Untied blank `credit_note` create is not offered. |
+| Share         | Tasks-style: Export → Share creates (or reuses) a 30-day link and opens `ShareDialog` — no valid-until picker. **Export → Email invoice** (mail plugin) ensures the same share link, then opens `BulkEmailDialog` with the customer as recipient, **Settings → Default texts** `invoiceMail` as editable `initialBody` when set, and the public URL attached to the message. Active share panel + public share page include **Download PDF** (`GET /api/invoices/public/:token/pdf`).                                                                              |
 
-**Invoice Properties (edit) field order:** Invoice type → Issue date → Payment terms → Due date (read-only, computed) → Currency → Status.
+**Security (2026-09-23, Email invoice):** Approved. Reuses authenticated share create + mail send (CSRF, plugin gates, high-entropy token). Ensuring the share before the compose dialog opens is the same residual class as Export → Share (cancel without Send leaves an active link; revoke remains available).
 
-**Send (draft):** On full view and edit/create preview actions, a **Send** control appears when status is `draft`. View: `handleStatusChange(…, 'sent')` (confirmation modal, then `saveInvoice`). Edit/create: `requestStatusChange('sent')` opens the same `InvoiceStatusModal`; on confirm, form `status` becomes `sent` only — persistence still requires Save/Update. Status select on the form uses the same confirm path for any non-draft status. i18n: `invoices.send`.
+**Security (2026-09-23, Default texts):** Approved for `GET/PUT /api/default-texts` (session, tenant scope, CSRF on PUT, role gates). Residual **R1:** `BulkEmailDialog` embeds compose `body` into HTML without escaping (pre-existing; persistent defaults amplify reuse) — awaits TPM accept or FE escape fix. Share-link `additionalHtml` remains escaped via `invoiceShareEmail`.
 
-Status colors: shared `INVOICE_STATUS_COLORS` / `InvoiceStatusSelect` (draft gray, sent blue, partially paid amber, paid green, overdue/canceled rose). Status **select trigger** uses platform `BADGE_SELECT_TRIGGER_CLASS` (same vertical alignment as Tasks/Requests — no invoice-only `filled` h-7 chrome). Delbetalning sätter status `partially_paid` automatiskt via payment ledger.
+**Invoice Properties (edit, draft):** Invoice type → Issue date → **Supply date** → Payment terms → Due date (read-only, computed) → Currency (selectable on draft; contact can prefill) → Status. Credit notes also show linked original number + required **Correction summary**. Receipt/cash show derived **Document profile** (`full` / `simplified`).
+
+**Send / issue (draft):** On full view, an **Issue** control appears **before** **Actions** when status is `draft` (`InvoiceDetailHeaderMenus` `beforeActions`). It opens `InvoiceStatusModal` (issue confirm) then saves via `handleStatusChange(…, 'sent')`. Edit/create: change status to Sent in Invoice Properties (`requestStatusChange('sent')`) — persistence still requires Save/Update (then lock + snapshot). Preview row is **Preview** only (no Send beside the document). i18n: `invoices.issue` (+ `issueConfirmTitle` / `Message` / `Help`).
+
+**Status after issue:** Select offers `sent` / `overdue` / `canceled` (plus current `paid` / `partially_paid` if already set — not assignable as a new client status). **Draft is not offered.** Status PUT from view is status-only. Colors: shared `INVOICE_STATUS_COLORS` / `InvoiceStatusSelect`. Delbetalning sätter `partially_paid` via payment ledger.
 
 **Dates:** Issue date (and payments / share valid-until) use shared `DatePicker` (`client/src/core/ui/DatePicker.tsx`), not native `type="date"`.
 
@@ -130,11 +173,11 @@ When `invoiceType === 'credit_note'`, resolved money fields are signed **negativ
 
 Do **not** read raw DB totals for display when line items exist — always go through `resolveInvoiceTotals` (or fields already stamped by `withResolvedInvoiceTotals`).
 
-**Integrity:** Generic invoice create/update does **not** accept client `amountPaid` or client-assigned `paid` / `partially_paid`. Rejected payment statuses keep the invoice’s current workflow status (e.g. `sent`). Create always starts at `amount_paid = 0`. After update, `refreshInvoicePaymentState` reconciles from the ledger.
+**Integrity:** Generic invoice create/update does **not** accept client `amountPaid` or client-assigned `paid` / `partially_paid`. On **issued** rows, status allowlist is `sent` / `overdue` / `canceled` only; paid statuses and ML body fields are ignored or rejected as above. Create always starts at `amount_paid = 0`. After update, `refreshInvoicePaymentState` reconciles from the ledger.
 
 API: `GET/POST /api/invoices/:invoiceId/payments`, `DELETE /api/invoices/payments/:paymentId` (plugin gate; CSRF on mutations; POST `amount` must be greater than 0).
 
-**Limitations:** Editing `total` downward can make an existing ledger sum mark the invoice paid; payment amount has no upper cap. Marking paid in status UI without recording a payment does not change paid state on the server.
+**Limitations:** Editing `total` downward on a **draft** can make an existing ledger sum mark the invoice paid after issue; payment amount has no upper cap. Issued ML content cannot be edited in place — use a credit note.
 
 ## Recurring
 
@@ -152,8 +195,9 @@ Client-side KPIs (`computeInvoiceStats`) opened from list header → `InvoicesSt
 - `148-invoices-align-schema.sql` — align older tenant tables with expected columns
 - `157-invoices-recurring-payments.sql` — payments + `amount_paid` (also creates unused recurring schedule table)
 - `159-invoices-status-partially-paid.sql` — status `partially_paid`
+- `164-invoices-ml-vat-compliance.sql` — supply date, content profile, credit link, vat breakdown, issue snapshots
 
-Scripts: `npm run migrate:invoices-paid-at`, `migrate:invoices-align-schema`, `migrate:invoices-recurring-payments`, `migrate:invoices-recurring-payments-user-id`, `migrate:invoices-status-partially-paid`.  
+Scripts: `npm run migrate:invoices-paid-at`, `migrate:invoices-align-schema`, `migrate:invoices-recurring-payments`, `migrate:invoices-recurring-payments-user-id`, `migrate:invoices-status-partially-paid`, `migrate:invoices-ml-vat-compliance`.  
 For local Neon-parity (`TENANT_PROVIDER` unset/`neon` + localhost connection strings), migrations run against the tenant DB `public` schema. Use `TENANT_PROVIDER=local` only when data lives in `tenant_N` schemas. **Prod only on explicit release decision.**
 
 Legacy URLs `/invoices/recurring|payments|reports` map to the invoices list (no stub pages).

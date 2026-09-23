@@ -508,7 +508,7 @@ flex items-start justify-between gap-6
 </div>
 ```
 
-**List layout:** **Table-only** (`*ListTable` / `SortableListTable`). Do not add a cards/column layout toggle. Do not add a settings **View** tab for list layout.
+**List layout:** **Table-only** (`*ListTable` / `SortableListTable`). Do not add a cards/column layout toggle. Do not add a settings **View** tab for list layout. **Status on the identity column:** prefer bold colored meta text (`text-[10px] font-extrabold` + `QC_*` / plugin status color tokens) on the row under the title — not a title-row badge/icon. **Exception (Tasks, Requests):** title row keeps `SectionCategoryIcon` for status; meta row still shows the bold status label plus secondary text (priority / type). Optional dedicated status columns may still use `StatusOutlineBadge`.
 
 **Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only, **Estimates Numbering**). When `categories.length === 0` (temporary empty shell only), still pass required `children` and empty-state copy — do not omit `children` (TypeScript requires it).
 
@@ -525,7 +525,7 @@ flex items-start justify-between gap-6
 
 Shared primitive: `client/src/core/ui/DetailHeaderMenus.tsx`. Plugin wrappers (e.g. `ContactDetailHeaderMenus`, `TaskDetailHeaderMenus`) supply actions/export/extra menus + dialogs. Wire via `Provider.getPanelTitle` in view mode; `PanelTitles` prefers non-string React nodes **before** the mobile “blank title” early-return.
 
-**Layout (all breakpoints):** trigger buttons (`Actions` / `Export` / extras) stay on the first row and may scroll horizontally when needed. When a menu is open, its action pills **always** render on the **row below** the triggers (`justify-end`, `size="xs"` / `text-xs` — same density as Contacts `BulkActionRoundBar`). Do **not** render submenu pills inline beside the active trigger.
+**Layout (all breakpoints):** trigger buttons (`Actions` / `Export` / extras) stay on the first row (menus cluster on the right) and may scroll horizontally when needed. When a menu is open, its action pills **always** render on the **row below** inside the same menus column — **right-aligned with the rightmost trigger**, regardless of which menu is open (`justify-end`, `size="xs"` / `text-xs` — same density as Contacts `BulkActionRoundBar`). Do **not** render submenu pills inline beside the active trigger.
 
 **Spacing:** use shared `DETAIL_HEADER_CHIP_GAP_CLASS` (`gap-1.5`) for trigger buttons, submenu pills, and trigger↔submenu. Title/`leading` ↔ triggers stays `gap-3`. Meta/badge rows under the menus use the same chip gap plus `DETAIL_HEADER_BELOW_MENUS_CLASS` (`mt-1.5`), with type / counts / **updated first** and **badges last** on that row (Tasks / Notes / Matches / Invoices / Inventory / Teams / Files / Estimates). **Requests exception (verified):** source Internal/External is the **first** meta badge in `RequestQuickContextPanel`, then type / status / priority / response-due. Use `DetailHeaderMetaRow` / `DetailHeaderMetaDot` for separators.
 

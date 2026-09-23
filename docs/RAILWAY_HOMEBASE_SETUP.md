@@ -113,8 +113,26 @@ Engångstabell (om du vill köra manuellt): `npm run migrate:password-reset` med
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `ENABLE_CSRF`                                                                                  | `true` i prod — kräver session-CSRF (se §5); klienten använder `apiFetch` |
 | `RATE_LIMIT_MAX`                                                                               | Valfritt; standard **3000** anrop / 15 min per IP i prod (se §6)          |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL` | Cup-hjältebilder                                                          |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL` | Filbytes i Cloudflare R2 (alla uppladdningar, se nedan)                   |
 | `CRON_SECRET`                                                                                  | För Railway Cron (valfritt)                                               |
+
+### Filer (Railway + Neon + Cloudflare R2)
+
+Uppladdning (`POST /api/files/upload`) träffar **denna** Homebase-tjänst. Tre lager:
+
+| Lager             | Var                                                 | Innehåll                                                                                                                   |
+| ----------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Railway Variables | Homebase-tjänsten                                   | De fem `R2_*` ovan. Valfritt `R2_ENDPOINT` om bucketen inte ligger på den globala R2-endpointen.                           |
+| Neon **tenant**   | `tenants.neon_connection_string` från Neon **main** | Rad i `user_files` (`url`, `storage_provider`, `external_file_id`) och `file_attachments`.                                 |
+| Cloudflare R2     | Bucket `R2_BUCKET_NAME`                             | Själva filen. Nyckel `cups/<filnamn>` om ingen annan prefix skickas. Publik adress är `R2_PUBLIC_URL` utan avslutande `/`. |
+
+Saknas någon av de fem variablerna väljer servern Google Drive (om användaren är ansluten) och annars lokal disk. Railway-disken är tillfällig, så produktion ska ha alla fem satta. Startloggen ska visa `File uploads: Cloudflare R2`.
+
+`R2_BUCKET` i `config/services.js` läses **inte** av Files-pluginet. Sätt `R2_BUCKET_NAME`.
+
+API-token i Cloudflare ska ha **Object Read & Write** mot samma bucket. Publika sajter (Cupappen m.fl.) läser den sparade URL:en ur tenant-databasen och hämtar bilden från `R2_PUBLIC_URL`. De ska inte ha `R2_*`.
+
+Detaljer: [`FILES_PLUGIN.md`](./FILES_PLUGIN.md), [`CUPPAPPEN_PATHS_AND_STORAGE.md`](./CUPPAPPEN_PATHS_AND_STORAGE.md).
 
 ### Valfritt
 

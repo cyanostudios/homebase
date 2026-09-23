@@ -9,7 +9,6 @@ import {
   ListOrdered,
   Package,
   Percent,
-  Send,
   SlidersHorizontal,
   StickyNote,
   Truck,
@@ -58,6 +57,12 @@ import {
   fetchLogoAsDataUrl,
 } from '@/plugins/invoices/utils/invoiceDocumentIdentity';
 import { INVOICE_FORM_INPUT_CLASS } from '@/plugins/invoices/utils/invoiceLineItemStyles';
+import {
+  INVOICE_CURRENCY_OPTIONS,
+  INVOICE_VAT_RATES,
+  resolveInvoiceCurrency,
+  resolveInvoiceVatRateFromContact,
+} from '@/plugins/invoices/utils/invoiceMlCompliance';
 
 import { useEstimates } from '../hooks/useEstimates';
 import { Estimate, LineItem, calculateLineItem, calculateEstimateTotals } from '../types/estimate';
@@ -177,6 +182,9 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
     // Track which items are recently duplicated for visual feedback
     const [duplicatedItemIds, setDuplicatedItemIds] = useState<Set<string>>(new Set());
     const [showSentConfirm, setShowSentConfirm] = useState(false);
+    const [defaultVatRate, setDefaultVatRate] = useState(25);
+    const isDraft = (formData.status || 'draft') === 'draft';
+    const propSelectClass = FORM_GHOST_PROP_CONTROL_CLASS;
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [totals, setTotals] = useState({
@@ -218,7 +226,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
           contactId: currentEstimate.contactId || '',
           contactName: currentEstimate.contactName || '',
           organizationNumber: currentEstimate.organizationNumber || '',
-          currency: currentEstimate.currency || 'SEK',
+          currency: resolveInvoiceCurrency(currentEstimate.currency),
           lineItems: migratedLineItems,
           estimateDiscount: currentEstimate.estimateDiscount || 0, // NEW: Load estimate discount
           notes: currentEstimate.notes || '',
@@ -227,6 +235,8 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
           validTo: new Date(currentEstimate.validTo),
           status: currentEstimate.status || 'draft',
         });
+        const firstPriced = migratedLineItems.find((item) => item?.kind !== 'text');
+        setDefaultVatRate(firstPriced ? resolveInvoiceVatRateFromContact(firstPriced.vatRate) : 25);
         markClean();
         setDuplicatedItemIds(new Set());
       } else {
@@ -255,6 +265,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
         validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         status: 'draft',
       });
+      setDefaultVatRate(25);
       markClean();
       setDuplicatedItemIds(new Set());
     }, [markClean]);
@@ -421,15 +432,31 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
         companyName?: string;
         organizationNumber?: string;
         currency?: string;
+        taxRate?: string;
+        contactType?: string;
       } | null,
     ) => {
+      if ((formData.status || 'draft') !== 'draft') {
+        return;
+      }
       if (contact) {
+        const currency = resolveInvoiceCurrency(contact.currency);
+        const vatRate = resolveInvoiceVatRateFromContact(
+          contact.contactType === 'private' ? '0' : contact.taxRate,
+        );
+        setDefaultVatRate(vatRate);
         setFormData((prev) => ({
           ...prev,
           contactId: String(contact.id),
           contactName: contact.companyName || '',
           organizationNumber: contact.organizationNumber || '',
-          currency: contact.currency || 'SEK',
+          currency,
+          lineItems: (prev.lineItems || []).map((item) => {
+            if (item?.kind === 'text') {
+              return item;
+            }
+            return calculateLineItem({ ...item, vatRate });
+          }),
         }));
         markDirty();
         clearValidationErrors();
@@ -453,7 +480,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
         unit: DEFAULT_INVOICE_LINE_ITEM_UNIT,
         unitPrice: 0,
         discount: 0,
-        vatRate: 25,
+        vatRate: defaultVatRate,
         sortOrder: formData.lineItems.length,
       });
       updateField('lineItems', [...formData.lineItems, newItem]);
@@ -804,15 +831,52 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                             </span>
                             <NativeSelect
                               id="estimate-currency"
-                              value={formData.currency}
+                              value={resolveInvoiceCurrency(formData.currency)}
                               onChange={(e) => updateField('currency', e.target.value)}
-                              className={FORM_GHOST_PROP_CONTROL_CLASS}
+                              disabled={!isDraft}
+                              className={propSelectClass}
+                              aria-label={t('estimates.fieldCurrency')}
                             >
-                              <option value="SEK">SEK</option>
-                              <option value="EUR">EUR</option>
-                              <option value="USD">USD</option>
-                              <option value="NOK">NOK</option>
-                              <option value="DKK">DKK</option>
+                              {INVOICE_CURRENCY_OPTIONS.map((code) => (
+                                <option key={code} value={code}>
+                                  {code}
+                                </option>
+                              ))}
+                            </NativeSelect>
+                          </div>
+                          <div className={DETAIL_PROP_ROW_CLASS}>
+                            <span className="text-sm text-slate-500 dark:text-slate-400">
+                              {t('invoices.vatRate', { defaultValue: 'VAT' })}
+                            </span>
+                            <NativeSelect
+                              id="estimate-vat-rate"
+                              value={defaultVatRate}
+                              onChange={(e) => {
+                                const vatRate = resolveInvoiceVatRateFromContact(e.target.value);
+                                setDefaultVatRate(vatRate);
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  lineItems: (prev.lineItems || []).map((item) => {
+                                    if (item?.kind === 'text') {
+                                      return item;
+                                    }
+                                    return calculateLineItem({ ...item, vatRate });
+                                  }),
+                                }));
+                                if (validationErrors.length > 0) {
+                                  clearValidationErrors();
+                                }
+                                markDirty();
+                              }}
+                              disabled={!isDraft}
+                              className={propSelectClass}
+                              aria-label={t('invoices.vatRate', { defaultValue: 'VAT' })}
+                            >
+                              {INVOICE_VAT_RATES.map((rate) => (
+                                <option key={rate} value={rate}>
+                                  {rate}%
+                                </option>
+                              ))}
                             </NativeSelect>
                           </div>
                           <div className={DETAIL_PROP_ROW_CLASS}>
@@ -886,17 +950,6 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                             estimateNumber={currentEstimate?.estimateNumber}
                           />
                           <div className="mt-4 flex justify-end gap-2">
-                            {formData.status === 'draft' ? (
-                              <RoundIconLabelButton
-                                type="button"
-                                icon={Send}
-                                label={t('estimates.send', { defaultValue: 'Send' })}
-                                variant="soft"
-                                size="xs"
-                                alwaysExpanded
-                                onClick={() => requestStatusChange('sent')}
-                              />
-                            ) : null}
                             <RoundIconLabelButton
                               type="button"
                               icon={Eye}

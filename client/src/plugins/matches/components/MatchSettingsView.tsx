@@ -198,7 +198,12 @@ export function MatchSettingsView({
         }
       >
         {activeCategory === 'api' && (
-          <DetailSection title={t('matches.apiSettings')} className="pt-0">
+          <DetailSection
+            title={t('matches.apiSettings')}
+            icon={SETTINGS_CATEGORY_ICONS.api}
+            subtleTitle
+            className="pt-0"
+          >
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="matches-default-home-team">

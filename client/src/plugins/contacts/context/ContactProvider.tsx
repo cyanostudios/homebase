@@ -1,7 +1,7 @@
 import { FileText, Mail, MessageSquare } from 'lucide-react';
 import React, { useCallback, useMemo, useState, useEffect, useRef, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
@@ -54,6 +54,7 @@ export function ContactProvider({
 }: ContactProviderProps) {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
@@ -187,6 +188,7 @@ export function ContactProvider({
             organizationNumber: item.organizationNumber || '',
             currency: item.currency || 'SEK',
             paymentTerms: item.paymentTerms || '30',
+            taxRate: item.contactType === 'private' ? '0' : item.taxRate || '25',
           });
         },
       });
@@ -391,6 +393,13 @@ export function ContactProvider({
       const slug = buildSlug(contact, contacts, 'companyName');
       contactsDeepLinkPathSyncedRef.current = `/contacts/${slug}`;
       navigateToItem(contact, contacts, 'companyName');
+    } else {
+      contactsDeepLinkPathSyncedRef.current = '/contacts';
+      if (window.location.pathname !== '/contacts') {
+        navigate('/contacts');
+      } else {
+        navigateToBase();
+      }
     }
   };
 

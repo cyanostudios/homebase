@@ -14,6 +14,8 @@ describe('Companion / right-rail panel exit animation', () => {
     expect(flyout).toMatch(/translate-x-0 opacity-100/);
     expect(flyout).toMatch(/cachedTitleRef/);
     expect(flyout).toMatch(/cachedChildrenRef/);
+    expect(flyout).toMatch(/overflow-y-auto/);
+    expect(flyout).not.toMatch(/contentOwnsScroll/);
     expect(flyout).not.toMatch(/animate-in/);
   });
 

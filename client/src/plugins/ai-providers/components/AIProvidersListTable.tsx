@@ -1,9 +1,8 @@
-import { Sparkles } from 'lucide-react';
+import { CheckCircle2, Circle, Sparkles } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 
-import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
   Table,
@@ -16,6 +15,7 @@ import {
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ListTableSortIcon } from '@/core/ui/ListTableSortIcon';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
 import type { ProviderSettings } from '../types/aiProviders';
@@ -26,16 +26,14 @@ import {
   resolveVisibleAIProvidersTableColumns,
 } from '../utils/aiProvidersTableColumns';
 
-function enabledBadgeClass(enabled: boolean) {
-  return enabled ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.neutral;
-}
+const AI_PROVIDER_ICON_SHELL_CLASS =
+  'h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3';
 
 function aiProviderIdentityMeta(
   provider: ProviderSettings,
   t: (key: string) => string,
 ): string | null {
   const parts: string[] = [];
-  parts.push(provider.enabled ? t('aiProviders.statusEnabled') : t('aiProviders.statusDisabled'));
   const model = provider.defaultModel?.trim();
   if (model) {
     parts.push(model);
@@ -142,6 +140,9 @@ export function AIProvidersListTable({
             const title = providerTitle(provider);
             const identityMeta = aiProviderIdentityMeta(provider, t);
             const isActive = activeProviderId != null && provider.providerKey === activeProviderId;
+            const statusLabel = provider.enabled
+              ? t('aiProviders.statusEnabled')
+              : t('aiProviders.statusDisabled');
             return (
               <TableRow
                 key={provider.providerKey}
@@ -161,13 +162,10 @@ export function AIProvidersListTable({
                       <TableCell key={columnId} className="min-w-0 overflow-hidden">
                         <div className="flex min-w-0 flex-col gap-0.5">
                           <div className="flex min-w-0 items-center gap-1.5">
-                            <span
-                              title={t('nav.ai-providers', { defaultValue: 'AI Providers' })}
-                              className="inline-flex shrink-0"
-                            >
+                            <span title={title} className="inline-flex shrink-0">
                               <SectionCategoryIcon
                                 icon={Sparkles}
-                                className="h-5 w-5 bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 [&_svg]:h-3 [&_svg]:w-3"
+                                className={AI_PROVIDER_ICON_SHELL_CLASS}
                               />
                             </span>
                             <span
@@ -177,11 +175,23 @@ export function AIProvidersListTable({
                               {title}
                             </span>
                           </div>
-                          {identityMeta ? (
-                            <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
-                              {identityMeta}
+                          <div className="flex min-w-0 items-center gap-1.5 pl-6">
+                            <span
+                              className={cn(
+                                'shrink-0 text-[10px] font-extrabold leading-tight',
+                                provider.enabled
+                                  ? QC_STATUS_BADGE_COLORS.success
+                                  : QC_STATUS_BADGE_COLORS.neutral,
+                              )}
+                            >
+                              {statusLabel}
                             </span>
-                          ) : null}
+                            {identityMeta ? (
+                              <span className="min-w-0 truncate text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                                {identityMeta}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </TableCell>
                     );
@@ -189,13 +199,16 @@ export function AIProvidersListTable({
                   if (columnId === 'status') {
                     return (
                       <TableCell key={columnId} className="min-w-0 overflow-hidden">
-                        <Badge
-                          className={cn(BADGE_CHIP_CLASS, enabledBadgeClass(provider.enabled))}
+                        <StatusOutlineBadge
+                          icon={provider.enabled ? CheckCircle2 : Circle}
+                          className={
+                            provider.enabled
+                              ? QC_STATUS_BADGE_COLORS.success
+                              : QC_STATUS_BADGE_COLORS.neutral
+                          }
                         >
-                          {provider.enabled
-                            ? t('aiProviders.statusEnabled')
-                            : t('aiProviders.statusDisabled')}
-                        </Badge>
+                          {statusLabel}
+                        </StatusOutlineBadge>
                       </TableCell>
                     );
                   }

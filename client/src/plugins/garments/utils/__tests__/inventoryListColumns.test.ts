@@ -1,5 +1,6 @@
 import {
   buildGarmentListFitSummary,
+  compareClothingSizes,
   filterMatrixColumns,
   fitBreakdownKey,
   inventoryItemAudiences,
@@ -70,6 +71,19 @@ const sampleItem: InventoryItem = {
 };
 
 describe('inventoryListColumns', () => {
+  it('orders letter sizes small to large', () => {
+    expect(['XL', 'XS', 'M', 'XXL', 'S', 'L'].sort(compareClothingSizes)).toEqual([
+      'XS',
+      'S',
+      'M',
+      'L',
+      'XL',
+      'XXL',
+    ]);
+    expect(compareClothingSizes('2XS', 'XS')).toBeLessThan(0);
+    expect(compareClothingSizes('3XL', 'XXL')).toBeGreaterThan(0);
+  });
+
   it('extracts inventory item id from column id', () => {
     expect(inventoryItemIdFromColumnId('inv_12_ordered')).toBe('12');
     expect(inventoryItemIdFromColumnId('shorts_bestallt')).toBeNull();
@@ -111,9 +125,142 @@ describe('inventoryListColumns', () => {
 
   it('collects unique audiences and sizes per audience', () => {
     expect(inventoryItemAudiences(sampleItem)).toEqual(['Men', 'Women']);
-    expect(inventoryItemSizes(sampleItem)).toEqual(['M', 'L', 'S']);
+    expect(inventoryItemSizes(sampleItem)).toEqual(['S', 'M', 'L']);
     expect(inventoryItemSizesForAudience(sampleItem, 'Men')).toEqual(['M', 'L']);
     expect(inventoryItemSizesForAudience(sampleItem, 'Women')).toEqual(['S']);
+  });
+
+  it('sorts size summary breakdowns XS→XXL within audience', () => {
+    const groupColumns: GarmentCheckboxColumn[] = [
+      { id: 'inv_3_ordered', label: 'Ordered', group: 'Jacket', sortOrder: 0 },
+      { id: 'inv_3_delivered', label: 'Delivered', group: 'Jacket', sortOrder: 1 },
+      { id: 'inv_3_handed_out', label: 'Handed out', group: 'Jacket', sortOrder: 2 },
+    ];
+    const persons: GarmentPerson[] = [
+      {
+        id: '1',
+        listId: '1',
+        name: 'A',
+        shirtSize: null,
+        shortsSize: null,
+        socksSize: null,
+        jerseyNumber: null,
+        jerseyName: null,
+        initials: null,
+        comment: null,
+        contactId: null,
+        teamId: null,
+        checkboxValues: {},
+        ctSizes: { '3': 'XL' },
+        ctAudiences: { '3': 'Men' },
+        sortOrder: 0,
+      },
+      {
+        id: '2',
+        listId: '1',
+        name: 'B',
+        shirtSize: null,
+        shortsSize: null,
+        socksSize: null,
+        jerseyNumber: null,
+        jerseyName: null,
+        initials: null,
+        comment: null,
+        contactId: null,
+        teamId: null,
+        checkboxValues: {},
+        ctSizes: { '3': 'S' },
+        ctAudiences: { '3': 'Men' },
+        sortOrder: 1,
+      },
+      {
+        id: '3',
+        listId: '1',
+        name: 'C',
+        shirtSize: null,
+        shortsSize: null,
+        socksSize: null,
+        jerseyNumber: null,
+        jerseyName: null,
+        initials: null,
+        comment: null,
+        contactId: null,
+        teamId: null,
+        checkboxValues: {},
+        ctSizes: { '3': 'M' },
+        ctAudiences: { '3': 'Men' },
+        sortOrder: 2,
+      },
+      {
+        id: '4',
+        listId: '1',
+        name: 'D',
+        shirtSize: null,
+        shortsSize: null,
+        socksSize: null,
+        jerseyNumber: null,
+        jerseyName: null,
+        initials: null,
+        comment: null,
+        contactId: null,
+        teamId: null,
+        checkboxValues: {},
+        ctSizes: { '3': 'XXL' },
+        ctAudiences: { '3': 'Men' },
+        sortOrder: 3,
+      },
+      {
+        id: '5',
+        listId: '1',
+        name: 'E',
+        shirtSize: null,
+        shortsSize: null,
+        socksSize: null,
+        jerseyNumber: null,
+        jerseyName: null,
+        initials: null,
+        comment: null,
+        contactId: null,
+        teamId: null,
+        checkboxValues: {},
+        ctSizes: { '3': 'XS' },
+        ctAudiences: { '3': 'Men' },
+        sortOrder: 4,
+      },
+      {
+        id: '6',
+        listId: '1',
+        name: 'F',
+        shirtSize: null,
+        shortsSize: null,
+        socksSize: null,
+        jerseyNumber: null,
+        jerseyName: null,
+        initials: null,
+        comment: null,
+        contactId: null,
+        teamId: null,
+        checkboxValues: {},
+        ctSizes: { '3': 'L' },
+        ctAudiences: { '3': 'Men' },
+        sortOrder: 5,
+      },
+    ];
+
+    const summary = buildGarmentListFitSummary(
+      persons,
+      [{ group: 'Jacket', columns: groupColumns }],
+      [{ ...sampleItem, id: '3', articleName: 'Match jacket' }],
+    );
+
+    expect(summary[0].fitBreakdowns.map((row) => row.size)).toEqual([
+      'XS',
+      'S',
+      'M',
+      'L',
+      'XL',
+      'XXL',
+    ]);
   });
 
   it('synthesizes inv_* columns for assigned items missing from checkbox_columns', () => {

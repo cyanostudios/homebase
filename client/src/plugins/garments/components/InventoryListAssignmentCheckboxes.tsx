@@ -13,10 +13,13 @@ import { useGarments } from '../hooks/useGarments';
 export function InventoryListAssignmentCheckboxes({
   itemId,
   embedded = false,
+  readOnly = false,
 }: {
   itemId?: string;
   /** Skip outer Card when already inside another detail card (e.g. Quick Context). */
   embedded?: boolean;
+  /** Browse-only: show assigned lists without toggle controls. */
+  readOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const { garmentLists, inventoryItems, assignInventoryItemToList, unassignInventoryItemFromList } =
@@ -31,6 +34,10 @@ export function InventoryListAssignmentCheckboxes({
   const assignedListIds = useMemo(
     () => new Set((item?.assignedListIds ?? []).map(String)),
     [item?.assignedListIds],
+  );
+  const assignedLists = useMemo(
+    () => garmentLists.filter((list) => assignedListIds.has(String(list.id))),
+    [assignedListIds, garmentLists],
   );
   const unassignedLists = useMemo(
     () => garmentLists.filter((list) => !assignedListIds.has(String(list.id))),
@@ -106,7 +113,7 @@ export function InventoryListAssignmentCheckboxes({
 
   const body = (
     <>
-      {!embedded ? (
+      {!embedded && !readOnly ? (
         <p className="mb-3 text-xs text-muted-foreground">{t('garments.inventoryInListsHint')}</p>
       ) : null}
 
@@ -114,7 +121,7 @@ export function InventoryListAssignmentCheckboxes({
         <p className="text-sm text-muted-foreground">{t('garments.assignToListsSaveFirst')}</p>
       ) : null}
 
-      {errorMessage ? (
+      {errorMessage && !readOnly ? (
         <p role="status" className="mb-3 text-sm text-destructive">
           {errorMessage}
         </p>
@@ -124,7 +131,21 @@ export function InventoryListAssignmentCheckboxes({
         <p className={DETAIL_EMPTY_STATE_CLASS}>{t('garments.noListsYet')}</p>
       ) : null}
 
-      {itemId && garmentLists.length > 0 ? (
+      {itemId && readOnly && garmentLists.length > 0 ? (
+        assignedLists.length === 0 ? (
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('garments.notAssignedToAnyList')}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {assignedLists.map((list) => (
+              <li key={list.id} className="truncate px-1 py-1 text-sm text-foreground">
+                {list.name || '—'}
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+
+      {itemId && !readOnly && garmentLists.length > 0 ? (
         <ul className="space-y-1.5">
           <li className="border-b border-border/50 pb-2">
             <label

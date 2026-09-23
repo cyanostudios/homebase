@@ -210,6 +210,7 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
               title={t('pulses.information', { defaultValue: 'Information' })}
               icon={Info}
               iconPlugin="pulses"
+              subtleTitle
               className="p-4"
               collapsible
             >
@@ -259,6 +260,7 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
                   title={t('pulses.providerType', { defaultValue: 'Provider type' })}
                   icon={Smartphone}
                   iconPlugin="pulses"
+                  subtleTitle
                   className="p-6"
                 >
                   <div>
@@ -325,8 +327,8 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
                   }
                   icon={stacked && headerTrailing ? SlidersHorizontal : Smartphone}
                   iconPlugin="pulses"
+                  subtleTitle
                   className="p-6"
-                  subtleTitle={Boolean(stacked && headerTrailing)}
                 >
                   {settingsDescription ? (
                     <p className="mb-4 text-sm text-muted-foreground">{settingsDescription}</p>

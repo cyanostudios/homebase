@@ -4,6 +4,177 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-23 – Settings DetailSection chrome (subtleTitle + icon + card padding)
+
+**Typ:** UI  
+**Scope:** Global Settings forms (`ProfileSettingsForm`, `TeamSettingsForm`, `PreferencesSettingsForm`, `DefaultTextsSettingsForm`); plugin `*SettingsView*` / settings sections (Tasks, Requests, Notes, Teams, Invoices, Estimates, Cups, Matches, Schedule, Slots, Garments, Guides, Files/CloudStorage, Mail, Pulse, AI Providers, Contacts, TableColumns, etc.); `SettingsList` `usesOwnCards` for preferences + default-texts.  
+**QA:** **Godkänt** 2026-09-23 (re-review after CHANGELOG B1–B2). **Security:** N/A (UI-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Settings section headings align with Mail routing cards: `DetailSection` with Lucide `icon`, `subtleTitle`, and card body padding `p-4 sm:p-6` (or equivalent). Preferences gets its own `Card` + `DETAIL_VIEW_CARD_CLASS` (same shell as Profile/Team/Default texts) instead of a bare section with `pt-0`.
+
+**Docs:** [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) §3.2; i18n unchanged; visual parity only.
+
+---
+
+## 2026-09-23 – Default texts (Settings) → invoice/estimate email body
+
+**Typ:** Enhancement (FE + BE)  
+**Scope:** Settings → **Default texts** (`DefaultTextsSettingsForm`); `GET/PUT /api/default-texts`; main DB `tenants.default_texts` (migration `166-tenants-default-texts.sql`); `AppContext.refreshDefaultTexts`; `BulkEmailDialog` `initialBody`; Invoice/Estimate Export → Email seeds body from account defaults.  
+**QA:** Underkänt 2026-09-23 (lint / CHANGELOG / migrate runner) → **Godkänt** 2026-09-23 efter B1–B3. **Security:** **Godkänt** 2026-09-23 — session auth, tenant-scoped SQL, CSRF on PUT, role gates (read: all tenant roles; write: admin/editor), normalize + 8000-char cap. Residual **R1** (BulkEmailDialog HTML body without escape — pre-existing sink, amplified by persistent defaults) awaits TPM accept or FE escape fix. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Shared account mail body defaults for invoice and estimate send dialogs. Admins/editors edit under Settings; all tenant roles can read. Opening Email invoice/estimate prefills the compose body (editable); share link still appended as before.
+
+**Begränsningar:** Requires main-DB migration `166` (`npm run migrate:tenants-default-texts`; `--both` when `PROD_MAIN_DATABASE_URL` is set). Soft-fail refresh yields an empty body seed. Outbound HTML email still embeds the compose `body` without HTML-escaping (same as manual typing in BulkEmailDialog).
+
+**Docs:** [`server/migrations/README.md`](../server/migrations/README.md) §166; [`INVOICES_PLUGIN.md`](./INVOICES_PLUGIN.md) / [`ESTIMATES_PLUGIN.md`](./ESTIMATES_PLUGIN.md) (Email + defaults); i18n `defaultTexts.*`.
+
+---
+
+## 2026-09-23 – List status as bold meta text; DetailHeaderMenus right-align
+
+**Typ:** UI  
+**Scope:** List tables (Tasks, Requests, Invoices, Estimates, Teams, Clubdesk, Price list, Mail/Pulse/AI providers, Ingest); `DetailHeaderMenus` (trigger + submenu column `ml-auto` / `items-end`, submenu `flex-nowrap`); `PLUGIN_VIEW_IMPLEMENTATION_GUIDE` § Detail header menus; `UI_AND_UX_STANDARDS_V3` §0.1 provider lists.  
+**QA:** **Godkänt** 2026-09-23 (scoped list status + DetailHeaderMenus; settings chrome follow-up Godkänt same day). **Security:** N/A (UI-only). **Local-first; not a prod release** by itself.  
+**Follow-up (same day):** CHANGELOG corrected after QA Underkänt — Tasks/Requests title status icons restored (see Sammanfattning). Guide §4 list identity + UI standards §3.2 updated to match.
+
+**Sammanfattning:** Plugin list status (and enabled/active where applicable) moves into the meta row as `text-[10px] font-extrabold` with existing `QC_*` / plugin status color tokens. **Most lists** drop a duplicating status icon on the title row (meta text only). **Tasks and Requests exception:** title row keeps `SectionCategoryIcon` for status; meta row still shows bold status label plus secondary text (priority / type) — not icon-only elsewhere. Detail header Actions/Export/extras stay on the right; open submenu pills share that right edge on one row (horizontal scroll if needed).
+
+**Docs:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](./PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) § Detail header menus; [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) §0.1.
+
+---
+
+## 2026-09-23 – Mail / Pulse / AI Providers: stacked routing + view cards; status badges; Pulse `sms_enabled`
+
+**Typ:** Enhancement / UI (+ Pulse backend enablement)  
+**Scope:** `MailProvidersRouting` / `PulseProvidersRouting` / `AIProvidersRouting` (Global + Per-plugin as stacked `DetailSection` cards; no category tabs; invoice-dense rows; Save alwaysExpanded; AI has no Clear); `MailProviderView` / `PulseProviderView` / `AIProviderView` (Information / Configuration / Test as stacked cards — no `?tab=` chips); list tables + detail header `StatusOutlineBadge` (Tasks pattern); Pulse migration `165-pulse-plugin-sms-enabled.sql`, `routablePlugins`, nullable `provider_key` + per-plugin `sms_enabled`, fail-closed send; i18n (removed dead `routing.categories`); tests `*ViewStackedCards` / routing shells / list tables / pulses BE.  
+**QA:** Underkänt 2026-09-23 (CHANGELOG saknades) → **Godkänt** 2026-09-23 efter CHANGELOG + supersession. **Security:** **Godkänt** 2026-09-23 — Pulse `sms_enabled` fail-closed + session-plugin gate + CSRF/user scoping; FE Mail/AI chrome UI-only. Inherited residual **A1** (klartext provider secrets) oförändrad, väntar TPM. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Provider routing and detail views drop URL/category tabs in favour of two (routing) or three (view) stacked cards with section titles and Save in the card header. List and header status use the same outline badge as Tasks. Pulse per-plugin SMS is an explicit `sms_enabled` switch over a dynamic tenant-plugin list (legacy hardcoded allowlist + required provider key superseded); send stays fail-closed when Pulse is off for that plugin.
+
+**Begränsningar:** Older deep links with `?tab=` on Mail/Pulse/AI provider detail no longer switch panels (tabs removed). Pulse tenants need migration `165` before the new routing contract.
+
+**Docs:** ADR [`ai/adr/P-PULSE_PROVIDER_PLATFORM.md`](./ai/adr/P-PULSE_PROVIDER_PLATFORM.md) (routable plugins / `sms_enabled` / UX). Operator chrome: [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) §0.1 provider lists. **Supersedes** 2026-09-15 “Mail + Pulse provider detail: Actions + tabs” and the Global/Per-plugin **category** chrome in 2026-09-15 Mail/Pulse/AI routing shell entries (shell + Save/Close remain).
+
+---
+
+## 2026-09-23 – Notes / Tasks / Requests: companions (desktop right rail)
+
+**Typ:** enhancement / UI (shell + notes/tasks/requests)  
+**Scope:** `PLUGIN_REGISTRY` notes/tasks/requests (`canOpenAsCompanionFor`, hide on primary, rail icons StickyNote/CheckSquare/Inbox); `NoteList` / `TaskList` / `RequestList` `isCompanion`; `*View` / `*QuickContextPanel` `readOnly` + `headerTrailing`; companion title-only columns.  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Same contacts-shaped companions: browse list in ~640px flyout; row soft-select replaces list with read-only View (Notes: information/files; Tasks: information/assignees; Requests: information/assignees/files); **Open full** closes companion and opens the item on the primary page; hide rail on `/notes`, `/tasks`, `/requests`. **No backend changes.**
+
+**Docs:** [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) § App right sidebar; ADR [`ai/adr/NOTES_TASKS_REQUESTS_COMPANION.md`](./ai/adr/NOTES_TASKS_REQUESTS_COMPANION.md).
+
+---
+
+## 2026-09-23 – Contacts: companion (desktop right rail)
+
+**Typ:** enhancement / UI (shell + contacts)  
+**Scope:** `PLUGIN_REGISTRY` contacts entry (`canOpenAsCompanionFor: ['teams']`, `companionHideOnPrimaryPages: ['contacts']`, `companionRailIcon: Users`, `companionRailTitleNavPage: 'contacts'`); `ContactList` (`isCompanion` **view-only** embed); `ContactView` / `ContactQuickContextPanel` `readOnly` + `headerTrailing`; companion name-only columns; i18n `contacts.quickContext.openFullProfile` (existing).  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** When contacts is tenant-enabled, desktop (`lg+`) shows a **Users** rail toggle that opens a ~640px companion flyout with contacts browse (`ContactList` + `isCompanion`). Rail / open flyout **hide on `/contacts`**. Default mode is **browse/view-only**: search/sort/filter; row soft-select **replaces** the list with **`ContactView` `readOnly`** (local tabs information/addresses/persons; no linked/activity; no URL `?tab=` mutation). **Close** returns to the list. **Open full** closes the companion and opens that contact via `openContactForView`. No Add/bulk/settings/edit/delete in companion. Schedule and Garments companions unchanged. **No backend changes.**
+
+**Begränsningar:** Desktop-only. Create/edit/bulk/linked/activity stay on the full contacts page.
+
+**Docs:** [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) § App right sidebar; ADR [`ai/adr/CONTACTS_COMPANION.md`](./ai/adr/CONTACTS_COMPANION.md).
+
+---
+
+## 2026-09-23 – Estimates: invoice parity (currency/VAT, email share, Send chrome)
+
+**Typ:** Enhancement / UI  
+**Scope:** `EstimateForm` (currency options + draft lock; document VAT 0/6/12/25; contact `currency`/`taxRate` seed + line VAT); `ensureEstimateShareForItem`; Export → **Email estimate** (`BulkEmailDialog` + public link); **Send** before Actions (removed beside preview); i18n `estimates.emailEstimate*`.  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Estimates mirror invoices for customer currency/VAT defaults, mailing a share link from Export, and moving Send next to Actions. Create contact was already shared via `InvoiceCustomerSelect`. No Issue/ML-lock port (estimates keep Send semantics).
+
+---
+
+## 2026-09-23 – Invoices: Issue beside Actions (replace Send on preview)
+
+**Typ:** UI  
+**Scope:** `InvoiceDetailHeaderMenus` (`beforeActions` **Issue** when draft); removed **Send** beside document preview in `InvoicesView` / `InvoicesForm`; i18n `invoices.issue`.  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Draft invoices show **Issue** to the left of **Actions** (opens the existing issue confirm modal). Preview row is Preview-only. Edit still issues via status → Sent + Save.
+
+**Docs:** [`INVOICES_PLUGIN.md`](./INVOICES_PLUGIN.md) (Send / issue).
+
+---
+
+## 2026-09-23 – Invoices: Export → Email invoice (share link in mail)
+
+**Typ:** Enhancement / UI  
+**Scope:** `InvoiceDetailHeaderMenus` (Export → **Email invoice** / **Maila faktura**); `InvoicesProvider` / `InvoicesContext` (`ensureInvoiceShareForItem`); `invoiceShareEmail.ts` (public URL + plain/HTML body attachment); `BulkEmailDialog` (`pluginSource="invoices"`); i18n `invoices.emailInvoice`, `invoices.emailInvoiceLinkLabel`.  
+**QA:** Underkänt (CHANGELOG saknades) → **Godkänt** 2026-09-23 efter denna entry. **Security:** **Godkänt** 2026-09-23 — reuses existing share + mail APIs (CSRF, plugin gates, high-entropy token); share-before-Send is the same residual class as Export → Share (no new TPM-accepted risk). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Under Export, **Email invoice** (shown only when the user has the **mail** plugin, or is superuser) reuses or creates the same 30-day public share link as Export → Share, then opens the shared `BulkEmailDialog` with the invoice customer as recipient and the public invoice URL attached to the message (preview + plain/HTML body). No new backend endpoints — uses existing invoice share + mail send APIs.
+
+**Begränsningar:** The share link is ensured **before** the compose dialog opens; cancelling without Send leaves an active share (same link as Share). Recipient email comes from the linked contact; missing email still opens the dialog but Send stays disabled (platform BulkEmailDialog behavior).
+
+**Docs:** [`INVOICES_PLUGIN.md`](./INVOICES_PLUGIN.md) (Share row).
+
+---
+
+## 2026-09-23 – Garments inventory: fixed articleName column (no table-column settings)
+
+**Typ:** UI / hygiene  
+**Scope:** `GarmentsInventorySettingsView` (removed **Table columns** category); `inventoryTableColumns` (always **articleName** only); `InventoryListTable` (single identity column + brand · qty · price meta; removed unused multi-column defs / `companionLayout` / `visibleColumnIds`); `RightSidebarFlyout` (removed unused `contentOwnsScroll` prop — body always `overflow-y-auto`).  
+**QA:** Covered under companion re-review Godkänt 2026-09-23. **Security:** same companion Godkänt (UI-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Inventory list matches platform list standards: one identity column (`articleName` with brand · qty · price meta). User-configurable table columns removed from inventory settings (tags + import remain). Legacy `user_settings.tableColumns` ignored. Companion inventory uses the same single-column list. Dead companion flyout scroll-ownership flag removed after scroll stayed on the flyout body.
+
+---
+
+## 2026-09-22 – Garments: inventory companion (desktop right rail)
+
+**Typ:** enhancement / UI (shell + garments)  
+**Scope:** `PLUGIN_REGISTRY` garments entry (`canOpenAsCompanionFor: ['teams']`, `companionHideOnPrimaryPages: ['garments-inventory']`, `companionRailIcon: Package`, `companionRailTitleNavPage: 'garments-inventory'`); `companionPrimarySurface.ts` (+ tests); `AppRightSidebar` / `AppContent` (`shouldCloseCompanionForPrimary`); `GarmentList` (`isCompanion` inventory-only **view-only** embed); `InventoryQuickContextPanel` / list assignment `readOnly`; `InventoryListTable` (articleName + identity meta); i18n `nav.garments-inventory`, `garments.quickContext.openFullProfile`.  
+**QA:** Underkänt (2026-09-22 docs) → **Godkänt** (re-review same day after docs) → **Underkänt** (2026-09-23 docs vs Open full / ADR) → docs sync + UI Hygiene (`contentOwnsScroll` / dead columns) → **Godkänt** (2026-09-23 re-review). **Security:** **Godkänt** 2026-09-23 (UI-only / no backend; session allowlist + tenant enablement + companion `readOnly`; same plugin auth). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** When garments is tenant-enabled, desktop (`lg+`) shows a **Package** rail toggle that opens a ~640px companion flyout with inventory only (`GarmentList` + `isCompanion`). Flyout title uses **`nav.garments-inventory`**. Rail / open flyout **hide on `/garments/inventory`**. Default mode is **browse/view-only**: search/sort/filter; row soft-select **replaces** the list with **`InventoryQuickContextPanel` `readOnly`** (local tabs; no URL `?tab=` mutation). **Close** returns to the list. **Open full item** (`ExternalLink` + `garments.quickContext.openFullProfile`) closes the companion, navigates to `/garments/inventory`, and opens that article via `openInventoryForView`. Companion chrome uses the same **`PLUGIN_PAGE_LIST_SHELL`** / section gap as Schedule companion; flyout body owns vertical scroll. No Add/bulk/settings in companion. Schedule companion unchanged. **No backend changes.**
+
+**Begränsningar:** Desktop-only (`hidden lg:block`; close on leave-desktop). Lists surface is not the companion embed. Create/edit/bulk stay on the full inventory page. Host entries in `canOpenAsCompanionFor` remain reserved/ignored.
+
+**Docs:** [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) § App right sidebar; ADR [`ai/adr/GARMENTS_INVENTORY_COMPANION.md`](./ai/adr/GARMENTS_INVENTORY_COMPANION.md); [`GARMENTS_PLUGIN.md`](./GARMENTS_PLUGIN.md).
+
+---
+
+## 2026-09-23 – Invoices: currency + VAT from contact, editable on draft
+
+**Typ:** Enhancement  
+**Scope:** Invoice form currency select (SEK/EUR/USD/NOK/DKK); contact `currency` + `taxRate` seed invoice defaults (and line VAT on customer change / create-from-contact); removed SEK-only issue gate on client + `vatEngine`. VAT rates remain 0/6/12/25.  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Choosing a contact prefills currency and momssats; both can still be changed on the draft invoice before issue.
+
+---
+
+## 2026-09-22 – Invoices: ML VAT compliance (lock, credit link, SEK VAT, förenklad)
+
+**Typ:** Feature / compliance  
+**Scope:** Invoices plugin — migration `164-invoices-ml-vat-compliance.sql` (`supply_date`, `content_profile`, `credited_invoice_*`, `correction_summary`, `vat_breakdown`, `invoice_issue_snapshots`); server `vatEngine.js` + `mlLock.js` + model create/update/delete/PDF; client `invoiceMlCompliance.ts`, status/form/view lock, credit-note hard link, VAT select 0/6/12/25, per-rate pricing/PDF. Script: `npm run migrate:invoices-ml-vat-compliance`. Design brief: `docs/ai/design/INVOICES_ML_VAT_COMPLIANCE_UX.md`. Legal–Accounted follow-up brief: `docs/ai/external/LEGAL_ACCOUNTED_INVOICES_REQUEST.md` (retention/journal/kassaregister — **not** in this ship).  
+**QA:** B1/B2 (issued→draft unlock + status-only PUT) verified in rework; overall still **Underkänt** until docs (this entry + `INVOICES_PLUGIN.md`) and re-review. **Security:** not yet reviewed for this epic. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Leaving draft freezes ML fields and stores an issue snapshot. Corrections use a credit note hard-linked to an issued standard invoice (with correction summary). Issue-time VAT is SEK-only with rates 0/6/12/25; receipt/cash may be `simplified` under ≤ 4 000 SEK incl. VAT. Live preview and PDF both show **Leveransdatum** (supply date, falling back to issue date when empty).
+
+**Begränsningar:** Snapshot insert stores JSON + hash (PDF bytes column reserved). No DB CHECK forcing legacy credit notes to have a link — app gates new/updated credit notes. Reverse charge / exemption / export postures refused in v1. Currency is editable on drafts (defaults from contact); förenklad profile still requires SEK ≤ 4 000.
+
+---
+
+## 2026-09-22 – Garments: size summary sorts XS→XXL
+
+**Typ:** Fix  
+**Scope:** `compareClothingSizes` in `inventoryListColumns` (fit summary + size dropdowns)  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Size summary (and inventory size pickers) sort clothing sizes small→large (XS, S, M, L, XL, XXL, …) instead of alphabetically.
+
+---
+
 ## 2026-09-22 – Garments: share UI scoped to current list
 
 **Typ:** Fix  
@@ -624,6 +795,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 - **Why:** Stacked Mail/Pulse provider detail lacked the Actions header row used by AI Providers.
 - **What:** `MailProviderView` / `PulseProviderView` mount `*DetailHeaderMenus` with leading title, Information / Configuration / Test chips via `?tab=`, and Actions Edit / Delete / Send test (opens test tab).
+- **Superseded 2026-09-23:** Information / Configuration / Test are stacked cards (no `?tab=` chips); same pattern on AI Providers. Actions + Send test / Test connection remain (scroll to Test card). See “Mail / Pulse / AI Providers: stacked routing + view cards…”.
 
 ## 2026-09-15 – Mail + Pulse sent history: routing settings page layout
 
@@ -641,6 +813,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - **Why:** Routing still used custom page chrome instead of the shared plugin settings shell (categories, header Save/Close).
 - **What:** `MailProvidersRouting` and `PulseProvidersRouting` use `PluginSettingsPageShell` with Global / Per-plugin categories, header Save when global default is dirty, and Contacts-style page mount + padding. Per-plugin row Save/Clear unchanged.
 - **Note:** Mount scroll class later corrected to `flex min-h-0 flex-1 flex-col overflow-y-auto` under `contentOwnsScroll` (see “Pulse/Mail/AI settings mounts: own scroll”).
+- **Superseded 2026-09-23:** Global + Per-plugin are stacked cards (no shell category tabs); dense rows + Save alwaysExpanded (Pulse Clear kept; see stacked routing + view cards entry). Shell Close / page mount remain.
 
 ## 2026-09-15 – Mail + Pulse provider lists: mail-layout list|content
 
@@ -652,6 +825,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - **Why:** Routing used the settings shell components but not the Contacts settings page mount (padding/surface, lifted category state, header Save when dirty).
 - **What:** `AIProvidersList` mounts routing with Contacts-style padding (`px-4 py-4 md:px-6`). `AIProvidersRouting` accepts category/close props, uses `SETTINGS_CATEGORY_ICONS`, and shows `SettingsHeaderSaveButton` for dirty global default (per-plugin row Save/Clear unchanged).
 - **Note:** Mount scroll class later corrected to `flex min-h-0 flex-1 flex-col overflow-y-auto` under `contentOwnsScroll` (see “Pulse/Mail/AI settings mounts: own scroll”).
+- **Superseded 2026-09-23:** Same stacked Global + Per-plugin cards as Mail/Pulse (no Clear on AI); see stacked routing + view cards entry.
 
 ## 2026-09-15 – AI Providers mail-layout list|content
 

@@ -13,13 +13,12 @@ describe('PulseProviderRouter', () => {
     router = new PulseProviderRouter({ settingsModel });
   });
 
-  test('prefers plugin override over global default', async () => {
-    settingsModel.getRoutingForScope
-      .mockResolvedValueOnce({
-        scope: 'contacts',
-        providerKey: 'twilio',
-      })
-      .mockResolvedValueOnce(null);
+  test('prefers plugin override over global default when Pulse is enabled', async () => {
+    settingsModel.getRoutingForScope.mockResolvedValueOnce({
+      scope: 'contacts',
+      providerKey: 'twilio',
+      smsEnabled: true,
+    });
     settingsModel.resolveRuntimeConfig.mockResolvedValue({
       providerKey: 'twilio',
       secretPrimary: 'ACxxx',
@@ -39,11 +38,18 @@ describe('PulseProviderRouter', () => {
     });
   });
 
-  test('uses global default when plugin override is missing', async () => {
-    settingsModel.getRoutingForScope.mockResolvedValueOnce(null).mockResolvedValueOnce({
-      scope: '*',
-      providerKey: 'mock',
-    });
+  test('uses global default when Pulse is enabled without provider override', async () => {
+    settingsModel.getRoutingForScope
+      .mockResolvedValueOnce({
+        scope: 'slots',
+        providerKey: null,
+        smsEnabled: true,
+      })
+      .mockResolvedValueOnce({
+        scope: '*',
+        providerKey: 'mock',
+        smsEnabled: true,
+      });
     settingsModel.resolveRuntimeConfig.mockResolvedValue({
       providerKey: 'mock',
       secretPrimary: null,
@@ -53,6 +59,7 @@ describe('PulseProviderRouter', () => {
 
     const result = await router.resolve({}, { pluginKey: 'slots' });
 
+    expect(settingsModel.getRoutingForScope).toHaveBeenCalledWith({}, 'slots');
     expect(settingsModel.getRoutingForScope).toHaveBeenCalledWith({}, '*');
     expect(result).toEqual({
       providerKey: 'mock',
@@ -63,8 +70,27 @@ describe('PulseProviderRouter', () => {
     });
   });
 
-  test('falls back to legacy preferred SMS provider when routing is unset', async () => {
-    settingsModel.getRoutingForScope.mockResolvedValue(null);
+  test('returns null when Pulse is not enabled for the plugin', async () => {
+    settingsModel.getRoutingForScope.mockResolvedValueOnce({
+      scope: 'contacts',
+      providerKey: null,
+      smsEnabled: false,
+    });
+
+    const result = await router.resolve({}, { pluginKey: 'contacts' });
+
+    expect(result).toBeNull();
+    expect(settingsModel.resolveRuntimeConfig).not.toHaveBeenCalled();
+  });
+
+  test('falls back to legacy preferred SMS provider when enabled and routing unset', async () => {
+    settingsModel.getRoutingForScope
+      .mockResolvedValueOnce({
+        scope: 'pulses',
+        providerKey: null,
+        smsEnabled: true,
+      })
+      .mockResolvedValueOnce(null);
     settingsModel.getPreferredEnabledSmsProviderKey.mockResolvedValue('twilio');
     settingsModel.resolveRuntimeConfig.mockResolvedValue({
       providerKey: 'twilio',
@@ -80,7 +106,13 @@ describe('PulseProviderRouter', () => {
   });
 
   test('returns null when no routing or credentials exist', async () => {
-    settingsModel.getRoutingForScope.mockResolvedValue(null);
+    settingsModel.getRoutingForScope
+      .mockResolvedValueOnce({
+        scope: 'pulses',
+        providerKey: null,
+        smsEnabled: true,
+      })
+      .mockResolvedValueOnce(null);
     settingsModel.getPreferredEnabledSmsProviderKey.mockResolvedValue(null);
 
     const result = await router.resolve({}, { pluginKey: 'pulses' });
@@ -88,11 +120,33 @@ describe('PulseProviderRouter', () => {
     expect(result).toBeNull();
   });
 
-  test('checkReadiness returns provider_not_sms_capable for verify-only routing', async () => {
+  test('checkReadiness returns pulse_not_enabled_for_plugin when switch is off', async () => {
     settingsModel.getRoutingForScope.mockResolvedValue({
-      scope: '*',
-      providerKey: 'stytch',
+      scope: 'pulses',
+      providerKey: null,
+      smsEnabled: false,
     });
+
+    const readiness = await router.checkReadiness({}, { pluginKey: 'pulses' });
+
+    expect(readiness).toEqual({
+      ready: false,
+      failure: { code: 'pulse_not_enabled_for_plugin' },
+    });
+  });
+
+  test('checkReadiness returns provider_not_sms_capable for verify-only routing', async () => {
+    settingsModel.getRoutingForScope
+      .mockResolvedValueOnce({
+        scope: 'pulses',
+        providerKey: null,
+        smsEnabled: true,
+      })
+      .mockResolvedValue({
+        scope: '*',
+        providerKey: 'stytch',
+        smsEnabled: true,
+      });
 
     const readiness = await router.checkReadiness({}, { pluginKey: 'pulses' });
 
@@ -105,10 +159,17 @@ describe('PulseProviderRouter', () => {
   });
 
   test('resolve returns null when routed provider is verify-only', async () => {
-    settingsModel.getRoutingForScope.mockResolvedValue({
-      scope: '*',
-      providerKey: 'twilio-verify',
-    });
+    settingsModel.getRoutingForScope
+      .mockResolvedValueOnce({
+        scope: 'pulses',
+        providerKey: null,
+        smsEnabled: true,
+      })
+      .mockResolvedValueOnce({
+        scope: '*',
+        providerKey: 'twilio-verify',
+        smsEnabled: true,
+      });
 
     const result = await router.resolve({}, { pluginKey: 'pulses' });
     expect(result).toBeNull();

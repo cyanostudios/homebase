@@ -76,7 +76,7 @@ describe('sendService', () => {
 
     await expect(sendService.getSmsAdapterForUser({})).rejects.toMatchObject({
       statusCode: 400,
-      message: expect.stringContaining('No SMS provider is configured'),
+      message: expect.stringContaining('No SMS provider is available'),
     });
   });
 

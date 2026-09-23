@@ -6,6 +6,7 @@ import {
   Building2,
   ChevronDown,
   Clock,
+  ExternalLink,
   LayoutGrid,
   Mail,
   Menu,
@@ -18,6 +19,7 @@ import {
   Tag,
   User,
   UserCheck,
+  X,
   XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
@@ -39,6 +41,7 @@ import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
+import { useCompanionPanelOptional } from '@/core/app/CompanionPanelContext';
 import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
@@ -51,6 +54,7 @@ import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
@@ -59,7 +63,14 @@ import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
-import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_COMPANION_SHELL_CLASS,
+  PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS,
+  PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
@@ -104,6 +115,7 @@ type SortField = ContactSortField;
 type SortOrder = ContactSortOrder;
 
 const CONTACTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.contacts.toolbar.filtersVisible';
+const COMPANION_VISIBLE_COLUMN_IDS: ContactTableColumnId[] = ['name'];
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'name', labelKey: 'contacts.table.name' },
@@ -120,8 +132,9 @@ const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
 // next mount so closing the full profile brings back the same contact's quick context.
 let pendingQuickContextContactId: string | null = null;
 
-export const ContactList: React.FC = () => {
+export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = false }) => {
   const { t } = useTranslation();
+  const companionPanel = useCompanionPanelOptional();
   const {
     contacts,
     contactsContentView,
@@ -154,13 +167,17 @@ export const ContactList: React.FC = () => {
   const activeTimeTrackingContactId = useOptionalActiveTimeTrackingContactId();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
-  useMobileActions({
-    onAdd: () => attemptNavigation(() => openContactPanel(null)),
-    onSettings: () => attemptNavigation(() => openContactSettings()),
-  });
+  useMobileActions(
+    isCompanion
+      ? {}
+      : {
+          onAdd: () => attemptNavigation(() => openContactPanel(null)),
+          onSettings: () => attemptNavigation(() => openContactSettings()),
+        },
+  );
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
-  const showDesktopSplit = !isCompactViewport;
+  const showDesktopSplit = isCompanion ? false : !isCompactViewport;
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
   const canSendEmail =
@@ -171,6 +188,7 @@ export const ContactList: React.FC = () => {
     value: searchTerm,
     onChange: setSearchTerm,
     placeholder: t('contacts.searchPlaceholder', { count: contacts.length }),
+    enabled: !isCompanion,
   });
 
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -186,6 +204,7 @@ export const ContactList: React.FC = () => {
   const [visibleColumnIds, setVisibleColumnIds] = useState<ContactTableColumnId[]>(() =>
     resolveVisibleContactTableColumns(null),
   );
+  const tableColumnIds = isCompanion ? COMPANION_VISIBLE_COLUMN_IDS : visibleColumnIds;
   const [activeFilters, setActiveFilters] = useState<ContactListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('tags');
   const [selectionMode, setSelectionMode] = useState(false);
@@ -460,6 +479,12 @@ export const ContactList: React.FC = () => {
   };
 
   const handleRowActivate = (contact: Contact) => {
+    if (isCompanion) {
+      setPreviewContact((current) =>
+        current && String(current.id) === String(contact.id) ? null : contact,
+      );
+      return;
+    }
     if (isCompactViewport) {
       handleOpenForView(contact);
       return;
@@ -623,7 +648,10 @@ export const ContactList: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={chip.onClick}
-              className={cn(chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+              className={cn(
+                chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
+              )}
             >
               <Icon className="h-3.5 w-3.5" />
               <span>
@@ -819,7 +847,7 @@ export const ContactList: React.FC = () => {
     );
   };
 
-  if (contactsContentView === 'settings') {
+  if (contactsContentView === 'settings' && !isCompanion) {
     return (
       <div className="plugin-contacts min-h-full bg-background">
         <div className="px-4 py-4 md:px-6">
@@ -834,7 +862,7 @@ export const ContactList: React.FC = () => {
   }
 
   const toolbarEdgeToggle =
-    typeof document !== 'undefined' && toolbarToggleBox
+    !isCompanion && typeof document !== 'undefined' && toolbarToggleBox
       ? createPortal(
           <div
             className="pointer-events-none fixed z-40 hidden justify-center md:flex"
@@ -874,136 +902,176 @@ export const ContactList: React.FC = () => {
       <div
         ref={pageShellRef}
         className={cn(
-          'plugin-contacts flex min-h-0 flex-1 flex-col',
-          PLUGIN_PAGE_LIST_SHELL_CLASS,
-          showDesktopSplit
-            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
-            : 'overflow-y-auto md:pt-3',
+          'plugin-contacts',
+          isCompanion
+            ? PLUGIN_PAGE_COMPANION_SHELL_CLASS
+            : cn(
+                'flex min-h-0 flex-1 flex-col',
+                PLUGIN_PAGE_LIST_SHELL_CLASS,
+                showDesktopSplit
+                  ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+                  : 'overflow-y-auto md:pt-3',
+              ),
         )}
       >
         <div
-          className={cn(
-            'flex min-h-0 min-w-0 flex-1 flex-col',
-            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
-          )}
+          className={
+            isCompanion
+              ? PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS
+              : cn(
+                  'flex min-h-0 min-w-0 flex-1 flex-col',
+                  showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+                )
+          }
         >
-          <div className="relative hidden shrink-0 md:block">
-            <div
-              className={cn(
-                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
-                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
-              )}
-              aria-hidden={toolbarCollapsed}
-            >
-              <div className="min-h-0 overflow-hidden">
-                <div
-                  id="contacts-mail-toolbar"
-                  className={cn(
-                    'flex flex-wrap items-center justify-between gap-3',
-                    toolbarCollapsed && 'pointer-events-none',
-                  )}
-                >
-                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.contacts')}</h2>
-                    <ExpandableIconButton
-                      icon={Settings}
-                      label={t('contacts.settings')}
-                      variant="soft"
-                      onClick={() => attemptNavigation(() => openContactSettings())}
-                    />
-                    {renderSortDropdown('h-11 rounded-full')}
-                    <ListFilterChipsToggle
-                      visible={filtersVisible}
-                      onVisibleChange={setFiltersVisible}
-                      className="h-11 rounded-full"
-                    />
-                    {renderSelectControls('h-11 rounded-full')}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <RoundExpandableSearch
-                      value={searchTerm}
-                      onChange={setSearchTerm}
-                      placeholder={t('contacts.searchPlaceholder', { count: contacts.length })}
-                    />
-                    <ExpandableIconButton
-                      icon={Plus}
-                      label={t('contacts.addContact')}
-                      variant="soft"
-                      onClick={() => attemptNavigation(() => openContactPanel(null))}
-                    />
-                  </div>
-                </div>
-                {filtersVisible ? (
+          {!(isCompanion && previewContact) ? (
+            <div className={cn('relative shrink-0', isCompanion ? 'block' : 'hidden md:block')}>
+              <div
+                className={cn(
+                  'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                  toolbarCollapsed && !isCompanion
+                    ? 'grid-rows-[0fr] opacity-0'
+                    : 'grid-rows-[1fr] opacity-100',
+                )}
+                aria-hidden={toolbarCollapsed && !isCompanion}
+              >
+                <div className="min-h-0 overflow-hidden">
                   <div
+                    id="contacts-mail-toolbar"
                     className={cn(
-                      LIST_FILTER_AND_SORT_ROW_CLASS,
-                      'pt-2',
-                      toolbarCollapsed && 'pointer-events-none',
+                      'flex items-center justify-between gap-3',
+                      isCompanion ? 'flex-nowrap' : 'flex-wrap',
+                      toolbarCollapsed && !isCompanion && 'pointer-events-none',
                     )}
                   >
-                    {renderFilterChips()}
+                    <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                      {!isCompanion ? (
+                        <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.contacts')}</h2>
+                      ) : null}
+                      {!isCompanion ? (
+                        <ExpandableIconButton
+                          icon={Settings}
+                          label={t('contacts.settings')}
+                          variant="soft"
+                          onClick={() => attemptNavigation(() => openContactSettings())}
+                        />
+                      ) : null}
+                      {renderSortDropdown(
+                        isCompanion
+                          ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                          : 'h-11 rounded-full',
+                      )}
+                      <ListFilterChipsToggle
+                        visible={filtersVisible}
+                        onVisibleChange={setFiltersVisible}
+                        className={
+                          isCompanion
+                            ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                            : 'h-11 rounded-full'
+                        }
+                      />
+                      {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <RoundExpandableSearch
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder={t('contacts.searchPlaceholder', { count: contacts.length })}
+                        size={isCompanion ? 'xs' : 'sm'}
+                        expandedWidthClass={
+                          isCompanion
+                            ? PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS
+                            : undefined
+                        }
+                      />
+                      {!isCompanion ? (
+                        <ExpandableIconButton
+                          icon={Plus}
+                          label={t('contacts.addContact')}
+                          variant="soft"
+                          onClick={() => attemptNavigation(() => openContactPanel(null))}
+                        />
+                      ) : null}
+                    </div>
                   </div>
-                ) : null}
-                {renderBulkActionBar('py-3')}
+                  {filtersVisible ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {renderFilterChips()}
+                    </div>
+                  ) : null}
+                  {!isCompanion ? renderBulkActionBar('py-3') : null}
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
-            {filtersVisible ? renderFilterChips() : null}
-            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-              <ListFilterChipsToggle
-                visible={filtersVisible}
-                onVisibleChange={setFiltersVisible}
-                className="h-7 rounded-md"
-              />
-              {renderSortDropdown('h-7 rounded-md')}
+          {!isCompanion ? (
+            <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+              {filtersVisible ? renderFilterChips() : null}
+              <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+                <ListFilterChipsToggle
+                  visible={filtersVisible}
+                  onVisibleChange={setFiltersVisible}
+                  className="h-7 rounded-md"
+                />
+                {renderSortDropdown('h-7 rounded-md')}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {selectionMode ? (
+          {!isCompanion && selectionMode ? (
             <div className="shrink-0 py-3 md:hidden">{renderBulkActionBar()}</div>
           ) : null}
 
-          <BulkMessageDialog
-            isOpen={showBulkMessageDialog}
-            onClose={() => setShowBulkMessageDialog(false)}
-            recipients={bulkMessageRecipients}
-            pluginSource="contacts"
-          />
-          <BulkEmailDialog
-            isOpen={showBulkEmailDialog}
-            onClose={() => setShowBulkEmailDialog(false)}
-            recipients={bulkEmailRecipients}
-            pluginSource="contacts"
-          />
+          {!isCompanion ? (
+            <>
+              <BulkMessageDialog
+                isOpen={showBulkMessageDialog}
+                onClose={() => setShowBulkMessageDialog(false)}
+                recipients={bulkMessageRecipients}
+                pluginSource="contacts"
+              />
+              <BulkEmailDialog
+                isOpen={showBulkEmailDialog}
+                onClose={() => setShowBulkEmailDialog(false)}
+                recipients={bulkEmailRecipients}
+                pluginSource="contacts"
+              />
 
-          <BulkDeleteModal
-            isOpen={showBulkDeleteModal}
-            onClose={() => setShowBulkDeleteModal(false)}
-            onConfirm={handleBulkDelete}
-            itemCount={selectedCount}
-            itemLabel="contacts"
-            isLoading={deleting}
-          />
+              <BulkDeleteModal
+                isOpen={showBulkDeleteModal}
+                onClose={() => setShowBulkDeleteModal(false)}
+                onConfirm={handleBulkDelete}
+                itemCount={selectedCount}
+                itemLabel="contacts"
+                isLoading={deleting}
+              />
 
-          <ContactBulkTagsDialog
-            isOpen={showBulkTagsDialog}
-            onClose={() => setShowBulkTagsDialog(false)}
-            selectedContacts={selectedContacts}
-            availableTags={availableTags}
-            applyTagToContact={applyTagToContact}
-            clearTagsFromContact={clearTagsFromContact}
-            onSuccess={clearContactSelection}
-          />
+              <ContactBulkTagsDialog
+                isOpen={showBulkTagsDialog}
+                onClose={() => setShowBulkTagsDialog(false)}
+                selectedContacts={selectedContacts}
+                availableTags={availableTags}
+                applyTagToContact={applyTagToContact}
+                clearTagsFromContact={clearTagsFromContact}
+                onSuccess={clearContactSelection}
+              />
 
-          <ContactBulkAssignableDialog
-            isOpen={showBulkAssignableDialog}
-            onClose={() => setShowBulkAssignableDialog(false)}
-            selectedContacts={selectedContacts}
-            setContactAssignable={setContactAssignable}
-            onSuccess={clearContactSelection}
-          />
+              <ContactBulkAssignableDialog
+                isOpen={showBulkAssignableDialog}
+                onClose={() => setShowBulkAssignableDialog(false)}
+                selectedContacts={selectedContacts}
+                setContactAssignable={setContactAssignable}
+                onSuccess={clearContactSelection}
+              />
+            </>
+          ) : null}
 
           <div
             className={cn(
@@ -1013,53 +1081,98 @@ export const ContactList: React.FC = () => {
                 : 'grid-cols-1 items-start',
             )}
           >
-            <div
-              className={cn(
-                'min-w-0',
-                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
-              )}
-            >
-              <div className="flex min-w-0 flex-col gap-3">
-                {sortedContacts.length === 0 ? (
-                  <ListEmptyState
-                    message={searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}
-                    createLabel={!searchTerm ? t('contacts.addContact') : undefined}
-                    onCreate={
-                      !searchTerm
-                        ? () => attemptNavigation(() => openContactPanel(null))
-                        : undefined
-                    }
-                  />
-                ) : (
-                  <ContactListTable
-                    contacts={sortedContacts}
-                    primarySort={primarySort}
-                    sortOrder={sortOrder}
-                    onSort={handleTableSort}
-                    isSelected={isSelected}
-                    onRowClick={handleRowActivate}
-                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                    onCheckboxChange={onVisibleRowCheckboxChange}
-                    allVisibleSelected={allVisibleSelected}
-                    onHeaderCheckboxChange={handleHeaderCheckboxChange}
-                    selectionEnabled={selectionMode}
-                    activeTimeTrackingContactId={activeTimeTrackingContactId}
-                    contactIdsWithTimeEntries={contactIdsWithTimeEntries}
-                    recentlyDuplicatedContactId={recentlyDuplicatedContactId}
-                    activeContactId={activeListContactId}
-                    visibleColumnIds={visibleColumnIds}
-                  />
-                )}
-
-                <ListFooterBar
-                  meta={
-                    <>
-                      Showing {sortedContacts.length} of {contacts.length} Contacts
-                    </>
+            {isCompanion && previewContact ? (
+              <div
+                className="min-w-0"
+                role="region"
+                aria-label={t('contacts.quickContext.title', { defaultValue: 'Quick context' })}
+              >
+                <ContactView
+                  contact={previewContact}
+                  stacked
+                  readOnly
+                  headerTrailing={
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={ExternalLink}
+                        label={t('contacts.quickContext.openFullProfile')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => {
+                          const contact = previewContact;
+                          attemptNavigation(() => {
+                            setPreviewContact(null);
+                            companionPanel?.closeCompanionPanel();
+                            openContactForView(contact);
+                          });
+                        }}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={X}
+                        label={t('common.close')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => setPreviewContact(null)}
+                      />
+                    </div>
                   }
                 />
               </div>
-            </div>
+            ) : (
+              <div
+                className={cn(
+                  'min-w-0',
+                  showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+                )}
+              >
+                <div className="flex min-w-0 flex-col gap-3">
+                  {sortedContacts.length === 0 ? (
+                    <ListEmptyState
+                      message={searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}
+                      createLabel={
+                        !isCompanion && !searchTerm ? t('contacts.addContact') : undefined
+                      }
+                      onCreate={
+                        !isCompanion && !searchTerm
+                          ? () => attemptNavigation(() => openContactPanel(null))
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <ContactListTable
+                      contacts={sortedContacts}
+                      primarySort={primarySort}
+                      sortOrder={sortOrder}
+                      onSort={handleTableSort}
+                      isSelected={isSelected}
+                      onRowClick={handleRowActivate}
+                      onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                      onCheckboxChange={onVisibleRowCheckboxChange}
+                      allVisibleSelected={allVisibleSelected}
+                      onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                      selectionEnabled={selectionMode}
+                      activeTimeTrackingContactId={activeTimeTrackingContactId}
+                      contactIdsWithTimeEntries={contactIdsWithTimeEntries}
+                      recentlyDuplicatedContactId={recentlyDuplicatedContactId}
+                      activeContactId={activeListContactId}
+                      visibleColumnIds={tableColumnIds}
+                    />
+                  )}
+
+                  <ListFooterBar
+                    meta={
+                      <>
+                        Showing {sortedContacts.length} of {contacts.length} Contacts
+                      </>
+                    }
+                  />
+                </div>
+              </div>
+            )}
 
             {showDesktopSplit ? (
               <aside

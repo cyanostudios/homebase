@@ -100,6 +100,7 @@ export function InvoiceListTable({
               })
             : null;
           const status = invoice.status || 'draft';
+          const statusLabel = formatInvoiceStatusForDisplay(status);
           const totalLabel = formatInvoiceMoney(
             resolveInvoiceTotals(invoice).total,
             invoice.currency || 'SEK',
@@ -107,7 +108,7 @@ export function InvoiceListTable({
           const updatedLabel = invoice.updatedAt ? formatDateTimeShort(invoice.updatedAt) : null;
           const TypeIcon =
             contactType === 'private' ? User : contactType === 'company' ? Users : null;
-          const hasSubtitle = Boolean(totalLabel || updatedLabel);
+          const hasSubtitle = Boolean(statusLabel || totalLabel || updatedLabel);
 
           const numberRow = (
             <div className="flex min-w-0 items-center gap-1.5">
@@ -136,15 +137,6 @@ export function InvoiceListTable({
                   {contactName}
                 </span>
               ) : null}
-              <Badge
-                className={cn(
-                  'shrink-0',
-                  INVOICE_STATUS_BADGE_CLASS,
-                  INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
-                )}
-              >
-                {formatInvoiceStatusForDisplay(status)}
-              </Badge>
             </div>
           );
 
@@ -156,6 +148,14 @@ export function InvoiceListTable({
             <div className="flex min-w-0 flex-col gap-0.5">
               {numberRow}
               <div className="flex min-w-0 items-center gap-1.5">
+                <span
+                  className={cn(
+                    'shrink-0 text-[10px] font-extrabold leading-tight',
+                    INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
+                  )}
+                >
+                  {statusLabel}
+                </span>
                 {totalLabel ? (
                   <span className="shrink-0 tabular-nums text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
                     {totalLabel}

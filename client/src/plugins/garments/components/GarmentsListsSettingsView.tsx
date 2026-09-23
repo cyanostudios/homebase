@@ -337,6 +337,8 @@ export function GarmentsListsSettingsView({
         <div className="space-y-6">
           <DetailSection
             title={t('garments.settingsCategories.customColumnsList')}
+            icon={SETTINGS_CATEGORY_ICONS.columns}
+            subtleTitle
             className="pt-0"
           >
             <div className="space-y-3">

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 
 import { guidesApi } from '../api/guidesApi';
@@ -52,7 +53,12 @@ export const ContentSourcesSettings: React.FC<ContentSourcesSettingsProps> = ({ 
   };
 
   return (
-    <DetailSection title={t('guides.contentSources.title')} className={cn('pt-0', className)}>
+    <DetailSection
+      title={t('guides.contentSources.title')}
+      icon={SETTINGS_CATEGORY_ICONS.sources}
+      subtleTitle
+      className={cn('pt-0', className)}
+    >
       <div className="space-y-3 text-xs">
         <p className="text-muted-foreground">{t('guides.contentSources.description')}</p>
         {loading && (

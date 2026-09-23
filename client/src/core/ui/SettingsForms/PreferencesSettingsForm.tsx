@@ -1,15 +1,16 @@
 // client/src/core/ui/SettingsForms/PreferencesSettingsForm.tsx
 // Preferences settings form – actions are in panel footer
 
-import { Moon, Sun } from 'lucide-react';
+import { Globe, Moon, Sun } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
-import { DETAIL_FIELD_LABEL_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_FIELD_LABEL_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useTheme } from '@/hooks/useTheme';
 import i18n from '@/i18n';
@@ -131,118 +132,127 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
   }
 
   return (
-    <DetailSection title={t('preferences.title')} className="pt-0">
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-start gap-6">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="preferences-theme" className={DETAIL_FIELD_LABEL_CLASS}>
-              {t('preferences.theme')}
-            </Label>
-            <div className="flex items-center gap-2">
-              <Sun className="w-4 h-4 text-muted-foreground" />
-              <Switch
-                id="preferences-theme"
-                checked={theme === 'dark'}
-                onCheckedChange={toggleTheme}
-                aria-label={t('preferences.toggleDarkMode')}
-              />
-              <Moon className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {theme === 'dark' ? t('preferences.dark') : t('preferences.light')}
-              </span>
+    <div className="space-y-4">
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('preferences.title')}
+          icon={Globe}
+          subtleTitle
+          className="p-4 sm:p-6"
+        >
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-start gap-6">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="preferences-theme" className={DETAIL_FIELD_LABEL_CLASS}>
+                  {t('preferences.theme')}
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Sun className="w-4 h-4 text-muted-foreground" />
+                  <Switch
+                    id="preferences-theme"
+                    checked={theme === 'dark'}
+                    onCheckedChange={toggleTheme}
+                    aria-label={t('preferences.toggleDarkMode')}
+                  />
+                  <Moon className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {theme === 'dark' ? t('preferences.dark') : t('preferences.light')}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="preferences-time-tracking" className={DETAIL_FIELD_LABEL_CLASS}>
+                  {t('preferences.timeTracking')}
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="preferences-time-tracking"
+                    checked={formData.timeTrackingEnabled}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, timeTrackingEnabled: checked })
+                    }
+                    aria-label={t('preferences.showTimeTracking')}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {formData.timeTrackingEnabled ? t('common.on') : t('common.off')}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="preferences-pomodoro-clock" className={DETAIL_FIELD_LABEL_CLASS}>
+                  {t('preferences.pomodoro')}
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="preferences-pomodoro-clock"
+                    checked={formData.pomodoroClockEnabled}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, pomodoroClockEnabled: checked })
+                    }
+                    aria-label={t('preferences.showPomodoro')}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {formData.pomodoroClockEnabled ? t('common.on') : t('common.off')}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="preferences-time-tracking" className={DETAIL_FIELD_LABEL_CLASS}>
-              {t('preferences.timeTracking')}
-            </Label>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="preferences-time-tracking"
-                checked={formData.timeTrackingEnabled}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, timeTrackingEnabled: checked })
+            <div>
+              <Label htmlFor="preferences-timezone" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('preferences.timezone')}
+              </Label>
+              <NativeSelect
+                id="preferences-timezone"
+                value={formData.timezone}
+                onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+              >
+                {timezones.map((tz) => (
+                  <option key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div>
+              <Label htmlFor="preferences-language" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('preferences.language')}
+              </Label>
+              <NativeSelect
+                id="preferences-language"
+                value={formData.language}
+                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+              >
+                {languages.map((lang) => (
+                  <option key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div>
+              <Label htmlFor="preferences-time-format" className={DETAIL_FIELD_LABEL_CLASS}>
+                {t('preferences.timeFormat')}
+              </Label>
+              <NativeSelect
+                id="preferences-time-format"
+                value={formData.timeFormat}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    timeFormat: e.target.value === '12h' ? '12h' : '24h',
+                  })
                 }
-                aria-label={t('preferences.showTimeTracking')}
-              />
-              <span className="text-sm text-muted-foreground">
-                {formData.timeTrackingEnabled ? t('common.on') : t('common.off')}
-              </span>
+              >
+                {timeFormats.map((fmt) => (
+                  <option key={fmt.value} value={fmt.value}>
+                    {fmt.label}
+                  </option>
+                ))}
+              </NativeSelect>
             </div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="preferences-pomodoro-clock" className={DETAIL_FIELD_LABEL_CLASS}>
-              {t('preferences.pomodoro')}
-            </Label>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="preferences-pomodoro-clock"
-                checked={formData.pomodoroClockEnabled}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, pomodoroClockEnabled: checked })
-                }
-                aria-label={t('preferences.showPomodoro')}
-              />
-              <span className="text-sm text-muted-foreground">
-                {formData.pomodoroClockEnabled ? t('common.on') : t('common.off')}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div>
-          <Label htmlFor="preferences-timezone" className={DETAIL_FIELD_LABEL_CLASS}>
-            {t('preferences.timezone')}
-          </Label>
-          <NativeSelect
-            id="preferences-timezone"
-            value={formData.timezone}
-            onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-          >
-            {timezones.map((tz) => (
-              <option key={tz.value} value={tz.value}>
-                {tz.label}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-        <div>
-          <Label htmlFor="preferences-language" className={DETAIL_FIELD_LABEL_CLASS}>
-            {t('preferences.language')}
-          </Label>
-          <NativeSelect
-            id="preferences-language"
-            value={formData.language}
-            onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-          >
-            {languages.map((lang) => (
-              <option key={lang.value} value={lang.value}>
-                {lang.label}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-        <div>
-          <Label htmlFor="preferences-time-format" className={DETAIL_FIELD_LABEL_CLASS}>
-            {t('preferences.timeFormat')}
-          </Label>
-          <NativeSelect
-            id="preferences-time-format"
-            value={formData.timeFormat}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                timeFormat: e.target.value === '12h' ? '12h' : '24h',
-              })
-            }
-          >
-            {timeFormats.map((fmt) => (
-              <option key={fmt.value} value={fmt.value}>
-                {fmt.label}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-      </div>
-    </DetailSection>
+        </DetailSection>
+      </Card>
+    </div>
   );
 }

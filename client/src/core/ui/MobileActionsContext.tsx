@@ -25,6 +25,8 @@ export interface MobileSearchBinding {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  /** When false, do not register (e.g. desktop companion embed). Default true. */
+  enabled?: boolean;
 }
 
 /** Pure update used by setSearch — closing only when binding is cleared (unmount). */
@@ -127,8 +129,10 @@ export function useRegisterMobileSearch(binding: MobileSearchBinding) {
   onChangeRef.current = binding.onChange;
 
   // Keep binding value/placeholder in sync without unmount cleanup.
+  const enabled = binding.enabled !== false;
+
   useEffect(() => {
-    if (!setSearch) {
+    if (!setSearch || !enabled) {
       return;
     }
     setSearch({
@@ -136,17 +140,17 @@ export function useRegisterMobileSearch(binding: MobileSearchBinding) {
       onChange: (value: string) => onChangeRef.current(value),
       placeholder: binding.placeholder,
     });
-  }, [setSearch, binding.value, binding.placeholder]);
+  }, [enabled, setSearch, binding.value, binding.placeholder]);
 
   // Clear only when the search field unmounts (leave list / bulk takeover).
   useEffect(() => {
-    if (!setSearch) {
+    if (!setSearch || !enabled) {
       return;
     }
     return () => {
       setSearch(null);
     };
-  }, [setSearch]);
+  }, [enabled, setSearch]);
 }
 
 /** Read-only access for MobileBottomBar. */

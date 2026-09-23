@@ -1,8 +1,10 @@
+import { Check, Route, Sparkles, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   Select,
   SelectContent,
@@ -10,32 +12,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { DetailSection } from '@/core/ui/DetailSection';
-import {
-  PluginSettingsPageShell,
-  SettingsHeaderSaveButton,
-  type PluginSettingsCategory,
-} from '@/core/ui/PluginSettingsPageShell';
-import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_COMPACT_SELECT_CLASS, FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
+import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
+import { cn } from '@/lib/utils';
 
 import { useMail } from '../hooks/useMail';
 import type { MailPluginRoutingAssignment, SaveMailRoutingInput } from '../types/mail';
 
 const GLOBAL_DEFAULT_VALUE = '__global__';
 
-export type MailProvidersRoutingCategory = 'global' | 'plugins';
+/** Invoice line-item–inspired dense row shell. */
+const PLUGIN_ROUTING_ROW_CLASS =
+  'flex flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-md border border-border/60 px-2.5 py-2';
+
+const PLUGIN_ROUTING_LABEL_CLASS =
+  'block text-[10px] font-normal leading-none text-slate-400 dark:text-slate-500';
+
+const PLUGIN_ROUTING_NAME_CLASS = 'truncate text-xs font-semibold text-foreground';
 
 interface MailProvidersRoutingProps {
-  selectedCategory?: MailProvidersRoutingCategory;
-  onSelectedCategoryChange?: (category: MailProvidersRoutingCategory) => void;
   onClose?: () => void;
 }
 
@@ -46,11 +43,7 @@ function providerLabel(
   return t(`mail.providers.${providerKey}.title`, { defaultValue: providerKey });
 }
 
-export function MailProvidersRouting({
-  selectedCategory,
-  onSelectedCategoryChange,
-  onClose,
-}: MailProvidersRoutingProps = {}) {
+export function MailProvidersRouting({ onClose }: MailProvidersRoutingProps = {}) {
   const { t } = useTranslation();
   const {
     providers,
@@ -74,10 +67,6 @@ export function MailProvidersRouting({
     [providers],
   );
 
-  const [internalCategory, setInternalCategory] = useState<MailProvidersRoutingCategory>('global');
-  const activeCategory = selectedCategory ?? internalCategory;
-  const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
-
   const [globalProviderKey, setGlobalProviderKey] = useState('');
   const [initialGlobalProviderKey, setInitialGlobalProviderKey] = useState('');
   const [pluginDrafts, setPluginDrafts] = useState<Record<string, string>>({});
@@ -85,34 +74,6 @@ export function MailProvidersRouting({
   const [savingPluginKey, setSavingPluginKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const categories: PluginSettingsCategory[] = useMemo(
-    () => [
-      {
-        id: 'global',
-        label: t('mail.routing.categories.global', {
-          defaultValue: 'Global default',
-        }),
-        description: t('mail.routing.globalHint', {
-          defaultValue:
-            'Used by any plugin without its own override. Only configured and enabled email providers are available.',
-        }),
-        icon: SETTINGS_CATEGORY_ICONS.routingGlobal,
-      },
-      {
-        id: 'plugins',
-        label: t('mail.routing.categories.plugins', {
-          defaultValue: 'Per-plugin',
-        }),
-        description: t('mail.routing.pluginsHint', {
-          defaultValue:
-            'Optional. When set, a plugin uses its assigned provider instead of the global default.',
-        }),
-        icon: SETTINGS_CATEGORY_ICONS.routingPlugins,
-      },
-    ],
-    [t],
-  );
 
   useEffect(() => {
     let cancelled = false;
@@ -138,7 +99,7 @@ export function MailProvidersRouting({
     setPluginDrafts(next);
   }, [routing]);
 
-  const isDirty = activeCategory === 'global' && globalProviderKey !== initialGlobalProviderKey;
+  const isDirty = globalProviderKey !== initialGlobalProviderKey;
 
   const handleSaveGlobal = useCallback(async () => {
     if (!globalProviderKey) {
@@ -210,6 +171,8 @@ export function MailProvidersRouting({
     );
   }
 
+  const pluginRows = routing?.plugins ?? [];
+
   return (
     <PluginSettingsPageShell
       title={t('mail.routing.title', { defaultValue: 'Mail – Routing' })}
@@ -217,166 +180,202 @@ export function MailProvidersRouting({
         defaultValue:
           'Set a global default email provider and optional per-plugin overrides. Only email-capable providers appear here.',
       })}
-      categories={categories}
-      activeCategory={activeCategory}
-      onCategoryChange={(id) => setActiveCategory(id as MailProvidersRoutingCategory)}
+      categories={[]}
       onClose={handleClose}
       onSave={isDirty ? () => void handleSaveGlobal() : undefined}
       isSaving={savingGlobal}
-      saveAction={
-        isDirty ? (
-          <SettingsHeaderSaveButton
-            onClick={() => void handleSaveGlobal()}
-            isSaving={savingGlobal}
-            disabled={!globalProviderKey}
-            label={t('common.save', { defaultValue: 'Save' })}
-            savingLabel={t('common.saving', { defaultValue: 'Saving…' })}
-          />
-        ) : null
-      }
+      wrapContentInCard={false}
     >
-      {error ? (
-        <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      ) : null}
+      <div className="space-y-4">
+        {error ? (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        ) : null}
 
-      {activeCategory === 'global' ? (
-        <DetailSection
-          title={t('mail.routing.globalTitle', { defaultValue: 'Global default' })}
-          className="pt-0"
-        >
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              {t('mail.routing.globalHint', {
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('mail.routing.globalTitle', { defaultValue: 'Global default' })}
+            icon={Sparkles}
+            iconPlugin="mail"
+            subtleTitle
+            className="p-4 sm:p-6"
+            action={
+              isDirty ? (
+                <RoundIconLabelButton
+                  type="button"
+                  icon={Check}
+                  label={
+                    savingGlobal
+                      ? t('common.saving', { defaultValue: 'Saving…' })
+                      : t('common.save', { defaultValue: 'Save' })
+                  }
+                  variant="success"
+                  size="xs"
+                  alwaysExpanded
+                  disabled={savingGlobal || !globalProviderKey}
+                  onClick={() => void handleSaveGlobal()}
+                />
+              ) : null
+            }
+          >
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {t('mail.routing.globalHint', {
+                  defaultValue:
+                    'Used by any plugin without its own override. Only configured and enabled email providers are available.',
+                })}
+              </p>
+              <div className="max-w-md">
+                <Label htmlFor="mail-routing-global-provider">
+                  {t('mail.routing.provider', { defaultValue: 'Provider' })}
+                </Label>
+                <Select value={globalProviderKey || undefined} onValueChange={setGlobalProviderKey}>
+                  <SelectTrigger
+                    id="mail-routing-global-provider"
+                    className={cn(FORM_INPUT_CLASS, 'mt-1')}
+                  >
+                    <SelectValue
+                      placeholder={t('mail.chooseProviderPlaceholder', {
+                        defaultValue: 'Select a provider…',
+                      })}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {emailRoutableProviders.map((provider) => (
+                      <SelectItem key={provider.providerKey} value={provider.providerKey}>
+                        {providerLabel(t, provider.providerKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {emailRoutableProviders.length === 0 ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {t('mail.routing.noEmailProviders', {
+                      defaultValue:
+                        'Enable SMTP or Resend with credentials — then it appears here.',
+                    })}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </DetailSection>
+        </Card>
+
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('mail.routing.pluginsTitle', { defaultValue: 'Per-plugin overrides' })}
+            icon={Route}
+            iconPlugin="mail"
+            subtleTitle
+            className="p-4 sm:p-6"
+          >
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t('mail.routing.pluginsHint', {
                 defaultValue:
-                  'Used by any plugin without its own override. Only configured and enabled email providers are available.',
+                  'Optional. When set, a plugin uses its assigned provider instead of the global default.',
               })}
             </p>
-            <div className="max-w-md">
-              <Label htmlFor="mail-routing-global-provider">
-                {t('mail.routing.provider', { defaultValue: 'Provider' })}
-              </Label>
-              <Select value={globalProviderKey || undefined} onValueChange={setGlobalProviderKey}>
-                <SelectTrigger id="mail-routing-global-provider" className="mt-1">
-                  <SelectValue
-                    placeholder={t('mail.chooseProviderPlaceholder', {
-                      defaultValue: 'Select a provider…',
-                    })}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {emailRoutableProviders.map((provider) => (
-                    <SelectItem key={provider.providerKey} value={provider.providerKey}>
-                      {providerLabel(t, provider.providerKey)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {emailRoutableProviders.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {t('mail.routing.noEmailProviders', {
-                    defaultValue: 'Enable SMTP or Resend with credentials — then it appears here.',
+            {pluginRows.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border/70 px-3 py-6 text-center">
+                <p className="text-xs text-muted-foreground">
+                  {t('mail.routing.noPlugins', {
+                    defaultValue: 'No activated plugins available for Mail routing.',
                   })}
                 </p>
-              ) : null}
-            </div>
-          </div>
-        </DetailSection>
-      ) : null}
-
-      {activeCategory === 'plugins' ? (
-        <DetailSection
-          title={t('mail.routing.pluginsTitle', { defaultValue: 'Per-plugin overrides' })}
-          className="pt-0"
-        >
-          <p className="mb-4 text-sm text-muted-foreground">
-            {t('mail.routing.pluginsHint', {
-              defaultValue:
-                'Optional. When set, a plugin uses its assigned provider instead of the global default.',
-            })}
-          </p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('mail.routing.plugin', { defaultValue: 'Plugin' })}</TableHead>
-                <TableHead>{t('mail.routing.provider', { defaultValue: 'Provider' })}</TableHead>
-                <TableHead className="text-right">
-                  {t('common.actions', { defaultValue: 'Actions' })}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(routing?.plugins ?? []).map((plugin) => {
-                const draft = pluginDrafts[plugin.pluginKey] ?? '';
-                return (
-                  <TableRow key={plugin.pluginKey}>
-                    <TableCell className="font-medium">{plugin.label}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={draft || GLOBAL_DEFAULT_VALUE}
-                        onValueChange={(value) => {
-                          const providerKey = value === GLOBAL_DEFAULT_VALUE ? '' : value;
-                          setPluginDrafts((prev) => ({
-                            ...prev,
-                            [plugin.pluginKey]: providerKey,
-                          }));
-                        }}
-                      >
-                        <SelectTrigger className="min-w-[180px]">
-                          <SelectValue
-                            placeholder={t('mail.routing.inheritGlobal', {
-                              defaultValue: 'Inherit global',
-                            })}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={GLOBAL_DEFAULT_VALUE}>
-                            {t('mail.routing.inheritGlobal', {
-                              defaultValue: 'Inherit global',
-                            })}
-                          </SelectItem>
-                          {emailRoutableProviders.map((provider) => (
-                            <SelectItem key={provider.providerKey} value={provider.providerKey}>
-                              {providerLabel(t, provider.providerKey)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={!draft || savingPluginKey === plugin.pluginKey}
-                          onClick={() => void handleSavePlugin(plugin)}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pluginRows.map((plugin) => {
+                  const draft = pluginDrafts[plugin.pluginKey] ?? '';
+                  const busy = savingPluginKey === plugin.pluginKey;
+                  const savedProvider = plugin.providerKey ?? '';
+                  const hasUnsavedOverride = draft !== savedProvider;
+                  return (
+                    <div key={plugin.pluginKey} className={PLUGIN_ROUTING_ROW_CLASS}>
+                      <div className="min-w-[7rem] flex-1 basis-[7rem]">
+                        <span className={PLUGIN_ROUTING_NAME_CLASS} title={plugin.label}>
+                          {plugin.label}
+                        </span>
+                      </div>
+                      <div className="min-w-[10rem] flex-1 basis-[10rem]">
+                        <Label
+                          className={PLUGIN_ROUTING_LABEL_CLASS}
+                          htmlFor={`mail-routing-provider-${plugin.pluginKey}`}
                         >
-                          {savingPluginKey === plugin.pluginKey
-                            ? t('common.saving', { defaultValue: 'Saving…' })
-                            : t('common.save', { defaultValue: 'Save' })}
-                        </Button>
-                        {plugin.providerKey ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={savingPluginKey === plugin.pluginKey}
-                            onClick={() => void handleClearPlugin(plugin.pluginKey)}
+                          {t('mail.routing.provider', { defaultValue: 'Provider' })}
+                        </Label>
+                        <Select
+                          value={draft || GLOBAL_DEFAULT_VALUE}
+                          disabled={busy}
+                          onValueChange={(value) => {
+                            const providerKey = value === GLOBAL_DEFAULT_VALUE ? '' : value;
+                            setPluginDrafts((prev) => ({
+                              ...prev,
+                              [plugin.pluginKey]: providerKey,
+                            }));
+                          }}
+                        >
+                          <SelectTrigger
+                            id={`mail-routing-provider-${plugin.pluginKey}`}
+                            className={cn(FORM_COMPACT_SELECT_CLASS, 'mt-1')}
                           >
-                            {t('common.clear', { defaultValue: 'Clear' })}
-                          </Button>
+                            <SelectValue
+                              placeholder={t('mail.routing.inheritGlobal', {
+                                defaultValue: 'Inherit global',
+                              })}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={GLOBAL_DEFAULT_VALUE}>
+                              {t('mail.routing.inheritGlobal', {
+                                defaultValue: 'Inherit global',
+                              })}
+                            </SelectItem>
+                            {emailRoutableProviders.map((provider) => (
+                              <SelectItem key={provider.providerKey} value={provider.providerKey}>
+                                {providerLabel(t, provider.providerKey)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5 self-end">
+                        <RoundIconLabelButton
+                          type="button"
+                          icon={Check}
+                          label={
+                            busy
+                              ? t('common.saving', { defaultValue: 'Saving…' })
+                              : t('common.save', { defaultValue: 'Save' })
+                          }
+                          variant="success"
+                          size="xs"
+                          alwaysExpanded
+                          disabled={!hasUnsavedOverride || !draft || busy}
+                          onClick={() => void handleSavePlugin(plugin)}
+                        />
+                        {plugin.providerKey ? (
+                          <RoundIconLabelButton
+                            type="button"
+                            icon={X}
+                            label={t('common.clear', { defaultValue: 'Clear' })}
+                            variant="secondary"
+                            size="xs"
+                            alwaysExpanded
+                            disabled={busy}
+                            onClick={() => void handleClearPlugin(plugin.pluginKey)}
+                          />
                         ) : null}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </DetailSection>
-      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </DetailSection>
+        </Card>
+      </div>
     </PluginSettingsPageShell>
   );
 }

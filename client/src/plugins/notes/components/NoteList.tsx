@@ -6,6 +6,7 @@ import {
   ArrowUpDown,
   ChevronDown,
   Clock,
+  ExternalLink,
   FileSpreadsheet,
   FileText,
   LayoutGrid,
@@ -14,6 +15,7 @@ import {
   Settings,
   StickyNote,
   Trash2,
+  X,
   XCircle,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -36,6 +38,7 @@ import { RoundExpandableQuickAdd } from '@/components/ui/round-expandable-quick-
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
+import { useCompanionPanelOptional } from '@/core/app/CompanionPanelContext';
 import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
@@ -46,6 +49,7 @@ import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
@@ -54,7 +58,14 @@ import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
-import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_COMPANION_SHELL_CLASS,
+  PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS,
+  PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
@@ -97,6 +108,7 @@ type SortField = NoteSortField;
 type SortOrder = NoteSortOrder;
 
 const NOTES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.notes.toolbar.filtersVisible';
+const COMPANION_VISIBLE_COLUMN_IDS: NoteTableColumnId[] = ['title'];
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'title', labelKey: 'notes.title' },
@@ -107,8 +119,9 @@ const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
 
 let pendingQuickContextNoteId: string | null = null;
 
-export const NoteList: React.FC = () => {
+export const NoteList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = false }) => {
   const { t } = useTranslation();
+  const companionPanel = useCompanionPanelOptional();
   const {
     notes,
     notesContentView,
@@ -138,19 +151,24 @@ export const NoteList: React.FC = () => {
   const { attemptNavigation } = useGlobalNavigationGuard();
   const { getSettings, settingsVersion } = useApp();
 
-  useMobileActions({
-    onAdd: () => attemptNavigation(() => openNotePanel(null)),
-    onSettings: () => attemptNavigation(() => openNoteSettings()),
-  });
+  useMobileActions(
+    isCompanion
+      ? {}
+      : {
+          onAdd: () => attemptNavigation(() => openNotePanel(null)),
+          onSettings: () => attemptNavigation(() => openNoteSettings()),
+        },
+  );
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
-  const showDesktopSplit = !isCompactViewport;
+  const showDesktopSplit = isCompanion ? false : !isCompactViewport;
 
   const { searchTerm, setSearchTerm } = usePersistedListSearch('notes');
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,
     placeholder: t('notes.searchPlaceholder', { count: notes.length }),
+    enabled: !isCompanion,
   });
 
   const [selectionMode, setSelectionMode] = useState(false);
@@ -161,6 +179,7 @@ export const NoteList: React.FC = () => {
   const [visibleColumnIds, setVisibleColumnIds] = useState<NoteTableColumnId[]>(() =>
     resolveVisibleNoteTableColumns(null),
   );
+  const tableColumnIds = isCompanion ? COMPANION_VISIBLE_COLUMN_IDS : visibleColumnIds;
   const [activeFilters, setActiveFilters] = useState<NoteListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('import');
   const [previewNote, setPreviewNote] = useState<Note | null>(null);
@@ -407,6 +426,12 @@ export const NoteList: React.FC = () => {
   };
 
   const handleRowActivate = (note: Note) => {
+    if (isCompanion) {
+      setPreviewNote((current) =>
+        current && String(current.id) === String(note.id) ? null : note,
+      );
+      return;
+    }
     if (isCompactViewport) {
       handleOpenForView(note);
       return;
@@ -550,7 +575,10 @@ export const NoteList: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={chip.onClick}
-              className={cn(chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+              className={cn(
+                chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
+              )}
             >
               <Icon className="h-3.5 w-3.5" />
               <span>
@@ -681,7 +709,7 @@ export const NoteList: React.FC = () => {
     );
   };
 
-  if (notesContentView === 'settings') {
+  if (notesContentView === 'settings' && !isCompanion) {
     return (
       <div className="plugin-notes min-h-full bg-background">
         <div className="px-4 py-4 md:px-6">
@@ -696,7 +724,7 @@ export const NoteList: React.FC = () => {
   }
 
   const toolbarEdgeToggle =
-    typeof document !== 'undefined' && toolbarToggleBox
+    !isCompanion && typeof document !== 'undefined' && toolbarToggleBox
       ? createPortal(
           <div
             className="pointer-events-none fixed z-40 hidden justify-center md:flex"
@@ -736,113 +764,153 @@ export const NoteList: React.FC = () => {
       <div
         ref={pageShellRef}
         className={cn(
-          'plugin-notes flex min-h-0 flex-1 flex-col',
-          PLUGIN_PAGE_LIST_SHELL_CLASS,
-          showDesktopSplit
-            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
-            : 'overflow-y-auto md:pt-3',
+          'plugin-notes',
+          isCompanion
+            ? PLUGIN_PAGE_COMPANION_SHELL_CLASS
+            : cn(
+                'flex min-h-0 flex-1 flex-col',
+                PLUGIN_PAGE_LIST_SHELL_CLASS,
+                showDesktopSplit
+                  ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+                  : 'overflow-y-auto md:pt-3',
+              ),
         )}
       >
         <div
-          className={cn(
-            'flex min-h-0 min-w-0 flex-1 flex-col',
-            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
-          )}
+          className={
+            isCompanion
+              ? PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS
+              : cn(
+                  'flex min-h-0 min-w-0 flex-1 flex-col',
+                  showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+                )
+          }
         >
-          <div className="relative hidden shrink-0 md:block">
-            <div
-              className={cn(
-                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
-                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
-              )}
-              aria-hidden={toolbarCollapsed}
-            >
-              <div className="min-h-0 overflow-hidden">
-                <div
-                  id="notes-mail-toolbar"
-                  className={cn(
-                    'flex flex-wrap items-center justify-between gap-3',
-                    toolbarCollapsed && 'pointer-events-none',
-                  )}
-                >
-                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.notes')}</h2>
-                    <ExpandableIconButton
-                      icon={Settings}
-                      label={t('notes.settings')}
-                      variant="soft"
-                      onClick={() => attemptNavigation(() => openNoteSettings())}
-                    />
-                    {renderSortDropdown('h-11 rounded-full')}
-                    <ListFilterChipsToggle
-                      visible={filtersVisible}
-                      onVisibleChange={setFiltersVisible}
-                      className="h-11 rounded-full"
-                    />
-                    {renderSelectControls('h-11 rounded-full')}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <RoundExpandableQuickAdd
-                      icon={StickyNote}
-                      label={t('notes.quickAdd')}
-                      placeholder={t('notes.quickAddPlaceholder')}
-                      onCreate={handleQuickCreate}
-                      defaultExpanded
-                      variant={detailColumnOpen ? 'soft' : 'primary'}
-                    />
-                    <RoundExpandableSearch
-                      value={searchTerm}
-                      onChange={setSearchTerm}
-                      placeholder={t('notes.searchPlaceholder', { count: notes.length })}
-                    />
-                    <ExpandableIconButton
-                      icon={Plus}
-                      label={t('notes.addNote')}
-                      variant="soft"
-                      onClick={() => attemptNavigation(() => openNotePanel(null))}
-                    />
-                  </div>
-                </div>
-                {filtersVisible ? (
+          {!(isCompanion && previewNote) ? (
+            <div className={cn('relative shrink-0', isCompanion ? 'block' : 'hidden md:block')}>
+              <div
+                className={cn(
+                  'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                  toolbarCollapsed && !isCompanion
+                    ? 'grid-rows-[0fr] opacity-0'
+                    : 'grid-rows-[1fr] opacity-100',
+                )}
+                aria-hidden={toolbarCollapsed && !isCompanion}
+              >
+                <div className="min-h-0 overflow-hidden">
                   <div
+                    id="notes-mail-toolbar"
                     className={cn(
-                      LIST_FILTER_AND_SORT_ROW_CLASS,
-                      'pt-2',
-                      toolbarCollapsed && 'pointer-events-none',
+                      'flex items-center justify-between gap-3',
+                      isCompanion ? 'flex-nowrap' : 'flex-wrap',
+                      toolbarCollapsed && !isCompanion && 'pointer-events-none',
                     )}
                   >
-                    {renderFilterChips()}
+                    <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                      {!isCompanion ? (
+                        <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.notes')}</h2>
+                      ) : null}
+                      {!isCompanion ? (
+                        <ExpandableIconButton
+                          icon={Settings}
+                          label={t('notes.settings')}
+                          variant="soft"
+                          onClick={() => attemptNavigation(() => openNoteSettings())}
+                        />
+                      ) : null}
+                      {renderSortDropdown(
+                        isCompanion
+                          ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                          : 'h-11 rounded-full',
+                      )}
+                      <ListFilterChipsToggle
+                        visible={filtersVisible}
+                        onVisibleChange={setFiltersVisible}
+                        className={
+                          isCompanion
+                            ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                            : 'h-11 rounded-full'
+                        }
+                      />
+                      {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {!isCompanion ? (
+                        <RoundExpandableQuickAdd
+                          icon={StickyNote}
+                          label={t('notes.quickAdd')}
+                          placeholder={t('notes.quickAddPlaceholder')}
+                          onCreate={handleQuickCreate}
+                          defaultExpanded
+                          variant={detailColumnOpen ? 'soft' : 'primary'}
+                        />
+                      ) : null}
+                      <RoundExpandableSearch
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder={t('notes.searchPlaceholder', { count: notes.length })}
+                        size={isCompanion ? 'xs' : 'sm'}
+                        expandedWidthClass={
+                          isCompanion
+                            ? PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS
+                            : undefined
+                        }
+                      />
+                      {!isCompanion ? (
+                        <ExpandableIconButton
+                          icon={Plus}
+                          label={t('notes.addNote')}
+                          variant="soft"
+                          onClick={() => attemptNavigation(() => openNotePanel(null))}
+                        />
+                      ) : null}
+                    </div>
                   </div>
-                ) : null}
-                {renderBulkActionBar('py-3')}
+                  {filtersVisible ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {renderFilterChips()}
+                    </div>
+                  ) : null}
+                  {!isCompanion ? renderBulkActionBar('py-3') : null}
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
-            {filtersVisible ? renderFilterChips() : null}
-            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-              <ListFilterChipsToggle
-                visible={filtersVisible}
-                onVisibleChange={setFiltersVisible}
-                className="h-7 rounded-md"
-              />
-              {renderSortDropdown('h-7 rounded-md')}
+          {!isCompanion ? (
+            <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+              {filtersVisible ? renderFilterChips() : null}
+              <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+                <ListFilterChipsToggle
+                  visible={filtersVisible}
+                  onVisibleChange={setFiltersVisible}
+                  className="h-7 rounded-md"
+                />
+                {renderSortDropdown('h-7 rounded-md')}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {selectionMode ? (
+          {!isCompanion && selectionMode ? (
             <div className="shrink-0 py-3 md:hidden">{renderBulkActionBar()}</div>
           ) : null}
 
-          <BulkDeleteModal
-            isOpen={showBulkDeleteModal}
-            onClose={() => setShowBulkDeleteModal(false)}
-            onConfirm={handleBulkDelete}
-            itemCount={selectedCount}
-            itemLabel="notes"
-            isLoading={deleting}
-          />
+          {!isCompanion ? (
+            <BulkDeleteModal
+              isOpen={showBulkDeleteModal}
+              onClose={() => setShowBulkDeleteModal(false)}
+              onConfirm={handleBulkDelete}
+              itemCount={selectedCount}
+              itemLabel="notes"
+              isLoading={deleting}
+            />
+          ) : null}
 
           <div
             className={cn(
@@ -852,49 +920,94 @@ export const NoteList: React.FC = () => {
                 : 'grid-cols-1 items-start',
             )}
           >
-            <div
-              className={cn(
-                'min-w-0',
-                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
-              )}
-            >
-              <div className="flex min-w-0 flex-col gap-3">
-                {sortedNotes.length === 0 ? (
-                  <ListEmptyState
-                    message={searchTerm ? t('notes.noMatch') : t('notes.noYet')}
-                    createLabel={!searchTerm ? t('notes.addNote') : undefined}
-                    onCreate={
-                      !searchTerm ? () => attemptNavigation(() => openNotePanel(null)) : undefined
-                    }
-                  />
-                ) : (
-                  <NoteListTable
-                    notes={sortedNotes}
-                    primarySort={primarySort}
-                    sortOrder={sortOrder}
-                    onSort={handleTableSort}
-                    isSelected={isSelected}
-                    onRowClick={handleRowActivate}
-                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                    onCheckboxChange={onVisibleRowCheckboxChange}
-                    allVisibleSelected={allVisibleSelected}
-                    onHeaderCheckboxChange={onToggleAllVisible}
-                    recentlyDuplicatedNoteId={recentlyDuplicatedNoteId}
-                    selectionEnabled={selectionMode}
-                    activeNoteId={activeListNoteId}
-                    visibleColumnIds={visibleColumnIds}
-                  />
-                )}
-
-                <ListFooterBar
-                  meta={
-                    <>
-                      Showing {sortedNotes.length} of {notes.length} Notes
-                    </>
+            {isCompanion && previewNote ? (
+              <div
+                className="min-w-0"
+                role="region"
+                aria-label={t('notes.quickContext.title', { defaultValue: 'Quick context' })}
+              >
+                <NoteView
+                  note={previewNote}
+                  stacked
+                  readOnly
+                  headerTrailing={
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={ExternalLink}
+                        label={t('notes.quickContext.openFullProfile')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => {
+                          const note = previewNote;
+                          attemptNavigation(() => {
+                            setPreviewNote(null);
+                            companionPanel?.closeCompanionPanel();
+                            openNoteForView(note);
+                          });
+                        }}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={X}
+                        label={t('common.close')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => setPreviewNote(null)}
+                      />
+                    </div>
                   }
                 />
               </div>
-            </div>
+            ) : (
+              <div
+                className={cn(
+                  'min-w-0',
+                  showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+                )}
+              >
+                <div className="flex min-w-0 flex-col gap-3">
+                  {sortedNotes.length === 0 ? (
+                    <ListEmptyState
+                      message={searchTerm ? t('notes.noMatch') : t('notes.noYet')}
+                      createLabel={!isCompanion && !searchTerm ? t('notes.addNote') : undefined}
+                      onCreate={
+                        !isCompanion && !searchTerm
+                          ? () => attemptNavigation(() => openNotePanel(null))
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <NoteListTable
+                      notes={sortedNotes}
+                      primarySort={primarySort}
+                      sortOrder={sortOrder}
+                      onSort={handleTableSort}
+                      isSelected={isSelected}
+                      onRowClick={handleRowActivate}
+                      onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                      onCheckboxChange={onVisibleRowCheckboxChange}
+                      allVisibleSelected={allVisibleSelected}
+                      onHeaderCheckboxChange={onToggleAllVisible}
+                      recentlyDuplicatedNoteId={recentlyDuplicatedNoteId}
+                      selectionEnabled={selectionMode}
+                      activeNoteId={activeListNoteId}
+                      visibleColumnIds={tableColumnIds}
+                    />
+                  )}
+
+                  <ListFooterBar
+                    meta={
+                      <>
+                        Showing {sortedNotes.length} of {notes.length} Notes
+                      </>
+                    }
+                  />
+                </div>
+              </div>
+            )}
 
             {showDesktopSplit ? (
               <aside

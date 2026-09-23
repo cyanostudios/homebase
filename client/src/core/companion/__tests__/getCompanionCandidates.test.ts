@@ -7,7 +7,7 @@ import {
 
 function entry(
   partial: Pick<PluginRegistryEntry, 'name'> &
-    Partial<Pick<PluginRegistryEntry, 'canOpenAsCompanionFor' | 'components'>>,
+    Partial<Pick<PluginRegistryEntry, 'canOpenAsCompanionFor' | 'components' | 'navigation'>>,
 ): PluginRegistryEntry {
   return {
     name: partial.name,
@@ -17,23 +17,55 @@ function entry(
     components: partial.components ?? {
       List: (() => null) as PluginRegistryEntry['components']['List'],
     },
+    navigation: partial.navigation,
     canOpenAsCompanionFor: partial.canOpenAsCompanionFor,
   };
 }
 
 describe('getCompanionCandidates', () => {
   const registry: PluginRegistryEntry[] = [
-    entry({ name: 'schedule', canOpenAsCompanionFor: ['teams'] }),
-    entry({ name: 'garments', canOpenAsCompanionFor: ['teams'] }),
-    entry({ name: 'notes', canOpenAsCompanionFor: ['contacts'] }),
+    entry({
+      name: 'schedule',
+      canOpenAsCompanionFor: ['teams'],
+      navigation: { category: 'Sport', label: 'Schedule', icon: (() => null) as never, order: 1 },
+    }),
+    entry({
+      name: 'garments',
+      canOpenAsCompanionFor: ['teams'],
+      navigation: { category: 'Sport', label: 'Garments', icon: (() => null) as never, order: 2 },
+    }),
+    entry({
+      name: 'notes',
+      canOpenAsCompanionFor: ['contacts'],
+      navigation: { category: 'Main', label: 'Notes', icon: (() => null) as never, order: 2 },
+    }),
+    entry({
+      name: 'requests',
+      canOpenAsCompanionFor: ['teams'],
+      navigation: { category: 'Main', label: 'Requests', icon: (() => null) as never, order: 4 },
+    }),
+    entry({
+      name: 'contacts',
+      canOpenAsCompanionFor: ['teams'],
+      navigation: { category: 'Main', label: 'Contacts', icon: (() => null) as never, order: 1 },
+    }),
     entry({ name: 'no-list', canOpenAsCompanionFor: ['teams'], components: {} }),
     entry({ name: 'no-companion' }),
     entry({ name: 'empty-hosts', canOpenAsCompanionFor: [] }),
   ];
 
-  it('returns all enabled companions with a non-empty canOpenAsCompanionFor', () => {
-    const result = getCompanionCandidates(new Set(['schedule', 'garments', 'notes']), registry);
-    expect(result.map((e) => e.name)).toEqual(['schedule', 'garments', 'notes']);
+  it('returns companions sorted like left-nav (category, then order)', () => {
+    const result = getCompanionCandidates(
+      new Set(['schedule', 'garments', 'notes', 'requests', 'contacts']),
+      registry,
+    );
+    expect(result.map((e) => e.name)).toEqual([
+      'contacts',
+      'notes',
+      'requests',
+      'schedule',
+      'garments',
+    ]);
   });
 
   it('omits disabled plugins', () => {

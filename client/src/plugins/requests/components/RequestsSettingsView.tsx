@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Grip, Link2, Plus, Settings2, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Grip, Link2, Plus, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -357,8 +357,8 @@ export function RequestsSettingsView({
       {activeCategory === 'types' && (
         <DetailSection
           title={t('requests.settings.typesSection')}
-          icon={Settings2}
-          iconPlugin="requests"
+          icon={SETTINGS_CATEGORY_ICONS.categories}
+          subtleTitle
           className="pt-0"
         >
           <div className="space-y-3">

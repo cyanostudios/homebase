@@ -6,7 +6,6 @@ import {
   Circle,
   CheckCircle2,
   Clock,
-  Flag,
   Minus,
   XCircle,
 } from 'lucide-react';
@@ -62,6 +61,13 @@ function taskPriorityIcon(priority: string) {
   }
 }
 
+const TASK_STATUS_ICON_SHELL_CLASS: Record<TaskStatus, string> = {
+  'not started': 'bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300',
+  'in progress': 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+  completed: 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300',
+  cancelled: 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300',
+};
+
 /** SortableListTable field union — assignee/team are display-only (not sortable). */
 type TaskTableField = TaskSortField | 'assignedTo' | 'assignedTeam';
 
@@ -83,19 +89,6 @@ export type TaskListTableProps = {
   visibleColumnIds?: TaskTableColumnId[];
   getAssignedNames: (task: Task) => string[];
   getAssignedTeamName: (task: Task) => string | null;
-};
-
-const TASK_STATUS_ICON_SHELL_CLASS: Record<TaskStatus, string> = {
-  'not started': 'bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300',
-  'in progress': 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
-  completed: 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300',
-  cancelled: 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300',
-};
-
-const TASK_PRIORITY_ICON_SHELL_CLASS: Record<TaskPriority, string> = {
-  Low: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
-  Medium: 'bg-orange-100 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400',
-  High: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
 };
 
 export function TaskListTable({
@@ -156,17 +149,16 @@ export function TaskListTable({
                 </span>
               </div>
               <div className="flex min-w-0 items-center gap-1.5 pl-6">
-                <span title={priority} className="inline-flex shrink-0">
-                  <SectionCategoryIcon
-                    icon={Flag}
-                    className={cn(
-                      'h-4 w-4 [&_svg]:h-2.5 [&_svg]:w-2.5',
-                      TASK_PRIORITY_ICON_SHELL_CLASS[priority],
-                    )}
-                  />
+                <span
+                  className={cn(
+                    'shrink-0 text-[10px] font-extrabold leading-tight',
+                    TASK_STATUS_COLORS[status] ?? TASK_STATUS_COLORS['not started'],
+                  )}
+                >
+                  {statusLabel}
                 </span>
                 <span className="min-w-0 truncate text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
-                  {statusLabel} · {priority}
+                  {priority}
                 </span>
               </div>
             </div>

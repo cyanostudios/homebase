@@ -6,6 +6,8 @@ import { LIST_SEARCH_FIELD_PROPS } from '@/core/ui/listSearchFieldProps';
 import { cn } from '@/lib/utils';
 import { BUTTON_COLOR_TRANSITION_CLASS } from '@/components/ui/button';
 
+export type RoundExpandableSearchSize = 'sm' | 'xs';
+
 export interface RoundExpandableSearchProps {
   value: string;
   onChange: (value: string) => void;
@@ -17,7 +19,42 @@ export interface RoundExpandableSearchProps {
   expandedWidthClass?: string;
   /** Keep the search field open (no icon-only collapse). */
   alwaysExpanded?: boolean;
+  /**
+   * `sm` matches primary list toolbar (`h-11`).
+   * `xs` matches `RoundIconLabelButton` xs (companion toolbar).
+   */
+  size?: RoundExpandableSearchSize;
 }
+
+const sizeShellClasses: Record<RoundExpandableSearchSize, string> = {
+  sm: 'h-11',
+  xs: 'h-[2.0625rem]',
+};
+
+const sizeCollapsedWidthClasses: Record<RoundExpandableSearchSize, string> = {
+  sm: 'w-11',
+  xs: 'w-[2.0625rem]',
+};
+
+const sizeExpandedPadClasses: Record<RoundExpandableSearchSize, string> = {
+  sm: 'px-3.5',
+  xs: 'px-2.5',
+};
+
+const sizeCollapsedButtonClasses: Record<RoundExpandableSearchSize, string> = {
+  sm: 'h-11 w-11',
+  xs: 'h-[2.0625rem] w-[2.0625rem]',
+};
+
+const sizeIconClasses: Record<RoundExpandableSearchSize, string> = {
+  sm: 'size-5',
+  xs: 'size-[0.9375rem]',
+};
+
+const sizeInputClasses: Record<RoundExpandableSearchSize, string> = {
+  sm: 'text-sm',
+  xs: 'text-xs',
+};
 
 /** Round primary search control — icon-only until click, then widens to an input field. */
 export function RoundExpandableSearch({
@@ -28,6 +65,7 @@ export function RoundExpandableSearch({
   className,
   expandedWidthClass = 'w-80',
   alwaysExpanded = false,
+  size = 'sm',
 }: RoundExpandableSearchProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(alwaysExpanded);
@@ -105,10 +143,13 @@ export function RoundExpandableSearch({
     <div
       ref={rootRef}
       className={cn(
-        'inline-flex h-11 shrink-0 items-center overflow-hidden rounded-full',
+        'inline-flex shrink-0 items-center overflow-hidden rounded-full',
+        sizeShellClasses[size],
         'bg-primary text-primary-foreground',
         'transition-[width,padding] duration-200 ease-out',
-        isExpanded ? cn('px-3.5', expandedWidthClass) : 'w-11',
+        isExpanded
+          ? cn(sizeExpandedPadClasses[size], expandedWidthClass)
+          : sizeCollapsedWidthClasses[size],
         className,
       )}
     >
@@ -116,7 +157,8 @@ export function RoundExpandableSearch({
         <button
           type="button"
           className={cn(
-            'flex h-11 w-11 items-center justify-center rounded-full',
+            'flex items-center justify-center rounded-full',
+            sizeCollapsedButtonClasses[size],
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             hasValue && 'relative',
           )}
@@ -124,14 +166,19 @@ export function RoundExpandableSearch({
           aria-label={resolvedLabel}
           title={resolvedLabel}
         >
-          <Search className="size-5 shrink-0" aria-hidden />
+          <Search className={cn(sizeIconClasses[size], 'shrink-0')} aria-hidden />
           {hasValue ? (
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary-foreground" />
+            <span
+              className={cn(
+                'absolute rounded-full bg-primary-foreground',
+                size === 'xs' ? 'right-1.5 top-1.5 h-1.5 w-1.5' : 'right-2 top-2 h-2 w-2',
+              )}
+            />
           ) : null}
         </button>
       ) : (
         <form
-          className="flex min-w-0 flex-1 items-center gap-2.5"
+          className={cn('flex min-w-0 flex-1 items-center', size === 'xs' ? 'gap-1.5' : 'gap-2.5')}
           role="search"
           autoComplete="off"
           onSubmit={(event) => event.preventDefault()}
@@ -139,7 +186,8 @@ export function RoundExpandableSearch({
           <button
             type="button"
             className={cn(
-              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full hover:bg-primary-foreground/15',
+              'flex shrink-0 items-center justify-center rounded-full hover:bg-primary-foreground/15',
+              size === 'xs' ? 'h-6 w-6' : 'h-7 w-7',
               BUTTON_COLOR_TRANSITION_CLASS,
             )}
             onClick={() => {
@@ -151,7 +199,7 @@ export function RoundExpandableSearch({
             aria-label={alwaysExpanded ? resolvedLabel : t('common.close')}
             title={alwaysExpanded ? resolvedLabel : t('common.close')}
           >
-            <Search className="size-5 shrink-0 opacity-90" aria-hidden />
+            <Search className={cn(sizeIconClasses[size], 'shrink-0 opacity-90')} aria-hidden />
           </button>
           <input
             ref={inputRef}
@@ -162,7 +210,8 @@ export function RoundExpandableSearch({
             onChange={(event) => onChange(event.target.value)}
             placeholder={placeholder}
             className={cn(
-              'min-w-0 flex-1 bg-transparent text-sm font-extrabold',
+              'min-w-0 flex-1 bg-transparent font-extrabold',
+              sizeInputClasses[size],
               'placeholder:text-primary-foreground/60 focus:outline-none',
             )}
             aria-label={resolvedLabel}
@@ -171,14 +220,15 @@ export function RoundExpandableSearch({
             <button
               type="button"
               className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-full hover:bg-primary-foreground/15',
+                'flex shrink-0 items-center justify-center rounded-full hover:bg-primary-foreground/15',
+                size === 'xs' ? 'h-6 w-6' : 'h-7 w-7',
                 BUTTON_COLOR_TRANSITION_CLASS,
               )}
               onClick={() => onChange('')}
               aria-label={t('common.clearSearch')}
               title={t('common.clearSearch')}
             >
-              <X className="size-4" />
+              <X className={size === 'xs' ? 'size-3.5' : 'size-4'} />
             </button>
           ) : null}
         </form>

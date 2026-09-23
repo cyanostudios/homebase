@@ -23,6 +23,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { useMobileActions } from '@/core/ui/MobileActionsContext';
@@ -58,6 +59,8 @@ import { ScheduleTimeGrid } from './ScheduleTimeGrid';
 import { ScheduleWeekView } from './ScheduleWeekView';
 import { ScheduleTrainingDialog } from './ScheduleTrainingDialog';
 import {
+  PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_COMPANION_SHELL_CLASS,
   PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
   PLUGIN_PAGE_LIST_SHELL_CLASS,
   PLUGIN_PAGE_SECTION_GAP_CLASS,
@@ -352,8 +355,17 @@ export function ScheduleList({ isCompanion = false }: { isCompanion?: boolean } 
   }
 
   return (
-    <div className={cn('plugin-schedule', PLUGIN_PAGE_LIST_SHELL_CLASS)}>
-      <div className={PLUGIN_PAGE_SECTION_GAP_CLASS}>
+    <div
+      className={cn(
+        'plugin-schedule',
+        isCompanion ? PLUGIN_PAGE_COMPANION_SHELL_CLASS : PLUGIN_PAGE_LIST_SHELL_CLASS,
+      )}
+    >
+      <div
+        className={
+          isCompanion ? PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS : PLUGIN_PAGE_SECTION_GAP_CLASS
+        }
+      >
         <div className={isCompanion ? 'block' : 'hidden md:block'}>
           <div className="flex items-start justify-between gap-6">
             <div className="flex min-w-0 flex-1 flex-col gap-5">
@@ -477,6 +489,7 @@ export function ScheduleList({ isCompanion = false }: { isCompanion?: boolean } 
             onClick={() => setTeamFilter([])}
             className={cn(
               teamFilter.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
             )}
           >
             <Users className="h-3.5 w-3.5" />
@@ -496,7 +509,10 @@ export function ScheduleList({ isCompanion = false }: { isCompanion?: boolean } 
                 size="sm"
                 aria-pressed={isActive}
                 onClick={() => setTeamFilter((prev) => toggleScheduleTeamFilter(prev, teamId))}
-                className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+                className={cn(
+                  isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                  isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
+                )}
               >
                 <Users className="h-3.5 w-3.5" />
                 <span className="truncate">{formatTeamLabel(team)}</span>

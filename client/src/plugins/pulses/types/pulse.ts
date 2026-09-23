@@ -59,6 +59,8 @@ export interface PulseRoutingAssignment {
 export interface PulsePluginRoutingAssignment extends PulseRoutingAssignment {
   pluginKey: string;
   label: string;
+  /** When false, Pulse SMS is off for this plugin (send fails closed). */
+  enabled: boolean;
 }
 
 export interface PulseRoutingResponse {
@@ -76,7 +78,8 @@ export interface SavePulseProviderSettingsInput {
 }
 
 export interface SavePulseRoutingInput {
-  providerKey: string;
+  providerKey?: string | null;
+  enabled?: boolean;
 }
 
 /** @deprecated Legacy shape — use PulseProviderSettings / routing */

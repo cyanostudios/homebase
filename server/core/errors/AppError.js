@@ -20,6 +20,10 @@ class AppError extends Error {
       error: this.message,
       code: this.code,
     };
+    // Always surface structured field errors for API clients (e.g. ML lock).
+    if (this.details?.errors && Array.isArray(this.details.errors)) {
+      payload.errors = this.details.errors;
+    }
     if (includeDetails && this.details) {
       payload.details = this.details;
     }

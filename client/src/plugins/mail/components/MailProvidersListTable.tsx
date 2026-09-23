@@ -1,9 +1,8 @@
-import { Mail } from 'lucide-react';
+import { CheckCircle2, Circle, Mail } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 
-import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
   Table,
@@ -16,6 +15,7 @@ import {
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ListTableSortIcon } from '@/core/ui/ListTableSortIcon';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
 import type { MailProviderSettings } from '../types/mail';
@@ -26,20 +26,14 @@ import {
   resolveVisibleMailProvidersTableColumns,
 } from '../utils/mailProvidersTableColumns';
 
-function enabledBadgeClass(enabled: boolean) {
-  return enabled ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.neutral;
-}
+const MAIL_PROVIDER_ICON_SHELL_CLASS =
+  'h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3';
 
 function mailProviderIdentityMeta(
   provider: MailProviderSettings,
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string | null {
   const parts: string[] = [];
-  parts.push(
-    provider.enabled
-      ? t('mail.statusEnabled', { defaultValue: 'Enabled' })
-      : t('mail.statusDisabled', { defaultValue: 'Disabled' }),
-  );
   parts.push(
     provider.emailCapable
       ? t('mail.emailCapable', { defaultValue: 'Email' })
@@ -151,6 +145,9 @@ export function MailProvidersListTable({
             const title = providerTitle(provider);
             const identityMeta = mailProviderIdentityMeta(provider, t);
             const isActive = activeProviderId != null && provider.providerKey === activeProviderId;
+            const statusLabel = provider.enabled
+              ? t('mail.statusEnabled', { defaultValue: 'Enabled' })
+              : t('mail.statusDisabled', { defaultValue: 'Disabled' });
             return (
               <TableRow
                 key={provider.providerKey}
@@ -173,13 +170,10 @@ export function MailProvidersListTable({
                       <TableCell key={columnId} className="min-w-0 overflow-hidden">
                         <div className="flex min-w-0 flex-col gap-0.5">
                           <div className="flex min-w-0 items-center gap-1.5">
-                            <span
-                              title={t('nav.mail', { defaultValue: 'Mail' })}
-                              className="inline-flex shrink-0"
-                            >
+                            <span title={title} className="inline-flex shrink-0">
                               <SectionCategoryIcon
                                 icon={Mail}
-                                className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
+                                className={MAIL_PROVIDER_ICON_SHELL_CLASS}
                               />
                             </span>
                             <span
@@ -189,11 +183,23 @@ export function MailProvidersListTable({
                               {title}
                             </span>
                           </div>
-                          {identityMeta ? (
-                            <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
-                              {identityMeta}
+                          <div className="flex min-w-0 items-center gap-1.5 pl-6">
+                            <span
+                              className={cn(
+                                'shrink-0 text-[10px] font-extrabold leading-tight',
+                                provider.enabled
+                                  ? QC_STATUS_BADGE_COLORS.success
+                                  : QC_STATUS_BADGE_COLORS.neutral,
+                              )}
+                            >
+                              {statusLabel}
                             </span>
-                          ) : null}
+                            {identityMeta ? (
+                              <span className="min-w-0 truncate text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                                {identityMeta}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </TableCell>
                     );
@@ -201,13 +207,16 @@ export function MailProvidersListTable({
                   if (columnId === 'status') {
                     return (
                       <TableCell key={columnId} className="min-w-0 overflow-hidden">
-                        <Badge
-                          className={cn(BADGE_CHIP_CLASS, enabledBadgeClass(provider.enabled))}
+                        <StatusOutlineBadge
+                          icon={provider.enabled ? CheckCircle2 : Circle}
+                          className={
+                            provider.enabled
+                              ? QC_STATUS_BADGE_COLORS.success
+                              : QC_STATUS_BADGE_COLORS.neutral
+                          }
                         >
-                          {provider.enabled
-                            ? t('mail.statusEnabled', { defaultValue: 'Enabled' })
-                            : t('mail.statusDisabled', { defaultValue: 'Disabled' })}
-                        </Badge>
+                          {statusLabel}
+                        </StatusOutlineBadge>
                       </TableCell>
                     );
                   }

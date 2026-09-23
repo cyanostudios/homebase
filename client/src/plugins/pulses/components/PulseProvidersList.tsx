@@ -70,7 +70,7 @@ import {
 
 import { PulseProviderView } from './PulseProviderView';
 import { PulseProvidersListTable } from './PulseProvidersListTable';
-import { PulseProvidersRouting, type PulseProvidersRoutingCategory } from './PulseProvidersRouting';
+import { PulseProvidersRouting } from './PulseProvidersRouting';
 import { PulseProvidersStatisticsView } from './PulseProvidersStatisticsView';
 import { PulseSettingsForm } from './PulseSettingsForm';
 
@@ -131,7 +131,6 @@ export const PulseProvidersList: React.FC = () => {
     }),
   });
 
-  const [routingCategory, setRoutingCategory] = useState<PulseProvidersRoutingCategory>('global');
   const [primarySort, setPrimarySort] = useState<PulseProviderSortField>('providerKey');
   const [sortOrder, setSortOrder] = useState<PulseProviderSortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<PulseProvidersListFilterSelection>([]);
@@ -506,11 +505,7 @@ export const PulseProvidersList: React.FC = () => {
     return (
       <div className="plugin-pulses flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
         <div className="px-4 py-4 md:px-6">
-          <PulseProvidersRouting
-            selectedCategory={routingCategory}
-            onSelectedCategoryChange={setRoutingCategory}
-            onClose={closeRoutingView}
-          />
+          <PulseProvidersRouting onClose={closeRoutingView} />
         </div>
       </div>
     );

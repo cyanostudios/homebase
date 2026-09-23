@@ -26,14 +26,13 @@ import {
 import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
-export const INVOICE_STATUS_OPTIONS = [
-  'draft',
-  'sent',
-  'partially_paid',
-  'paid',
-  'overdue',
-  'canceled',
-] as const;
+import {
+  getInvoiceStatusSelectOptions,
+  INVOICE_STATUS_SELECT_OPTIONS,
+  isInvoiceIssued,
+} from '../utils/invoiceMlCompliance';
+
+export const INVOICE_STATUS_OPTIONS = INVOICE_STATUS_SELECT_OPTIONS;
 
 /** Platform status badge colors. Pair with `INVOICE_STATUS_BADGE_CLASS`. */
 export const INVOICE_STATUS_COLORS: Record<string, string> = {
@@ -79,6 +78,12 @@ interface InvoiceStatusSelectProps {
   hideInlineLabel?: boolean;
   /** Smaller trigger for inline lists. */
   compact?: boolean;
+  /**
+   * When true, Draft is not offered (issued / ML-locked documents).
+   * Defaults from `invoice.status`. Form passes false while the saved row is still draft
+   * so a local pending “sent” can still be reverted before save.
+   */
+  issuedLocked?: boolean;
 }
 
 export function InvoiceStatusSelect({
@@ -86,8 +91,11 @@ export function InvoiceStatusSelect({
   onStatusChange,
   hideInlineLabel = false,
   compact = false,
+  issuedLocked,
 }: InvoiceStatusSelectProps) {
   const status = invoice.status || 'draft';
+  const locked = issuedLocked ?? isInvoiceIssued(status);
+  const options = getInvoiceStatusSelectOptions(status, { issuedLocked: locked });
   const StatusIcon = invoiceStatusIcon(status);
 
   const selectEl = (
@@ -109,7 +117,7 @@ export function InvoiceStatusSelect({
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
-        {INVOICE_STATUS_OPTIONS.map((option) => (
+        {options.map((option) => (
           <SelectItem key={option} value={option} className={BADGE_SELECT_ITEM_CLASS}>
             <StatusOutlineBadge
               icon={invoiceStatusIcon(option)}

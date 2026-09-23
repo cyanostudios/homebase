@@ -27,7 +27,7 @@ export function TimerRailButton({ selected, onClick }: { selected: boolean; onCl
       <RoundIconLabelButton
         icon={Timer}
         label={t('rightSidebar.timer')}
-        variant={anyRunning ? 'success' : selected ? 'soft' : 'secondary'}
+        variant={anyRunning ? 'success' : selected ? 'soft' : 'category'}
         size="xs"
         expandOnHover={false}
         aria-pressed={selected}

@@ -69,7 +69,7 @@ import {
 
 import { AIProviderView } from './AIProviderView';
 import { AIProvidersListTable } from './AIProvidersListTable';
-import { AIProvidersRouting, type AIProvidersRoutingCategory } from './AIProvidersRouting';
+import { AIProvidersRouting } from './AIProvidersRouting';
 import { AIProvidersSettingsForm } from './AIProvidersSettingsForm';
 import { AIProvidersStatisticsView } from './AIProvidersStatisticsView';
 
@@ -129,7 +129,6 @@ export const AIProvidersList: React.FC = () => {
   const [primarySort, setPrimarySort] = useState<AIProviderSortField>('providerKey');
   const [sortOrder, setSortOrder] = useState<AIProviderSortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<AIProvidersListFilterSelection>([]);
-  const [routingCategory, setRoutingCategory] = useState<AIProvidersRoutingCategory>('global');
   const [previewProvider, setPreviewProvider] = useState<ProviderSettings | null>(null);
   const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
@@ -507,11 +506,7 @@ export const AIProvidersList: React.FC = () => {
     return (
       <div className="plugin-ai-providers flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
         <div className="px-4 py-4 md:px-6">
-          <AIProvidersRouting
-            selectedCategory={routingCategory}
-            onSelectedCategoryChange={setRoutingCategory}
-            onClose={closeRoutingView}
-          />
+          <AIProvidersRouting onClose={closeRoutingView} />
         </div>
       </div>
     );

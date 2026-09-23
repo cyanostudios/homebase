@@ -1,5 +1,6 @@
-import { ExternalLink, File, FileText, Image as ImageIcon } from 'lucide-react';
-import React, { useMemo } from 'react';
+import { ExternalLink, File, FileText, Image as ImageIcon, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
@@ -23,6 +24,7 @@ type Props = {
 export const FileView: React.FC<Props> = ({ file, item, stacked = false }) => {
   const { t } = useTranslation();
   const f = (file ?? item) as FileItem | undefined;
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const previewUrl = useMemo(() => {
     if (!f?.id) {
@@ -52,6 +54,27 @@ export const FileView: React.FC<Props> = ({ file, item, stacked = false }) => {
     return mt === 'application/pdf';
   }, [f?.mimeType]);
 
+  useEffect(() => {
+    setLightboxOpen(false);
+  }, [f?.id]);
+
+  useEffect(() => {
+    if (!lightboxOpen) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      // Capture phase so the detail panel's Escape handler does not also close the file.
+      event.preventDefault();
+      event.stopPropagation();
+      setLightboxOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [lightboxOpen]);
+
   if (!f) {
     return (
       <div className="plugin-files flex flex-col items-center justify-center p-12 text-muted-foreground opacity-50">
@@ -78,8 +101,15 @@ export const FileView: React.FC<Props> = ({ file, item, stacked = false }) => {
             className="p-6"
           >
             {isImage ? (
-              <div className="flex min-h-[200px] items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
-                <img src={previewUrl} alt={f.name || 'image'} className="h-auto max-w-full" />
+              <div className="flex min-h-[100px] items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
+                <button
+                  type="button"
+                  className="block w-1/2 cursor-zoom-in border-0 bg-transparent p-0"
+                  aria-label={t('files.previewOpenLightbox')}
+                  onClick={() => setLightboxOpen(true)}
+                >
+                  <img src={previewUrl} alt="" className="h-auto w-full" />
+                </button>
               </div>
             ) : isPdf ? (
               <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
@@ -116,10 +146,46 @@ export const FileView: React.FC<Props> = ({ file, item, stacked = false }) => {
     </div>
   );
 
+  const lightbox =
+    lightboxOpen && previewUrl && isImage && typeof document !== 'undefined'
+      ? createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8">
+            <button
+              type="button"
+              aria-label={t('common.close')}
+              className="absolute inset-0 cursor-default border-0 bg-black/80 p-0"
+              onClick={() => setLightboxOpen(false)}
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={t('files.previewImage')}
+              className="relative z-10 max-h-[90vh] max-w-[90vw]"
+            >
+              <button
+                type="button"
+                className="fixed right-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border-0 bg-white/15 text-white hover:bg-white/25"
+                aria-label={t('common.close')}
+                onClick={() => setLightboxOpen(false)}
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </button>
+              <img
+                src={previewUrl}
+                alt={f.name || 'image'}
+                className="max-h-[90vh] max-w-[90vw] object-contain"
+              />
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
   if (stacked) {
     return (
       <DetailLayout gridClassName="grid-cols-1" leftSidebar={<FileQuickContextPanel file={f} />}>
         {previewSection}
+        {lightbox}
       </DetailLayout>
     );
   }
@@ -168,6 +234,7 @@ export const FileView: React.FC<Props> = ({ file, item, stacked = false }) => {
       }
     >
       {previewSection}
+      {lightbox}
     </DetailLayout>
   );
 };

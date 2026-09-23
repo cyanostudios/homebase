@@ -177,7 +177,12 @@ export function ContactSettingsView({
         }
       >
         {activeCategory === 'tags' && (
-          <DetailSection title="Tags" className="pt-0">
+          <DetailSection
+            title="Tags"
+            icon={SETTINGS_CATEGORY_ICONS.tags}
+            subtleTitle
+            className="pt-0"
+          >
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 Tags can be assigned to contacts in Contact Properties.
@@ -232,7 +237,12 @@ export function ContactSettingsView({
         )}
 
         {activeCategory === 'import' && (
-          <DetailSection title={t('contacts.import')} className="pt-0">
+          <DetailSection
+            title={t('contacts.import')}
+            icon={SETTINGS_CATEGORY_ICONS.import}
+            subtleTitle
+            className="pt-0"
+          >
             <p className="mb-4 text-sm text-muted-foreground">{t('contacts.importDescription')}</p>
             <div className="flex flex-wrap gap-2">
               <RoundIconLabelButton

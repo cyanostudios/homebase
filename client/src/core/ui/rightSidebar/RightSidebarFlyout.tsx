@@ -15,6 +15,9 @@ export function RightSidebarFlyout({
   onClose,
   children,
   widthPx = RIGHT_SIDEBAR_FLYOUT_WIDTH_PX,
+  bodyClassName,
+  className,
+  titleClassName,
 }: {
   title: string;
   open: boolean;
@@ -22,6 +25,12 @@ export function RightSidebarFlyout({
   children: React.ReactNode;
   /** Override flyout width (companion uses a wider panel). */
   widthPx?: number;
+  /** Override scroll-body padding (companion uses a tighter inset). */
+  bodyClassName?: string;
+  /** Override shell surface (companion uses slate gray, not card white). */
+  className?: string;
+  /** Override title scale (companion matches plugin list titles). */
+  titleClassName?: string;
 }) {
   const { t } = useTranslation();
   const cachedTitleRef = useRef(title);
@@ -52,11 +61,14 @@ export function RightSidebarFlyout({
         // Closed: slide under the rail — keep opacity 0 so icons stay visible (clicks already pass through).
         open ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-full opacity-0',
         open && widthPx > RIGHT_SIDEBAR_FLYOUT_WIDTH_PX ? 'z-40' : null,
+        className,
       )}
       style={{ width: widthPx }}
     >
       <div className="flex h-14 shrink-0 items-center justify-between gap-2 px-3">
-        <h2 className="truncate text-lg font-extrabold text-foreground">{displayTitle}</h2>
+        <h2 className={cn('truncate text-lg font-extrabold text-foreground', titleClassName)}>
+          {displayTitle}
+        </h2>
         <RoundIconLabelButton
           icon={X}
           label={t('common.close')}
@@ -66,7 +78,9 @@ export function RightSidebarFlyout({
           onClick={onClose}
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">{displayChildren}</div>
+      <div className={cn('min-h-0 flex-1 overflow-y-auto px-3 pb-4', bodyClassName)}>
+        {displayChildren}
+      </div>
     </div>
   );
 }

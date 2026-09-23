@@ -1,6 +1,6 @@
 // Team settings: personal member profile + list/add/update/remove members (admin only for roster).
 
-import { Trash2, UserPlus } from 'lucide-react';
+import { Trash2, User, UserPlus, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
@@ -248,9 +248,9 @@ export function TeamSettingsForm({ onCancel }: TeamSettingsFormProps) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title="Your profile" className="p-4">
+        <DetailSection title="Your profile" icon={User} subtleTitle className="p-4 sm:p-6">
           <p className="mb-3 text-sm text-muted-foreground">
             Your name and title as a team member (not the shared account identity).
           </p>
@@ -301,7 +301,7 @@ export function TeamSettingsForm({ onCancel }: TeamSettingsFormProps) {
       </Card>
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title="Team members" className="p-4">
+        <DetailSection title="Team members" icon={Users} subtleTitle className="p-4 sm:p-6">
           <div className="space-y-4">
             {!isAdmin && (
               <div className="rounded-md border border-muted-foreground/20 bg-muted/50 px-3 py-2">

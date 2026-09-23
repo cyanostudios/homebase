@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { filesApi } from '@/plugins/files/api/filesApi';
 
 import { cupsApi } from '../api/cupsApi';
@@ -141,7 +142,12 @@ export function CupFallbackPhotosSettings({
   }
 
   return (
-    <DetailSection title={t('cups.fallbackPhotos.title')} className="pt-0">
+    <DetailSection
+      title={t('cups.fallbackPhotos.title')}
+      icon={SETTINGS_CATEGORY_ICONS.appearance}
+      subtleTitle
+      className="pt-0"
+    >
       <p className="text-sm text-muted-foreground mb-3">{t('cups.fallbackPhotos.help')}</p>
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <label className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer">

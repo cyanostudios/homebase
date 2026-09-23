@@ -25,6 +25,7 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import {
   DETAIL_EMPTY_STATE_CLASS,
   DETAIL_ENTITY_LINK_TRIGGER_CLASS,
@@ -54,10 +55,18 @@ import {
 } from '@/plugins/contacts/types/contacts';
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 import { garmentsApi } from '@/plugins/garments/api/garmentsApi';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useRequests } from '../hooks/useRequests';
+import { useRequestTeams } from '../hooks/useRequestTeams';
 import type { Request } from '../types/requests';
-import { REQUEST_SOURCE_COLORS, formatSubmittedDateWithAge } from '../types/requests';
+import {
+  REQUEST_SOURCE_COLORS,
+  formatRequestStatusForDisplay,
+  formatSubmittedDate,
+  formatSubmittedDateWithAge,
+  getTypeLabel,
+} from '../types/requests';
 import {
   buildRequestAssigneesSavePayload,
   buildRequestResponseDueSavePayload,
@@ -79,11 +88,18 @@ interface RequestViewProps {
   item?: Request | null;
   /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
   stacked?: boolean;
+  /** Companion / browse-only: no edit chrome, local tabs (do not mutate URL). */
+  readOnly?: boolean;
+  /** Optional trailing control on the title row (e.g. companion Open full + Close). */
+  headerTrailing?: React.ReactNode;
 }
 
 type RequestViewTab = 'information' | 'assignees' | 'files' | 'activity';
 
 const REQUEST_VIEW_TABS: RequestViewTab[] = ['information', 'assignees', 'files', 'activity'];
+
+/** Companion flyout: information, assignees, files — no activity. */
+const REQUEST_VIEW_READONLY_TABS: RequestViewTab[] = ['information', 'assignees', 'files'];
 
 function parseRequestViewTab(value: string | null): RequestViewTab {
   if (value === 'properties') {
@@ -102,6 +118,8 @@ export function RequestView({
   request: requestProp,
   item,
   stacked: _stacked = false,
+  readOnly = false,
+  headerTrailing,
 }: RequestViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -115,12 +133,19 @@ export function RequestView({
   const { saveRequest, closeRequestPanel, validationErrors, clearValidationErrors, requestTypes } =
     useRequests();
   const { contacts } = useContacts();
+  const requestTeams = useRequestTeams();
   const [targetListName, setTargetListName] = useState<string | null>(null);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
+  const [localTab, setLocalTab] = useState<RequestViewTab>('information');
 
-  const activeTab = parseRequestViewTab(searchParams.get('tab'));
+  const urlTab = parseRequestViewTab(searchParams.get('tab'));
+  const activeTab = readOnly ? localTab : urlTab;
   const setActiveTab = useCallback(
     (tab: RequestViewTab) => {
+      if (readOnly) {
+        setLocalTab(tab);
+        return;
+      }
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -134,8 +159,14 @@ export function RequestView({
         { replace: false },
       );
     },
-    [setSearchParams],
+    [readOnly, setSearchParams],
   );
+
+  useEffect(() => {
+    if (readOnly) {
+      setLocalTab('information');
+    }
+  }, [request?.id, readOnly]);
 
   const linkedContact = useMemo(() => {
     if (!request?.contactId) {
@@ -145,6 +176,24 @@ export function RequestView({
   }, [request?.contactId, contacts]);
 
   const submitterPhone = linkedContact?.phone?.trim() || linkedContact?.phone2?.trim() || '';
+
+  const readOnlyAssignedContacts = useMemo(() => {
+    if (!Array.isArray(request?.assignedToIds) || request.assignedToIds.length === 0) {
+      return [];
+    }
+    const ids = request.assignedToIds.map((id) => String(id));
+    return ids
+      .map((id) => contacts.find((c) => String(c.id) === id))
+      .filter((c): c is Contact => Boolean(c));
+  }, [request?.assignedToIds, contacts]);
+
+  const readOnlyAssignedTeamLabel = useMemo(() => {
+    if (!request?.teamId) {
+      return null;
+    }
+    const team = requestTeams.find((team) => String(team.id) === String(request.teamId));
+    return team ? formatTeamLabel(team) || team.name : null;
+  }, [request?.teamId, requestTeams]);
 
   const typeConfig = useMemo(
     () => (request ? findRequestTypeConfig(requestTypes, request.requestType) : null),
@@ -259,8 +308,11 @@ export function RequestView({
       icon: History,
       count: null,
     });
+    if (readOnly) {
+      return next.filter((tab) => REQUEST_VIEW_READONLY_TABS.includes(tab.id));
+    }
     return next;
-  }, [assigneeCount, hasFilesPlugin, t]);
+  }, [assigneeCount, hasFilesPlugin, readOnly, t]);
 
   const tabChips = (
     <div className={LIST_FILTER_CHIP_ROW_CLASS}>
@@ -409,41 +461,65 @@ export function RequestView({
               <span className="text-sm text-slate-500 dark:text-slate-400">
                 {t('requests.form.requestType')}
               </span>
-              <RequestTypeSelect
-                request={request}
-                onTypeChange={handleTypeChange}
-                hideInlineLabel
-              />
+              {readOnly ? (
+                <span className={cn(DETAIL_FIELD_VALUE_CLASS, 'text-right')}>
+                  {getTypeLabel(request.requestType, t)}
+                </span>
+              ) : (
+                <RequestTypeSelect
+                  request={request}
+                  onTypeChange={handleTypeChange}
+                  hideInlineLabel
+                />
+              )}
             </div>
             <div className={DETAIL_PROP_ROW_CLASS}>
               <span className="text-sm text-slate-500 dark:text-slate-400">
                 {t('requests.form.status')}
               </span>
-              <RequestStatusSelect
-                request={request}
-                onStatusChange={handleStatusChange}
-                hideInlineLabel
-              />
+              {readOnly ? (
+                <span className={cn(DETAIL_FIELD_VALUE_CLASS, 'text-right')}>
+                  {formatRequestStatusForDisplay(request.status, t)}
+                </span>
+              ) : (
+                <RequestStatusSelect
+                  request={request}
+                  onStatusChange={handleStatusChange}
+                  hideInlineLabel
+                />
+              )}
             </div>
             <div className={DETAIL_PROP_ROW_CLASS}>
               <span className="text-sm text-slate-500 dark:text-slate-400">
                 {t('requests.form.priority')}
               </span>
-              <RequestPrioritySelect
-                request={request}
-                onPriorityChange={handlePriorityChange}
-                hideInlineLabel
-              />
+              {readOnly ? (
+                <span className={cn(DETAIL_FIELD_VALUE_CLASS, 'text-right')}>
+                  {request.priority}
+                </span>
+              ) : (
+                <RequestPrioritySelect
+                  request={request}
+                  onPriorityChange={handlePriorityChange}
+                  hideInlineLabel
+                />
+              )}
             </div>
             <div className={DETAIL_PROP_ROW_CLASS}>
               <span className="text-sm text-slate-500 dark:text-slate-400">
                 {t('requests.responseDue.label')}
               </span>
-              <RequestResponseDueControl
-                request={request}
-                onDaysChange={handleResponseDueChange}
-                hideInlineLabel
-              />
+              {readOnly ? (
+                <span className={cn(DETAIL_FIELD_VALUE_CLASS, 'text-right')}>
+                  {formatSubmittedDate(request.responseDueAt ?? undefined) ?? '—'}
+                </span>
+              ) : (
+                <RequestResponseDueControl
+                  request={request}
+                  onDaysChange={handleResponseDueChange}
+                  hideInlineLabel
+                />
+              )}
             </div>
             <div className={DETAIL_PROP_ROW_CLASS}>
               <span className="text-sm text-slate-500 dark:text-slate-400">
@@ -559,7 +635,61 @@ export function RequestView({
     </div>
   );
 
-  const assigneesCard = (
+  const assigneesCard = readOnly ? (
+    <div className="space-y-4">
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('requests.form.assignees')}
+          icon={Users}
+          iconPlugin="contacts"
+          subtleTitle
+          className="p-6"
+        >
+          {readOnlyAssignedContacts.length > 0 ? (
+            <QuickContextLinkTileGrid>
+              {readOnlyAssignedContacts.map((assignedContact) => (
+                <QuickContextLinkTile
+                  key={assignedContact.id}
+                  label={t('nav.contact')}
+                  icon={User}
+                  iconClassName="text-sky-600"
+                >
+                  {assignedContact.companyName ?? `Contact ${assignedContact.id}`}
+                </QuickContextLinkTile>
+              ))}
+            </QuickContextLinkTileGrid>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t('requests.noAssigneesYet')}</p>
+          )}
+        </DetailSection>
+      </Card>
+      {hasTeamsPlugin ? (
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('requests.assignedTeam')}
+            icon={Users}
+            iconPlugin="teams"
+            subtleTitle
+            className="p-6"
+          >
+            {readOnlyAssignedTeamLabel ? (
+              <QuickContextLinkTileGrid>
+                <QuickContextLinkTile
+                  label={t('nav.team')}
+                  icon={Users}
+                  iconClassName="text-emerald-600"
+                >
+                  {readOnlyAssignedTeamLabel}
+                </QuickContextLinkTile>
+              </QuickContextLinkTileGrid>
+            ) : (
+              <p className="text-xs text-muted-foreground">{t('requests.noAssignedTeamYet')}</p>
+            )}
+          </DetailSection>
+        </Card>
+      ) : null}
+    </div>
+  ) : (
     <div className="space-y-4">
       <RequestAssigneeSelect request={request} onAssigneeChange={handleAssigneeChange} />
       {hasTeamsPlugin ? (
@@ -576,9 +706,14 @@ export function RequestView({
     <>
       <DetailLayout gridClassName="grid-cols-1">
         <div className="space-y-4">
-          <RequestQuickContextPanel request={request} headerBelow={tabChips} />
+          <RequestQuickContextPanel
+            request={request}
+            headerBelow={tabChips}
+            readOnly={readOnly}
+            headerTrailing={headerTrailing}
+          />
 
-          {blockingValidationErrors.length > 0 ? (
+          {!readOnly && blockingValidationErrors.length > 0 ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
               <div className="text-sm font-medium text-destructive">{t('common.cannotSave')}</div>
               <ul className="mt-2 list-inside list-disc text-sm text-destructive/90">
@@ -592,7 +727,7 @@ export function RequestView({
           {activeTab === 'information' ? informationCard : null}
           {activeTab === 'assignees' ? assigneesCard : null}
           {activeTab === 'files' ? filesCard : null}
-          {activeTab === 'activity' ? (
+          {!readOnly && activeTab === 'activity' ? (
             <DetailActivityLog
               entityType="request"
               entityId={request.id}

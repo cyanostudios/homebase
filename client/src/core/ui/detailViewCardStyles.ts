@@ -70,6 +70,10 @@ export const LIST_FILTER_CHIP_CLASS = `h-9 shrink-0 gap-1.5 rounded-full px-3 te
 
 export const LIST_FILTER_CHIP_ACTIVE_CLASS = `h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs ${LINK_BUTTON_FONT_CLASS} bg-primary/10 text-primary ${BUTTON_COLOR_TRANSITION_CLASS} hover:bg-primary/10 hover:text-primary`;
 
+/** Companion filter chips — one step below primary `h-9` (pair with idle/active chip classes). */
+export const LIST_FILTER_CHIP_COMPANION_SIZE_CLASS =
+  'h-7 gap-1 px-2 text-[0.6875rem] [&_svg]:!h-3 [&_svg]:!w-3';
+
 /**
  * Filter chip row — phone/pad: single-row horizontal scroll; lg+: wrap.
  */

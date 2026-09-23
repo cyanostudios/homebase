@@ -173,6 +173,77 @@ export type GarmentFitSummaryEntry = {
   fitBreakdowns: GarmentFitSummaryBreakdown[];
 };
 
+/**
+ * Clothing letter-size rank (XS→XXL). Also accepts 2XS / 3XL style and pure numbers.
+ * Returns null for unknown labels (sorted after known sizes).
+ */
+export function clothingSizeRank(raw: string): number | null {
+  const n = raw.trim().toLowerCase().replace(/\s+/g, '');
+  if (!n) {
+    return null;
+  }
+
+  const xThenS = n.match(/^(x+)s$/);
+  if (xThenS) {
+    return 40 - 10 * xThenS[1].length; // xs=30, xxs=20, …
+  }
+  if (n === 's') {
+    return 40;
+  }
+  if (n === 'm') {
+    return 50;
+  }
+  if (n === 'l') {
+    return 60;
+  }
+  const xThenL = n.match(/^(x+)l$/);
+  if (xThenL) {
+    return 60 + 10 * xThenL[1].length; // xl=70, xxl=80, …
+  }
+
+  const numXs = n.match(/^(\d+)xs$/);
+  if (numXs) {
+    return 40 - 10 * parseInt(numXs[1], 10); // 2xs=20, 3xs=10
+  }
+  const numXl = n.match(/^(\d+)xl$/);
+  if (numXl) {
+    return 60 + 10 * parseInt(numXl[1], 10); // 2xl=80, 3xl=90
+  }
+
+  if (/^\d+(\.\d+)?$/.test(n)) {
+    return 1000 + Number(n);
+  }
+
+  return null;
+}
+
+/** Sort clothing sizes small→large (XS, S, M, L, XL, …); unknowns last A–Z. */
+export function compareClothingSizes(a: string, b: string): number {
+  const aTrim = a.trim();
+  const bTrim = b.trim();
+  if (!aTrim && !bTrim) {
+    return 0;
+  }
+  if (!aTrim) {
+    return -1;
+  }
+  if (!bTrim) {
+    return 1;
+  }
+  const ra = clothingSizeRank(aTrim);
+  const rb = clothingSizeRank(bTrim);
+  if (ra != null && rb != null && ra !== rb) {
+    return ra - rb;
+  }
+  if (ra != null && rb == null) {
+    return -1;
+  }
+  if (ra == null && rb != null) {
+    return 1;
+  }
+  return aTrim.localeCompare(bTrim, undefined, { numeric: true, sensitivity: 'base' });
+}
+
 function compareFitBreakdown(a: GarmentFitSummaryBreakdown, b: GarmentFitSummaryBreakdown): number {
   const audienceCompare = a.audience.localeCompare(b.audience, undefined, {
     numeric: true,
@@ -181,7 +252,7 @@ function compareFitBreakdown(a: GarmentFitSummaryBreakdown, b: GarmentFitSummary
   if (audienceCompare !== 0) {
     return audienceCompare;
   }
-  return a.size.localeCompare(b.size, undefined, { numeric: true, sensitivity: 'base' });
+  return compareClothingSizes(a.size, b.size);
 }
 
 export function fitBreakdownKey(audience: string, size: string): string {
@@ -331,7 +402,7 @@ export function inventoryItemAudiences(item: InventoryItem | undefined): string[
   return audiences;
 }
 
-/** Unique non-empty sizes from inventory variants (all audiences). */
+/** Unique non-empty sizes from inventory variants (all audiences), small→large. */
 export function inventoryItemSizes(item: InventoryItem | undefined): string[] {
   if (!item?.variants?.length) return [];
   const seen = new Set<string>();
@@ -342,7 +413,7 @@ export function inventoryItemSizes(item: InventoryItem | undefined): string[] {
     seen.add(size);
     sizes.push(size);
   }
-  return sizes;
+  return sizes.sort(compareClothingSizes);
 }
 
 /** Sizes for one audience; empty audience matches variants with blank audience. */
@@ -362,5 +433,5 @@ export function inventoryItemSizesForAudience(
     seen.add(size);
     sizes.push(size);
   }
-  return sizes;
+  return sizes.sort(compareClothingSizes);
 }

@@ -38,11 +38,18 @@ interface NoteViewProps {
   note: any;
   /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
   stacked?: boolean;
+  /** Companion / browse-only: no edit chrome, local tabs (do not mutate URL). */
+  readOnly?: boolean;
+  /** Optional trailing control on the title row (e.g. companion Open full + Close). */
+  headerTrailing?: React.ReactNode;
 }
 
 type NoteViewTab = 'information' | 'linked' | 'files' | 'activity';
 
 const NOTE_VIEW_TABS: NoteViewTab[] = ['information', 'linked', 'files', 'activity'];
+
+/** Companion flyout: information + files — no linked/activity. */
+const NOTE_VIEW_READONLY_TABS: NoteViewTab[] = ['information', 'files'];
 
 function parseNoteViewTab(value: string | null): NoteViewTab {
   if (value && NOTE_VIEW_TABS.includes(value as NoteViewTab)) {
@@ -54,6 +61,8 @@ function parseNoteViewTab(value: string | null): NoteViewTab {
 export const NoteView = React.memo(function NoteView({
   note,
   stacked: _stacked = false,
+  readOnly = false,
+  headerTrailing,
 }: NoteViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -64,10 +73,16 @@ export const NoteView = React.memo(function NoteView({
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
 
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
+  const [localTab, setLocalTab] = useState<NoteViewTab>('information');
 
-  const activeTab = parseNoteViewTab(searchParams.get('tab'));
+  const urlTab = parseNoteViewTab(searchParams.get('tab'));
+  const activeTab = readOnly ? localTab : urlTab;
   const setActiveTab = useCallback(
     (tab: NoteViewTab) => {
+      if (readOnly) {
+        setLocalTab(tab);
+        return;
+      }
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -81,8 +96,14 @@ export const NoteView = React.memo(function NoteView({
         { replace: false },
       );
     },
-    [setSearchParams],
+    [readOnly, setSearchParams],
   );
+
+  useEffect(() => {
+    if (readOnly) {
+      setLocalTab('information');
+    }
+  }, [note.id, readOnly]);
 
   useEffect(() => {
     if (activeTab === 'files' && !hasFilesPlugin) {
@@ -151,8 +172,11 @@ export const NoteView = React.memo(function NoteView({
       icon: History,
       count: null,
     });
+    if (readOnly) {
+      return next.filter((tab) => NOTE_VIEW_READONLY_TABS.includes(tab.id));
+    }
     return next;
-  }, [hasFilesPlugin, t, uniqueMentions.length]);
+  }, [hasFilesPlugin, readOnly, t, uniqueMentions.length]);
 
   const tabChips = (
     <div className={LIST_FILTER_CHIP_ROW_CLASS}>
@@ -202,7 +226,7 @@ export const NoteView = React.memo(function NoteView({
           </div>
         </DetailSection>
       </Card>
-      <NoteShareBlock note={note} />
+      {readOnly ? null : <NoteShareBlock note={note} />}
     </div>
   );
 
@@ -263,12 +287,17 @@ export const NoteView = React.memo(function NoteView({
     <>
       <DetailLayout gridClassName="grid-cols-1">
         <div className="min-w-0 space-y-4 overflow-x-hidden">
-          <NoteQuickContextPanel note={note} headerBelow={tabChips} />
+          <NoteQuickContextPanel
+            note={note}
+            headerBelow={tabChips}
+            readOnly={readOnly}
+            headerTrailing={headerTrailing}
+          />
 
           {activeTab === 'information' ? informationCard : null}
-          {activeTab === 'linked' ? linkedCard : null}
+          {!readOnly && activeTab === 'linked' ? linkedCard : null}
           {activeTab === 'files' ? filesCard : null}
-          {activeTab === 'activity' ? (
+          {!readOnly && activeTab === 'activity' ? (
             <DetailActivityLog
               entityType="note"
               entityId={note.id}
