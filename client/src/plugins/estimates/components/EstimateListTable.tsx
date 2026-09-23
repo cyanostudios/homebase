@@ -107,11 +107,12 @@ export function EstimateListTable({
               })
             : null;
           const status = estimate.status || 'draft';
+          const statusLabel = formatEstimateStatusForDisplay(status);
           const totalLabel = formatInvoiceMoney(estimate.total, estimate.currency || 'SEK');
           const updatedLabel = estimate.updatedAt ? formatDateTimeShort(estimate.updatedAt) : null;
           const TypeIcon =
             contactType === 'private' ? User : contactType === 'company' ? Users : null;
-          const hasSubtitle = Boolean(totalLabel || updatedLabel);
+          const hasSubtitle = Boolean(statusLabel || totalLabel || updatedLabel);
 
           const numberRow = (
             <div className="flex min-w-0 items-center gap-1.5">
@@ -140,15 +141,6 @@ export function EstimateListTable({
                   {contactName}
                 </span>
               ) : null}
-              <Badge
-                className={cn(
-                  'shrink-0',
-                  BADGE_CHIP_CLASS,
-                  ESTIMATE_STATUS_COLORS[status as keyof typeof ESTIMATE_STATUS_COLORS],
-                )}
-              >
-                {formatEstimateStatusForDisplay(status)}
-              </Badge>
             </div>
           );
 
@@ -160,6 +152,14 @@ export function EstimateListTable({
             <div className="flex min-w-0 flex-col gap-0.5">
               {numberRow}
               <div className="flex min-w-0 items-center gap-1.5">
+                <span
+                  className={cn(
+                    'shrink-0 text-[10px] font-extrabold leading-tight',
+                    ESTIMATE_STATUS_COLORS[status as keyof typeof ESTIMATE_STATUS_COLORS],
+                  )}
+                >
+                  {statusLabel}
+                </span>
                 {totalLabel ? (
                   <span className="shrink-0 tabular-nums text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
                     {totalLabel}

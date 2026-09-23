@@ -1,6 +1,6 @@
 // Core Settings: PluginSettingsPageShell (same chrome as plugin settings pages).
 
-import { Building2, Globe, History, Users } from 'lucide-react';
+import { Building2, FileText, Globe, History, Users } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -49,6 +49,14 @@ export function SettingsList() {
         icon: Building2,
       },
       {
+        id: 'default-texts',
+        label: t('defaultTexts.title', { defaultValue: 'Default texts' }),
+        description: t('defaultTexts.description', {
+          defaultValue: 'Default messages for invoice and estimate emails',
+        }),
+        icon: FileText,
+      },
+      {
         id: 'team',
         label: t('team.title', { defaultValue: 'Team' }),
         description: t('team.description', {
@@ -71,7 +79,11 @@ export function SettingsList() {
   const [selectedCategory, setSelectedCategory] = useState<string>('preferences');
 
   const isReadOnlyCategory = selectedCategory === 'activity-log';
-  const usesOwnCards = selectedCategory === 'profile' || selectedCategory === 'team';
+  const usesOwnCards =
+    selectedCategory === 'preferences' ||
+    selectedCategory === 'profile' ||
+    selectedCategory === 'team' ||
+    selectedCategory === 'default-texts';
   const showSave = !isReadOnlyCategory && hasChanges;
 
   useEffect(() => {

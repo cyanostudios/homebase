@@ -7,6 +7,7 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Switch } from '@/components/ui/switch';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
@@ -133,7 +134,12 @@ export function GarmentListCustomColumnsSettingsSection({
 
   return (
     <>
-      <DetailSection title={title} className="pt-0">
+      <DetailSection
+        title={title}
+        icon={SETTINGS_CATEGORY_ICONS.columns}
+        subtleTitle
+        className="pt-0"
+      >
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">{hint}</p>
           <p className="text-sm text-muted-foreground">{t('garments.customColumnsSystemNote')}</p>

@@ -305,7 +305,12 @@ export function CupsSettingsView({
         )}
 
         {activeCategory === 'import' && (
-          <DetailSection title="Import sources" className="pt-0">
+          <DetailSection
+            title="Import sources"
+            icon={SETTINGS_CATEGORY_ICONS.import}
+            subtleTitle
+            className="pt-0"
+          >
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 Choose which ingest sources Cups is allowed to use.

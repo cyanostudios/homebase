@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
 
@@ -79,7 +80,12 @@ export const ProductionWorkerSettingsPanel: React.FC<ProductionWorkerSettingsPan
     : [...FALLBACK_INTERVALS];
 
   return (
-    <DetailSection title={t('guides.productionWorker.title')} className={cn('pt-0', className)}>
+    <DetailSection
+      title={t('guides.productionWorker.title')}
+      icon={SETTINGS_CATEGORY_ICONS.production}
+      subtleTitle
+      className={cn('pt-0', className)}
+    >
       <div className="space-y-3 text-xs">
         <p className="text-muted-foreground">{t('guides.productionWorker.description')}</p>
         {loading && (

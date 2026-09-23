@@ -163,7 +163,12 @@ export function GarmentsInventorySettingsView({
         }
       >
         {activeCategory === 'tags' && (
-          <DetailSection title={t('garments.settingsCategories.tags')} className="pt-0">
+          <DetailSection
+            title={t('garments.settingsCategories.tags')}
+            icon={SETTINGS_CATEGORY_ICONS.tags}
+            subtleTitle
+            className="pt-0"
+          >
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 {t('garments.settingsCategories.tagsHint')}
@@ -218,7 +223,12 @@ export function GarmentsInventorySettingsView({
         )}
 
         {activeCategory === 'import' && (
-          <DetailSection title={t('garments.importInventory')} className="pt-0">
+          <DetailSection
+            title={t('garments.importInventory')}
+            icon={SETTINGS_CATEGORY_ICONS.import}
+            subtleTitle
+            className="pt-0"
+          >
             <p className="mb-4 text-sm text-muted-foreground">
               {t('garments.importInventoryDescription')}
             </p>

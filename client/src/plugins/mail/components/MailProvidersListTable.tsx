@@ -26,21 +26,14 @@ import {
   resolveVisibleMailProvidersTableColumns,
 } from '../utils/mailProvidersTableColumns';
 
-const MAIL_ENABLED_ICON_SHELL_CLASS =
-  'h-5 w-5 bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300 [&_svg]:h-3 [&_svg]:w-3';
-const MAIL_DISABLED_ICON_SHELL_CLASS =
-  'h-5 w-5 bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300 [&_svg]:h-3 [&_svg]:w-3';
+const MAIL_PROVIDER_ICON_SHELL_CLASS =
+  'h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3';
 
 function mailProviderIdentityMeta(
   provider: MailProviderSettings,
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string | null {
   const parts: string[] = [];
-  parts.push(
-    provider.enabled
-      ? t('mail.statusEnabled', { defaultValue: 'Enabled' })
-      : t('mail.statusDisabled', { defaultValue: 'Disabled' }),
-  );
   parts.push(
     provider.emailCapable
       ? t('mail.emailCapable', { defaultValue: 'Email' })
@@ -177,14 +170,10 @@ export function MailProvidersListTable({
                       <TableCell key={columnId} className="min-w-0 overflow-hidden">
                         <div className="flex min-w-0 flex-col gap-0.5">
                           <div className="flex min-w-0 items-center gap-1.5">
-                            <span title={statusLabel} className="inline-flex shrink-0">
+                            <span title={title} className="inline-flex shrink-0">
                               <SectionCategoryIcon
                                 icon={Mail}
-                                className={
-                                  provider.enabled
-                                    ? MAIL_ENABLED_ICON_SHELL_CLASS
-                                    : MAIL_DISABLED_ICON_SHELL_CLASS
-                                }
+                                className={MAIL_PROVIDER_ICON_SHELL_CLASS}
                               />
                             </span>
                             <span
@@ -194,11 +183,23 @@ export function MailProvidersListTable({
                               {title}
                             </span>
                           </div>
-                          {identityMeta ? (
-                            <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
-                              {identityMeta}
+                          <div className="flex min-w-0 items-center gap-1.5 pl-6">
+                            <span
+                              className={cn(
+                                'shrink-0 text-[10px] font-extrabold leading-tight',
+                                provider.enabled
+                                  ? QC_STATUS_BADGE_COLORS.success
+                                  : QC_STATUS_BADGE_COLORS.neutral,
+                              )}
+                            >
+                              {statusLabel}
                             </span>
-                          ) : null}
+                            {identityMeta ? (
+                              <span className="min-w-0 truncate text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                                {identityMeta}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </TableCell>
                     );

@@ -195,6 +195,19 @@
     "showTimeTracking": "Visa tidsregistrering i toppfältet",
     "showPomodoro": "Visa Pomodoro-klocka i toppfältet"
   },
+  "defaultTexts": {
+    "title": "Standardtexter",
+    "description": "Standardmeddelanden för faktura- och offertmejl",
+    "hint": "Dessa texter fylls i i mejldialogen när du skickar en faktura eller offert. Du kan ändra eller radera dem innan du skickar.",
+    "invoiceMail": "Standardtext för fakturamejl",
+    "estimateMail": "Standardtext för offertmejl",
+    "invoiceMailHint": "Visas i meddelandefältet när du mejlar en faktura. Du kan ändra eller radera den innan du skickar.",
+    "estimateMailHint": "Visas i meddelandefältet när du mejlar en offert. Du kan ändra eller radera den innan du skickar.",
+    "invoiceMailBody": "Meddelande",
+    "estimateMailBody": "Meddelande",
+    "invoiceMailPlaceholder": "Skriv standardmeddelande för fakturamejl…",
+    "estimateMailPlaceholder": "Skriv standardmeddelande för offertmejl…"
+  },
   "slots": {
     "listDescription": "Planera bokningsbara tider, synlighet och kategorier.",
     "title": "Slots",

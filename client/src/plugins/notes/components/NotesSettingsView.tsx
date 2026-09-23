@@ -69,7 +69,12 @@ export function NotesSettingsView({
         onClose={onClose}
       >
         {activeCategory === 'import' && (
-          <DetailSection title={t('common.import')} className="pt-0">
+          <DetailSection
+            title={t('common.import')}
+            icon={SETTINGS_CATEGORY_ICONS.import}
+            subtleTitle
+            className="pt-0"
+          >
             <p className="mb-4 text-sm text-muted-foreground">{t('notes.importDescription')}</p>
             <div className="flex flex-wrap gap-2">
               <RoundIconLabelButton

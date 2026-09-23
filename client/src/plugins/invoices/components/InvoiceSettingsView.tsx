@@ -228,7 +228,12 @@ export function InvoiceSettingsView({
       }
     >
       {activeCategory === 'numbering' && (
-        <DetailSection title={t('invoices.settingsCategories.numbering')} className="pt-0">
+        <DetailSection
+          title={t('invoices.settingsCategories.numbering')}
+          icon={SETTINGS_CATEGORY_ICONS.numbering}
+          subtleTitle
+          className="pt-0"
+        >
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               {t('invoices.settingsCategories.numberingHint')}

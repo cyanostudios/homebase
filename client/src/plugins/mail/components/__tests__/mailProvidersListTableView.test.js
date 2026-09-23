@@ -20,7 +20,9 @@ describe('MailProvidersList table view wiring', () => {
     expect(tableSrc).toMatch(/StatusOutlineBadge/);
     expect(tableSrc).toMatch(/QC_STATUS_BADGE_COLORS/);
     expect(tableSrc).toMatch(/text-slate-400/);
-    expect(tableSrc).toMatch(/pl-6 text-\[10px\]/);
+    expect(tableSrc).toMatch(/pl-6/);
+    expect(tableSrc).toMatch(/font-extrabold leading-tight/);
+    expect(tableSrc).toMatch(/text-\[10px\]/);
     expect(tableSrc).toMatch(/'provider'/);
     expect(tableSrc).toMatch(/'status'/);
     expect(tableSrc).toMatch(/'capability'/);

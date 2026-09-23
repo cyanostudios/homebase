@@ -41,7 +41,7 @@ export function EstimateDetailHeaderMenus({
   leading?: React.ReactNode;
 }) {
   const { t } = useTranslation();
-  const { user, contacts } = useApp();
+  const { user, contacts, refreshDefaultTexts } = useApp();
   const enabledPlugins = useEnabledPlugins();
   const {
     openEstimateForEdit,
@@ -70,6 +70,7 @@ export function EstimateDetailHeaderMenus({
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [sendEmailRecipients, setSendEmailRecipients] = useState<BulkEmailRecipient[]>([]);
   const [emailShareUrl, setEmailShareUrl] = useState<string | null>(null);
+  const [emailInitialBody, setEmailInitialBody] = useState('');
   const [isPreparingEmail, setIsPreparingEmail] = useState(false);
 
   const duplicateConfig = getDuplicateConfig(estimate);
@@ -134,7 +135,10 @@ export function EstimateDetailHeaderMenus({
     }
     setIsPreparingEmail(true);
     try {
-      const share = await ensureEstimateShareForItem(estimate);
+      const [share, texts] = await Promise.all([
+        ensureEstimateShareForItem(estimate),
+        refreshDefaultTexts(),
+      ]);
       if (!share) {
         return;
       }
@@ -152,6 +156,7 @@ export function EstimateDetailHeaderMenus({
         },
       ]);
       setEmailShareUrl(url);
+      setEmailInitialBody(texts.estimateMail);
       setShowSendEmailDialog(true);
     } finally {
       setIsPreparingEmail(false);
@@ -162,6 +167,7 @@ export function EstimateDetailHeaderMenus({
     setShowSendEmailDialog(false);
     setSendEmailRecipients([]);
     setEmailShareUrl(null);
+    setEmailInitialBody('');
   };
 
   const actions = useMemo((): DetailHeaderMenuAction[] => {
@@ -381,6 +387,7 @@ export function EstimateDetailHeaderMenus({
         onClose={closeSendEmailDialog}
         recipients={sendEmailRecipients}
         pluginSource="estimates"
+        initialBody={emailInitialBody}
         additionalText={
           emailShareUrl ? formatEstimateShareEmailText(emailShareUrl, shareLinkLabel) : undefined
         }

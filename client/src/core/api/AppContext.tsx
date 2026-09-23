@@ -16,6 +16,12 @@ import {
 
 import { apiFetch, invalidateCsrfToken } from '@/core/api/apiFetch';
 import {
+  cloneDefaultTexts,
+  defaultTextsApi,
+  EMPTY_DEFAULT_TEXTS,
+  type DefaultTexts,
+} from '@/core/api/defaultTextsApi';
+import {
   cloneOrganizationProfile,
   EMPTY_ORGANIZATION,
   organizationApi,
@@ -158,6 +164,10 @@ interface AppContextType {
   organizationProfile: OrganizationProfile;
   refreshOrganization: () => Promise<void>;
 
+  /** Shared account default mail body texts (Settings → Default texts). */
+  defaultTexts: DefaultTexts;
+  refreshDefaultTexts: () => Promise<DefaultTexts>;
+
   /** Dynamic sidebar badges set by plugins (e.g. unopened request count). */
   navBadges: Partial<Record<NavPage, NavBadge>>;
   setNavBadge: (page: NavPage, badge: NavBadge | null) => void;
@@ -266,6 +276,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [organizationProfile, setOrganizationProfile] = useState<OrganizationProfile>(() =>
     cloneOrganizationProfile(EMPTY_ORGANIZATION),
   );
+  const [defaultTexts, setDefaultTexts] = useState<DefaultTexts>(() =>
+    cloneDefaultTexts(EMPTY_DEFAULT_TEXTS),
+  );
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -359,6 +372,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setOrganizationName('');
     setOrganizationLogoUrl('');
     setOrganizationProfile(cloneOrganizationProfile(EMPTY_ORGANIZATION));
+    setDefaultTexts(cloneDefaultTexts(EMPTY_DEFAULT_TEXTS));
   }, []);
 
   const refreshOrganization = useCallback(async () => {
@@ -373,6 +387,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshDefaultTexts = useCallback(async (): Promise<DefaultTexts> => {
+    try {
+      const texts = await defaultTextsApi.getDefaultTexts();
+      const next = cloneDefaultTexts(texts);
+      setDefaultTexts(next);
+      return next;
+    } catch (error) {
+      console.error('Failed to refresh default texts:', error);
+      return cloneDefaultTexts(EMPTY_DEFAULT_TEXTS);
+    }
+  }, []);
+
   const checkAuth = async () => {
     try {
       const response = await api.getMe();
@@ -380,6 +406,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       applyOrganizationFromMe(response);
       setIsAuthenticated(true);
       void refreshOrganization();
+      void refreshDefaultTexts();
     } catch {
       setUser(null);
       clearOrganizationState();
@@ -444,6 +471,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         applyOrganizationFromMe(me);
         setIsAuthenticated(true);
         void refreshOrganization();
+        void refreshDefaultTexts();
         return { success: true };
       } catch (error: any) {
         console.error('Login failed:', error.message || 'Unknown error');
@@ -452,7 +480,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { success: false, error: errorMessage };
       }
     },
-    [applyOrganizationFromMe, refreshOrganization],
+    [applyOrganizationFromMe, refreshOrganization, refreshDefaultTexts],
   );
 
   const signup = useCallback(
@@ -470,6 +498,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         applyOrganizationFromMe(me);
         setIsAuthenticated(true);
         void refreshOrganization();
+        void refreshDefaultTexts();
         return { success: true };
       } catch (error: any) {
         console.error('Signup failed:', error);
@@ -477,7 +506,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { success: false, error: errorMessage };
       }
     },
-    [applyOrganizationFromMe, refreshOrganization],
+    [applyOrganizationFromMe, refreshOrganization, refreshDefaultTexts],
   );
 
   const logout = useCallback(async () => {
@@ -778,6 +807,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       organizationLogoUrl,
       organizationProfile,
       refreshOrganization,
+      defaultTexts,
+      refreshDefaultTexts,
       navBadges,
       setNavBadge,
     }),
@@ -828,6 +859,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       organizationLogoUrl,
       organizationProfile,
       refreshOrganization,
+      defaultTexts,
+      refreshDefaultTexts,
       navBadges,
       setNavBadge,
     ],

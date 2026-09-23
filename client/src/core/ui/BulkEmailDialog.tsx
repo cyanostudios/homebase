@@ -17,6 +17,7 @@ import {
   DIALOG_SUBTITLE_CLASS,
 } from './dialogStyles';
 import { DialogHeading } from './DialogHeading';
+import { resolveBodyOnDialogOpen } from './bulkEmailDialogBody';
 
 export interface BulkEmailRecipient {
   id: string;
@@ -29,6 +30,8 @@ export interface BulkEmailDialogProps {
   onClose: () => void;
   recipients: BulkEmailRecipient[];
   pluginSource: string;
+  /** Prefill message body when the dialog opens (editable / clearable). */
+  initialBody?: string;
   /** Optional additional text appended to the email body (plain text) */
   additionalText?: string;
   /** Optional additional HTML appended to the email body */
@@ -50,6 +53,7 @@ export function BulkEmailDialog({
   onClose,
   recipients,
   pluginSource,
+  initialBody,
   additionalText,
   additionalHtml,
   additionalPreview,
@@ -64,9 +68,28 @@ export function BulkEmailDialog({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const sendBatchTotalRef = useRef(0);
+  const wasOpenRef = useRef(false);
 
   const withEmail = useMemo(() => recipients.filter((r) => hasValidEmail(r)), [recipients]);
   const withoutEmail = recipients.length - withEmail.length;
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      return;
+    }
+    const seed = typeof initialBody === 'string' ? initialBody : '';
+    if (!wasOpenRef.current) {
+      setBody(seed);
+      wasOpenRef.current = true;
+      return;
+    }
+    // Late-arriving default text: fill only while the field is still empty.
+    setBody((current) => {
+      const next = resolveBodyOnDialogOpen(true, true, initialBody, current);
+      return next !== undefined ? next : current;
+    });
+  }, [isOpen, initialBody]);
 
   useLayoutEffect(() => {
     if (isOpen && showRecipientSelection) {

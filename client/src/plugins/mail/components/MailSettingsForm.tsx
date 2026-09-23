@@ -210,6 +210,7 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
               title={t('mail.information', { defaultValue: 'Information' })}
               icon={Info}
               iconPlugin="mail"
+              subtleTitle
               className="p-4"
               collapsible
             >
@@ -259,6 +260,7 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
                   title={t('mail.providerType', { defaultValue: 'Provider type' })}
                   icon={Mail}
                   iconPlugin="mail"
+                  subtleTitle
                   className="p-6"
                 >
                   <div>
@@ -311,8 +313,8 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
                   }
                   icon={stacked && headerTrailing ? SlidersHorizontal : Mail}
                   iconPlugin="mail"
+                  subtleTitle
                   className="p-6"
-                  subtleTitle={Boolean(stacked && headerTrailing)}
                 >
                   {settingsDescription ? (
                     <p className="mb-4 text-sm text-muted-foreground">{settingsDescription}</p>

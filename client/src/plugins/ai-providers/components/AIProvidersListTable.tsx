@@ -26,17 +26,14 @@ import {
   resolveVisibleAIProvidersTableColumns,
 } from '../utils/aiProvidersTableColumns';
 
-const AI_ENABLED_ICON_SHELL_CLASS =
-  'h-5 w-5 bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300 [&_svg]:h-3 [&_svg]:w-3';
-const AI_DISABLED_ICON_SHELL_CLASS =
-  'h-5 w-5 bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300 [&_svg]:h-3 [&_svg]:w-3';
+const AI_PROVIDER_ICON_SHELL_CLASS =
+  'h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3';
 
 function aiProviderIdentityMeta(
   provider: ProviderSettings,
   t: (key: string) => string,
 ): string | null {
   const parts: string[] = [];
-  parts.push(provider.enabled ? t('aiProviders.statusEnabled') : t('aiProviders.statusDisabled'));
   const model = provider.defaultModel?.trim();
   if (model) {
     parts.push(model);
@@ -165,14 +162,10 @@ export function AIProvidersListTable({
                       <TableCell key={columnId} className="min-w-0 overflow-hidden">
                         <div className="flex min-w-0 flex-col gap-0.5">
                           <div className="flex min-w-0 items-center gap-1.5">
-                            <span title={statusLabel} className="inline-flex shrink-0">
+                            <span title={title} className="inline-flex shrink-0">
                               <SectionCategoryIcon
                                 icon={Sparkles}
-                                className={
-                                  provider.enabled
-                                    ? AI_ENABLED_ICON_SHELL_CLASS
-                                    : AI_DISABLED_ICON_SHELL_CLASS
-                                }
+                                className={AI_PROVIDER_ICON_SHELL_CLASS}
                               />
                             </span>
                             <span
@@ -182,11 +175,23 @@ export function AIProvidersListTable({
                               {title}
                             </span>
                           </div>
-                          {identityMeta ? (
-                            <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
-                              {identityMeta}
+                          <div className="flex min-w-0 items-center gap-1.5 pl-6">
+                            <span
+                              className={cn(
+                                'shrink-0 text-[10px] font-extrabold leading-tight',
+                                provider.enabled
+                                  ? QC_STATUS_BADGE_COLORS.success
+                                  : QC_STATUS_BADGE_COLORS.neutral,
+                              )}
+                            >
+                              {statusLabel}
                             </span>
-                          ) : null}
+                            {identityMeta ? (
+                              <span className="min-w-0 truncate text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                                {identityMeta}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </TableCell>
                     );

@@ -1,6 +1,6 @@
 // Account profile settings: shared tenant organization cards (identity, contact, billing).
 
-import { Trash2 } from 'lucide-react';
+import { Building2, Image, Landmark, Mail, MapPin, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
@@ -148,9 +148,9 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
   const readOnlyOrg = !canEditOrganization;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title="Account name" className="p-4">
+        <DetailSection title="Account name" icon={Building2} subtleTitle className="p-4 sm:p-6">
           <p className="mb-3 text-sm text-muted-foreground">
             Display name for this Homebase account (shared with your team).
           </p>
@@ -169,7 +169,7 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
       </Card>
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title="Contact" className="p-4">
+        <DetailSection title="Contact" icon={Mail} subtleTitle className="p-4 sm:p-6">
           <p className="mb-3 text-sm text-muted-foreground">
             Public website, email and phone for this account (shared with your team).
           </p>
@@ -218,7 +218,7 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
       </Card>
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title="Logo" className="p-4">
+        <DetailSection title="Logo" icon={Image} subtleTitle className="p-4 sm:p-6">
           <p className="mb-3 text-sm text-muted-foreground">
             Account logo used on documents and public surfaces.
           </p>
@@ -292,7 +292,7 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
       </Card>
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title="Address" className="p-4">
+        <DetailSection title="Address" icon={MapPin} subtleTitle className="p-4 sm:p-6">
           <p className="mb-3 text-sm text-muted-foreground">
             Postal address for the account (invoices, estimates, mail).
           </p>
@@ -362,7 +362,7 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
       </Card>
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title="Billing details" className="p-4">
+        <DetailSection title="Billing details" icon={Landmark} subtleTitle className="p-4 sm:p-6">
           <p className="mb-3 text-sm text-muted-foreground">
             Organization and payment details for invoicing.
           </p>

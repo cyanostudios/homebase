@@ -209,7 +209,12 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
       }
     >
       {activeCategory === 'season' && (
-        <DetailSection title={t('teams.settings.seasonSection')} className="pt-0">
+        <DetailSection
+          title={t('teams.settings.seasonSection')}
+          icon={CalendarRange}
+          subtleTitle
+          className="pt-0"
+        >
           <div className="space-y-1">
             <Input
               value={activeSeason}
@@ -225,7 +230,12 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
       )}
 
       {activeCategory === 'overview' && (
-        <DetailSection title={t('teams.settings.overviewSection')} className="pt-0">
+        <DetailSection
+          title={t('teams.settings.overviewSection')}
+          icon={LayoutGrid}
+          subtleTitle
+          className="pt-0"
+        >
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">{t('teams.settings.overviewHint')}</p>
             <ul className="divide-y divide-border/50 rounded-lg border border-border/50 bg-background">
@@ -265,7 +275,12 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
       )}
 
       {activeCategory === 'venues' && (
-        <DetailSection title={t('teams.settings.venuesSection')} className="pt-0">
+        <DetailSection
+          title={t('teams.settings.venuesSection')}
+          icon={MapPin}
+          subtleTitle
+          className="pt-0"
+        >
           <TeamsVenuesSettingsSection />
         </DetailSection>
       )}

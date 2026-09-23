@@ -291,6 +291,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
             title={t('aiProviders.information', { defaultValue: 'Information' })}
             icon={Info}
             iconPlugin="ai-providers"
+            subtleTitle
             className="p-4"
             collapsible
           >
@@ -340,6 +341,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
                 title={t('aiProviders.providerType', { defaultValue: 'Provider type' })}
                 icon={Sparkles}
                 iconPlugin="ai-providers"
+                subtleTitle
                 className="p-6"
               >
                 <div>
@@ -430,8 +432,8 @@ export const AIProvidersSettingsForm = React.forwardRef<
                   title={stacked && headerTrailing ? t('aiProviders.tabs.configuration') : title}
                   icon={stacked && headerTrailing ? SlidersHorizontal : Sparkles}
                   iconPlugin="ai-providers"
+                  subtleTitle
                   className="p-6"
-                  subtleTitle={Boolean(stacked && headerTrailing)}
                 >
                   {settingsDescription ? (
                     <p className="mb-4 text-sm text-muted-foreground">{settingsDescription}</p>
@@ -581,6 +583,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
                     title={t('aiProviders.credentials', { defaultValue: 'Credentials' })}
                     icon={Key}
                     iconPlugin="ai-providers"
+                    subtleTitle
                     className="p-6"
                   >
                     <p className="text-xs text-muted-foreground">

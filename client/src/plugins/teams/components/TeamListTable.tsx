@@ -11,6 +11,7 @@ import {
 } from '@/core/ui/SortableListTable';
 import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
+import { cn } from '@/lib/utils';
 
 import { isTeamOnBreak, TEAM_STATUS_BADGES, type Team, type TeamStatus } from '../types/teams';
 import { formatTeamLabel } from '../utils/formatTeamLabel';
@@ -110,20 +111,33 @@ export function TeamListTable({
         header: t('teams.table.name'),
         cell: (team) => {
           const label = team.name?.trim() || '—';
+          const statusKey: TeamStatus = isTeamOnBreak(team) ? 'break' : team.status;
           return (
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span title={t('nav.team')} className="inline-flex shrink-0">
-                <SectionCategoryIcon
-                  icon={Users}
-                  className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
-                />
-              </span>
-              <span
-                className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
-                title={label !== '—' ? label : undefined}
-              >
-                {label}
-              </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span title={t('nav.team')} className="inline-flex shrink-0">
+                  <SectionCategoryIcon
+                    icon={Users}
+                    className="h-5 w-5 bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200 [&_svg]:h-3 [&_svg]:w-3"
+                  />
+                </span>
+                <span
+                  className="min-w-0 truncate font-extrabold text-foreground transition-colors group-hover:text-primary"
+                  title={label !== '—' ? label : undefined}
+                >
+                  {label}
+                </span>
+              </div>
+              <div className="flex min-w-0 items-center gap-1.5 pl-6">
+                <span
+                  className={cn(
+                    'shrink-0 text-[10px] font-extrabold leading-tight',
+                    TEAM_STATUS_BADGES[statusKey],
+                  )}
+                >
+                  {t(`teams.status.${statusKey}`)}
+                </span>
+              </div>
             </div>
           );
         },

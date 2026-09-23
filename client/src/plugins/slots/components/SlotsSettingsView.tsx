@@ -114,7 +114,12 @@ export function SlotsSettingsView({
       }
     >
       {activeCategory === 'categories' && (
-        <DetailSection title="Categories" className="pt-0">
+        <DetailSection
+          title="Categories"
+          icon={SETTINGS_CATEGORY_ICONS.categories}
+          subtleTitle
+          className="pt-0"
+        >
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Categories can be assigned to slots in Slot form.

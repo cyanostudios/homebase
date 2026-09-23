@@ -108,9 +108,10 @@ export function DetailHeaderMetaRow({
 
 const DETAIL_HEADER_TRIGGER_ROW_CLASS =
   // py/pr keep absolute count badges inside the scrollport (overflow-x-auto forces y-clip).
-  `flex shrink-0 items-center ${DETAIL_HEADER_CHIP_GAP_CLASS} overflow-x-auto py-1.5 pr-1.5 no-scrollbar scroll-smooth`;
+  `flex shrink-0 items-center justify-end ${DETAIL_HEADER_CHIP_GAP_CLASS} overflow-x-auto py-1.5 pr-1.5 no-scrollbar scroll-smooth`;
 
-const DETAIL_HEADER_SUBMENU_CLASS = `flex min-w-0 flex-wrap items-center justify-end ${DETAIL_HEADER_CHIP_GAP_CLASS}`;
+/** Submenu pills — single row, right-aligned with triggers; scroll if the panel is too narrow. */
+const DETAIL_HEADER_SUBMENU_CLASS = `flex shrink-0 flex-nowrap items-center justify-end ${DETAIL_HEADER_CHIP_GAP_CLASS} overflow-x-auto py-1.5 pr-1.5 no-scrollbar scroll-smooth`;
 
 function DetailHeaderActionPills({ actions }: { actions: DetailHeaderMenuAction[] }) {
   return (
@@ -166,7 +167,7 @@ function DetailHeaderExtraMenuTrigger({
 
 /**
  * Shared detail-panel header toggle menus (Actions / Export / extras).
- * Trigger buttons stay put; open submenu always renders on the row below.
+ * Trigger cluster + open submenu are right-aligned (same right edge) for every open menu.
  */
 export function DetailHeaderMenus({
   actions,
@@ -198,58 +199,67 @@ export function DetailHeaderMenus({
 
   return (
     <>
-      <div className={cn('flex min-w-0 flex-col', DETAIL_HEADER_CHIP_GAP_CLASS, className)}>
-        <div className="flex min-w-0 items-center gap-3">
+      <div className={cn('flex w-full min-w-0 flex-col', DETAIL_HEADER_CHIP_GAP_CLASS, className)}>
+        <div className="flex w-full min-w-0 items-center gap-3">
           {leading ? <div className="min-w-0 flex-1">{leading}</div> : null}
-          <div className={DETAIL_HEADER_TRIGGER_ROW_CLASS}>
-            {beforeActions ? <span className="inline-flex shrink-0">{beforeActions}</span> : null}
-            <span className="inline-flex shrink-0">
-              <RoundIconLabelButton
-                icon={Zap}
-                label={resolvedActionsLabel}
-                variant={actionsOpen ? 'primary' : 'soft'}
-                alwaysExpanded
-                onClick={() => toggleMenu('actions')}
-              />
-            </span>
-            {afterActions ? <span className="inline-flex shrink-0">{afterActions}</span> : null}
-            {hasExport ? (
+          {/*
+            Menus column is pinned to the panel’s right edge (ml-auto).
+            items-end keeps trigger row + submenu sharing that right edge when
+            the open submenu is wider than the trigger cluster.
+          */}
+          <div
+            className={cn('ml-auto flex shrink-0 flex-col items-end', DETAIL_HEADER_CHIP_GAP_CLASS)}
+          >
+            <div className={DETAIL_HEADER_TRIGGER_ROW_CLASS}>
+              {beforeActions ? <span className="inline-flex shrink-0">{beforeActions}</span> : null}
               <span className="inline-flex shrink-0">
                 <RoundIconLabelButton
-                  icon={Download}
-                  label={resolvedExportLabel}
-                  variant={exportOpen ? 'primary' : 'soft'}
+                  icon={Zap}
+                  label={resolvedActionsLabel}
+                  variant={actionsOpen ? 'primary' : 'soft'}
                   alwaysExpanded
-                  onClick={() => toggleMenu('export')}
+                  onClick={() => toggleMenu('actions')}
                 />
               </span>
+              {afterActions ? <span className="inline-flex shrink-0">{afterActions}</span> : null}
+              {hasExport ? (
+                <span className="inline-flex shrink-0">
+                  <RoundIconLabelButton
+                    icon={Download}
+                    label={resolvedExportLabel}
+                    variant={exportOpen ? 'primary' : 'soft'}
+                    alwaysExpanded
+                    onClick={() => toggleMenu('export')}
+                  />
+                </span>
+              ) : null}
+              {extraMenus.map((menu) => (
+                <DetailHeaderExtraMenuTrigger
+                  key={menu.id}
+                  menu={menu}
+                  isOpen={openMenu === menu.id}
+                  onToggle={() => toggleMenu(menu.id)}
+                />
+              ))}
+            </div>
+
+            {actionsOpen ? (
+              <div className={DETAIL_HEADER_SUBMENU_CLASS}>
+                <DetailHeaderActionPills actions={actions} />
+              </div>
             ) : null}
-            {extraMenus.map((menu) => (
-              <DetailHeaderExtraMenuTrigger
-                key={menu.id}
-                menu={menu}
-                isOpen={openMenu === menu.id}
-                onToggle={() => toggleMenu(menu.id)}
-              />
-            ))}
+            {exportOpen ? (
+              <div className={DETAIL_HEADER_SUBMENU_CLASS}>
+                <DetailHeaderActionPills actions={exportActions} />
+              </div>
+            ) : null}
+            {openExtra ? (
+              <div className={cn(DETAIL_HEADER_SUBMENU_CLASS, 'items-stretch')}>
+                {openExtra.content}
+              </div>
+            ) : null}
           </div>
         </div>
-
-        {actionsOpen ? (
-          <div className={DETAIL_HEADER_SUBMENU_CLASS}>
-            <DetailHeaderActionPills actions={actions} />
-          </div>
-        ) : null}
-        {exportOpen ? (
-          <div className={DETAIL_HEADER_SUBMENU_CLASS}>
-            <DetailHeaderActionPills actions={exportActions} />
-          </div>
-        ) : null}
-        {openExtra ? (
-          <div className={cn(DETAIL_HEADER_SUBMENU_CLASS, 'items-stretch')}>
-            {openExtra.content}
-          </div>
-        ) : null}
       </div>
       {children}
     </>

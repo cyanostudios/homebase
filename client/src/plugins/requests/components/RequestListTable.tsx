@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Circle,
   Clock,
-  Inbox,
   Minus,
   XCircle,
   type LucideIcon,
@@ -23,14 +22,13 @@ import { cn } from '@/lib/utils';
 import {
   REQUEST_PRIORITY_COLORS,
   REQUEST_STATUS_COLORS,
+  REQUEST_STATUS_ICON_SHELL_CLASS,
   RESPONSE_DUE_URGENCY_COLORS,
   formatRequestStatusForDisplay,
   getDaysUntilResponseDue,
   getResponseDueUrgency,
   getTypeLabel,
   isRequestUnopened,
-  REQUEST_STATUS_ICON_SHELL_CLASS,
-  REQUEST_TYPE_ICON_SHELL_CLASS,
   type Request,
   type RequestStatus,
 } from '../types/requests';
@@ -166,17 +164,18 @@ export function RequestListTable({
                   {request.title || '—'}
                 </span>
               </div>
-              <div className="flex min-w-0 items-center gap-1 pl-6">
-                <span title={typeLabel} className="inline-flex shrink-0">
-                  <SectionCategoryIcon
-                    icon={Inbox}
-                    className={cn(
-                      'h-4 w-4 [&_svg]:h-2.5 [&_svg]:w-2.5',
-                      REQUEST_TYPE_ICON_SHELL_CLASS,
-                    )}
-                  />
+              <div className="flex min-w-0 items-center gap-1.5 pl-6">
+                <span
+                  className={cn(
+                    'shrink-0 text-[10px] font-extrabold leading-tight',
+                    REQUEST_STATUS_COLORS[request.status],
+                  )}
+                >
+                  {statusLabel}
                 </span>
-                <span className="min-w-0 truncate text-xs text-muted-foreground">{typeLabel}</span>
+                <span className="min-w-0 truncate text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                  {typeLabel}
+                </span>
               </div>
             </div>
           );

@@ -1,11 +1,11 @@
-import { CheckCircle2, FilePenLine, Tags } from 'lucide-react';
+import { Tags } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
-import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
+import { cn } from '@/lib/utils';
 
 import type { ClubdeskPriceList } from '../types/priceList';
 import type { PriceListSortField, PriceListSortOrder } from '../utils/priceListListSort';
@@ -83,15 +83,14 @@ export function PriceListListTable({
                 </span>
               </div>
               <div className="flex min-w-0 items-center gap-1.5 pl-6">
-                <StatusOutlineBadge
-                  compact
-                  icon={isPublished ? CheckCircle2 : FilePenLine}
-                  className={
-                    isPublished ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.muted
-                  }
+                <span
+                  className={cn(
+                    'shrink-0 text-[10px] font-extrabold leading-tight',
+                    isPublished ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.muted,
+                  )}
                 >
                   {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
-                </StatusOutlineBadge>
+                </span>
                 <span className="min-w-0 truncate text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
                   {identityMeta}
                 </span>

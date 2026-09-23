@@ -4,6 +4,45 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-23 – Settings DetailSection chrome (subtleTitle + icon + card padding)
+
+**Typ:** UI  
+**Scope:** Global Settings forms (`ProfileSettingsForm`, `TeamSettingsForm`, `PreferencesSettingsForm`, `DefaultTextsSettingsForm`); plugin `*SettingsView*` / settings sections (Tasks, Requests, Notes, Teams, Invoices, Estimates, Cups, Matches, Schedule, Slots, Garments, Guides, Files/CloudStorage, Mail, Pulse, AI Providers, Contacts, TableColumns, etc.); `SettingsList` `usesOwnCards` for preferences + default-texts.  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Settings section headings align with Mail routing cards: `DetailSection` with Lucide `icon`, `subtleTitle`, and card body padding `p-4 sm:p-6` (or equivalent). Preferences gets its own `Card` + `DETAIL_VIEW_CARD_CLASS` (same shell as Profile/Team/Default texts) instead of a bare section with `pt-0`.
+
+**Docs:** i18n unchanged; visual parity only.
+
+---
+
+## 2026-09-23 – Default texts (Settings) → invoice/estimate email body
+
+**Typ:** Enhancement (FE + BE)  
+**Scope:** Settings → **Default texts** (`DefaultTextsSettingsForm`); `GET/PUT /api/default-texts`; main DB `tenants.default_texts` (migration `166-tenants-default-texts.sql`); `AppContext.refreshDefaultTexts`; `BulkEmailDialog` `initialBody`; Invoice/Estimate Export → Email seeds body from account defaults.  
+**QA:** Underkänt 2026-09-23 (lint / CHANGELOG / migrate runner) → **Godkänt** 2026-09-23 efter B1–B3. **Security:** **Godkänt** 2026-09-23 — session auth, tenant-scoped SQL, CSRF on PUT, role gates (read: all tenant roles; write: admin/editor), normalize + 8000-char cap. Residual **R1** (BulkEmailDialog HTML body without escape — pre-existing sink, amplified by persistent defaults) awaits TPM accept or FE escape fix. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Shared account mail body defaults for invoice and estimate send dialogs. Admins/editors edit under Settings; all tenant roles can read. Opening Email invoice/estimate prefills the compose body (editable); share link still appended as before.
+
+**Begränsningar:** Requires main-DB migration `166` (`npm run migrate:tenants-default-texts`; `--both` when `PROD_MAIN_DATABASE_URL` is set). Soft-fail refresh yields an empty body seed. Outbound HTML email still embeds the compose `body` without HTML-escaping (same as manual typing in BulkEmailDialog).
+
+**Docs:** [`server/migrations/README.md`](../server/migrations/README.md) §166; [`INVOICES_PLUGIN.md`](./INVOICES_PLUGIN.md) / [`ESTIMATES_PLUGIN.md`](./ESTIMATES_PLUGIN.md) (Email + defaults); i18n `defaultTexts.*`.
+
+---
+
+## 2026-09-23 – List status as bold meta text; DetailHeaderMenus right-align
+
+**Typ:** UI  
+**Scope:** List tables (Tasks, Requests, Invoices, Estimates, Teams, Clubdesk, Price list, Mail/Pulse/AI providers, Ingest); `DetailHeaderMenus` (trigger + submenu column `ml-auto` / `items-end`, submenu `flex-nowrap`); `PLUGIN_VIEW_IMPLEMENTATION_GUIDE` § Detail header menus; `UI_AND_UX_STANDARDS_V3` §0.1 provider lists.  
+**QA:** **Godkänt** 2026-09-23 (scoped; settings `DetailSection` chrome carryover ej omgodkänd). **Security:** N/A (UI-only). **Local-first; not a prod release** by itself.  
+**Follow-up (same day):** CHANGELOG corrected after QA Underkänt — Tasks/Requests title status icons restored (see Sammanfattning).
+
+**Sammanfattning:** Plugin list status (and enabled/active where applicable) moves into the meta row as `text-[10px] font-extrabold` with existing `QC_*` / plugin status color tokens. **Most lists** drop a duplicating status icon on the title row (meta text only). **Tasks and Requests exception:** title row keeps `SectionCategoryIcon` for status; meta row still shows bold status label plus secondary text (priority / type) — not icon-only elsewhere. Detail header Actions/Export/extras stay on the right; open submenu pills share that right edge on one row (horizontal scroll if needed).
+
+**Docs:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](./PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) § Detail header menus; [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) §0.1.
+
+---
+
 ## 2026-09-23 – Mail / Pulse / AI Providers: stacked routing + view cards; status badges; Pulse `sms_enabled`
 
 **Typ:** Enhancement / UI (+ Pulse backend enablement)  

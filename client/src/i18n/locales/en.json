@@ -195,6 +195,19 @@
     "showTimeTracking": "Show Time tracking in top bar",
     "showPomodoro": "Show Pomodoro clock in top bar"
   },
+  "defaultTexts": {
+    "title": "Default texts",
+    "description": "Default messages for invoice and estimate emails",
+    "hint": "These texts appear in the email dialog when sending an invoice or estimate. You can edit or clear them before sending.",
+    "invoiceMail": "Default text for invoice mail",
+    "estimateMail": "Default text for estimate mail",
+    "invoiceMailHint": "Shown in the message field when emailing an invoice. You can edit or clear it before sending.",
+    "estimateMailHint": "Shown in the message field when emailing an estimate. You can edit or clear it before sending.",
+    "invoiceMailBody": "Message",
+    "estimateMailBody": "Message",
+    "invoiceMailPlaceholder": "Enter default message for invoice emails…",
+    "estimateMailPlaceholder": "Enter default message for estimate emails…"
+  },
   "slots": {
     "listDescription": "Plan bookable slots, visibility, and categories.",
     "title": "Slots",

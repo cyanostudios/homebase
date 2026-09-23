@@ -5,6 +5,7 @@ import React, { useImperativeHandle } from 'react';
 
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ActivityLogForm } from '@/core/ui/SettingsForms/ActivityLogForm';
+import { DefaultTextsSettingsForm } from '@/core/ui/SettingsForms/DefaultTextsSettingsForm';
 import { PreferencesSettingsForm } from '@/core/ui/SettingsForms/PreferencesSettingsForm';
 import { ProfileSettingsForm } from '@/core/ui/SettingsForms/ProfileSettingsForm';
 import { TeamSettingsForm } from '@/core/ui/SettingsForms/TeamSettingsForm';
@@ -40,6 +41,9 @@ export const SettingsForm = React.forwardRef<PanelFormHandle, SettingsFormProps>
     }
     if (category === 'preferences') {
       return <PreferencesSettingsForm onCancel={onCancel} />;
+    }
+    if (category === 'default-texts') {
+      return <DefaultTextsSettingsForm onCancel={onCancel} />;
     }
     if (category === 'activity-log') {
       return <ActivityLogForm onCancel={onCancel} />;

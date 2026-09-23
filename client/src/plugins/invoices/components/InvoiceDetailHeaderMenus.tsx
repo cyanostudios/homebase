@@ -44,7 +44,7 @@ export function InvoiceDetailHeaderMenus({
   leading?: React.ReactNode;
 }) {
   const { t } = useTranslation();
-  const { user, contacts } = useApp();
+  const { user, contacts, refreshDefaultTexts } = useApp();
   const {
     openInvoiceForEdit,
     deleteInvoice,
@@ -76,6 +76,7 @@ export function InvoiceDetailHeaderMenus({
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [sendEmailRecipients, setSendEmailRecipients] = useState<BulkEmailRecipient[]>([]);
   const [emailShareUrl, setEmailShareUrl] = useState<string | null>(null);
+  const [emailInitialBody, setEmailInitialBody] = useState('');
   const [isPreparingEmail, setIsPreparingEmail] = useState(false);
 
   const duplicateConfig = getDuplicateConfig(invoice);
@@ -120,7 +121,10 @@ export function InvoiceDetailHeaderMenus({
     }
     setIsPreparingEmail(true);
     try {
-      const share = await ensureInvoiceShareForItem(invoice);
+      const [share, texts] = await Promise.all([
+        ensureInvoiceShareForItem(invoice),
+        refreshDefaultTexts(),
+      ]);
       if (!share) {
         return;
       }
@@ -138,6 +142,7 @@ export function InvoiceDetailHeaderMenus({
         },
       ]);
       setEmailShareUrl(shareUrl);
+      setEmailInitialBody(texts.invoiceMail);
       setShowSendEmailDialog(true);
     } finally {
       setIsPreparingEmail(false);
@@ -148,6 +153,7 @@ export function InvoiceDetailHeaderMenus({
     setShowSendEmailDialog(false);
     setSendEmailRecipients([]);
     setEmailShareUrl(null);
+    setEmailInitialBody('');
   };
 
   const actions = useMemo((): DetailHeaderMenuAction[] => {
@@ -364,6 +370,7 @@ export function InvoiceDetailHeaderMenus({
         onClose={closeSendEmailDialog}
         recipients={sendEmailRecipients}
         pluginSource="invoices"
+        initialBody={emailInitialBody}
         additionalText={
           emailShareUrl ? formatInvoiceShareEmailText(emailShareUrl, shareLinkLabel) : undefined
         }

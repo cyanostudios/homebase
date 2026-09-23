@@ -59,6 +59,8 @@ describe('RequestList table view wiring', () => {
     expect(tableSrc).toMatch(/subtleRowDividers/);
     expect(tableSrc).toMatch(/headerBarClassName="bg-sky-50/);
     expect(tableSrc).toMatch(/SectionCategoryIcon/);
+    expect(tableSrc).toMatch(/REQUEST_STATUS_COLORS/);
+    expect(tableSrc).toMatch(/font-extrabold leading-tight/);
     expect(tableSrc).toMatch(/activeRequestId/);
     expect(tableSrc).toMatch(/selectionEnabled/);
   });

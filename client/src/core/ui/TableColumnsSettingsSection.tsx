@@ -1,4 +1,4 @@
-import { Grip } from 'lucide-react';
+import { Columns3, Grip } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -71,7 +71,7 @@ export function TableColumnsSettingsSection<TColumnId extends string>({
   };
 
   return (
-    <DetailSection title={title} className="pt-0">
+    <DetailSection title={title} icon={Columns3} subtleTitle className="pt-0">
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">{hint}</p>
         <ul className="divide-y divide-border/50 rounded-lg border border-border/50 bg-background">

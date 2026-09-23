@@ -29,7 +29,7 @@ Public share: `/public/estimate/:token` opens `PublicEstimateView` with an invoi
 | `GET /api/estimates/public/:token/pdf`       | **None** (rate-limited)          | Binary Offert PDF                                   |
 | `POST /api/estimates/:id/convert-to-invoice` | Session + plugin gate + **CSRF** | Creates draft invoice; sets estimate `invoiced`     |
 
-Sharing (authenticated): `POST /api/estimates/shares` (CSRF), `GET /api/estimates/:estimateId/shares`, `DELETE /api/estimates/shares/:shareId` (CSRF). Export → Share is **Tasks-style** (reuse active link or create with 30-day default → `ShareDialog`); no valid-until picker.
+Sharing (authenticated): `POST /api/estimates/shares` (CSRF), `GET /api/estimates/:estimateId/shares`, `DELETE /api/estimates/shares/:shareId` (CSRF). Export → Share is **Tasks-style** (reuse active link or create with 30-day default → `ShareDialog`); no valid-until picker. **Export → Email estimate** (mail plugin) ensures/reuses the share link, opens `BulkEmailDialog` with the customer as recipient, **Settings → Default texts** `estimateMail` as editable `initialBody` when set, and the public URL attached (same BulkEmailDialog / residual **R1** HTML-body class as invoices — see [`INVOICES_PLUGIN.md`](INVOICES_PLUGIN.md) Default texts security note).
 
 ## Status model
 

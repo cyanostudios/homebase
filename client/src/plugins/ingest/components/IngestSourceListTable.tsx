@@ -34,16 +34,11 @@ function statusBadgeClass(status: string) {
   return QC_STATUS_BADGE_COLORS.muted;
 }
 
-function ingestIdentityMeta(source: IngestSource, t: (key: string) => string): string | null {
+function ingestIdentityMeta(source: IngestSource): string | null {
   const parts: string[] = [];
   const type = source.sourceType?.trim();
   if (type) {
     parts.push(type);
-  }
-  parts.push(source.isActive ? t('ingest.active') : t('ingest.inactive'));
-  const status = source.lastFetchStatus?.trim();
-  if (status) {
-    parts.push(status);
   }
   if (source.lastFetchedAt) {
     parts.push(formatDateTimeShort(source.lastFetchedAt));
@@ -100,7 +95,9 @@ export function IngestSourceListTable({
         field: 'name',
         header: t('ingest.colName'),
         cell: (source) => {
-          const identityMeta = ingestIdentityMeta(source, t);
+          const identityMeta = ingestIdentityMeta(source);
+          const activeLabel = source.isActive ? t('ingest.active') : t('ingest.inactive');
+          const fetchStatus = source.lastFetchStatus?.trim() || null;
           return (
             <div className="flex min-w-0 flex-col gap-0.5">
               <div className="flex min-w-0 items-center gap-1.5">
@@ -117,11 +114,33 @@ export function IngestSourceListTable({
                   {source.name}
                 </span>
               </div>
-              {identityMeta ? (
-                <span className="min-w-0 truncate pl-6 text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
-                  {identityMeta}
+              <div className="flex min-w-0 items-center gap-1.5 pl-6">
+                <span
+                  className={cn(
+                    'shrink-0 text-[10px] font-extrabold leading-tight',
+                    source.isActive
+                      ? QC_STATUS_BADGE_COLORS.success
+                      : QC_STATUS_BADGE_COLORS.danger,
+                  )}
+                >
+                  {activeLabel}
                 </span>
-              ) : null}
+                {fetchStatus ? (
+                  <span
+                    className={cn(
+                      'shrink-0 text-[10px] font-extrabold leading-tight',
+                      statusBadgeClass(fetchStatus),
+                    )}
+                  >
+                    {fetchStatus}
+                  </span>
+                ) : null}
+                {identityMeta ? (
+                  <span className="min-w-0 truncate text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                    {identityMeta}
+                  </span>
+                ) : null}
+              </div>
             </div>
           );
         },
