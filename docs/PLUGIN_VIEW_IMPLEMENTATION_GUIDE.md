@@ -508,7 +508,7 @@ flex items-start justify-between gap-6
 </div>
 ```
 
-**List layout:** **Table-only** (`*ListTable` / `SortableListTable`). Do not add a cards/column layout toggle. Do not add a settings **View** tab for list layout. **Status on the identity column:** prefer bold colored meta text (`text-[10px] font-extrabold` + `QC_*` / plugin status color tokens) on the row under the title — not a title-row badge/icon. Optional dedicated status columns may still use `StatusOutlineBadge`.
+**List layout:** **Table-only** (`*ListTable` / `SortableListTable`). Do not add a cards/column layout toggle. Do not add a settings **View** tab for list layout. **Status on the identity column:** prefer bold colored meta text (`text-[10px] font-extrabold` + `QC_*` / plugin status color tokens) on the row under the title — not a title-row badge/icon. **Exception (Tasks, Requests):** title row keeps `SectionCategoryIcon` for status; meta row still shows the bold status label plus secondary text (priority / type). Optional dedicated status columns may still use `StatusOutlineBadge`.
 
 **Settings categories:** use `PluginSettingsPageShell` round category buttons whenever `categories.length >= 1` (keep the button chrome even for a single category, e.g. Tasks Import-only, **Estimates Numbering**). When `categories.length === 0` (temporary empty shell only), still pass required `children` and empty-state copy — do not omit `children` (TypeScript requires it).
 
