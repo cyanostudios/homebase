@@ -5,17 +5,22 @@ const routingSrc = fs.readFileSync(path.join(__dirname, '../MailProvidersRouting
 const listSrc = fs.readFileSync(path.join(__dirname, '../MailProvidersList.tsx'), 'utf8');
 
 describe('MailProvidersRouting settings shell', () => {
-  test('uses PluginSettingsPageShell with RoundIconLabelButton categories (Contacts settings pattern)', () => {
+  test('uses PluginSettingsPageShell with stacked global + per-plugin cards (no category tabs)', () => {
     expect(routingSrc).toMatch(/PluginSettingsPageShell/);
-    expect(routingSrc).toMatch(/SettingsHeaderSaveButton/);
-    expect(routingSrc).toMatch(/SETTINGS_CATEGORY_ICONS/);
-    expect(routingSrc).toMatch(/categories=\{categories\}/);
-    expect(routingSrc).toMatch(/activeCategory=\{activeCategory\}/);
-    expect(routingSrc).toMatch(/onClose=\{handleClose\}/);
-    expect(routingSrc).toMatch(/id: 'global'/);
-    expect(routingSrc).toMatch(/id: 'plugins'/);
-    expect(routingSrc).toMatch(/activeCategory === 'global'/);
-    expect(routingSrc).toMatch(/activeCategory === 'plugins'/);
+    expect(routingSrc).toMatch(/wrapContentInCard=\{false\}/);
+    expect(routingSrc).toMatch(/categories=\{\[\]\}/);
+    expect(routingSrc).toMatch(/DETAIL_VIEW_CARD_CLASS/);
+    expect(routingSrc).toMatch(/mail\.routing\.globalTitle/);
+    expect(routingSrc).toMatch(/mail\.routing\.pluginsTitle/);
+    expect(routingSrc).toMatch(/icon=\{Sparkles\}/);
+    expect(routingSrc).toMatch(/icon=\{Route\}/);
+    expect(routingSrc).toMatch(/iconPlugin="mail"/);
+    expect(routingSrc).toMatch(/subtleTitle/);
+    expect(routingSrc).toMatch(/RoundIconLabelButton/);
+    expect(routingSrc).toMatch(/variant="success"/);
+    expect(routingSrc).not.toMatch(/activeCategory/);
+    expect(routingSrc).not.toMatch(/SETTINGS_CATEGORY_ICONS/);
+    expect(routingSrc).not.toMatch(/SettingsHeaderSaveButton/);
     expect(routingSrc).not.toMatch(/LIST_FILTER_CHIP/);
     expect(routingSrc).not.toMatch(/PLUGIN_PAGE_TITLE_CLASS/);
   });
@@ -26,9 +31,17 @@ describe('MailProvidersRouting settings shell', () => {
       /plugin-mail flex min-h-0 flex-1 flex-col overflow-y-auto bg-background/,
     );
     expect(listSrc).toMatch(/px-4 py-4 md:px-6/);
-    expect(listSrc).toMatch(/selectedCategory=\{routingCategory\}/);
     expect(listSrc).toMatch(/onClose=\{closeRoutingView\}/);
+    expect(listSrc).not.toMatch(/selectedCategory/);
+    expect(listSrc).not.toMatch(/routingCategory/);
     expect(listSrc).not.toMatch(/renderCategoryButtonsInline/);
     expect(routingSrc).not.toMatch(/renderCategoryButtonsInline/);
+  });
+
+  test('per-plugin list uses compact invoice-style rows', () => {
+    expect(routingSrc).toMatch(/PLUGIN_ROUTING_ROW_CLASS/);
+    expect(routingSrc).toMatch(/FORM_COMPACT_SELECT_CLASS/);
+    expect(routingSrc).toMatch(/alwaysExpanded/);
+    expect(routingSrc).not.toMatch(/<Table/);
   });
 });

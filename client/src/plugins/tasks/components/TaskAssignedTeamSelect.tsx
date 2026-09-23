@@ -26,13 +26,19 @@ import { useTasks } from '../hooks/useTasks';
 interface TaskAssignedTeamSelectProps {
   task: { teamId?: string | null };
   onTeamChange: (teamId: string | null) => void;
+  /** Companion / browse-only: no search-to-add, no remove controls. */
+  readOnly?: boolean;
 }
 
 /**
  * Assigned-team picker: Contacts Linked-style tile + search-to-add (single team).
  * Tile click → team quick-info popup, then navigate on confirm.
  */
-export function TaskAssignedTeamSelect({ task, onTeamChange }: TaskAssignedTeamSelectProps) {
+export function TaskAssignedTeamSelect({
+  task,
+  onTeamChange,
+  readOnly = false,
+}: TaskAssignedTeamSelectProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { teams } = useTeams();
@@ -204,7 +210,7 @@ export function TaskAssignedTeamSelect({ task, onTeamChange }: TaskAssignedTeamS
           iconPlugin="teams"
           subtleTitle
           className="p-6"
-          action={searchAction}
+          action={readOnly ? undefined : searchAction}
         >
           {assignedTeam || orphanLabel ? (
             <QuickContextLinkTileGrid>
@@ -224,18 +230,20 @@ export function TaskAssignedTeamSelect({ task, onTeamChange }: TaskAssignedTeamS
                 >
                   {assignedTeam ? assignedLabel : orphanLabel}
                 </QuickContextLinkTile>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={X}
-                  className="absolute right-1 top-1 h-7 w-7 p-0 text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onTeamChange(null);
-                  }}
-                  aria-label={t('tasks.removeAssignedTeam')}
-                />
+                {readOnly ? null : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    icon={X}
+                    className="absolute right-1 top-1 h-7 w-7 p-0 text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onTeamChange(null);
+                    }}
+                    aria-label={t('tasks.removeAssignedTeam')}
+                  />
+                )}
               </div>
             </QuickContextLinkTileGrid>
           ) : (

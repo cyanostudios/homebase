@@ -45,7 +45,29 @@ function createPulseRoutes(context) {
     '/providers/routing/plugins/:pluginKey',
     gate,
     csrfProtection,
-    [body('providerKey').isString().trim().notEmpty()],
+    [
+      body('enabled').optional().isBoolean(),
+      body('providerKey')
+        .optional({ values: 'null' })
+        .custom((value) => value === null || value === undefined || typeof value === 'string')
+        .withMessage('providerKey must be a string or null'),
+      body().custom((_, { req }) => {
+        const hasEnabled = Object.prototype.hasOwnProperty.call(req.body || {}, 'enabled');
+        const hasProvider = Object.prototype.hasOwnProperty.call(req.body || {}, 'providerKey');
+        if (!hasEnabled && !hasProvider) {
+          throw new Error('Provide enabled and/or providerKey');
+        }
+        if (
+          hasProvider &&
+          req.body.providerKey != null &&
+          String(req.body.providerKey).trim() === ''
+        ) {
+          // empty string is allowed (clear override) — normalize later in model
+          return true;
+        }
+        return true;
+      }),
+    ],
     validateRequest,
     (req, res) => controller.savePluginRouting(req, res),
   );

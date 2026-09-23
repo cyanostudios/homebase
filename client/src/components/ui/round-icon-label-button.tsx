@@ -7,6 +7,7 @@ export type RoundIconLabelButtonVariant =
   | 'primary'
   | 'soft'
   | 'secondary'
+  | 'category'
   | 'success'
   | 'successSoft'
   | 'danger'
@@ -37,6 +38,12 @@ const variantClasses: Record<RoundIconLabelButtonVariant, string> = {
   soft: 'bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground',
   /** Gray pills (bulk / Actions / Export / Close); hover: soft primary chip. */
   secondary: 'bg-secondary text-secondary-foreground hover:bg-primary/10 hover:text-primary',
+  /**
+   * Left-nav category chrome (`SECTION_CATEGORY_ICON_SHELL_CLASS`): slate shell + sky icon.
+   * Keep tokens in sync with `DetailSection` / sidebar categories.
+   */
+  category:
+    'bg-slate-100 text-sky-500 hover:bg-slate-200 dark:bg-slate-800/60 dark:text-sky-400 dark:hover:bg-slate-700/80',
   success:
     'border-none bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700',
   /** Idle: soft green; hover: solid green. */

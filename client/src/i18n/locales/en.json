@@ -2274,6 +2274,7 @@
     "viewCreated": "Created",
     "viewUpdated": "Updated",
     "previewImage": "Image preview",
+    "previewOpenLightbox": "Enlarge image",
     "previewPdf": "PDF preview",
     "previewContent": "File content",
     "previewUnavailableTitle": "Preview unavailable",
@@ -2424,10 +2425,6 @@
       "open": "Routing",
       "title": "Mail – Routing",
       "description": "Set a global default email provider and optional per-plugin overrides. Only email-capable providers appear here.",
-      "categories": {
-        "global": "Global default",
-        "plugins": "Per-plugin"
-      },
       "globalTitle": "Global default",
       "globalHint": "Used by any plugin without its own override. Only configured and enabled email providers are available.",
       "pluginsHint": "Optional. When set, a plugin uses its assigned provider instead of the global default.",
@@ -2572,19 +2569,19 @@
     "routing": {
       "open": "Routing",
       "title": "Pulse – Routing",
-      "description": "Set a global default SMS provider and optional per-plugin overrides. Only SMS-capable providers appear here.",
-      "categories": {
-        "global": "Global default",
-        "plugins": "Per-plugin"
-      },
+      "description": "Set a global default SMS provider, then enable Pulse per activated plugin. Only SMS-capable providers appear here.",
       "globalTitle": "Global default",
-      "globalHint": "Used by any plugin without its own override. Only configured and enabled SMS providers are available.",
-      "pluginsHint": "Optional. When set, a plugin uses its assigned provider instead of the global default.",
+      "globalHint": "Used by any plugin with Pulse enabled and no provider override. Only configured and enabled SMS providers are available.",
+      "pluginsHint": "Every activated plugin appears here. Turn on Pulse SMS to allow sending; optionally override the global provider.",
       "provider": "Provider",
       "plugin": "Plugin",
-      "pluginsTitle": "Per-plugin overrides",
+      "pulseEnabled": "Pulse",
+      "pulseEnabledAria": "Enable Pulse SMS for {{plugin}}",
+      "pluginsTitle": "Per-plugin Pulse SMS",
+      "noPlugins": "No activated plugins available for Pulse routing.",
       "saveGlobal": "Save global default",
       "clear": "Clear",
+      "useGlobalDefault": "Use global default",
       "inheritGlobal": "Inherit global",
       "globalProviderRequired": "Choose a provider for the global default.",
       "pluginProviderRequired": "Choose a provider override or clear the assignment.",
@@ -2665,10 +2662,6 @@
       "open": "Routing",
       "title": "AI Providers – Routing",
       "description": "Set a global default provider and optional per-plugin overrides. Plugins request AI through routing — never a specific vendor directly.",
-      "categories": {
-        "global": "Global default",
-        "plugins": "Per-plugin"
-      },
       "globalTitle": "Global default",
       "globalHint": "Used by any plugin without its own override. Only configured and enabled providers are available.",
       "pluginsTitle": "Per-plugin overrides",

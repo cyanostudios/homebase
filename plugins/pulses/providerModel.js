@@ -7,7 +7,7 @@ const {
   isSmsNotificationCapable,
   listCatalogForApi,
 } = require('./providerCatalog');
-const { ROUTABLE_PLUGINS, normalizeRoutablePluginKey } = require('./routablePlugins');
+const { listCandidatePluginsFromReq, normalizeRoutablePluginKey } = require('./routablePlugins');
 
 const SETTINGS_TABLE = 'pulse_provider_settings';
 const ROUTING_TABLE = 'pulse_provider_routing';
@@ -53,7 +53,7 @@ function normalizeOptionValue(value) {
   return trimmed ? trimmed.slice(0, 500) : null;
 }
 
-function normalizeRoutingScope(value) {
+function normalizeRoutingScope(value, req) {
   const normalized = String(value ?? '').trim();
   if (!normalized) {
     throw new AppError('Routing scope is required', 400, AppError.CODES.VALIDATION_ERROR);
@@ -61,7 +61,7 @@ function normalizeRoutingScope(value) {
   if (normalized === GLOBAL_ROUTING_SCOPE) {
     return normalized;
   }
-  return normalizeRoutablePluginKey(normalized);
+  return normalizeRoutablePluginKey(normalized, req);
 }
 
 /** Option keys allowed for a catalog entry (storage === 'option'). */
@@ -433,7 +433,8 @@ class PulseProviderSettingsModel {
       id: String(row.id),
       userId: String(row.user_id),
       scope: row.scope,
-      providerKey: row.provider_key,
+      providerKey: row.provider_key ?? null,
+      smsEnabled: row.scope === GLOBAL_ROUTING_SCOPE ? true : Boolean(row.sms_enabled),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -463,10 +464,10 @@ class PulseProviderSettingsModel {
     try {
       const db = Database.get(req);
       const userId = this._requireUserId(req);
-      const normalizedScope = normalizeRoutingScope(scope);
+      const normalizedScope = normalizeRoutingScope(scope, req);
       const rows = await db.query(
         `
-          SELECT id, user_id, scope, provider_key, created_at, updated_at
+          SELECT id, user_id, scope, provider_key, sms_enabled, created_at, updated_at
           FROM ${ROUTING_TABLE}
           WHERE user_id = $1 AND scope = $2
           LIMIT 1
@@ -489,9 +490,10 @@ class PulseProviderSettingsModel {
     try {
       const db = Database.get(req);
       const userId = this._requireUserId(req);
+      const candidates = listCandidatePluginsFromReq(req);
       const rows = await db.query(
         `
-          SELECT id, user_id, scope, provider_key, created_at, updated_at
+          SELECT id, user_id, scope, provider_key, sms_enabled, created_at, updated_at
           FROM ${ROUTING_TABLE}
           WHERE user_id = $1
           ORDER BY scope ASC
@@ -506,11 +508,12 @@ class PulseProviderSettingsModel {
       );
 
       const globalRow = byScope.get(GLOBAL_ROUTING_SCOPE) ?? null;
-      const pluginAssignments = ROUTABLE_PLUGINS.map((plugin) => {
+      const pluginAssignments = candidates.map((plugin) => {
         const row = byScope.get(plugin.key);
         return {
           pluginKey: plugin.key,
           label: plugin.label,
+          enabled: Boolean(row?.smsEnabled),
           providerKey: row?.providerKey ?? null,
         };
       });
@@ -518,7 +521,7 @@ class PulseProviderSettingsModel {
       return {
         global: globalRow ? { providerKey: globalRow.providerKey } : null,
         plugins: pluginAssignments,
-        routablePlugins: ROUTABLE_PLUGINS.map((entry) => ({ ...entry })),
+        routablePlugins: candidates.map((entry) => ({ ...entry })),
       };
     } catch (error) {
       Logger.error('Failed to list Pulse provider routing', error);
@@ -535,31 +538,74 @@ class PulseProviderSettingsModel {
     try {
       const db = Database.get(req);
       const userId = this._requireUserId(req);
-      const normalizedScope = normalizeRoutingScope(scope);
-      const normalizedProvider = await this._assertRoutingProviderAvailable(req, data.providerKey);
+      const normalizedScope = normalizeRoutingScope(scope, req);
+      const body = data && typeof data === 'object' ? data : {};
+
+      if (normalizedScope === GLOBAL_ROUTING_SCOPE) {
+        const normalizedProvider = await this._assertRoutingProviderAvailable(
+          req,
+          body.providerKey,
+        );
+        const savedRows = await db.query(
+          `
+            INSERT INTO ${ROUTING_TABLE} (
+              user_id, scope, provider_key, sms_enabled, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            )
+            ON CONFLICT (user_id, scope) DO UPDATE SET
+              provider_key = EXCLUDED.provider_key,
+              sms_enabled = TRUE,
+              updated_at = CURRENT_TIMESTAMP
+            RETURNING id, user_id, scope, provider_key, sms_enabled, created_at, updated_at
+          `,
+          [userId, normalizedScope, normalizedProvider],
+        );
+        const saved = this._transformRoutingRow(savedRows[0]);
+        return { global: { providerKey: saved.providerKey } };
+      }
+
+      const existing = await this.getRoutingForScope(req, normalizedScope);
+      let nextEnabled =
+        body.enabled === undefined ? Boolean(existing?.smsEnabled) : Boolean(body.enabled);
+
+      let nextProviderKey = existing?.providerKey ?? null;
+      if (Object.prototype.hasOwnProperty.call(body, 'providerKey')) {
+        if (body.providerKey == null || String(body.providerKey).trim() === '') {
+          nextProviderKey = null;
+        } else {
+          nextProviderKey = await this._assertRoutingProviderAvailable(req, body.providerKey);
+          if (body.enabled === undefined) {
+            nextEnabled = true;
+          }
+        }
+      }
+
+      if (!nextEnabled) {
+        nextProviderKey = null;
+      }
 
       const savedRows = await db.query(
         `
           INSERT INTO ${ROUTING_TABLE} (
-            user_id, scope, provider_key, created_at, updated_at
+            user_id, scope, provider_key, sms_enabled, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            $1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
           )
           ON CONFLICT (user_id, scope) DO UPDATE SET
             provider_key = EXCLUDED.provider_key,
+            sms_enabled = EXCLUDED.sms_enabled,
             updated_at = CURRENT_TIMESTAMP
-          RETURNING id, user_id, scope, provider_key, created_at, updated_at
+          RETURNING id, user_id, scope, provider_key, sms_enabled, created_at, updated_at
         `,
-        [userId, normalizedScope, normalizedProvider],
+        [userId, normalizedScope, nextProviderKey, nextEnabled],
       );
 
       const saved = this._transformRoutingRow(savedRows[0]);
-      if (normalizedScope === GLOBAL_ROUTING_SCOPE) {
-        return { global: { providerKey: saved.providerKey } };
-      }
       return {
         plugin: {
           pluginKey: saved.scope,
+          enabled: saved.smsEnabled,
           providerKey: saved.providerKey,
         },
       };
@@ -578,12 +624,28 @@ class PulseProviderSettingsModel {
     try {
       const db = Database.get(req);
       const userId = this._requireUserId(req);
-      const normalizedPlugin = normalizeRoutablePluginKey(pluginKey);
-      await db.query(`DELETE FROM ${ROUTING_TABLE} WHERE user_id = $1 AND scope = $2`, [
-        userId,
-        normalizedPlugin,
-      ]);
-      return { pluginKey: normalizedPlugin, deleted: true };
+      const normalizedPlugin = normalizeRoutablePluginKey(pluginKey, req);
+      const savedRows = await db.query(
+        `
+          INSERT INTO ${ROUTING_TABLE} (
+            user_id, scope, provider_key, sms_enabled, created_at, updated_at
+          ) VALUES (
+            $1, $2, NULL, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          )
+          ON CONFLICT (user_id, scope) DO UPDATE SET
+            provider_key = NULL,
+            updated_at = CURRENT_TIMESTAMP
+          RETURNING id, user_id, scope, provider_key, sms_enabled, created_at, updated_at
+        `,
+        [userId, normalizedPlugin],
+      );
+      const saved = this._transformRoutingRow(savedRows[0]);
+      return {
+        pluginKey: normalizedPlugin,
+        deleted: true,
+        enabled: saved.smsEnabled,
+        providerKey: null,
+      };
     } catch (error) {
       Logger.error('Failed to delete Pulse provider routing override', error);
       if (error instanceof AppError) throw error;

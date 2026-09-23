@@ -4,6 +4,46 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-23 – Mail / Pulse / AI Providers: stacked routing + view cards; status badges; Pulse `sms_enabled`
+
+**Typ:** Enhancement / UI (+ Pulse backend enablement)  
+**Scope:** `MailProvidersRouting` / `PulseProvidersRouting` / `AIProvidersRouting` (Global + Per-plugin as stacked `DetailSection` cards; no category tabs; invoice-dense rows; Save alwaysExpanded; AI has no Clear); `MailProviderView` / `PulseProviderView` / `AIProviderView` (Information / Configuration / Test as stacked cards — no `?tab=` chips); list tables + detail header `StatusOutlineBadge` (Tasks pattern); Pulse migration `165-pulse-plugin-sms-enabled.sql`, `routablePlugins`, nullable `provider_key` + per-plugin `sms_enabled`, fail-closed send; i18n (removed dead `routing.categories`); tests `*ViewStackedCards` / routing shells / list tables / pulses BE.  
+**QA:** Underkänt 2026-09-23 (CHANGELOG saknades) → **Godkänt** 2026-09-23 efter CHANGELOG + supersession. **Security:** **Godkänt** 2026-09-23 — Pulse `sms_enabled` fail-closed + session-plugin gate + CSRF/user scoping; FE Mail/AI chrome UI-only. Inherited residual **A1** (klartext provider secrets) oförändrad, väntar TPM. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Provider routing and detail views drop URL/category tabs in favour of two (routing) or three (view) stacked cards with section titles and Save in the card header. List and header status use the same outline badge as Tasks. Pulse per-plugin SMS is an explicit `sms_enabled` switch over a dynamic tenant-plugin list (legacy hardcoded allowlist + required provider key superseded); send stays fail-closed when Pulse is off for that plugin.
+
+**Begränsningar:** Older deep links with `?tab=` on Mail/Pulse/AI provider detail no longer switch panels (tabs removed). Pulse tenants need migration `165` before the new routing contract.
+
+**Docs:** ADR [`ai/adr/P-PULSE_PROVIDER_PLATFORM.md`](./ai/adr/P-PULSE_PROVIDER_PLATFORM.md) (routable plugins / `sms_enabled` / UX). Operator chrome: [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) §0.1 provider lists. **Supersedes** 2026-09-15 “Mail + Pulse provider detail: Actions + tabs” and the Global/Per-plugin **category** chrome in 2026-09-15 Mail/Pulse/AI routing shell entries (shell + Save/Close remain).
+
+---
+
+## 2026-09-23 – Notes / Tasks / Requests: companions (desktop right rail)
+
+**Typ:** enhancement / UI (shell + notes/tasks/requests)  
+**Scope:** `PLUGIN_REGISTRY` notes/tasks/requests (`canOpenAsCompanionFor`, hide on primary, rail icons StickyNote/CheckSquare/Inbox); `NoteList` / `TaskList` / `RequestList` `isCompanion`; `*View` / `*QuickContextPanel` `readOnly` + `headerTrailing`; companion title-only columns.  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Same contacts-shaped companions: browse list in ~640px flyout; row soft-select replaces list with read-only View (Notes: information/files; Tasks: information/assignees; Requests: information/assignees/files); **Open full** closes companion and opens the item on the primary page; hide rail on `/notes`, `/tasks`, `/requests`. **No backend changes.**
+
+**Docs:** [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) § App right sidebar; ADR [`ai/adr/NOTES_TASKS_REQUESTS_COMPANION.md`](./ai/adr/NOTES_TASKS_REQUESTS_COMPANION.md).
+
+---
+
+## 2026-09-23 – Contacts: companion (desktop right rail)
+
+**Typ:** enhancement / UI (shell + contacts)  
+**Scope:** `PLUGIN_REGISTRY` contacts entry (`canOpenAsCompanionFor: ['teams']`, `companionHideOnPrimaryPages: ['contacts']`, `companionRailIcon: Users`, `companionRailTitleNavPage: 'contacts'`); `ContactList` (`isCompanion` **view-only** embed); `ContactView` / `ContactQuickContextPanel` `readOnly` + `headerTrailing`; companion name-only columns; i18n `contacts.quickContext.openFullProfile` (existing).  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** When contacts is tenant-enabled, desktop (`lg+`) shows a **Users** rail toggle that opens a ~640px companion flyout with contacts browse (`ContactList` + `isCompanion`). Rail / open flyout **hide on `/contacts`**. Default mode is **browse/view-only**: search/sort/filter; row soft-select **replaces** the list with **`ContactView` `readOnly`** (local tabs information/addresses/persons; no linked/activity; no URL `?tab=` mutation). **Close** returns to the list. **Open full** closes the companion and opens that contact via `openContactForView`. No Add/bulk/settings/edit/delete in companion. Schedule and Garments companions unchanged. **No backend changes.**
+
+**Begränsningar:** Desktop-only. Create/edit/bulk/linked/activity stay on the full contacts page.
+
+**Docs:** [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) § App right sidebar; ADR [`ai/adr/CONTACTS_COMPANION.md`](./ai/adr/CONTACTS_COMPANION.md).
+
+---
+
 ## 2026-09-23 – Estimates: invoice parity (currency/VAT, email share, Send chrome)
 
 **Typ:** Enhancement / UI  
@@ -716,6 +756,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 - **Why:** Stacked Mail/Pulse provider detail lacked the Actions header row used by AI Providers.
 - **What:** `MailProviderView` / `PulseProviderView` mount `*DetailHeaderMenus` with leading title, Information / Configuration / Test chips via `?tab=`, and Actions Edit / Delete / Send test (opens test tab).
+- **Superseded 2026-09-23:** Information / Configuration / Test are stacked cards (no `?tab=` chips); same pattern on AI Providers. Actions + Send test / Test connection remain (scroll to Test card). See “Mail / Pulse / AI Providers: stacked routing + view cards…”.
 
 ## 2026-09-15 – Mail + Pulse sent history: routing settings page layout
 
@@ -733,6 +774,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - **Why:** Routing still used custom page chrome instead of the shared plugin settings shell (categories, header Save/Close).
 - **What:** `MailProvidersRouting` and `PulseProvidersRouting` use `PluginSettingsPageShell` with Global / Per-plugin categories, header Save when global default is dirty, and Contacts-style page mount + padding. Per-plugin row Save/Clear unchanged.
 - **Note:** Mount scroll class later corrected to `flex min-h-0 flex-1 flex-col overflow-y-auto` under `contentOwnsScroll` (see “Pulse/Mail/AI settings mounts: own scroll”).
+- **Superseded 2026-09-23:** Global + Per-plugin are stacked cards (no shell category tabs); dense rows + Save alwaysExpanded (Pulse Clear kept; see stacked routing + view cards entry). Shell Close / page mount remain.
 
 ## 2026-09-15 – Mail + Pulse provider lists: mail-layout list|content
 
@@ -744,6 +786,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - **Why:** Routing used the settings shell components but not the Contacts settings page mount (padding/surface, lifted category state, header Save when dirty).
 - **What:** `AIProvidersList` mounts routing with Contacts-style padding (`px-4 py-4 md:px-6`). `AIProvidersRouting` accepts category/close props, uses `SETTINGS_CATEGORY_ICONS`, and shows `SettingsHeaderSaveButton` for dirty global default (per-plugin row Save/Clear unchanged).
 - **Note:** Mount scroll class later corrected to `flex min-h-0 flex-1 flex-col overflow-y-auto` under `contentOwnsScroll` (see “Pulse/Mail/AI settings mounts: own scroll”).
+- **Superseded 2026-09-23:** Same stacked Global + Per-plugin cards as Mail/Pulse (no Clear on AI); see stacked routing + view cards entry.
 
 ## 2026-09-15 – AI Providers mail-layout list|content
 

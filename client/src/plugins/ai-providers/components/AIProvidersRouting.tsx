@@ -1,8 +1,10 @@
+import { Check, Route, Sparkles } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import {
   Select,
   SelectContent,
@@ -10,21 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { DetailSection } from '@/core/ui/DetailSection';
-import {
-  PluginSettingsPageShell,
-  SettingsHeaderSaveButton,
-  type PluginSettingsCategory,
-} from '@/core/ui/PluginSettingsPageShell';
-import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { FORM_COMPACT_SELECT_CLASS, FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
+import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
+import { cn } from '@/lib/utils';
 
 import { useAIProviders } from '../hooks/useAIProviders';
 import type {
@@ -36,11 +28,16 @@ import type {
 const NONE_VALUE = '__none__';
 const GLOBAL_DEFAULT_VALUE = '__global__';
 
-export type AIProvidersRoutingCategory = 'global' | 'plugins';
+/** Invoice line-item–inspired dense row shell. */
+const PLUGIN_ROUTING_ROW_CLASS =
+  'flex flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-md border border-border/60 px-2.5 py-2';
+
+const PLUGIN_ROUTING_LABEL_CLASS =
+  'block text-[10px] font-normal leading-none text-slate-400 dark:text-slate-500';
+
+const PLUGIN_ROUTING_NAME_CLASS = 'truncate text-xs font-semibold text-foreground';
 
 interface AIProvidersRoutingProps {
-  selectedCategory?: AIProvidersRoutingCategory;
-  onSelectedCategoryChange?: (category: AIProvidersRoutingCategory) => void;
   onClose?: () => void;
 }
 
@@ -70,11 +67,7 @@ function modelOptionsForProvider(
   return options;
 }
 
-export function AIProvidersRouting({
-  selectedCategory,
-  onSelectedCategoryChange,
-  onClose,
-}: AIProvidersRoutingProps = {}) {
+export function AIProvidersRouting({ onClose }: AIProvidersRoutingProps = {}) {
   const { t } = useTranslation();
   const {
     catalog,
@@ -85,7 +78,6 @@ export function AIProvidersRouting({
     loadRouting,
     saveGlobalRouting,
     savePluginRouting,
-    deletePluginRouting,
     closeRoutingView,
   } = useAIProviders();
 
@@ -126,10 +118,6 @@ export function AIProvidersRouting({
     [textGeneratableRoutableProviders, audioGeneratableRoutableProviders, routableProviders],
   );
 
-  const [internalCategory, setInternalCategory] = useState<AIProvidersRoutingCategory>('global');
-  const activeCategory = selectedCategory ?? internalCategory;
-  const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
-
   const [globalProviderKey, setGlobalProviderKey] = useState('');
   const [globalModel, setGlobalModel] = useState('');
   const [initialGlobalProviderKey, setInitialGlobalProviderKey] = useState('');
@@ -141,34 +129,6 @@ export function AIProvidersRouting({
   const [savingPluginKey, setSavingPluginKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const categories: PluginSettingsCategory[] = useMemo(
-    () => [
-      {
-        id: 'global',
-        label: t('aiProviders.routing.categories.global', {
-          defaultValue: 'Global default',
-        }),
-        description: t('aiProviders.routing.globalHint', {
-          defaultValue:
-            'Used by any plugin without its own override. Only configured and enabled providers are available.',
-        }),
-        icon: SETTINGS_CATEGORY_ICONS.routingGlobal,
-      },
-      {
-        id: 'plugins',
-        label: t('aiProviders.routing.categories.plugins', {
-          defaultValue: 'Per-plugin',
-        }),
-        description: t('aiProviders.routing.pluginsHint', {
-          defaultValue:
-            'Optional. When set, a plugin uses its assigned provider instead of the global default.',
-        }),
-        icon: SETTINGS_CATEGORY_ICONS.routingPlugins,
-      },
-    ],
-    [t],
-  );
 
   useEffect(() => {
     let cancelled = false;
@@ -206,8 +166,7 @@ export function AIProvidersRouting({
   );
 
   const isDirty =
-    activeCategory === 'global' &&
-    (globalProviderKey !== initialGlobalProviderKey || globalModel !== initialGlobalModel);
+    globalProviderKey !== initialGlobalProviderKey || globalModel !== initialGlobalModel;
 
   const handleSaveGlobal = useCallback(async () => {
     if (!globalProviderKey) {
@@ -270,29 +229,6 @@ export function AIProvidersRouting({
     [pluginDrafts, savePluginRouting, t],
   );
 
-  const handleClearPlugin = useCallback(
-    async (pluginKey: string) => {
-      setSavingPluginKey(pluginKey);
-      setError(null);
-      try {
-        await deletePluginRouting(pluginKey);
-        setPluginDrafts((prev) => ({
-          ...prev,
-          [pluginKey]: { providerKey: '', model: '' },
-        }));
-      } catch {
-        setError(
-          t('aiProviders.routing.saveError', {
-            defaultValue: 'Failed to save routing settings.',
-          }),
-        );
-      } finally {
-        setSavingPluginKey(null);
-      }
-    },
-    [deletePluginRouting, t],
-  );
-
   if (isLoading || (routingLoading && !routing)) {
     return (
       <div className="text-sm text-muted-foreground">
@@ -301,6 +237,8 @@ export function AIProvidersRouting({
     );
   }
 
+  const pluginRows = routing?.plugins ?? [];
+
   return (
     <PluginSettingsPageShell
       title={t('aiProviders.routing.title', { defaultValue: 'AI Providers – Routing' })}
@@ -308,264 +246,299 @@ export function AIProvidersRouting({
         defaultValue:
           'Set a global default provider and optional per-plugin overrides. Plugins request AI through routing — never a specific vendor directly.',
       })}
-      categories={categories}
-      activeCategory={activeCategory}
-      onCategoryChange={(id) => setActiveCategory(id as AIProvidersRoutingCategory)}
+      categories={[]}
       onClose={handleClose}
       onSave={isDirty ? () => void handleSaveGlobal() : undefined}
       isSaving={savingGlobal}
-      saveAction={
-        isDirty ? (
-          <SettingsHeaderSaveButton
-            onClick={() => void handleSaveGlobal()}
-            isSaving={savingGlobal}
-            disabled={!globalProviderKey}
-            label={t('common.save', { defaultValue: 'Save' })}
-            savingLabel={t('common.saving', { defaultValue: 'Saving…' })}
-          />
-        ) : null
-      }
+      wrapContentInCard={false}
     >
-      {error ? (
-        <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      ) : null}
+      <div className="space-y-4">
+        {error ? (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        ) : null}
 
-      {activeCategory === 'global' ? (
-        <DetailSection
-          title={t('aiProviders.routing.globalTitle', { defaultValue: 'Global default' })}
-          className="pt-0"
-        >
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              {t('aiProviders.routing.globalHint', {
-                defaultValue:
-                  'Used by any plugin without its own override. Only configured and enabled providers are available.',
-              })}
-            </p>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="ai-routing-global-provider">
-                  {t('aiProviders.routing.provider', { defaultValue: 'Provider' })}
-                </Label>
-                <Select
-                  value={globalProviderKey || undefined}
-                  onValueChange={(value) => {
-                    setGlobalProviderKey(value);
-                    const entry = catalog.find((item) => item.providerKey === value);
-                    setGlobalModel(entry?.defaultModel ?? '');
-                  }}
-                >
-                  <SelectTrigger id="ai-routing-global-provider" className="mt-1">
-                    <SelectValue
-                      placeholder={t('aiProviders.chooseProviderPlaceholder', {
-                        defaultValue: 'Select a provider…',
-                      })}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {textGeneratableRoutableProviders.map((provider) => (
-                      <SelectItem key={provider.providerKey} value={provider.providerKey}>
-                        {providerLabel(t, provider.providerKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {textGeneratableRoutableProviders.length === 0 ? (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {t('aiProviders.routing.noGeneratableProviders', {
-                      defaultValue:
-                        'Enable OpenAI (or another text-capable provider) with an API key — then it appears here.',
-                    })}
-                  </p>
-                ) : null}
-              </div>
-              <div>
-                <Label htmlFor="ai-routing-global-model">
-                  {t('aiProviders.defaultModel', { defaultValue: 'Default model' })}
-                </Label>
-                {globalModelOptions.length > 0 ? (
-                  <Select value={globalModel || undefined} onValueChange={setGlobalModel}>
-                    <SelectTrigger id="ai-routing-global-model" className="mt-1">
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('aiProviders.routing.globalTitle', { defaultValue: 'Global default' })}
+            icon={Sparkles}
+            iconPlugin="ai-providers"
+            subtleTitle
+            className="p-4 sm:p-6"
+            action={
+              isDirty ? (
+                <RoundIconLabelButton
+                  type="button"
+                  icon={Check}
+                  label={
+                    savingGlobal
+                      ? t('common.saving', { defaultValue: 'Saving…' })
+                      : t('common.save', { defaultValue: 'Save' })
+                  }
+                  variant="success"
+                  size="xs"
+                  alwaysExpanded
+                  disabled={savingGlobal || !globalProviderKey}
+                  onClick={() => void handleSaveGlobal()}
+                />
+              ) : null
+            }
+          >
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {t('aiProviders.routing.globalHint', {
+                  defaultValue:
+                    'Used by any plugin without its own override. Only configured and enabled providers are available.',
+                })}
+              </p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="ai-routing-global-provider">
+                    {t('aiProviders.routing.provider', { defaultValue: 'Provider' })}
+                  </Label>
+                  <Select
+                    value={globalProviderKey || undefined}
+                    onValueChange={(value) => {
+                      setGlobalProviderKey(value);
+                      const entry = catalog.find((item) => item.providerKey === value);
+                      setGlobalModel(entry?.defaultModel ?? '');
+                    }}
+                  >
+                    <SelectTrigger
+                      id="ai-routing-global-provider"
+                      className={cn(FORM_INPUT_CLASS, 'mt-1')}
+                    >
                       <SelectValue
-                        placeholder={t('aiProviders.routing.useProviderDefault', {
-                          defaultValue: 'Use provider default',
+                        placeholder={t('aiProviders.chooseProviderPlaceholder', {
+                          defaultValue: 'Select a provider…',
                         })}
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      {globalModelOptions.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.label}
+                      {textGeneratableRoutableProviders.map((provider) => (
+                        <SelectItem key={provider.providerKey} value={provider.providerKey}>
+                          {providerLabel(t, provider.providerKey)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                ) : (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {t('aiProviders.routing.chooseProviderFirst', {
-                      defaultValue: 'Choose a provider to see available models.',
-                    })}
-                  </p>
-                )}
+                  {textGeneratableRoutableProviders.length === 0 ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {t('aiProviders.routing.noGeneratableProviders', {
+                        defaultValue:
+                          'Enable OpenAI (or another text-capable provider) with an API key — then it appears here.',
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+                <div>
+                  <Label htmlFor="ai-routing-global-model">
+                    {t('aiProviders.defaultModel', { defaultValue: 'Default model' })}
+                  </Label>
+                  {globalModelOptions.length > 0 ? (
+                    <Select value={globalModel || undefined} onValueChange={setGlobalModel}>
+                      <SelectTrigger
+                        id="ai-routing-global-model"
+                        className={cn(FORM_INPUT_CLASS, 'mt-1')}
+                      >
+                        <SelectValue
+                          placeholder={t('aiProviders.routing.useProviderDefault', {
+                            defaultValue: 'Use provider default',
+                          })}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {globalModelOptions.map((model) => (
+                          <SelectItem key={model.id} value={model.id}>
+                            {model.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {t('aiProviders.routing.chooseProviderFirst', {
+                        defaultValue: 'Choose a provider to see available models.',
+                      })}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </DetailSection>
-      ) : null}
+          </DetailSection>
+        </Card>
 
-      {activeCategory === 'plugins' ? (
-        <DetailSection
-          title={t('aiProviders.routing.pluginsTitle', { defaultValue: 'Per-plugin overrides' })}
-          className="pt-0"
-        >
-          <p className="mb-4 text-sm text-muted-foreground">
-            {t('aiProviders.routing.pluginsHint', {
-              defaultValue:
-                'Optional. When set, a plugin uses its assigned provider instead of the global default.',
-            })}
-          </p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('aiProviders.routing.plugin', { defaultValue: 'Plugin' })}</TableHead>
-                <TableHead>
-                  {t('aiProviders.routing.provider', { defaultValue: 'Provider' })}
-                </TableHead>
-                <TableHead>
-                  {t('aiProviders.defaultModel', { defaultValue: 'Default model' })}
-                </TableHead>
-                <TableHead className="text-right">
-                  {t('common.actions', { defaultValue: 'Actions' })}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(routing?.plugins ?? []).map((plugin) => {
-                const draft = pluginDrafts[plugin.pluginKey] ?? { providerKey: '', model: '' };
-                const modelOptions = draft.providerKey
-                  ? modelOptionsForProvider(catalog, draft.providerKey, draft.model)
-                  : [];
-                return (
-                  <TableRow key={plugin.pluginKey}>
-                    <TableCell className="font-medium">{plugin.label}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={draft.providerKey || GLOBAL_DEFAULT_VALUE}
-                        onValueChange={(value) => {
-                          const providerKey = value === GLOBAL_DEFAULT_VALUE ? '' : value;
-                          const entry = catalog.find((item) => item.providerKey === providerKey);
-                          setPluginDrafts((prev) => ({
-                            ...prev,
-                            [plugin.pluginKey]: {
-                              providerKey,
-                              model: providerKey ? (entry?.defaultModel ?? '') : '',
-                            },
-                          }));
-                        }}
-                      >
-                        <SelectTrigger className="min-w-[180px]">
-                          <SelectValue
-                            placeholder={t('aiProviders.routing.useGlobalDefault', {
-                              defaultValue: 'Use global default',
-                            })}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={GLOBAL_DEFAULT_VALUE}>
-                            {t('aiProviders.routing.useGlobalDefault', {
-                              defaultValue: 'Use global default',
-                            })}
-                          </SelectItem>
-                          {providersForPluginScope(plugin.pluginKey).map((provider) => (
-                            <SelectItem key={provider.providerKey} value={provider.providerKey}>
-                              {providerLabel(t, provider.providerKey)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {plugin.pluginKey === 'guides-audio' &&
-                      providersForPluginScope(plugin.pluginKey).length === 0 ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {t('aiProviders.routing.noAudioGeneratableProviders', {
-                            defaultValue:
-                              'No audio-capable provider yet. TTS adapters will appear here when registered.',
-                          })}
-                        </p>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>
-                      {draft.providerKey && modelOptions.length > 0 ? (
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('aiProviders.routing.pluginsTitle', { defaultValue: 'Per-plugin overrides' })}
+            icon={Route}
+            iconPlugin="ai-providers"
+            subtleTitle
+            className="p-4 sm:p-6"
+          >
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t('aiProviders.routing.pluginsHint', {
+                defaultValue:
+                  'Optional. When set, a plugin uses its assigned provider instead of the global default.',
+              })}
+            </p>
+            {pluginRows.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border/70 px-3 py-6 text-center">
+                <p className="text-xs text-muted-foreground">
+                  {t('aiProviders.routing.noPlugins', {
+                    defaultValue: 'No activated plugins available for AI routing.',
+                  })}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pluginRows.map((plugin) => {
+                  const draft = pluginDrafts[plugin.pluginKey] ?? { providerKey: '', model: '' };
+                  const busy = savingPluginKey === plugin.pluginKey;
+                  const savedProvider = plugin.providerKey ?? '';
+                  const savedModel = plugin.model ?? '';
+                  const hasUnsavedOverride =
+                    draft.providerKey !== savedProvider || draft.model !== savedModel;
+                  const modelOptions = draft.providerKey
+                    ? modelOptionsForProvider(catalog, draft.providerKey, draft.model)
+                    : [];
+                  return (
+                    <div key={plugin.pluginKey} className={PLUGIN_ROUTING_ROW_CLASS}>
+                      <div className="min-w-[7rem] flex-1 basis-[7rem]">
+                        <span className={PLUGIN_ROUTING_NAME_CLASS} title={plugin.label}>
+                          {plugin.label}
+                        </span>
+                      </div>
+                      <div className="min-w-[9rem] flex-1 basis-[9rem]">
+                        <Label
+                          className={PLUGIN_ROUTING_LABEL_CLASS}
+                          htmlFor={`ai-routing-provider-${plugin.pluginKey}`}
+                        >
+                          {t('aiProviders.routing.provider', { defaultValue: 'Provider' })}
+                        </Label>
                         <Select
-                          value={draft.model || NONE_VALUE}
-                          onValueChange={(value) =>
+                          value={draft.providerKey || GLOBAL_DEFAULT_VALUE}
+                          disabled={busy}
+                          onValueChange={(value) => {
+                            const providerKey = value === GLOBAL_DEFAULT_VALUE ? '' : value;
+                            const entry = catalog.find((item) => item.providerKey === providerKey);
                             setPluginDrafts((prev) => ({
                               ...prev,
                               [plugin.pluginKey]: {
-                                ...draft,
-                                model: value === NONE_VALUE ? '' : value,
+                                providerKey,
+                                model: providerKey ? (entry?.defaultModel ?? '') : '',
                               },
-                            }))
-                          }
+                            }));
+                          }}
                         >
-                          <SelectTrigger className="min-w-[180px]">
+                          <SelectTrigger
+                            id={`ai-routing-provider-${plugin.pluginKey}`}
+                            className={cn(FORM_COMPACT_SELECT_CLASS, 'mt-1')}
+                          >
                             <SelectValue
-                              placeholder={t('aiProviders.routing.useProviderDefault', {
-                                defaultValue: 'Use provider default',
+                              placeholder={t('aiProviders.routing.useGlobalDefault', {
+                                defaultValue: 'Use global default',
                               })}
                             />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={NONE_VALUE}>
-                              {t('aiProviders.routing.useProviderDefault', {
-                                defaultValue: 'Use provider default',
+                            <SelectItem value={GLOBAL_DEFAULT_VALUE}>
+                              {t('aiProviders.routing.useGlobalDefault', {
+                                defaultValue: 'Use global default',
                               })}
                             </SelectItem>
-                            {modelOptions.map((model) => (
-                              <SelectItem key={model.id} value={model.id}>
-                                {model.label}
+                            {providersForPluginScope(plugin.pluginKey).map((provider) => (
+                              <SelectItem key={provider.providerKey} value={provider.providerKey}>
+                                {providerLabel(t, provider.providerKey)}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={!draft.providerKey || savingPluginKey === plugin.pluginKey}
-                          onClick={() => void handleSavePlugin(plugin)}
-                        >
-                          {savingPluginKey === plugin.pluginKey
-                            ? t('common.saving', { defaultValue: 'Saving…' })
-                            : t('common.save', { defaultValue: 'Save' })}
-                        </Button>
-                        {plugin.providerKey ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={savingPluginKey === plugin.pluginKey}
-                            onClick={() => void handleClearPlugin(plugin.pluginKey)}
-                          >
-                            {t('common.clear', { defaultValue: 'Clear' })}
-                          </Button>
+                        {plugin.pluginKey === 'guides-audio' &&
+                        providersForPluginScope(plugin.pluginKey).length === 0 ? (
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {t('aiProviders.routing.noAudioGeneratableProviders', {
+                              defaultValue:
+                                'No audio-capable provider yet. TTS adapters will appear here when registered.',
+                            })}
+                          </p>
                         ) : null}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </DetailSection>
-      ) : null}
+                      <div className="min-w-[9rem] flex-1 basis-[9rem]">
+                        <Label
+                          className={PLUGIN_ROUTING_LABEL_CLASS}
+                          htmlFor={`ai-routing-model-${plugin.pluginKey}`}
+                        >
+                          {t('aiProviders.defaultModel', { defaultValue: 'Default model' })}
+                        </Label>
+                        {draft.providerKey && modelOptions.length > 0 ? (
+                          <Select
+                            value={draft.model || NONE_VALUE}
+                            disabled={busy}
+                            onValueChange={(value) =>
+                              setPluginDrafts((prev) => ({
+                                ...prev,
+                                [plugin.pluginKey]: {
+                                  ...draft,
+                                  model: value === NONE_VALUE ? '' : value,
+                                },
+                              }))
+                            }
+                          >
+                            <SelectTrigger
+                              id={`ai-routing-model-${plugin.pluginKey}`}
+                              className={cn(FORM_COMPACT_SELECT_CLASS, 'mt-1')}
+                            >
+                              <SelectValue
+                                placeholder={t('aiProviders.routing.useProviderDefault', {
+                                  defaultValue: 'Use provider default',
+                                })}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={NONE_VALUE}>
+                                {t('aiProviders.routing.useProviderDefault', {
+                                  defaultValue: 'Use provider default',
+                                })}
+                              </SelectItem>
+                              {modelOptions.map((model) => (
+                                <SelectItem key={model.id} value={model.id}>
+                                  {model.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="mt-1 flex h-7 items-center text-xs text-muted-foreground">
+                            —
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5 self-end">
+                        <RoundIconLabelButton
+                          type="button"
+                          icon={Check}
+                          label={
+                            busy
+                              ? t('common.saving', { defaultValue: 'Saving…' })
+                              : t('common.save', { defaultValue: 'Save' })
+                          }
+                          variant="success"
+                          size="xs"
+                          alwaysExpanded
+                          disabled={!hasUnsavedOverride || !draft.providerKey || busy}
+                          onClick={() => void handleSavePlugin(plugin)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </DetailSection>
+        </Card>
+      </div>
     </PluginSettingsPageShell>
   );
 }

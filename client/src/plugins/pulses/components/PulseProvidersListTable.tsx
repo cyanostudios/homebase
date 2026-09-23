@@ -1,9 +1,8 @@
-import { Bell } from 'lucide-react';
+import { Bell, CheckCircle2, Circle } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BADGE_CHIP_CLASS, QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 
-import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
   Table,
@@ -16,6 +15,7 @@ import {
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ListTableSortIcon } from '@/core/ui/ListTableSortIcon';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { cn } from '@/lib/utils';
 
 import type { PulseProviderSettings } from '../types/pulse';
@@ -26,9 +26,10 @@ import {
   resolveVisiblePulseProvidersTableColumns,
 } from '../utils/pulseProvidersTableColumns';
 
-function enabledBadgeClass(enabled: boolean) {
-  return enabled ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.neutral;
-}
+const PULSE_ENABLED_ICON_SHELL_CLASS =
+  'h-5 w-5 bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300 [&_svg]:h-3 [&_svg]:w-3';
+const PULSE_DISABLED_ICON_SHELL_CLASS =
+  'h-5 w-5 bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300 [&_svg]:h-3 [&_svg]:w-3';
 
 function pulseProviderIdentityMeta(
   provider: PulseProviderSettings,
@@ -151,6 +152,9 @@ export function PulseProvidersListTable({
             const title = providerTitle(provider);
             const identityMeta = pulseProviderIdentityMeta(provider, t);
             const isActive = activeProviderId != null && provider.providerKey === activeProviderId;
+            const statusLabel = provider.enabled
+              ? t('pulses.statusEnabled', { defaultValue: 'Enabled' })
+              : t('pulses.statusDisabled', { defaultValue: 'Disabled' });
             return (
               <TableRow
                 key={provider.providerKey}
@@ -173,13 +177,14 @@ export function PulseProvidersListTable({
                       <TableCell key={columnId} className="min-w-0 overflow-hidden">
                         <div className="flex min-w-0 flex-col gap-0.5">
                           <div className="flex min-w-0 items-center gap-1.5">
-                            <span
-                              title={t('nav.pulses', { defaultValue: 'Pulse' })}
-                              className="inline-flex shrink-0"
-                            >
+                            <span title={statusLabel} className="inline-flex shrink-0">
                               <SectionCategoryIcon
                                 icon={Bell}
-                                className="h-5 w-5 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 [&_svg]:h-3 [&_svg]:w-3"
+                                className={
+                                  provider.enabled
+                                    ? PULSE_ENABLED_ICON_SHELL_CLASS
+                                    : PULSE_DISABLED_ICON_SHELL_CLASS
+                                }
                               />
                             </span>
                             <span
@@ -201,13 +206,16 @@ export function PulseProvidersListTable({
                   if (columnId === 'status') {
                     return (
                       <TableCell key={columnId} className="min-w-0 overflow-hidden">
-                        <Badge
-                          className={cn(BADGE_CHIP_CLASS, enabledBadgeClass(provider.enabled))}
+                        <StatusOutlineBadge
+                          icon={provider.enabled ? CheckCircle2 : Circle}
+                          className={
+                            provider.enabled
+                              ? QC_STATUS_BADGE_COLORS.success
+                              : QC_STATUS_BADGE_COLORS.neutral
+                          }
                         >
-                          {provider.enabled
-                            ? t('pulses.statusEnabled', { defaultValue: 'Enabled' })
-                            : t('pulses.statusDisabled', { defaultValue: 'Disabled' })}
-                        </Badge>
+                          {statusLabel}
+                        </StatusOutlineBadge>
                       </TableCell>
                     );
                   }

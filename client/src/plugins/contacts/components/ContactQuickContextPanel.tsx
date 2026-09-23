@@ -16,9 +16,15 @@ import { ContactDetailHeaderMenus } from './ContactDetailHeaderMenus';
 export function ContactQuickContextPanel({
   contact,
   headerBelow = null,
+  readOnly = false,
+  headerTrailing,
 }: {
   contact: Contact;
   headerBelow?: React.ReactNode;
+  /** Companion / browse-only: no edit chrome. */
+  readOnly?: boolean;
+  /** Optional trailing control on the title row (e.g. companion Open full + Close). */
+  headerTrailing?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const isCompany = contact.contactType === 'company';
@@ -44,7 +50,14 @@ export function ContactQuickContextPanel({
   return (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
       <div className="px-4 py-5">
-        <ContactDetailHeaderMenus contact={contact} leading={titleLeading} />
+        {readOnly ? (
+          <div className="flex min-w-0 items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">{titleLeading}</div>
+            {headerTrailing ? <div className="shrink-0">{headerTrailing}</div> : null}
+          </div>
+        ) : (
+          <ContactDetailHeaderMenus contact={contact} leading={titleLeading} />
+        )}
         {headerBelow ? <div className="mt-4">{headerBelow}</div> : null}
       </div>
     </Card>

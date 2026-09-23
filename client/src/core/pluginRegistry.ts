@@ -581,6 +581,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentOwnsScroll: true,
     slugField: 'companyName',
     contentViewKey: 'contactsContentView',
+    canOpenAsCompanionFor: ['teams'],
+    companionHideOnPrimaryPages: ['contacts'],
+    companionRailTitleNavPage: 'contacts',
+    companionRailIcon: Users,
   },
   {
     name: 'notes',
@@ -607,6 +611,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentOwnsScroll: true,
     slugField: 'title',
     noPrimaryAction: true,
+    canOpenAsCompanionFor: ['teams'],
+    companionHideOnPrimaryPages: ['notes'],
+    companionRailTitleNavPage: 'notes',
+    companionRailIcon: StickyNote,
   },
   {
     name: 'tasks',
@@ -633,6 +641,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentOwnsScroll: true,
     slugField: 'title',
     contentViewKey: 'tasksContentView',
+    canOpenAsCompanionFor: ['teams'],
+    companionHideOnPrimaryPages: ['tasks'],
+    companionRailTitleNavPage: 'tasks',
+    companionRailIcon: CheckSquare,
   },
   {
     name: 'estimates',
@@ -839,6 +851,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     slugField: 'title',
     contentViewKey: 'requestsContentView',
     noPrimaryAction: true,
+    canOpenAsCompanionFor: ['teams'],
+    companionHideOnPrimaryPages: ['requests'],
+    companionRailTitleNavPage: 'requests',
+    companionRailIcon: Inbox,
   },
   {
     name: 'slots',

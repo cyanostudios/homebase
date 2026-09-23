@@ -64,6 +64,10 @@ interface ContactViewProps {
   contact: Contact;
   /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
   stacked?: boolean;
+  /** Companion / browse-only: no edit chrome, local tabs (do not mutate URL). */
+  readOnly?: boolean;
+  /** Optional trailing control on the title row (e.g. companion Open full + Close). */
+  headerTrailing?: React.ReactNode;
 }
 
 type ContactViewTab = 'information' | 'addresses' | 'persons' | 'linked' | 'activity';
@@ -75,6 +79,9 @@ const CONTACT_VIEW_TABS: ContactViewTab[] = [
   'linked',
   'activity',
 ];
+
+/** Companion flyout: information (+ properties), addresses, persons — no linked/activity. */
+const CONTACT_VIEW_READONLY_TABS: ContactViewTab[] = ['information', 'addresses', 'persons'];
 
 function parseContactViewTab(value: string | null): ContactViewTab {
   if (value === 'properties') {
@@ -89,13 +96,21 @@ function parseContactViewTab(value: string | null): ContactViewTab {
 export const ContactView = React.memo(function ContactView({
   contact,
   stacked: _stacked = false,
+  readOnly = false,
+  headerTrailing,
 }: ContactViewProps) {
   const { t } = useTranslation();
   const { getSettings, settingsVersion } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = parseContactViewTab(searchParams.get('tab'));
+  const [localTab, setLocalTab] = useState<ContactViewTab>('information');
+  const urlTab = parseContactViewTab(searchParams.get('tab'));
+  const activeTab = readOnly ? localTab : urlTab;
   const setActiveTab = useCallback(
     (tab: ContactViewTab) => {
+      if (readOnly) {
+        setLocalTab(tab);
+        return;
+      }
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -109,8 +124,14 @@ export const ContactView = React.memo(function ContactView({
         { replace: false },
       );
     },
-    [setSearchParams],
+    [readOnly, setSearchParams],
   );
+
+  useEffect(() => {
+    if (readOnly) {
+      setLocalTab('information');
+    }
+  }, [contact.id, readOnly]);
 
   const {
     showSendMessageDialog,
@@ -184,8 +205,8 @@ export const ContactView = React.memo(function ContactView({
   const addressCount = Array.isArray(contact.addresses) ? contact.addresses.length : 0;
   const personCount = Array.isArray(contact.contactPersons) ? contact.contactPersons.length : 0;
 
-  const tabs = useMemo(
-    () => [
+  const tabs = useMemo(() => {
+    const all = [
       {
         id: 'information' as const,
         label: t('contacts.tabs.information'),
@@ -216,9 +237,12 @@ export const ContactView = React.memo(function ContactView({
         icon: History,
         count: null as number | null,
       },
-    ],
-    [t, addressCount, personCount],
-  );
+    ];
+    if (readOnly) {
+      return all.filter((tab) => CONTACT_VIEW_READONLY_TABS.includes(tab.id));
+    }
+    return all;
+  }, [t, addressCount, personCount, readOnly]);
 
   if (!contact) {
     return null;
@@ -364,23 +388,37 @@ export const ContactView = React.memo(function ContactView({
                         </div>
                       ) : null}
                     </div>
-                    <label className="ml-auto flex shrink-0 cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                      <Checkbox
-                        checked={isInvoiceRef}
-                        className={CHECKBOX_SM_CLASS}
-                        onChange={(e) => {
-                          void setContactPersonInvoiceReference(
-                            contact,
-                            String(person.id),
-                            e.target.checked,
-                          );
-                        }}
-                        aria-label={t('contacts.invoiceReferenceCheckbox', {
-                          name: person.name || t('contacts.personFallback'),
-                        })}
-                      />
-                      <span>{t('contacts.invoiceReferenceCheckboxLabel')}</span>
-                    </label>
+                    {readOnly ? (
+                      <label className="ml-auto flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                        <Checkbox
+                          checked={isInvoiceRef}
+                          disabled
+                          className={CHECKBOX_SM_CLASS}
+                          aria-label={t('contacts.invoiceReferenceCheckbox', {
+                            name: person.name || t('contacts.personFallback'),
+                          })}
+                        />
+                        <span>{t('contacts.invoiceReferenceCheckboxLabel')}</span>
+                      </label>
+                    ) : (
+                      <label className="ml-auto flex shrink-0 cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                        <Checkbox
+                          checked={isInvoiceRef}
+                          className={CHECKBOX_SM_CLASS}
+                          onChange={(e) => {
+                            void setContactPersonInvoiceReference(
+                              contact,
+                              String(person.id),
+                              e.target.checked,
+                            );
+                          }}
+                          aria-label={t('contacts.invoiceReferenceCheckbox', {
+                            name: person.name || t('contacts.personFallback'),
+                          })}
+                        />
+                        <span>{t('contacts.invoiceReferenceCheckboxLabel')}</span>
+                      </label>
+                    )}
                   </div>
                   {person.email || person.phone ? (
                     <div className="grid grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-8">
@@ -544,52 +582,60 @@ export const ContactView = React.memo(function ContactView({
           ) : null}
           <div className={PROP_ROW_CLASS}>
             <span className="text-sm text-slate-500 dark:text-slate-400">Assignable</span>
-            <Select
-              value={contact.isAssignable ? 'yes' : 'no'}
-              onValueChange={(value) => {
-                void setContactAssignable(contact, value === 'yes');
-              }}
-            >
-              <SelectTrigger className="h-8 w-[180px] text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="yes">{t('contacts.assignableYes')}</SelectItem>
-                <SelectItem value="no">{t('contacts.assignableNo')}</SelectItem>
-              </SelectContent>
-            </Select>
+            {readOnly ? (
+              <span className={cn(FIELD_VALUE_CLASS, 'text-right')}>
+                {contact.isAssignable ? t('contacts.assignableYes') : t('contacts.assignableNo')}
+              </span>
+            ) : (
+              <Select
+                value={contact.isAssignable ? 'yes' : 'no'}
+                onValueChange={(value) => {
+                  void setContactAssignable(contact, value === 'yes');
+                }}
+              >
+                <SelectTrigger className="h-8 w-[180px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">{t('contacts.assignableYes')}</SelectItem>
+                  <SelectItem value="no">{t('contacts.assignableNo')}</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <div className={cn(PROP_ROW_CLASS, 'items-start')}>
             <span className="text-sm text-slate-500 dark:text-slate-400">Tags</span>
             <div className="flex min-w-0 max-w-[70%] flex-col items-end gap-1.5">
-              <Select
-                value={tagToAdd || '__add_tag__'}
-                onValueChange={(value) => {
-                  if (value && value !== '__add_tag__') {
-                    if (isPanelContact) {
-                      addTagToDraft(value);
-                    } else {
-                      void applyTagToContact(contact, value);
+              {readOnly ? null : (
+                <Select
+                  value={tagToAdd || '__add_tag__'}
+                  onValueChange={(value) => {
+                    if (value && value !== '__add_tag__') {
+                      if (isPanelContact) {
+                        addTagToDraft(value);
+                      } else {
+                        void applyTagToContact(contact, value);
+                      }
+                      setTagToAdd('');
                     }
-                    setTagToAdd('');
-                  }
-                }}
-                disabled={addableTags.length === 0}
-              >
-                <SelectTrigger className="h-8 w-[160px] text-xs">
-                  <SelectValue placeholder="Add a tag..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__add_tag__">
-                    {addableTags.length === 0 ? 'No more tags to add' : 'Add a tag...'}
-                  </SelectItem>
-                  {addableTags.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
+                  }}
+                  disabled={addableTags.length === 0}
+                >
+                  <SelectTrigger className="h-8 w-[160px] text-xs">
+                    <SelectValue placeholder="Add a tag..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__add_tag__">
+                      {addableTags.length === 0 ? 'No more tags to add' : 'Add a tag...'}
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {addableTags.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               {isPanelContact && tagError ? (
                 <p className="text-xs text-destructive">{tagError}</p>
               ) : null}
@@ -603,20 +649,22 @@ export const ContactView = React.memo(function ContactView({
                     >
                       <Tag className="h-3 w-3" />
                       {item}
-                      <button
-                        type="button"
-                        className="rounded p-0.5 hover:bg-muted"
-                        onClick={() => {
-                          if (isPanelContact) {
-                            removeTagFromDraft(item);
-                          } else {
-                            void removeTagFromContact(contact, item);
-                          }
-                        }}
-                        aria-label={`Remove tag ${item}`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                      {readOnly ? null : (
+                        <button
+                          type="button"
+                          className="rounded p-0.5 hover:bg-muted"
+                          onClick={() => {
+                            if (isPanelContact) {
+                              removeTagFromDraft(item);
+                            } else {
+                              void removeTagFromContact(contact, item);
+                            }
+                          }}
+                          aria-label={`Remove tag ${item}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
                     </Badge>
                   ))}
                 </div>
@@ -659,15 +707,20 @@ export const ContactView = React.memo(function ContactView({
     <>
       <DetailLayout gridClassName="grid-cols-1">
         <div className="space-y-4">
-          <ContactQuickContextPanel contact={contact} headerBelow={tabChips} />
+          <ContactQuickContextPanel
+            contact={contact}
+            headerBelow={tabChips}
+            readOnly={readOnly}
+            headerTrailing={headerTrailing}
+          />
 
           {activeTab === 'information' ? informationCard : null}
 
           {activeTab === 'information' ? propertiesCard : null}
           {activeTab === 'addresses' ? addressesCard : null}
           {activeTab === 'persons' ? personsCard : null}
-          {activeTab === 'linked' ? linkedCard : null}
-          {activeTab === 'activity' ? (
+          {!readOnly && activeTab === 'linked' ? linkedCard : null}
+          {!readOnly && activeTab === 'activity' ? (
             <DetailActivityLog
               entityType="contact"
               entityId={contact.id}
@@ -681,30 +734,34 @@ export const ContactView = React.memo(function ContactView({
         </div>
       </DetailLayout>
 
-      <ConfirmDialog
-        isOpen={showDiscardTagsDialog}
-        title={t('dialog.unsavedChanges')}
-        message={t('contacts.discardTagsMessage')}
-        confirmText={t('dialog.discardChanges')}
-        cancelText={t('dialog.continueEditing')}
-        onConfirm={onDiscardTagsAndClose}
-        onCancel={() => setShowDiscardTagsDialog(false)}
-        variant="warning"
-      />
+      {readOnly ? null : (
+        <>
+          <ConfirmDialog
+            isOpen={showDiscardTagsDialog}
+            title={t('dialog.unsavedChanges')}
+            message={t('contacts.discardTagsMessage')}
+            confirmText={t('dialog.discardChanges')}
+            cancelText={t('dialog.continueEditing')}
+            onConfirm={onDiscardTagsAndClose}
+            onCancel={() => setShowDiscardTagsDialog(false)}
+            variant="warning"
+          />
 
-      <BulkMessageDialog
-        isOpen={showSendMessageDialog}
-        onClose={closeSendMessageDialog}
-        recipients={sendMessageRecipients}
-        pluginSource="contacts"
-      />
+          <BulkMessageDialog
+            isOpen={showSendMessageDialog}
+            onClose={closeSendMessageDialog}
+            recipients={sendMessageRecipients}
+            pluginSource="contacts"
+          />
 
-      <BulkEmailDialog
-        isOpen={showSendEmailDialog}
-        onClose={closeSendEmailDialog}
-        recipients={sendEmailRecipients}
-        pluginSource="contacts"
-      />
+          <BulkEmailDialog
+            isOpen={showSendEmailDialog}
+            onClose={closeSendEmailDialog}
+            recipients={sendEmailRecipients}
+            pluginSource="contacts"
+          />
+        </>
+      )}
     </>
   );
 });

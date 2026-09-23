@@ -1,5 +1,19 @@
-import { FileText, History, Info, Link2, SlidersHorizontal, Users } from 'lucide-react';
-import React, { useCallback, useMemo, useState } from 'react';
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  Circle,
+  Clock,
+  FileText,
+  History,
+  Info,
+  Link2,
+  Minus,
+  SlidersHorizontal,
+  Users,
+  XCircle,
+} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -12,6 +26,7 @@ import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   DETAIL_EMPTY_STATE_CLASS,
+  DETAIL_FIELD_VALUE_CLASS,
   DETAIL_PROP_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
@@ -20,6 +35,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { RichTextContent } from '@/core/ui/RichTextContent';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
@@ -33,6 +49,7 @@ import {
 
 import { useTasks } from '../hooks/useTasks';
 import { buildTaskListQuickFieldsSavePayload, quickEditFieldsForTask } from '../utils/taskListSave';
+import { TASK_PRIORITY_COLORS, TASK_STATUS_COLORS, formatStatusForDisplay } from '../types/tasks';
 
 import { TaskAssignedTeamSelect } from './TaskAssignedTeamSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
@@ -42,15 +59,46 @@ import { TaskQuickContextPanel } from './TaskQuickContextPanel';
 import { TaskShareBlock } from './TaskShareBlock';
 import { TaskStatusSelect } from './TaskStatusSelect';
 
+function taskStatusIcon(status: string) {
+  switch (status) {
+    case 'in progress':
+      return Clock;
+    case 'completed':
+      return CheckCircle2;
+    case 'cancelled':
+      return XCircle;
+    default:
+      return Circle;
+  }
+}
+
+function taskPriorityIcon(priority: string) {
+  switch (priority) {
+    case 'High':
+      return ArrowUp;
+    case 'Low':
+      return ArrowDown;
+    default:
+      return Minus;
+  }
+}
+
 interface TaskViewProps {
   task: any;
   /** Single-column card stack (e.g. list detail column). Default is two-column full panel. */
   stacked?: boolean;
+  /** Companion / browse-only: no edit chrome, local tabs (do not mutate URL). */
+  readOnly?: boolean;
+  /** Optional trailing control on the title row (e.g. companion Open full + Close). */
+  headerTrailing?: React.ReactNode;
 }
 
 type TaskViewTab = 'information' | 'assignees' | 'linked' | 'activity';
 
 const TASK_VIEW_TABS: TaskViewTab[] = ['information', 'assignees', 'linked', 'activity'];
+
+/** Companion flyout: information (+ properties), assignees — no linked/activity. */
+const TASK_VIEW_READONLY_TABS: TaskViewTab[] = ['information', 'assignees'];
 
 function parseTaskViewTab(value: string | null): TaskViewTab {
   if (value === 'properties') {
@@ -62,13 +110,24 @@ function parseTaskViewTab(value: string | null): TaskViewTab {
   return 'information';
 }
 
-export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
+export function TaskView({
+  task,
+  stacked: _stacked = false,
+  readOnly = false,
+  headerTrailing,
+}: TaskViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = parseTaskViewTab(searchParams.get('tab'));
+  const [localTab, setLocalTab] = useState<TaskViewTab>('information');
+  const urlTab = parseTaskViewTab(searchParams.get('tab'));
+  const activeTab = readOnly ? localTab : urlTab;
   const setActiveTab = useCallback(
     (tab: TaskViewTab) => {
+      if (readOnly) {
+        setLocalTab(tab);
+        return;
+      }
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -82,8 +141,15 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
         { replace: false },
       );
     },
-    [setSearchParams],
+    [readOnly, setSearchParams],
   );
+
+  useEffect(() => {
+    if (readOnly) {
+      setLocalTab('information');
+    }
+  }, [task?.id, readOnly]);
+
   const { contacts } = useContacts();
   const {
     closeTaskPanel,
@@ -220,8 +286,8 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
       ? task.assignedToIds.length
       : 0;
 
-  const tabs = useMemo(
-    () => [
+  const tabs = useMemo(() => {
+    const all = [
       {
         id: 'information' as const,
         label: t('tasks.tabs.information'),
@@ -246,9 +312,12 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
         icon: History,
         count: null as number | null,
       },
-    ],
-    [assigneeCount, t, uniqueMentions.length],
-  );
+    ];
+    if (readOnly) {
+      return all.filter((tab) => TASK_VIEW_READONLY_TABS.includes(tab.id));
+    }
+    return all;
+  }, [assigneeCount, readOnly, t, uniqueMentions.length]);
 
   const tabChips = (
     <div className={LIST_FILTER_CHIP_ROW_CLASS}>
@@ -298,7 +367,7 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
           </div>
         </DetailSection>
       </Card>
-      <TaskShareBlock task={task} />
+      {readOnly ? null : <TaskShareBlock task={task} />}
     </div>
   );
 
@@ -315,32 +384,70 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
             <span className="text-sm text-slate-500 dark:text-slate-400">
               {t('tasks.propertyStatus')}
             </span>
-            <TaskStatusSelect
-              task={displayTask ?? task}
-              onStatusChange={handleStatusChange}
-              hideInlineLabel
-            />
+            {readOnly ? (
+              <StatusOutlineBadge
+                icon={taskStatusIcon((displayTask ?? task).status)}
+                className={
+                  TASK_STATUS_COLORS[
+                    (displayTask ?? task).status as keyof typeof TASK_STATUS_COLORS
+                  ] ?? TASK_STATUS_COLORS['not started']
+                }
+              >
+                {formatStatusForDisplay((displayTask ?? task).status)}
+              </StatusOutlineBadge>
+            ) : (
+              <TaskStatusSelect
+                task={displayTask ?? task}
+                onStatusChange={handleStatusChange}
+                hideInlineLabel
+              />
+            )}
           </div>
           <div className={DETAIL_PROP_ROW_CLASS}>
             <span className="text-sm text-slate-500 dark:text-slate-400">
               {t('tasks.propertyPriority')}
             </span>
-            <TaskPrioritySelect
-              task={displayTask ?? task}
-              onPriorityChange={handlePriorityChange}
-              hideInlineLabel
-            />
+            {readOnly ? (
+              <StatusOutlineBadge
+                icon={taskPriorityIcon((displayTask ?? task).priority)}
+                className={
+                  TASK_PRIORITY_COLORS[
+                    (displayTask ?? task).priority as keyof typeof TASK_PRIORITY_COLORS
+                  ]
+                }
+              >
+                {(displayTask ?? task).priority}
+              </StatusOutlineBadge>
+            ) : (
+              <TaskPrioritySelect
+                task={displayTask ?? task}
+                onPriorityChange={handlePriorityChange}
+                hideInlineLabel
+              />
+            )}
           </div>
           {(displayTask ?? task).status !== 'completed' && (
             <div className={DETAIL_PROP_ROW_CLASS}>
               <span className="text-sm text-slate-500 dark:text-slate-400">
                 {t('tasks.propertyDueDate')}
               </span>
-              <TaskDueDatePicker
-                task={displayTask ?? task}
-                onDueDateChange={handleDueDateChange}
-                hideInlineLabel
-              />
+              {readOnly ? (
+                <span className={cn(DETAIL_FIELD_VALUE_CLASS, 'text-right')}>
+                  {(displayTask ?? task).dueDate
+                    ? new Date((displayTask ?? task).dueDate).toLocaleDateString(undefined, {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : '—'}
+                </span>
+              ) : (
+                <TaskDueDatePicker
+                  task={displayTask ?? task}
+                  onDueDateChange={handleDueDateChange}
+                  hideInlineLabel
+                />
+              )}
             </div>
           )}
         </div>
@@ -350,11 +457,16 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
 
   const assigneesCard = (
     <div className="space-y-4">
-      <TaskAssigneeSelect task={displayTask ?? task} onAssigneeChange={handleAssigneeChange} />
+      <TaskAssigneeSelect
+        task={displayTask ?? task}
+        onAssigneeChange={handleAssigneeChange}
+        readOnly={readOnly}
+      />
       {hasTeamsPlugin ? (
         <TaskAssignedTeamSelect
           task={displayTask ?? task}
           onTeamChange={handleAssignedTeamChange}
+          readOnly={readOnly}
         />
       ) : null}
     </div>
@@ -418,7 +530,12 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
     <>
       <DetailLayout gridClassName="grid-cols-1">
         <div className="space-y-4">
-          <TaskQuickContextPanel task={displayTask ?? task} headerBelow={tabChips} />
+          <TaskQuickContextPanel
+            task={displayTask ?? task}
+            headerBelow={tabChips}
+            readOnly={readOnly}
+            headerTrailing={headerTrailing}
+          />
 
           {blockingValidationErrors.length > 0 ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
@@ -435,8 +552,8 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
 
           {activeTab === 'information' ? propertiesCard : null}
           {activeTab === 'assignees' ? assigneesCard : null}
-          {activeTab === 'linked' ? linkedCard : null}
-          {activeTab === 'activity' ? (
+          {!readOnly && activeTab === 'linked' ? linkedCard : null}
+          {!readOnly && activeTab === 'activity' ? (
             <DetailActivityLog
               entityType="task"
               entityId={task.id}
@@ -473,16 +590,18 @@ export function TaskView({ task, stacked: _stacked = false }: TaskViewProps) {
         }
       />
 
-      <ConfirmDialog
-        isOpen={showDiscardQuickEditDialog}
-        title={t('dialog.unsavedChanges')}
-        message={t('tasks.quickEditDiscardMessage')}
-        confirmText={t('dialog.discardChanges')}
-        cancelText={t('dialog.continueEditing')}
-        onConfirm={onDiscardQuickEditAndClose}
-        onCancel={() => setShowDiscardQuickEditDialog(false)}
-        variant="warning"
-      />
+      {readOnly ? null : (
+        <ConfirmDialog
+          isOpen={showDiscardQuickEditDialog}
+          title={t('dialog.unsavedChanges')}
+          message={t('tasks.quickEditDiscardMessage')}
+          confirmText={t('dialog.discardChanges')}
+          cancelText={t('dialog.continueEditing')}
+          onConfirm={onDiscardQuickEditAndClose}
+          onCancel={() => setShowDiscardQuickEditDialog(false)}
+          variant="warning"
+        />
+      )}
     </>
   );
 }

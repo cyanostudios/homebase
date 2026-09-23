@@ -21,11 +21,17 @@ export function NoteQuickContextPanel({
   note,
   headerBelow = null,
   afterHeaderActions = null,
+  readOnly = false,
+  headerTrailing,
 }: {
   note: Note;
   /** Optional row under the title (e.g. view tab chips). */
   headerBelow?: React.ReactNode;
   afterHeaderActions?: React.ReactNode;
+  /** Companion / browse-only: no edit chrome. */
+  readOnly?: boolean;
+  /** Optional trailing control on the title row (e.g. companion Open full + Close). */
+  headerTrailing?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const updatedLabel = note.updatedAt
@@ -55,11 +61,18 @@ export function NoteQuickContextPanel({
   return (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
       <div className="px-4 py-5">
-        <NoteDetailHeaderMenus
-          note={note}
-          leading={titleLeading}
-          afterActions={afterHeaderActions}
-        />
+        {readOnly ? (
+          <div className="flex min-w-0 items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">{titleLeading}</div>
+            {headerTrailing ? <div className="shrink-0">{headerTrailing}</div> : null}
+          </div>
+        ) : (
+          <NoteDetailHeaderMenus
+            note={note}
+            leading={titleLeading}
+            afterActions={afterHeaderActions}
+          />
+        )}
         <div
           className={cn(
             DETAIL_HEADER_BELOW_MENUS_CLASS,

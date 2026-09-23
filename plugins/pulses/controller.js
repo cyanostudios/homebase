@@ -228,7 +228,7 @@ class PulseController {
 
   async savePluginRouting(req, res) {
     try {
-      const pluginKey = normalizeRoutablePluginKey(req.params.pluginKey);
+      const pluginKey = normalizeRoutablePluginKey(req.params.pluginKey, req);
       const result = await providerModel.saveRouting(req, pluginKey, req.body || {});
       res.json(result);
     } catch (error) {
@@ -242,7 +242,7 @@ class PulseController {
 
   async deletePluginRouting(req, res) {
     try {
-      const pluginKey = normalizeRoutablePluginKey(req.params.pluginKey);
+      const pluginKey = normalizeRoutablePluginKey(req.params.pluginKey, req);
       const result = await providerModel.deletePluginRouting(req, pluginKey);
       res.json(result);
     } catch (error) {

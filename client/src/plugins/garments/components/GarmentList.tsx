@@ -45,6 +45,7 @@ import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
@@ -55,8 +56,11 @@ import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { pathToNavPage } from '@/core/routing/routeMap';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import {
+  PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_COMPANION_SHELL_CLASS,
+  PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS,
+  PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS,
   PLUGIN_PAGE_LIST_SHELL_CLASS,
-  PLUGIN_PAGE_SECTION_GAP_CLASS,
   PLUGIN_PAGE_TITLE_CLASS,
 } from '@/core/ui/pluginPageStyles';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
@@ -842,6 +846,7 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
           onClick={() => setInventoryTagFilter(null)}
           className={cn(
             inventoryTagFilter == null ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
           )}
         >
           <LayoutGrid className="h-3.5 w-3.5" />
@@ -859,7 +864,10 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
               variant="ghost"
               size="sm"
               onClick={() => setInventoryTagFilter(isActive ? null : tag)}
-              className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+              className={cn(
+                isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
+              )}
             >
               <Tag className="h-3.5 w-3.5" />
               <span>
@@ -941,7 +949,7 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
         className={cn(
           'plugin-garments',
           isCompanion
-            ? PLUGIN_PAGE_LIST_SHELL_CLASS
+            ? PLUGIN_PAGE_COMPANION_SHELL_CLASS
             : cn(
                 'flex min-h-0 flex-1 flex-col',
                 PLUGIN_PAGE_LIST_SHELL_CLASS,
@@ -954,7 +962,7 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
         <div
           className={
             isCompanion
-              ? PLUGIN_PAGE_SECTION_GAP_CLASS
+              ? PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS
               : cn(
                   'flex min-h-0 min-w-0 flex-1 flex-col',
                   showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
@@ -976,7 +984,8 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                   <div
                     id="garments-mail-toolbar"
                     className={cn(
-                      'flex flex-wrap items-center justify-between gap-3',
+                      'flex items-center justify-between gap-3',
+                      isCompanion ? 'flex-nowrap' : 'flex-wrap',
                       toolbarCollapsed && !isCompanion && 'pointer-events-none',
                     )}
                   >
@@ -1000,11 +1009,19 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                           }
                         />
                       ) : null}
-                      {renderSortDropdown('h-11 rounded-full')}
+                      {renderSortDropdown(
+                        isCompanion
+                          ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                          : 'h-11 rounded-full',
+                      )}
                       <ListFilterChipsToggle
                         visible={filtersVisible}
                         onVisibleChange={setFiltersVisible}
-                        className="h-11 rounded-full"
+                        className={
+                          isCompanion
+                            ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                            : 'h-11 rounded-full'
+                        }
                       />
                       {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
                     </div>
@@ -1016,6 +1033,12 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                           isInventoryEffective
                             ? t('garments.searchInventory')
                             : t('garments.searchLists')
+                        }
+                        size={isCompanion ? 'xs' : 'sm'}
+                        expandedWidthClass={
+                          isCompanion
+                            ? PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS
+                            : undefined
                         }
                       />
                       {!isCompanion ? (

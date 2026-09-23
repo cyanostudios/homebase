@@ -186,6 +186,19 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
         className="p-4 sm:p-6"
       >
         <div>
+          <div className={cn(DETAIL_INFO_ROW_CLASS, 'items-start gap-3')}>
+            <span className="shrink-0 text-slate-500 dark:text-slate-400">
+              {t('ingest.sourceUrl')}
+            </span>
+            <a
+              href={source.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-w-0 flex-1 break-all text-right font-mono font-extrabold text-plugin plugin-ingest hover:underline"
+            >
+              {source.sourceUrl}
+            </a>
+          </div>
           <div className={DETAIL_INFO_ROW_CLASS}>
             <span className="text-slate-500 dark:text-slate-400">{t('ingest.sourceType')}</span>
             <span className="font-extrabold text-foreground">{source.sourceType}</span>
@@ -220,17 +233,6 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
               </p>
             </div>
           ) : null}
-          <div className="space-y-1 border-t border-border/50 pt-4 mt-2">
-            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('ingest.sourceUrl')}</div>
-            <a
-              href={source.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-mono break-all text-plugin plugin-ingest hover:underline"
-            >
-              {source.sourceUrl}
-            </a>
-          </div>
         </div>
       </DetailSection>
     </Card>

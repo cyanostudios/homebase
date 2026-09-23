@@ -70,9 +70,15 @@ function taskStatusIconShellClass(status: string): string {
 export function TaskQuickContextPanel({
   task,
   headerBelow = null,
+  readOnly = false,
+  headerTrailing,
 }: {
   task: Task;
   headerBelow?: React.ReactNode;
+  /** Companion / browse-only: no edit chrome. */
+  readOnly?: boolean;
+  /** Optional trailing control on the title row (e.g. companion Open full + Close). */
+  headerTrailing?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const dueBadge = useMemo(() => {
@@ -117,7 +123,14 @@ export function TaskQuickContextPanel({
   return (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
       <div className="px-4 py-5">
-        <TaskDetailHeaderMenus task={task} leading={titleLeading} />
+        {readOnly ? (
+          <div className="flex min-w-0 items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">{titleLeading}</div>
+            {headerTrailing ? <div className="shrink-0">{headerTrailing}</div> : null}
+          </div>
+        ) : (
+          <TaskDetailHeaderMenus task={task} leading={titleLeading} />
+        )}
         <DetailHeaderMetaRow>
           {updatedLabel ? (
             <p className="min-w-0 text-xs text-muted-foreground">

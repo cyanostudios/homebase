@@ -5,6 +5,7 @@ import {
   ArrowUpDown,
   ChevronDown,
   Circle,
+  ExternalLink,
   Inbox,
   LayoutGrid,
   Link2Off,
@@ -13,6 +14,7 @@ import {
   Settings,
   SlidersHorizontal,
   Trash2,
+  X,
   XCircle,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -35,6 +37,7 @@ import { RoundExpandableQuickAdd } from '@/components/ui/round-expandable-quick-
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
+import { useCompanionPanelOptional } from '@/core/app/CompanionPanelContext';
 import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
@@ -45,6 +48,7 @@ import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
@@ -53,7 +57,14 @@ import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
-import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_COMPANION_SHELL_CLASS,
+  PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS,
+  PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
@@ -99,6 +110,7 @@ type SortField = RequestSortField;
 type SortOrder = RequestSortOrder;
 
 const REQUESTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.requests.toolbar.filtersVisible';
+const COMPANION_VISIBLE_COLUMN_IDS: RequestTableColumnId[] = ['title'];
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'updated_at', labelKey: 'common.updated' },
@@ -112,8 +124,9 @@ const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
 
 let pendingQuickContextRequestId: string | null = null;
 
-export function RequestList() {
+export function RequestList({ isCompanion = false }: { isCompanion?: boolean }) {
   const { t } = useTranslation();
+  const companionPanel = useCompanionPanelOptional();
   const { getSettings, settingsVersion } = useApp();
   const teams = useRequestTeams();
   const {
@@ -143,19 +156,24 @@ export function RequestList() {
   } = useRequests();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
-  useMobileActions({
-    onAdd: () => attemptNavigation(() => openRequestPanel(null)),
-    onSettings: () => attemptNavigation(() => openRequestSettings()),
-  });
+  useMobileActions(
+    isCompanion
+      ? {}
+      : {
+          onAdd: () => attemptNavigation(() => openRequestPanel(null)),
+          onSettings: () => attemptNavigation(() => openRequestSettings()),
+        },
+  );
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
-  const showDesktopSplit = !isCompactViewport;
+  const showDesktopSplit = isCompanion ? false : !isCompactViewport;
 
   const { searchTerm: search, setSearchTerm: setSearch } = usePersistedListSearch('requests');
   useRegisterMobileSearch({
     value: search,
     onChange: setSearch,
     placeholder: t('requests.searchPlaceholder', { count: requests.length }),
+    enabled: !isCompanion,
   });
 
   const [selectionMode, setSelectionMode] = useState(false);
@@ -169,6 +187,7 @@ export function RequestList() {
   const [visibleColumnIds, setVisibleColumnIds] = useState<RequestTableColumnId[]>(() =>
     resolveVisibleRequestTableColumns(null),
   );
+  const tableColumnIds = isCompanion ? COMPANION_VISIBLE_COLUMN_IDS : visibleColumnIds;
   const [settingsCategory, setSettingsCategory] = useState<RequestsSettingsCategory>('types');
   const [primarySort, setPrimarySort] = useState<SortField>('title');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -397,6 +416,12 @@ export function RequestList() {
   };
 
   const handleRowActivate = (request: Request) => {
+    if (isCompanion) {
+      setPreviewRequest((current) =>
+        current && String(current.id) === String(request.id) ? null : request,
+      );
+      return;
+    }
     if (isCompactViewport) {
       handleOpenForView(request);
       return;
@@ -491,6 +516,7 @@ export function RequestList() {
         onClick={() => setActiveFilters([])}
         className={cn(
           activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+          isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
         )}
       >
         <LayoutGrid className="h-3.5 w-3.5" />
@@ -506,6 +532,7 @@ export function RequestList() {
         onClick={() => toggleFilter('active')}
         className={cn(
           isFilterActive('active') ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+          isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
         )}
       >
         <Circle className="h-3.5 w-3.5" />
@@ -521,6 +548,7 @@ export function RequestList() {
         onClick={() => setTeamFilter(teamFilter === 'unlinked' ? 'all' : 'unlinked')}
         className={cn(
           teamFilter === 'unlinked' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+          isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
         )}
       >
         <Link2Off className="h-3.5 w-3.5" />
@@ -539,7 +567,10 @@ export function RequestList() {
             variant="ghost"
             size="sm"
             onClick={() => setTypeFilter(isActive ? 'all' : typeKey)}
-            className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+            className={cn(
+              isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
+            )}
           >
             <Inbox className="h-3.5 w-3.5" />
             <span>
@@ -677,7 +708,7 @@ export function RequestList() {
       toggleOne: toggleRequestSelected,
     });
 
-  if (requestsContentView === 'settings') {
+  if (requestsContentView === 'settings' && !isCompanion) {
     return (
       <div className="plugin-requests min-h-full bg-background">
         <div className="px-4 py-4 md:px-6">
@@ -692,7 +723,7 @@ export function RequestList() {
   }
 
   const toolbarEdgeToggle =
-    typeof document !== 'undefined' && toolbarToggleBox
+    !isCompanion && typeof document !== 'undefined' && toolbarToggleBox
       ? createPortal(
           <div
             className="pointer-events-none fixed z-40 hidden justify-center md:flex"
@@ -734,122 +765,166 @@ export function RequestList() {
       <div
         ref={pageShellRef}
         className={cn(
-          'plugin-requests flex min-h-0 flex-1 flex-col',
-          PLUGIN_PAGE_LIST_SHELL_CLASS,
-          showDesktopSplit
-            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
-            : 'overflow-y-auto md:pt-3',
+          'plugin-requests',
+          isCompanion
+            ? PLUGIN_PAGE_COMPANION_SHELL_CLASS
+            : cn(
+                'flex min-h-0 flex-1 flex-col',
+                PLUGIN_PAGE_LIST_SHELL_CLASS,
+                showDesktopSplit
+                  ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+                  : 'overflow-y-auto md:pt-3',
+              ),
         )}
       >
         <div
-          className={cn(
-            'flex min-h-0 min-w-0 flex-1 flex-col',
-            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
-          )}
+          className={
+            isCompanion
+              ? PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS
+              : cn(
+                  'flex min-h-0 min-w-0 flex-1 flex-col',
+                  showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+                )
+          }
         >
-          <div className="relative hidden shrink-0 md:block">
-            <div
-              className={cn(
-                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
-                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
-              )}
-              aria-hidden={toolbarCollapsed}
-            >
-              <div className="min-h-0 overflow-hidden">
-                <div
-                  id="requests-mail-toolbar"
-                  className={cn(
-                    'flex flex-wrap items-center justify-between gap-3',
-                    toolbarCollapsed && 'pointer-events-none',
-                  )}
-                >
-                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.requests')}</h2>
-                    <ExpandableIconButton
-                      icon={Settings}
-                      label={t('common.settings')}
-                      variant="soft"
-                      onClick={() => attemptNavigation(() => openRequestSettings())}
-                    />
-                    {renderSortDropdown('h-11 rounded-full')}
-                    <ListFilterChipsToggle
-                      visible={filtersVisible}
-                      onVisibleChange={setFiltersVisible}
-                      className="h-11 rounded-full"
-                    />
-                    {renderSelectControls('h-11 rounded-full')}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <RoundExpandableQuickAdd
-                      icon={Inbox}
-                      label={t('requests.quickAdd')}
-                      placeholder={t('requests.quickAddPlaceholder')}
-                      onCreate={handleQuickCreate}
-                      defaultExpanded
-                      variant={detailColumnOpen ? 'soft' : 'primary'}
-                    />
-                    <RoundExpandableSearch
-                      value={search}
-                      onChange={setSearch}
-                      placeholder={t('requests.searchPlaceholder', { count: requests.length })}
-                    />
-                    <ExpandableIconButton
-                      icon={Plus}
-                      label={t('requests.addRequest')}
-                      variant="soft"
-                      onClick={() => attemptNavigation(() => openRequestPanel(null))}
-                    />
-                  </div>
-                </div>
-                {filtersVisible ? (
+          {!(isCompanion && previewRequest) ? (
+            <div className={cn('relative shrink-0', isCompanion ? 'block' : 'hidden md:block')}>
+              <div
+                className={cn(
+                  'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                  toolbarCollapsed && !isCompanion
+                    ? 'grid-rows-[0fr] opacity-0'
+                    : 'grid-rows-[1fr] opacity-100',
+                )}
+                aria-hidden={toolbarCollapsed && !isCompanion}
+              >
+                <div className="min-h-0 overflow-hidden">
                   <div
+                    id="requests-mail-toolbar"
                     className={cn(
-                      LIST_FILTER_AND_SORT_ROW_CLASS,
-                      'pt-2',
-                      toolbarCollapsed && 'pointer-events-none',
+                      'flex items-center justify-between gap-3',
+                      isCompanion ? 'flex-nowrap' : 'flex-wrap',
+                      toolbarCollapsed && !isCompanion && 'pointer-events-none',
                     )}
                   >
-                    {renderFilterChips()}
+                    <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                      {!isCompanion ? (
+                        <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.requests')}</h2>
+                      ) : null}
+                      {!isCompanion ? (
+                        <ExpandableIconButton
+                          icon={Settings}
+                          label={t('common.settings')}
+                          variant="soft"
+                          onClick={() => attemptNavigation(() => openRequestSettings())}
+                        />
+                      ) : null}
+                      {renderSortDropdown(
+                        isCompanion
+                          ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                          : 'h-11 rounded-full',
+                      )}
+                      <ListFilterChipsToggle
+                        visible={filtersVisible}
+                        onVisibleChange={setFiltersVisible}
+                        className={
+                          isCompanion
+                            ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                            : 'h-11 rounded-full'
+                        }
+                      />
+                      {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {!isCompanion ? (
+                        <RoundExpandableQuickAdd
+                          icon={Inbox}
+                          label={t('requests.quickAdd')}
+                          placeholder={t('requests.quickAddPlaceholder')}
+                          onCreate={handleQuickCreate}
+                          defaultExpanded
+                          variant={detailColumnOpen ? 'soft' : 'primary'}
+                        />
+                      ) : null}
+                      <RoundExpandableSearch
+                        value={search}
+                        onChange={setSearch}
+                        placeholder={t('requests.searchPlaceholder', { count: requests.length })}
+                        size={isCompanion ? 'xs' : 'sm'}
+                        expandedWidthClass={
+                          isCompanion
+                            ? PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS
+                            : undefined
+                        }
+                      />
+                      {!isCompanion ? (
+                        <ExpandableIconButton
+                          icon={Plus}
+                          label={t('requests.addRequest')}
+                          variant="soft"
+                          onClick={() => attemptNavigation(() => openRequestPanel(null))}
+                        />
+                      ) : null}
+                    </div>
                   </div>
-                ) : null}
-                {renderBulkActionBar('py-3')}
+                  {filtersVisible ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {renderFilterChips()}
+                    </div>
+                  ) : null}
+                  {!isCompanion ? renderBulkActionBar('py-3') : null}
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
-            {filtersVisible ? renderFilterChips() : null}
-            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-              <ListFilterChipsToggle
-                visible={filtersVisible}
-                onVisibleChange={setFiltersVisible}
-                className="h-7 rounded-md"
-              />
-              {renderSortDropdown('h-7 rounded-md')}
+          {!isCompanion ? (
+            <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+              {filtersVisible ? renderFilterChips() : null}
+              <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+                <ListFilterChipsToggle
+                  visible={filtersVisible}
+                  onVisibleChange={setFiltersVisible}
+                  className="h-7 rounded-md"
+                />
+                {renderSortDropdown('h-7 rounded-md')}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {selectionMode ? (
+          {!isCompanion && selectionMode ? (
             <div className="shrink-0 py-3 md:hidden">{renderBulkActionBar()}</div>
           ) : null}
 
-          <BulkDeleteModal
-            isOpen={showBulkDeleteModal}
-            onClose={() => setShowBulkDeleteModal(false)}
-            onConfirm={async () => {
-              await deleteRequests(selectedRequestIds);
-              setShowBulkDeleteModal(false);
-            }}
-            itemCount={selectedCount}
-            itemLabel={selectedCount === 1 ? t('requests.itemSingular') : t('requests.itemPlural')}
-          />
-          <RequestBulkStatusDialog
-            isOpen={showBulkStatusDialog}
-            onClose={() => setShowBulkStatusDialog(false)}
-            selectedRequests={selectedRequests}
-            saveRequest={saveRequest}
-            onSuccess={clearRequestSelection}
-          />
+          {!isCompanion ? (
+            <>
+              <BulkDeleteModal
+                isOpen={showBulkDeleteModal}
+                onClose={() => setShowBulkDeleteModal(false)}
+                onConfirm={async () => {
+                  await deleteRequests(selectedRequestIds);
+                  setShowBulkDeleteModal(false);
+                }}
+                itemCount={selectedCount}
+                itemLabel={
+                  selectedCount === 1 ? t('requests.itemSingular') : t('requests.itemPlural')
+                }
+              />
+              <RequestBulkStatusDialog
+                isOpen={showBulkStatusDialog}
+                onClose={() => setShowBulkStatusDialog(false)}
+                selectedRequests={selectedRequests}
+                saveRequest={saveRequest}
+                onSuccess={clearRequestSelection}
+              />
+            </>
+          ) : null}
 
           <div
             className={cn(
@@ -859,53 +934,98 @@ export function RequestList() {
                 : 'grid-cols-1 items-start',
             )}
           >
-            <div
-              className={cn(
-                'min-w-0',
-                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
-              )}
-            >
-              <div className="flex min-w-0 flex-col gap-3">
-                {sorted.length === 0 ? (
-                  <ListEmptyState
-                    message={
-                      requests.length === 0 ? t('requests.noYet') : t('requests.noMatchTitle')
-                    }
-                    createLabel={requests.length === 0 ? t('requests.addRequest') : undefined}
-                    onCreate={
-                      requests.length === 0
-                        ? () => attemptNavigation(() => openRequestPanel(null))
-                        : undefined
-                    }
-                  />
-                ) : (
-                  <RequestListTable
-                    requests={sorted}
-                    primarySort={primarySort}
-                    sortOrder={sortOrder}
-                    onSort={handleTableSort}
-                    isSelected={isSelected}
-                    onRowClick={handleRowActivate}
-                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                    onCheckboxChange={onVisibleRowCheckboxChange}
-                    allVisibleSelected={allVisibleSelected}
-                    onHeaderCheckboxChange={handleHeaderCheckboxChange}
-                    recentlyQuickAddedId={recentlyQuickAddedId}
-                    isRequestHighlighted={isRequestHighlighted}
-                    selectionEnabled={selectionMode}
-                    activeRequestId={activeListRequestId}
-                    visibleColumnIds={visibleColumnIds}
-                  />
-                )}
-
-                <ListFooterBar
-                  meta={t('requests.showingCount', {
-                    shown: sorted.length,
-                    total: requests.length,
-                  })}
+            {isCompanion && previewRequest ? (
+              <div
+                className="min-w-0"
+                role="region"
+                aria-label={t('requests.quickContext.title', { defaultValue: 'Quick context' })}
+              >
+                <RequestView
+                  request={previewRequest}
+                  stacked
+                  readOnly
+                  headerTrailing={
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={ExternalLink}
+                        label={t('requests.quickContext.openFullProfile')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => {
+                          const request = previewRequest;
+                          attemptNavigation(() => {
+                            setPreviewRequest(null);
+                            companionPanel?.closeCompanionPanel();
+                            openRequestForView(request);
+                          });
+                        }}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={X}
+                        label={t('common.close')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => setPreviewRequest(null)}
+                      />
+                    </div>
+                  }
                 />
               </div>
-            </div>
+            ) : (
+              <div
+                className={cn(
+                  'min-w-0',
+                  showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+                )}
+              >
+                <div className="flex min-w-0 flex-col gap-3">
+                  {sorted.length === 0 ? (
+                    <ListEmptyState
+                      message={
+                        requests.length === 0 ? t('requests.noYet') : t('requests.noMatchTitle')
+                      }
+                      createLabel={
+                        !isCompanion && requests.length === 0 ? t('requests.addRequest') : undefined
+                      }
+                      onCreate={
+                        !isCompanion && requests.length === 0
+                          ? () => attemptNavigation(() => openRequestPanel(null))
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <RequestListTable
+                      requests={sorted}
+                      primarySort={primarySort}
+                      sortOrder={sortOrder}
+                      onSort={handleTableSort}
+                      isSelected={isSelected}
+                      onRowClick={handleRowActivate}
+                      onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                      onCheckboxChange={onVisibleRowCheckboxChange}
+                      allVisibleSelected={allVisibleSelected}
+                      onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                      recentlyQuickAddedId={recentlyQuickAddedId}
+                      isRequestHighlighted={isRequestHighlighted}
+                      selectionEnabled={selectionMode}
+                      activeRequestId={activeListRequestId}
+                      visibleColumnIds={tableColumnIds}
+                    />
+                  )}
+
+                  <ListFooterBar
+                    meta={t('requests.showingCount', {
+                      shown: sorted.length,
+                      total: requests.length,
+                    })}
+                  />
+                </div>
+              </div>
+            )}
 
             {showDesktopSplit ? (
               <aside

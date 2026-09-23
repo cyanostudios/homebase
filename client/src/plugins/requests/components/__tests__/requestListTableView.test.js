@@ -65,7 +65,7 @@ describe('RequestList table view wiring', () => {
 
   test('list resolves and passes visible table columns from settings', () => {
     expect(listSrc).toMatch(/resolveVisibleRequestTableColumns/);
-    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{tableColumnIds\}/);
   });
 
   test('list split view previews requests on wide screens without opening the global panel', () => {
@@ -77,7 +77,7 @@ describe('RequestList table view wiring', () => {
     expect(listSrc).toMatch(/activeListRequestId/);
     expect(listSrc).toMatch(/setPreviewRequest\(\(current\) =>/);
     expect(listSrc).toMatch(/String\(current\.id\) === String\(request\.id\) \? null : request/);
-    expect(listSrc).toMatch(/showDesktopSplit = !isCompactViewport/);
+    expect(listSrc).toMatch(/showDesktopSplit = isCompanion \? false : !isCompactViewport/);
     expect(listSrc).toMatch(/grid-cols-\[minmax\(220px,20%\)_minmax\(0,1fr\)\]/);
     expect(listSrc).toMatch(/grid-rows-\[minmax\(0,1fr\)\]/);
     expect(listSrc).toMatch(/h-full min-h-0 overflow-y-auto overscroll-contain/);
@@ -88,6 +88,25 @@ describe('RequestList table view wiring', () => {
     expect(listSrc).not.toMatch(/bulkSelectionEnabled/);
     expect(viewSrc).toMatch(/stacked\?: boolean/);
     expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
+  });
+
+  test('requests companion is view-only inside the flyout', () => {
+    expect(listSrc).toMatch(/isCompanion\?: boolean/);
+    expect(listSrc).toMatch(/COMPANION_VISIBLE_COLUMN_IDS/);
+    expect(listSrc).toMatch(/tableColumnIds/);
+    expect(listSrc).toMatch(/isCompanion && previewRequest/);
+    expect(listSrc).toMatch(/readOnly/);
+    expect(listSrc).toMatch(/headerTrailing/);
+    expect(listSrc).toMatch(/ExternalLink/);
+    expect(listSrc).toMatch(/openRequestForView\(request\)/);
+    expect(listSrc).toMatch(/closeCompanionPanel/);
+    expect(listSrc).toMatch(/setPreviewRequest\(null\)/);
+    expect(viewSrc).toMatch(/readOnly\?: boolean/);
+    expect(viewSrc).toMatch(/REQUEST_VIEW_READONLY_TABS/);
+    expect(viewSrc).toMatch(/localTab/);
+    const qcSrc = fs.readFileSync(path.join(__dirname, '../RequestQuickContextPanel.tsx'), 'utf8');
+    expect(qcSrc).toMatch(/readOnly/);
+    expect(qcSrc).toMatch(/headerTrailing/);
   });
 
   test('requests plugin registry hides shell Add and wires content view', () => {
@@ -153,7 +172,7 @@ describe('RequestList table view wiring', () => {
     expect(listSrc).toMatch(/BulkActionRoundBar/);
     expect(listSrc).toMatch(/size="xs"/);
     expect(listSrc).toMatch(/common\.clear/);
-    expect(listSrc).toMatch(/showDesktopSplit = !isCompactViewport/);
+    expect(listSrc).toMatch(/showDesktopSplit = isCompanion \? false : !isCompactViewport/);
     expect(listSrc).toMatch(/bulkRoundActions/);
   });
 

@@ -38,4 +38,20 @@ describe('TaskView detail tab chips', () => {
     expect(viewSrc).toMatch(/DetailActivityLog/);
     expect(viewSrc).toMatch(/entityType="task"/);
   });
+
+  test('readOnly companion mode uses local tabs limited to information/assignees', () => {
+    expect(viewSrc).toMatch(/readOnly\?: boolean/);
+    expect(viewSrc).toMatch(/headerTrailing\?: React\.ReactNode/);
+    expect(viewSrc).toMatch(/TASK_VIEW_READONLY_TABS/);
+    expect(viewSrc).toMatch(/localTab/);
+    expect(viewSrc).toMatch(/const activeTab = readOnly \? localTab : urlTab/);
+    expect(viewSrc).toMatch(/if \(readOnly\) \{\s*setLocalTab\(tab\);/);
+    expect(viewSrc).toMatch(/TASK_VIEW_READONLY_TABS\.includes\(tab\.id\)/);
+    expect(viewSrc).toMatch(/!readOnly && activeTab === 'linked'/);
+    expect(viewSrc).toMatch(/!readOnly && activeTab === 'activity'/);
+    expect(qcSrc).toMatch(/readOnly\?: boolean/);
+    expect(qcSrc).toMatch(/headerTrailing\?: React\.ReactNode/);
+    expect(qcSrc).toMatch(/readOnly \? \(/);
+    expect(qcSrc).toMatch(/TaskDetailHeaderMenus/);
+  });
 });

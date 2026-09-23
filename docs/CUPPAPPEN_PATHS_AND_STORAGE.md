@@ -1,6 +1,8 @@
 # Cupappen: vägar, miljöer och hjältebilder (R2)
 
-Det här dokumentet beskriver **hur data och filer rör sig** i den typiska Cupappen-uppsättningen: lokal utveckling med Neon, deploy från GitHub till Railway, publik sajt mot PHP/Neon, samt **var** miljövariabler ska ligga så att hjältebilder hamnar i Cloudflare R2 i stället för på lokal disk.
+Det här dokumentet beskriver **hur data och filer rör sig** i den typiska Cupappen-uppsättningen: lokal utveckling med Neon, deploy från GitHub till Railway, publik sajt mot PHP/Neon, samt **var** miljövariabler ska ligga så att bilder hamnar i Cloudflare R2 i stället för på lokal disk.
+
+Samma `R2_*` på **Homebase**-tjänsten styr alla uppladdningar i Files-pluginet (bibliotek, bilagor, profil, hjältebilder), inte bara cup-bilder. Objektnyckeln är `cups/<filnamn>` om ingen annan prefix skickas. Metadata ligger i Neon **tenant** (`user_files`). Plattformsöversikt: [`FILES_PLUGIN.md`](./FILES_PLUGIN.md), Railway-variabler: [`RAILWAY_HOMEBASE_SETUP.md`](./RAILWAY_HOMEBASE_SETUP.md).
 
 **Drift, Docker, `CUPS_DB_URL`, 500-fel:** se **[`CUPPAPPEN_RAILWAY_OPERATIONS.md`](./CUPPAPPEN_RAILWAY_OPERATIONS.md)** — obligatorisk läsning innan Cupappen Railway ändras.
 

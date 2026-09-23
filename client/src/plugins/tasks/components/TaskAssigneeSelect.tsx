@@ -27,13 +27,19 @@ import { useTasks } from '../hooks/useTasks';
 interface TaskAssigneeSelectProps {
   task: any;
   onAssigneeChange: (contactIds: string[]) => void;
+  /** Companion / browse-only: no search-to-add, no remove controls. */
+  readOnly?: boolean;
 }
 
 /**
  * Assignee picker: Contacts Linked-style tiles + search-to-add (same pattern as SlotView add).
  * Tile click → contact quick-info popup, then navigate on confirm.
  */
-export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelectProps) {
+export function TaskAssigneeSelect({
+  task,
+  onAssigneeChange,
+  readOnly = false,
+}: TaskAssigneeSelectProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { contacts } = useContacts();
@@ -171,7 +177,7 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
           iconPlugin="contacts"
           subtleTitle
           className="p-6"
-          action={searchAction}
+          action={readOnly ? undefined : searchAction}
         >
           {assignedContacts.length > 0 ? (
             <QuickContextLinkTileGrid>
@@ -190,22 +196,24 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
                     >
                       {name}
                     </QuickContextLinkTile>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      icon={X}
-                      className="absolute right-1 top-1 h-7 w-7 p-0 text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onAssigneeChange(
-                          assignedIds.filter(
-                            (id: string) => String(id) !== String(assignedContact.id),
-                          ),
-                        );
-                      }}
-                      aria-label={`${t('tasks.removeAssignee')} ${name}`}
-                    />
+                    {readOnly ? null : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        icon={X}
+                        className="absolute right-1 top-1 h-7 w-7 p-0 text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onAssigneeChange(
+                            assignedIds.filter(
+                              (id: string) => String(id) !== String(assignedContact.id),
+                            ),
+                          );
+                        }}
+                        aria-label={`${t('tasks.removeAssignee')} ${name}`}
+                      />
+                    )}
                   </div>
                 );
               })}

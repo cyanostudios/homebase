@@ -27,11 +27,19 @@ describe('AIProvidersList table view wiring', () => {
     expect(tableSrc).toMatch(/visibleColumnIds/);
   });
 
-  test('detail view embeds AIProviderDetailHeaderMenus with leading identity and tabs', () => {
+  test('detail view embeds AIProviderDetailHeaderMenus with leading identity (stacked cards, no tabs)', () => {
     expect(viewSrc).toMatch(/AIProviderDetailHeaderMenus/);
     expect(viewSrc).toMatch(/leading=\{titleLeading\}/);
     expect(viewSrc).toMatch(/gridClassName="grid-cols-1"/);
-    expect(viewSrc).toMatch(/useSearchParams/);
+    expect(viewSrc).toMatch(/DetailHeaderMetaRow/);
+    expect(viewSrc).toMatch(/StatusOutlineBadge/);
+    expect(viewSrc).not.toMatch(/useSearchParams/);
     expect(listSrc).not.toMatch(/AIProviderDetailHeaderMenus/);
+  });
+
+  test('table status uses StatusOutlineBadge (Tasks/Mail/Pulse pattern)', () => {
+    expect(tableSrc).toMatch(/StatusOutlineBadge/);
+    expect(tableSrc).toMatch(/QC_STATUS_BADGE_COLORS/);
+    expect(tableSrc).not.toMatch(/from '@\/components\/ui\/badge'/);
   });
 });

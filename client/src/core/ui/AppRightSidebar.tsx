@@ -24,6 +24,7 @@ import { PomodoroProvider } from '@/core/ui/rightSidebar/PomodoroContext';
 import { PomodoroPanel } from '@/core/ui/rightSidebar/PomodoroPanel';
 import { PomodoroRailButton } from '@/core/ui/rightSidebar/PomodoroRailButton';
 import { RightSidebarFlyout } from '@/core/ui/rightSidebar/RightSidebarFlyout';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { TimerProvider } from '@/core/ui/rightSidebar/TimerContext';
 import { TimerPanel } from '@/core/ui/rightSidebar/TimerPanel';
 import { TimerRailButton } from '@/core/ui/rightSidebar/TimerRailButton';
@@ -146,6 +147,9 @@ export function AppRightSidebar() {
             open={companionOpen}
             onClose={closeCompanionPanel}
             widthPx={RIGHT_SIDEBAR_COMPANION_FLYOUT_WIDTH_PX}
+            className="bg-slate-100 dark:bg-slate-900"
+            bodyClassName="p-0"
+            titleClassName={PLUGIN_PAGE_TITLE_CLASS}
           >
             {CompanionListComp ? (
               <React.Suspense fallback={null}>
@@ -170,7 +174,7 @@ export function AppRightSidebar() {
                   ? t('rightSidebar.darkMode', { defaultValue: 'Dark mode' })
                   : t('rightSidebar.lightMode', { defaultValue: 'Light mode' })
               }
-              variant="secondary"
+              variant="category"
               size="xs"
               expandOnHover={false}
               onClick={toggleTheme}
@@ -178,7 +182,7 @@ export function AppRightSidebar() {
             <RoundIconLabelButton
               icon={Settings2}
               label={t('rightSidebar.settings')}
-              variant="secondary"
+              variant="category"
               size="xs"
               expandOnHover={false}
               onClick={handleOpenSettingsPage}
@@ -210,7 +214,7 @@ export function AppRightSidebar() {
                       key={entry.name}
                       icon={Icon}
                       label={t('rightSidebar.openCompanion', { name: pluginTitle })}
-                      variant={open ? 'soft' : 'secondary'}
+                      variant={open ? 'soft' : 'category'}
                       size="xs"
                       expandOnHover={false}
                       aria-pressed={open}

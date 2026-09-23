@@ -1,6 +1,6 @@
 /**
  * Resolves which Pulse SMS provider/credentials to use for a plugin request.
- * Precedence: plugin override → global default → legacy first enabled SMS → none.
+ * Precedence: plugin must have sms_enabled → optional plugin provider override → global → legacy.
  */
 const { isRoutablePluginKey } = require('./routablePlugins');
 const { isSmsNotificationCapable } = require('./providerCatalog');
@@ -17,6 +17,7 @@ class PulseProviderRouter {
 
   /**
    * Peek routed provider key without requiring credentials (plugin → global).
+   * Returns null when Pulse SMS is not enabled for the plugin.
    * @returns {Promise<string|null>}
    */
   async _peekRoutedProviderKey(req, pluginKey) {
@@ -24,11 +25,16 @@ class PulseProviderRouter {
       .trim()
       .toLowerCase();
 
-    if (normalizedPluginKey && isRoutablePluginKey(normalizedPluginKey)) {
+    if (normalizedPluginKey && isRoutablePluginKey(normalizedPluginKey, req)) {
       const pluginRow = await this.settingsModel.getRoutingForScope(req, normalizedPluginKey);
-      if (pluginRow?.providerKey) {
+      if (!pluginRow?.smsEnabled) {
+        return null;
+      }
+      if (pluginRow.providerKey) {
         return String(pluginRow.providerKey).toLowerCase();
       }
+    } else if (normalizedPluginKey) {
+      return null;
     }
 
     const globalRow = await this.settingsModel.getRoutingForScope(req, GLOBAL_SCOPE);
@@ -44,6 +50,16 @@ class PulseProviderRouter {
    * @returns {Promise<{ ready: boolean, providerKey?: string, failure?: { code: string } }>}
    */
   async checkReadiness(req, { pluginKey } = {}) {
+    const normalizedPluginKey = String(pluginKey ?? '')
+      .trim()
+      .toLowerCase();
+    if (normalizedPluginKey && isRoutablePluginKey(normalizedPluginKey, req)) {
+      const pluginRow = await this.settingsModel.getRoutingForScope(req, normalizedPluginKey);
+      if (!pluginRow?.smsEnabled) {
+        return { ready: false, failure: { code: 'pulse_not_enabled_for_plugin' } };
+      }
+    }
+
     const routedKey = await this._peekRoutedProviderKey(req, pluginKey);
     if (routedKey && !isSmsNotificationCapable(routedKey)) {
       return {
@@ -86,19 +102,21 @@ class PulseProviderRouter {
       .trim()
       .toLowerCase();
 
-    let routingDecision = null;
-
-    if (normalizedPluginKey && isRoutablePluginKey(normalizedPluginKey)) {
-      routingDecision = await this.settingsModel.getRoutingForScope(req, normalizedPluginKey);
+    if (normalizedPluginKey && isRoutablePluginKey(normalizedPluginKey, req)) {
+      const pluginRow = await this.settingsModel.getRoutingForScope(req, normalizedPluginKey);
+      if (!pluginRow?.smsEnabled) {
+        return null;
+      }
+      if (pluginRow.providerKey) {
+        return this._resolveWithCredentials(req, pluginRow.providerKey, 'plugin');
+      }
+    } else if (normalizedPluginKey) {
+      return null;
     }
 
-    if (!routingDecision) {
-      routingDecision = await this.settingsModel.getRoutingForScope(req, GLOBAL_SCOPE);
-    }
-
-    if (routingDecision) {
-      const source = routingDecision.scope === GLOBAL_SCOPE ? 'global' : 'plugin';
-      return this._resolveWithCredentials(req, routingDecision.providerKey, source);
+    const globalRow = await this.settingsModel.getRoutingForScope(req, GLOBAL_SCOPE);
+    if (globalRow?.providerKey) {
+      return this._resolveWithCredentials(req, globalRow.providerKey, 'global');
     }
 
     const legacyKey = await this.settingsModel.getPreferredEnabledSmsProviderKey(req);

@@ -10,8 +10,28 @@
 export const PLUGIN_PAGE_LIST_SHELL_CLASS =
   'min-h-full overflow-x-clip bg-slate-100 pb-4 pt-2 dark:bg-slate-900 px-4 md:px-6 md:pb-5 md:pt-6';
 
+/**
+ * Companion flyout list shell — same slate surface as primary lists, modest inset
+ * (no white card frame around the panel; flyout shell is already slate).
+ */
+export const PLUGIN_PAGE_COMPANION_SHELL_CLASS =
+  'min-h-full overflow-x-clip bg-slate-100 px-3 pb-3 pt-2 dark:bg-slate-900';
+
 /** Vertical gap between list sections. Flex + gap skips `display:none` md-only headers on phone. */
 export const PLUGIN_PAGE_SECTION_GAP_CLASS = 'flex min-w-0 flex-col gap-3 md:gap-6';
+
+/** Companion section stack — between primary page gap and the ultra-tight companion trial. */
+export const PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS = 'flex min-w-0 flex-col gap-3';
+
+/**
+ * Companion toolbar controls (Sort / Filters / Search) — one step below primary `h-11`
+ * (`RoundIconLabelButton` `xs` footprint).
+ */
+export const PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS =
+  'h-[2.0625rem] rounded-full px-2.5 text-xs [&_svg]:size-[0.9375rem]';
+
+/** Expanded search width in companion — narrower than primary `w-80` so Sort/Filters/Search stay one row. */
+export const PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS = 'w-44';
 
 /** In-page title row: title left, actions right (matches ContactList header row). */
 export const PLUGIN_PAGE_HEADER_CLASS = 'hidden items-start justify-between gap-6 md:flex';

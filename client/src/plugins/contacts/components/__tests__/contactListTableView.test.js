@@ -55,7 +55,7 @@ describe('ContactList table view wiring', () => {
 
   test('list resolves and passes visible table columns from settings', () => {
     expect(listSrc).toMatch(/resolveVisibleContactTableColumns/);
-    expect(listSrc).toMatch(/visibleColumnIds=\{visibleColumnIds\}/);
+    expect(listSrc).toMatch(/visibleColumnIds=\{tableColumnIds\}/);
   });
 
   test('list split view previews contacts on wide screens without opening the global panel', () => {
@@ -68,7 +68,7 @@ describe('ContactList table view wiring', () => {
     expect(listSrc).toMatch(/activeContactId/);
     expect(listSrc).toMatch(/setPreviewContact\(\(current\) =>/);
     expect(listSrc).toMatch(/String\(current\.id\) === String\(contact\.id\) \? null : contact/);
-    expect(listSrc).toMatch(/showDesktopSplit = !isCompactViewport/);
+    expect(listSrc).toMatch(/showDesktopSplit = isCompanion \? false : !isCompactViewport/);
     expect(listSrc).toMatch(/grid-cols-\[minmax\(220px,20%\)_minmax\(0,1fr\)\]/);
     expect(listSrc).toMatch(/grid-rows-\[minmax\(0,1fr\)\]/);
     expect(listSrc).toMatch(/h-full min-h-0 overflow-y-auto overscroll-contain/);
@@ -79,6 +79,32 @@ describe('ContactList table view wiring', () => {
     expect(listSrc).not.toMatch(/bulkSelectionEnabled/);
     expect(tableSrc).toMatch(/activeContactId/);
     expect(tableSrc).toMatch(/selectionEnabled/);
+  });
+
+  test('contacts companion is view-only inside the flyout', () => {
+    expect(listSrc).toMatch(/isCompanion\?: boolean/);
+    expect(listSrc).toMatch(/COMPANION_VISIBLE_COLUMN_IDS/);
+    expect(listSrc).toMatch(/tableColumnIds/);
+    expect(listSrc).toMatch(/isCompanion && previewContact/);
+    expect(listSrc).toMatch(/readOnly/);
+    expect(listSrc).toMatch(/headerTrailing/);
+    expect(listSrc).toMatch(/ExternalLink/);
+    expect(listSrc).toMatch(/openContactForView\(contact\)/);
+    expect(listSrc).toMatch(/closeCompanionPanel/);
+    expect(listSrc).toMatch(/setPreviewContact\(null\)/);
+    expect(listSrc).toMatch(/showDesktopSplit = isCompanion \? false : !isCompactViewport/);
+    const viewSrc = fs.readFileSync(path.join(__dirname, '../ContactView.tsx'), 'utf8');
+    expect(viewSrc).toMatch(/readOnly\?: boolean/);
+    expect(viewSrc).toMatch(/CONTACT_VIEW_READONLY_TABS/);
+    expect(viewSrc).toMatch(/localTab/);
+    const qcSrc = fs.readFileSync(path.join(__dirname, '../ContactQuickContextPanel.tsx'), 'utf8');
+    expect(qcSrc).toMatch(/readOnly/);
+    expect(qcSrc).toMatch(/headerTrailing/);
+    const appContentSrc = fs.readFileSync(
+      path.join(__dirname, '../../../../core/app/AppContent.tsx'),
+      'utf8',
+    );
+    expect(appContentSrc).toMatch(/shouldCloseCompanionForPrimary/);
   });
 
   test('create/edit form is not legacy panel settings', () => {
@@ -136,7 +162,7 @@ describe('ContactList table view wiring', () => {
     expect(listSrc).toMatch(/BulkActionRoundBar/);
     expect(listSrc).toMatch(/common\.clear/);
     expect(listSrc).not.toMatch(/common\.headerActions/);
-    expect(listSrc).toMatch(/showDesktopSplit = !isCompactViewport/);
+    expect(listSrc).toMatch(/showDesktopSplit = isCompanion \? false : !isCompactViewport/);
     expect(listSrc).toMatch(/bulkRoundActions/);
   });
 

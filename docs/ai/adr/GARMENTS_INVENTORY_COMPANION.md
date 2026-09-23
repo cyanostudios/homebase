@@ -26,7 +26,7 @@ Operators need inventory visibility while working in other plugins (e.g. Teams) 
    - `resolveCompanionHideOnPrimaryPages` → explicit array or fallback `[plugin.name]`.
    - `shouldHideCompanionRailForPrimary` / `shouldCloseCompanionForPrimary` used by `AppRightSidebar` and `AppContent`.
 
-3. **Render path** — `AppRightSidebar` mounts registry `List` with `isCompanion` inside `RightSidebarFlyout` at `RIGHT_SIDEBAR_COMPANION_FLYOUT_WIDTH_PX`. Desktop only (`hidden lg:block`); `AppContent` closes companion when viewport leaves desktop. Flyout body owns vertical scroll (`overflow-y-auto`); companion List uses the same page-shell tokens as Schedule (`PLUGIN_PAGE_LIST_SHELL_CLASS` + section gap).
+3. **Render path** — `AppRightSidebar` mounts registry `List` with `isCompanion` inside `RightSidebarFlyout` at `RIGHT_SIDEBAR_COMPANION_FLYOUT_WIDTH_PX` (~480px). Desktop only (`hidden lg:block`); `AppContent` closes companion when viewport leaves desktop. Flyout body owns vertical scroll (`overflow-y-auto`); companion List uses `PLUGIN_PAGE_COMPANION_SHELL_CLASS` + companion section gap.
 
 4. **`GarmentList` companion mode** — When `isCompanion`:
    - Treat surface as inventory (`isInventoryEffective`); do **not** mutate `garmentsContentView` for companion mode.

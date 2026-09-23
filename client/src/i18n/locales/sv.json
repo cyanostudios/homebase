@@ -2211,6 +2211,7 @@
     "viewCreated": "Skapad",
     "viewUpdated": "Uppdaterad",
     "previewImage": "Förhandsvisning bild",
+    "previewOpenLightbox": "Förstora bild",
     "previewPdf": "Förhandsvisning PDF",
     "previewContent": "Filinnehåll",
     "previewUnavailableTitle": "Ingen förhandsvisning",
@@ -2418,10 +2419,6 @@
       "open": "Routing",
       "title": "Mail – Routing",
       "description": "Ange en global standardleverantör och valfria per-plugin-overrides. Bara e-postkapabla leverantörer visas här.",
-      "categories": {
-        "global": "Global standard",
-        "plugins": "Per-plugin"
-      },
       "globalTitle": "Global standard",
       "globalHint": "Används av alla plugins utan egna overrides. Bara konfigurerade och aktiverade e-postleverantörer är tillgängliga.",
       "pluginsHint": "Valfritt. När det är satt använder pluginet sin tilldelade leverantör i stället för global standard.",
@@ -2566,24 +2563,24 @@
     "routing": {
       "open": "Routing",
       "title": "Pulse – Routing",
-      "description": "Set a global default SMS provider and optional per-plugin overrides. Only SMS-capable providers appear here.",
-      "categories": {
-        "global": "Global standard",
-        "plugins": "Per-plugin"
-      },
-      "globalTitle": "Global default",
-      "globalHint": "Used by any plugin without its own override. Only configured and enabled SMS providers are available.",
-      "pluginsHint": "Optional. When set, a plugin uses its assigned provider instead of the global default.",
-      "provider": "Provider",
+      "description": "Ange en global standardleverantör för SMS och aktivera sedan Pulse per plugin. Bara SMS-kapabla leverantörer visas här.",
+      "globalTitle": "Global standard",
+      "globalHint": "Används av plugins där Pulse är på och ingen egen leverantör är vald. Bara konfigurerade och aktiverade SMS-leverantörer är tillgängliga.",
+      "pluginsHint": "Alla aktiverade plugins visas här. Slå på Pulse-SMS för att tillåta sändning; du kan valfritt välja en annan leverantör än den globala.",
+      "provider": "Leverantör",
       "plugin": "Plugin",
-      "pluginsTitle": "Per-plugin overrides",
-      "saveGlobal": "Save global default",
-      "clear": "Clear",
-      "inheritGlobal": "Inherit global",
-      "globalProviderRequired": "Choose a provider for the global default.",
-      "pluginProviderRequired": "Choose a provider override or clear the assignment.",
-      "saveError": "Failed to save routing settings.",
-      "noSmsProviders": "Enable Twilio or Mock with credentials — then it appears here."
+      "pulseEnabled": "Pulse",
+      "pulseEnabledAria": "Aktivera Pulse-SMS för {{plugin}}",
+      "pluginsTitle": "Pulse-SMS per plugin",
+      "noPlugins": "Inga aktiverade plugins tillgängliga för Pulse-routing.",
+      "saveGlobal": "Spara global standard",
+      "clear": "Rensa",
+      "useGlobalDefault": "Använd global standard",
+      "inheritGlobal": "Ärv global",
+      "globalProviderRequired": "Välj en leverantör för den globala standarden.",
+      "pluginProviderRequired": "Välj en leverantör eller rensa tilldelningen.",
+      "saveError": "Det gick inte att spara routinginställningar.",
+      "noSmsProviders": "Aktivera Twilio eller Mock med uppgifter — sedan visas det här."
     }
   },
   "aiProviders": {
@@ -2659,10 +2656,6 @@
       "open": "Routing",
       "title": "AI-leverantörer – Routing",
       "description": "Ange en global standardleverantör och valfria plugin-överskridanden. Plugins begär AI via routing — aldrig direkt mot en specifik leverantör.",
-      "categories": {
-        "global": "Global standard",
-        "plugins": "Per-plugin"
-      },
       "globalTitle": "Global standard",
       "globalHint": "Används av plugins utan egen överskridning. Endast konfigurerade och aktiverade leverantörer är tillgängliga.",
       "pluginsTitle": "Plugin-överskridanden",

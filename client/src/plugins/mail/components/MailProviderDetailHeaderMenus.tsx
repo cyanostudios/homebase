@@ -1,7 +1,6 @@
 import { Edit, Send, Trash2 } from 'lucide-react';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
 
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/DetailHeaderMenus';
@@ -12,28 +11,19 @@ import type { MailProviderSettings } from '../types/mail';
 export function MailProviderDetailHeaderMenus({
   provider,
   leading,
+  onSendTest,
 }: {
   provider: MailProviderSettings;
   /** Optional leading content on the Actions row (e.g. provider name). */
   leading?: React.ReactNode;
+  /** Scroll/focus the stacked test card (no tab navigation). */
+  onSendTest?: () => void;
 }) {
   const { t } = useTranslation();
-  const [, setSearchParams] = useSearchParams();
   const { openMailForEdit, deleteProvider, getDeleteMessage } = useMail();
 
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  const openTestTab = useCallback(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('tab', 'test');
-        return next;
-      },
-      { replace: false },
-    );
-  }, [setSearchParams]);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -63,7 +53,7 @@ export function MailProviderDetailHeaderMenus({
         onClick: () => setShowDelete(true),
       },
     ];
-    if (provider.emailCapable) {
+    if (provider.emailCapable && onSendTest) {
       next.push({
         id: 'send-test',
         icon: Send,
@@ -71,11 +61,11 @@ export function MailProviderDetailHeaderMenus({
         variant: 'secondary',
         contentClassName: 'text-green-600 dark:text-green-400',
         disabled: !provider.configured,
-        onClick: openTestTab,
+        onClick: onSendTest,
       });
     }
     return next;
-  }, [openMailForEdit, openTestTab, provider, t]);
+  }, [onSendTest, openMailForEdit, provider, t]);
 
   return (
     <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')} leading={leading}>

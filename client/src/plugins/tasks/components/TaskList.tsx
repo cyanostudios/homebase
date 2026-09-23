@@ -7,6 +7,7 @@ import {
   ArrowUpDown,
   ChevronDown,
   Circle,
+  ExternalLink,
   FileSpreadsheet,
   FileText,
   LayoutGrid,
@@ -15,6 +16,7 @@ import {
   Settings,
   SlidersHorizontal,
   Trash2,
+  X,
   XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
@@ -37,6 +39,7 @@ import { RoundExpandableQuickAdd } from '@/components/ui/round-expandable-quick-
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
+import { useCompanionPanelOptional } from '@/core/app/CompanionPanelContext';
 import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
@@ -46,6 +49,7 @@ import {
   LIST_FILTER_AND_SORT_ROW_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
   LIST_FILTER_CHIP_ROW_CLASS,
   LIST_FILTER_CHIP_SLOT_CLASS,
   LIST_FILTER_SORT_CLUSTER_CLASS,
@@ -54,7 +58,14 @@ import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
-import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_COMPANION_SHELL_CLASS,
+  PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS,
+  PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS,
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
@@ -102,6 +113,7 @@ type SortField = TaskSortField;
 type SortOrder = TaskSortOrder;
 
 const TASKS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.tasks.toolbar.filtersVisible';
+const COMPANION_VISIBLE_COLUMN_IDS: TaskTableColumnId[] = ['title'];
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'common.updated' },
@@ -114,8 +126,9 @@ const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
 
 let pendingQuickContextTaskId: string | null = null;
 
-export function TaskList() {
+export function TaskList({ isCompanion = false }: { isCompanion?: boolean } = {}) {
   const { t } = useTranslation();
+  const companionPanel = useCompanionPanelOptional();
   const {
     tasks,
     tasksContentView,
@@ -145,13 +158,17 @@ export function TaskList() {
   const { contacts, getSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
-  useMobileActions({
-    onAdd: () => attemptNavigation(() => openTaskPanel(null)),
-    onSettings: () => attemptNavigation(() => openTaskSettings()),
-  });
+  useMobileActions(
+    isCompanion
+      ? {}
+      : {
+          onAdd: () => attemptNavigation(() => openTaskPanel(null)),
+          onSettings: () => attemptNavigation(() => openTaskSettings()),
+        },
+  );
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
-  const showDesktopSplit = !isCompactViewport;
+  const showDesktopSplit = isCompanion ? false : !isCompactViewport;
   const enabledPlugins = useEnabledPlugins();
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const { teams } = useTeams();
@@ -161,6 +178,7 @@ export function TaskList() {
     value: searchTerm,
     onChange: setSearchTerm,
     placeholder: t('tasks.searchPlaceholder', { count: tasks.length }),
+    enabled: !isCompanion,
   });
 
   const [selectionMode, setSelectionMode] = useState(false);
@@ -172,6 +190,7 @@ export function TaskList() {
   const [visibleColumnIds, setVisibleColumnIds] = useState<TaskTableColumnId[]>(() =>
     resolveVisibleTaskTableColumns(null),
   );
+  const tableColumnIds = isCompanion ? COMPANION_VISIBLE_COLUMN_IDS : visibleColumnIds;
   const [activeFilters, setActiveFilters] =
     useState<TaskListFilterSelection>(TASK_LIST_FILTER_INITIAL);
   const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('import');
@@ -484,6 +503,12 @@ export function TaskList() {
   };
 
   const handleRowActivate = (task: Task) => {
+    if (isCompanion) {
+      setPreviewTask((current) =>
+        current && String(current.id) === String(task.id) ? null : task,
+      );
+      return;
+    }
     if (isCompactViewport) {
       handleOpenForView(task);
       return;
@@ -634,7 +659,10 @@ export function TaskList() {
               variant="ghost"
               size="sm"
               onClick={chip.onClick}
-              className={cn(chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+              className={cn(
+                chip.active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
+              )}
             >
               <Icon className="h-3.5 w-3.5" />
               <span>
@@ -765,7 +793,7 @@ export function TaskList() {
     );
   };
 
-  if (tasksContentView === 'settings') {
+  if (tasksContentView === 'settings' && !isCompanion) {
     return (
       <div className="plugin-tasks min-h-full bg-background">
         <div className="px-4 py-4 md:px-6">
@@ -780,7 +808,7 @@ export function TaskList() {
   }
 
   const toolbarEdgeToggle =
-    typeof document !== 'undefined' && toolbarToggleBox
+    !isCompanion && typeof document !== 'undefined' && toolbarToggleBox
       ? createPortal(
           <div
             className="pointer-events-none fixed z-40 hidden justify-center md:flex"
@@ -820,121 +848,163 @@ export function TaskList() {
       <div
         ref={pageShellRef}
         className={cn(
-          'plugin-tasks flex min-h-0 flex-1 flex-col',
-          PLUGIN_PAGE_LIST_SHELL_CLASS,
-          showDesktopSplit
-            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
-            : 'overflow-y-auto md:pt-3',
+          'plugin-tasks',
+          isCompanion
+            ? PLUGIN_PAGE_COMPANION_SHELL_CLASS
+            : cn(
+                'flex min-h-0 flex-1 flex-col',
+                PLUGIN_PAGE_LIST_SHELL_CLASS,
+                showDesktopSplit
+                  ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+                  : 'overflow-y-auto md:pt-3',
+              ),
         )}
       >
         <div
-          className={cn(
-            'flex min-h-0 min-w-0 flex-1 flex-col',
-            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
-          )}
+          className={
+            isCompanion
+              ? PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS
+              : cn(
+                  'flex min-h-0 min-w-0 flex-1 flex-col',
+                  showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+                )
+          }
         >
-          <div className="relative hidden shrink-0 md:block">
-            <div
-              className={cn(
-                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
-                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
-              )}
-              aria-hidden={toolbarCollapsed}
-            >
-              <div className="min-h-0 overflow-hidden">
-                <div
-                  id="tasks-mail-toolbar"
-                  className={cn(
-                    'flex flex-wrap items-center justify-between gap-3',
-                    toolbarCollapsed && 'pointer-events-none',
-                  )}
-                >
-                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.tasks')}</h2>
-                    <ExpandableIconButton
-                      icon={Settings}
-                      label={t('common.settings')}
-                      variant="soft"
-                      onClick={() => attemptNavigation(() => openTaskSettings())}
-                    />
-                    {renderSortDropdown('h-11 rounded-full')}
-                    <ListFilterChipsToggle
-                      visible={filtersVisible}
-                      onVisibleChange={setFiltersVisible}
-                      className="h-11 rounded-full"
-                    />
-                    {renderSelectControls('h-11 rounded-full')}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <RoundExpandableQuickAdd
-                      icon={CheckSquare}
-                      label={t('tasks.quickAdd')}
-                      placeholder={t('tasks.quickAddPlaceholder')}
-                      onCreate={handleQuickCreate}
-                      defaultExpanded
-                      variant={detailColumnOpen ? 'soft' : 'primary'}
-                    />
-                    <RoundExpandableSearch
-                      value={searchTerm}
-                      onChange={setSearchTerm}
-                      placeholder={t('tasks.searchPlaceholder', { count: tasks.length })}
-                    />
-                    <ExpandableIconButton
-                      icon={Plus}
-                      label={t('tasks.addTask')}
-                      variant="soft"
-                      onClick={() => attemptNavigation(() => openTaskPanel(null))}
-                    />
-                  </div>
-                </div>
-                {filtersVisible ? (
+          {!(isCompanion && previewTask) ? (
+            <div className={cn('relative shrink-0', isCompanion ? 'block' : 'hidden md:block')}>
+              <div
+                className={cn(
+                  'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                  toolbarCollapsed && !isCompanion
+                    ? 'grid-rows-[0fr] opacity-0'
+                    : 'grid-rows-[1fr] opacity-100',
+                )}
+                aria-hidden={toolbarCollapsed && !isCompanion}
+              >
+                <div className="min-h-0 overflow-hidden">
                   <div
+                    id="tasks-mail-toolbar"
                     className={cn(
-                      LIST_FILTER_AND_SORT_ROW_CLASS,
-                      'pt-2',
-                      toolbarCollapsed && 'pointer-events-none',
+                      'flex items-center justify-between gap-3',
+                      isCompanion ? 'flex-nowrap' : 'flex-wrap',
+                      toolbarCollapsed && !isCompanion && 'pointer-events-none',
                     )}
                   >
-                    {renderFilterChips()}
+                    <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                      {!isCompanion ? (
+                        <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.tasks')}</h2>
+                      ) : null}
+                      {!isCompanion ? (
+                        <ExpandableIconButton
+                          icon={Settings}
+                          label={t('common.settings')}
+                          variant="soft"
+                          onClick={() => attemptNavigation(() => openTaskSettings())}
+                        />
+                      ) : null}
+                      {renderSortDropdown(
+                        isCompanion
+                          ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                          : 'h-11 rounded-full',
+                      )}
+                      <ListFilterChipsToggle
+                        visible={filtersVisible}
+                        onVisibleChange={setFiltersVisible}
+                        className={
+                          isCompanion
+                            ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                            : 'h-11 rounded-full'
+                        }
+                      />
+                      {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {!isCompanion ? (
+                        <RoundExpandableQuickAdd
+                          icon={CheckSquare}
+                          label={t('tasks.quickAdd')}
+                          placeholder={t('tasks.quickAddPlaceholder')}
+                          onCreate={handleQuickCreate}
+                          defaultExpanded
+                          variant={detailColumnOpen ? 'soft' : 'primary'}
+                        />
+                      ) : null}
+                      <RoundExpandableSearch
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder={t('tasks.searchPlaceholder', { count: tasks.length })}
+                        size={isCompanion ? 'xs' : 'sm'}
+                        expandedWidthClass={
+                          isCompanion
+                            ? PLUGIN_PAGE_COMPANION_SEARCH_EXPANDED_WIDTH_CLASS
+                            : undefined
+                        }
+                      />
+                      {!isCompanion ? (
+                        <ExpandableIconButton
+                          icon={Plus}
+                          label={t('tasks.addTask')}
+                          variant="soft"
+                          onClick={() => attemptNavigation(() => openTaskPanel(null))}
+                        />
+                      ) : null}
+                    </div>
                   </div>
-                ) : null}
-                {renderBulkActionBar('py-3')}
+                  {filtersVisible ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {renderFilterChips()}
+                    </div>
+                  ) : null}
+                  {!isCompanion ? renderBulkActionBar('py-3') : null}
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
-            {filtersVisible ? renderFilterChips() : null}
-            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-              <ListFilterChipsToggle
-                visible={filtersVisible}
-                onVisibleChange={setFiltersVisible}
-                className="h-7 rounded-md"
-              />
-              {renderSortDropdown('h-7 rounded-md')}
+          {!isCompanion ? (
+            <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+              {filtersVisible ? renderFilterChips() : null}
+              <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+                <ListFilterChipsToggle
+                  visible={filtersVisible}
+                  onVisibleChange={setFiltersVisible}
+                  className="h-7 rounded-md"
+                />
+                {renderSortDropdown('h-7 rounded-md')}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {selectionMode ? (
+          {!isCompanion && selectionMode ? (
             <div className="shrink-0 py-3 md:hidden">{renderBulkActionBar()}</div>
           ) : null}
 
-          <BulkDeleteModal
-            isOpen={showBulkDeleteModal}
-            onClose={() => setShowBulkDeleteModal(false)}
-            onConfirm={handleBulkDelete}
-            itemCount={selectedCount}
-            itemLabel="tasks"
-            isLoading={deleting}
-          />
+          {!isCompanion ? (
+            <>
+              <BulkDeleteModal
+                isOpen={showBulkDeleteModal}
+                onClose={() => setShowBulkDeleteModal(false)}
+                onConfirm={handleBulkDelete}
+                itemCount={selectedCount}
+                itemLabel="tasks"
+                isLoading={deleting}
+              />
 
-          <TaskBulkStatusDialog
-            isOpen={showBulkStatusDialog}
-            onClose={() => setShowBulkStatusDialog(false)}
-            selectedTasks={selectedTasks}
-            saveTask={saveTask}
-            onSuccess={clearTaskSelection}
-          />
+              <TaskBulkStatusDialog
+                isOpen={showBulkStatusDialog}
+                onClose={() => setShowBulkStatusDialog(false)}
+                selectedTasks={selectedTasks}
+                saveTask={saveTask}
+                onSuccess={clearTaskSelection}
+              />
+            </>
+          ) : null}
 
           <div
             className={cn(
@@ -944,53 +1014,94 @@ export function TaskList() {
                 : 'grid-cols-1 items-start',
             )}
           >
-            <div
-              className={cn(
-                'min-w-0',
-                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
-              )}
-            >
-              <div className="flex min-w-0 flex-col gap-3">
-                {sortedTasks.length === 0 ? (
-                  <ListEmptyState
-                    message={searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
-                    createLabel={!searchTerm ? t('tasks.addTask') : undefined}
-                    onCreate={
-                      !searchTerm ? () => attemptNavigation(() => openTaskPanel(null)) : undefined
-                    }
-                  />
-                ) : (
-                  <TaskListTable
-                    tasks={sortedTasks}
-                    primarySort={primarySort}
-                    sortOrder={sortOrder}
-                    onSort={handleTableSort}
-                    isSelected={isSelected}
-                    onRowClick={handleRowActivate}
-                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                    onCheckboxChange={onVisibleRowCheckboxChange}
-                    allVisibleSelected={allVisibleSelected}
-                    onHeaderCheckboxChange={handleHeaderCheckboxChange}
-                    recentlyDuplicatedTaskId={recentlyDuplicatedTaskId}
-                    selectionEnabled={selectionMode}
-                    activeTaskId={activeListTaskId}
-                    visibleColumnIds={visibleColumnIds}
-                    getAssignedNames={(task) =>
-                      getAssignedContacts(task).map((c) => c.companyName as string)
-                    }
-                    getAssignedTeamName={getAssignedTeamName}
-                  />
-                )}
-
-                <ListFooterBar
-                  meta={
-                    <>
-                      Showing {sortedTasks.length} of {tasks.length} Tasks
-                    </>
+            {isCompanion && previewTask ? (
+              <div className="min-w-0" role="region" aria-label={t('tasks.quickContext.title')}>
+                <TaskView
+                  task={previewTask}
+                  stacked
+                  readOnly
+                  headerTrailing={
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={ExternalLink}
+                        label={t('tasks.quickContext.openFullProfile')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => {
+                          const task = previewTask;
+                          attemptNavigation(() => {
+                            setPreviewTask(null);
+                            companionPanel?.closeCompanionPanel();
+                            openTaskForView(task);
+                          });
+                        }}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={X}
+                        label={t('common.close')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => setPreviewTask(null)}
+                      />
+                    </div>
                   }
                 />
               </div>
-            </div>
+            ) : (
+              <div
+                className={cn(
+                  'min-w-0',
+                  showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+                )}
+              >
+                <div className="flex min-w-0 flex-col gap-3">
+                  {sortedTasks.length === 0 ? (
+                    <ListEmptyState
+                      message={searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
+                      createLabel={!isCompanion && !searchTerm ? t('tasks.addTask') : undefined}
+                      onCreate={
+                        !isCompanion && !searchTerm
+                          ? () => attemptNavigation(() => openTaskPanel(null))
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <TaskListTable
+                      tasks={sortedTasks}
+                      primarySort={primarySort}
+                      sortOrder={sortOrder}
+                      onSort={handleTableSort}
+                      isSelected={isSelected}
+                      onRowClick={handleRowActivate}
+                      onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                      onCheckboxChange={onVisibleRowCheckboxChange}
+                      allVisibleSelected={allVisibleSelected}
+                      onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                      recentlyDuplicatedTaskId={recentlyDuplicatedTaskId}
+                      selectionEnabled={selectionMode}
+                      activeTaskId={activeListTaskId}
+                      visibleColumnIds={tableColumnIds}
+                      getAssignedNames={(task) =>
+                        getAssignedContacts(task).map((c) => c.companyName as string)
+                      }
+                      getAssignedTeamName={getAssignedTeamName}
+                    />
+                  )}
+
+                  <ListFooterBar
+                    meta={
+                      <>
+                        Showing {sortedTasks.length} of {tasks.length} Tasks
+                      </>
+                    }
+                  />
+                </div>
+              </div>
+            )}
 
             {showDesktopSplit ? (
               <aside

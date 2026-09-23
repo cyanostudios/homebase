@@ -36,12 +36,11 @@ export function PomodoroRailButton({
       <RoundIconLabelButton
         icon={TomatoAppIcon}
         label={t('rightSidebar.pomodoro')}
-        variant={isRunning ? 'success' : selected ? 'soft' : 'secondary'}
+        variant={isRunning ? 'success' : selected ? 'soft' : 'category'}
         size="xs"
         expandOnHover={false}
         aria-pressed={selected}
         className="relative z-10"
-        contentClassName={!isRunning ? 'text-red-600 dark:text-red-500' : undefined}
         onClick={onClick}
       />
     </div>

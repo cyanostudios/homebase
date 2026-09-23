@@ -40,4 +40,22 @@ describe('ContactView detail tab chips', () => {
     expect(viewSrc).toMatch(/DetailActivityLog/);
     expect(viewSrc).toMatch(/entityType="contact"/);
   });
+
+  test('readOnly companion mode uses local tabs and hides mutations', () => {
+    expect(viewSrc).toMatch(/readOnly\?: boolean/);
+    expect(viewSrc).toMatch(/headerTrailing\?: React\.ReactNode/);
+    expect(viewSrc).toMatch(/CONTACT_VIEW_READONLY_TABS/);
+    expect(viewSrc).toMatch(/localTab/);
+    expect(viewSrc).toMatch(/const activeTab = readOnly \? localTab : urlTab/);
+    expect(viewSrc).toMatch(/if \(readOnly\) \{\s*setLocalTab\(tab\);/);
+    expect(viewSrc).toMatch(/CONTACT_VIEW_READONLY_TABS\.includes\(tab\.id\)/);
+    expect(viewSrc).toMatch(/!readOnly && activeTab === 'linked'/);
+    expect(viewSrc).toMatch(/!readOnly && activeTab === 'activity'/);
+    expect(viewSrc).toMatch(/assignableYes/);
+    expect(viewSrc).toMatch(/disabled/);
+    expect(qcSrc).toMatch(/readOnly\?: boolean/);
+    expect(qcSrc).toMatch(/headerTrailing\?: React\.ReactNode/);
+    expect(qcSrc).toMatch(/readOnly \? \(/);
+    expect(qcSrc).toMatch(/ContactDetailHeaderMenus/);
+  });
 });

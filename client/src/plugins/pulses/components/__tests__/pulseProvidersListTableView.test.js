@@ -17,6 +17,8 @@ describe('PulseProvidersList table view wiring', () => {
     expect(tableSrc).toMatch(/DEFAULT_PULSE_PROVIDERS_TABLE_COLUMNS/);
     expect(tableSrc).toMatch(/pulseProviderIdentityMeta/);
     expect(tableSrc).toMatch(/SectionCategoryIcon/);
+    expect(tableSrc).toMatch(/StatusOutlineBadge/);
+    expect(tableSrc).toMatch(/QC_STATUS_BADGE_COLORS/);
     expect(tableSrc).toMatch(/text-slate-400/);
     expect(tableSrc).toMatch(/pl-6 text-\[10px\]/);
     expect(tableSrc).toMatch(/'provider'/);

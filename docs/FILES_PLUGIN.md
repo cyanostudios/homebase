@@ -2,7 +2,9 @@
 
 Plugin id: **`files`**. Hybrid: **file library UI** (CRUD metadata + preview) and **platform upload/attachment service** used by notes, requests, cups, profile, etc.
 
-**Status (2026-09-08):** Audit/cleanup **committed** on `homebase-v4.0` (`1cac6d41`). UI follow-up (quick context, dense cards, edit-cancel, QC delete) is **working tree** — **QA Approved** + **Security Approved** (2026-09-08). Residuals **F-ATT-1** / **F-SEC-1** await TPM conscious acceptance. **Local-first; not a prod release** without explicit decision. Apply migration `160` locally (and clean duplicate attachment rows if the unique index fails) before relying on idempotent attach in a given environment.
+**Status (2026-09-08):** Audit/cleanup **committed** on `homebase-v4.0` (`1cac6d41`). UI follow-up (quick context, dense cards, edit-cancel, QC delete) is **working tree** — **QA Approved** + **Security Approved** (2026-09-08). Residuals **F-ATT-1** / **F-SEC-1** await TPM conscious acceptance. That acceptance is not recorded here. Apply migration `160` in each environment (and clean duplicate attachment rows if the unique index fails) before relying on idempotent attach.
+
+**Production storage** uses the same upload path as local. When the Homebase service on Railway has all five `R2_*` variables set, bytes go to Cloudflare R2 and metadata goes to the tenant Neon database. See [Production wiring](#production-wiring-railway-neon-cloudflare-r2).
 
 **ADR:** [`ai/adr/FILES_STORAGE_AND_URL_CONTRACT.md`](./ai/adr/FILES_STORAGE_AND_URL_CONTRACT.md)
 
@@ -40,6 +42,27 @@ Verified in `server/core/storage/StorageProviderRegistry.js` → `resolveForUplo
 R2 object keys default to prefix **`cups/`** (`R2StorageAdapter` `keyPrefix` default) — shared bucket layout with cup/public assets; see [`CUPPAPPEN_PATHS_AND_STORAGE.md`](./CUPPAPPEN_PATHS_AND_STORAGE.md).
 
 **OneDrive / Dropbox:** OAuth UI and adapters were removed from the files plugin surface. DB tables for those providers may still exist unused (`cloudStorageModel` comment). Only `googledrive` is accepted by cloud routes/controller.
+
+There is no AWS S3 adapter on this path. `AWS_*` in `config/services.js` is not read by `R2StorageAdapter`.
+
+---
+
+## Production wiring (Railway, Neon, Cloudflare R2)
+
+Verified against `StorageProviderRegistry.resolveForUpload`, `R2StorageAdapter`, and `FilesModel` (`user_files`).
+
+| System                         | What it stores                                                                                                                                                                                       | Where it is set                                                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Railway** (Homebase service) | Process env: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`. Optional `R2_ENDPOINT`. Also `DATABASE_URL` (Neon **main**) and `TENANT_PROVIDER=neon`. | Railway → Homebase service → Variables. Not in git. `railway.toml` only sets build, start, and healthcheck. |
+| **Neon main**                  | `users`, `sessions`, `tenants.neon_connection_string`                                                                                                                                                | `DATABASE_URL` on the Homebase service                                                                      |
+| **Neon tenant**                | `user_files` (`url`, `storage_provider`, `external_file_id`) and `file_attachments`                                                                                                                  | Connection string on the tenant row. Plugin queries use that database, not Neon main.                       |
+| **Cloudflare R2**              | Object bytes. Key `cups/<filename>` unless a caller passes another prefix or `objectKey`. Public URL is `R2_PUBLIC_URL` + `/` + key (no trailing slash on `R2_PUBLIC_URL`).                          | Cloudflare R2 bucket + API token with **Object Read & Write**                                               |
+
+Upload writes the object first, then inserts the metadata row. In-app preview uses `GET /api/files/:id/download`, which reads the object back through the same adapter. Public sites do not hold `R2_*`; they render the stored `url`.
+
+If any required `R2_*` value is missing, the registry falls through to Drive and then local disk (`server/uploads/files`). That disk does not survive a Railway redeploy. Startup should log `File uploads: Cloudflare R2` when R2 is active.
+
+Operator setup: [`RAILWAY_HOMEBASE_SETUP.md`](./RAILWAY_HOMEBASE_SETUP.md) (section “Filer”). Cup public image path: [`CUPPAPPEN_PATHS_AND_STORAGE.md`](./CUPPAPPEN_PATHS_AND_STORAGE.md).
 
 ---
 
@@ -80,6 +103,7 @@ Diagnostic routes **`/storage/objects`** and **`/storage/google-drive/health`** 
 - **Settings (full-page only):** `openFileSettings` sets `filesContentView === 'settings'`; `FileList` mounts `FileSettingsView` → `FileSettingsForm` → `CloudStorageSettings`. `FileForm` does **not** branch on `panelMode === 'settings'` (removed 2026-09-22).
 - Cloud settings: Drive-only + ConfirmDialog.
 - Card/table thumbs: images (non-SVG) via download URL (`?inline=1`); SVG excluded client-side and refused inline server-side (**F-SVG-1**).
+- **Image preview (`FileView`):** raster preview is half the preview column width. Click opens a lightbox (full image, close via backdrop, close button, or Escape). SVG stays excluded.
 
 ---
 
