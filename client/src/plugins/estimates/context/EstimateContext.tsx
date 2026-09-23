@@ -60,6 +60,8 @@ export interface EstimateContextType {
   estimateShareIsCreatingShare: boolean;
   /** Load active share for an estimate (soft preview + panel view). */
   syncEstimateShareForEstimate: (estimateId: string | null | undefined) => Promise<void>;
+  /** Reuse active share or create a 30-day link — does not open the share dialog. */
+  ensureEstimateShareForItem: (estimate: Estimate) => Promise<EstimateShare | null>;
   /** Tasks-style one-click share (Export → Share). */
   openEstimateShareForItem: (estimate: Estimate) => Promise<void>;
   handleEstimateCopyShareUrl: () => void;
@@ -143,6 +145,7 @@ const EMPTY_ESTIMATE_CONTEXT: EstimateContextType = {
   setEstimateShareShowExpiredModal: () => {},
   estimateShareIsCreatingShare: false,
   syncEstimateShareForEstimate: async () => {},
+  ensureEstimateShareForItem: async () => null,
   openEstimateShareForItem: async () => {},
   handleEstimateCopyShareUrl: () => {},
   handleEstimateRevokeShare: () => {},

@@ -32,6 +32,7 @@ export interface InvoicePreviewFormData {
   orderNumber?: string;
   deliveryMethod?: string;
   issueDate?: Date | string | null;
+  supplyDate?: Date | string | null;
   dueDate?: Date | string | null;
   status?: string;
   invoiceType?: string;
@@ -180,6 +181,7 @@ export function InvoiceDocumentPreview({
         orderNumber: deferredFormData.orderNumber,
         deliveryMethod: deferredFormData.deliveryMethod,
         issueDate: deferredFormData.issueDate,
+        supplyDate: deferredFormData.supplyDate,
         dueDate: deferredFormData.dueDate,
         status: deferredFormData.status,
         invoiceType: deferredFormData.invoiceType,

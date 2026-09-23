@@ -4,6 +4,98 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-23 – Estimates: invoice parity (currency/VAT, email share, Send chrome)
+
+**Typ:** Enhancement / UI  
+**Scope:** `EstimateForm` (currency options + draft lock; document VAT 0/6/12/25; contact `currency`/`taxRate` seed + line VAT); `ensureEstimateShareForItem`; Export → **Email estimate** (`BulkEmailDialog` + public link); **Send** before Actions (removed beside preview); i18n `estimates.emailEstimate*`.  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Estimates mirror invoices for customer currency/VAT defaults, mailing a share link from Export, and moving Send next to Actions. Create contact was already shared via `InvoiceCustomerSelect`. No Issue/ML-lock port (estimates keep Send semantics).
+
+---
+
+## 2026-09-23 – Invoices: Issue beside Actions (replace Send on preview)
+
+**Typ:** UI  
+**Scope:** `InvoiceDetailHeaderMenus` (`beforeActions` **Issue** when draft); removed **Send** beside document preview in `InvoicesView` / `InvoicesForm`; i18n `invoices.issue`.  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Draft invoices show **Issue** to the left of **Actions** (opens the existing issue confirm modal). Preview row is Preview-only. Edit still issues via status → Sent + Save.
+
+**Docs:** [`INVOICES_PLUGIN.md`](./INVOICES_PLUGIN.md) (Send / issue).
+
+---
+
+## 2026-09-23 – Invoices: Export → Email invoice (share link in mail)
+
+**Typ:** Enhancement / UI  
+**Scope:** `InvoiceDetailHeaderMenus` (Export → **Email invoice** / **Maila faktura**); `InvoicesProvider` / `InvoicesContext` (`ensureInvoiceShareForItem`); `invoiceShareEmail.ts` (public URL + plain/HTML body attachment); `BulkEmailDialog` (`pluginSource="invoices"`); i18n `invoices.emailInvoice`, `invoices.emailInvoiceLinkLabel`.  
+**QA:** Underkänt (CHANGELOG saknades) → **Godkänt** 2026-09-23 efter denna entry. **Security:** **Godkänt** 2026-09-23 — reuses existing share + mail APIs (CSRF, plugin gates, high-entropy token); share-before-Send is the same residual class as Export → Share (no new TPM-accepted risk). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Under Export, **Email invoice** (shown only when the user has the **mail** plugin, or is superuser) reuses or creates the same 30-day public share link as Export → Share, then opens the shared `BulkEmailDialog` with the invoice customer as recipient and the public invoice URL attached to the message (preview + plain/HTML body). No new backend endpoints — uses existing invoice share + mail send APIs.
+
+**Begränsningar:** The share link is ensured **before** the compose dialog opens; cancelling without Send leaves an active share (same link as Share). Recipient email comes from the linked contact; missing email still opens the dialog but Send stays disabled (platform BulkEmailDialog behavior).
+
+**Docs:** [`INVOICES_PLUGIN.md`](./INVOICES_PLUGIN.md) (Share row).
+
+---
+
+## 2026-09-23 – Garments inventory: fixed articleName column (no table-column settings)
+
+**Typ:** UI / hygiene  
+**Scope:** `GarmentsInventorySettingsView` (removed **Table columns** category); `inventoryTableColumns` (always **articleName** only); `InventoryListTable` (single identity column + brand · qty · price meta; removed unused multi-column defs / `companionLayout` / `visibleColumnIds`); `RightSidebarFlyout` (removed unused `contentOwnsScroll` prop — body always `overflow-y-auto`).  
+**QA:** Covered under companion re-review Godkänt 2026-09-23. **Security:** same companion Godkänt (UI-only). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Inventory list matches platform list standards: one identity column (`articleName` with brand · qty · price meta). User-configurable table columns removed from inventory settings (tags + import remain). Legacy `user_settings.tableColumns` ignored. Companion inventory uses the same single-column list. Dead companion flyout scroll-ownership flag removed after scroll stayed on the flyout body.
+
+---
+
+## 2026-09-22 – Garments: inventory companion (desktop right rail)
+
+**Typ:** enhancement / UI (shell + garments)  
+**Scope:** `PLUGIN_REGISTRY` garments entry (`canOpenAsCompanionFor: ['teams']`, `companionHideOnPrimaryPages: ['garments-inventory']`, `companionRailIcon: Package`, `companionRailTitleNavPage: 'garments-inventory'`); `companionPrimarySurface.ts` (+ tests); `AppRightSidebar` / `AppContent` (`shouldCloseCompanionForPrimary`); `GarmentList` (`isCompanion` inventory-only **view-only** embed); `InventoryQuickContextPanel` / list assignment `readOnly`; `InventoryListTable` (articleName + identity meta); i18n `nav.garments-inventory`, `garments.quickContext.openFullProfile`.  
+**QA:** Underkänt (2026-09-22 docs) → **Godkänt** (re-review same day after docs) → **Underkänt** (2026-09-23 docs vs Open full / ADR) → docs sync + UI Hygiene (`contentOwnsScroll` / dead columns) → **Godkänt** (2026-09-23 re-review). **Security:** **Godkänt** 2026-09-23 (UI-only / no backend; session allowlist + tenant enablement + companion `readOnly`; same plugin auth). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** When garments is tenant-enabled, desktop (`lg+`) shows a **Package** rail toggle that opens a ~640px companion flyout with inventory only (`GarmentList` + `isCompanion`). Flyout title uses **`nav.garments-inventory`**. Rail / open flyout **hide on `/garments/inventory`**. Default mode is **browse/view-only**: search/sort/filter; row soft-select **replaces** the list with **`InventoryQuickContextPanel` `readOnly`** (local tabs; no URL `?tab=` mutation). **Close** returns to the list. **Open full item** (`ExternalLink` + `garments.quickContext.openFullProfile`) closes the companion, navigates to `/garments/inventory`, and opens that article via `openInventoryForView`. Companion chrome uses the same **`PLUGIN_PAGE_LIST_SHELL`** / section gap as Schedule companion; flyout body owns vertical scroll. No Add/bulk/settings in companion. Schedule companion unchanged. **No backend changes.**
+
+**Begränsningar:** Desktop-only (`hidden lg:block`; close on leave-desktop). Lists surface is not the companion embed. Create/edit/bulk stay on the full inventory page. Host entries in `canOpenAsCompanionFor` remain reserved/ignored.
+
+**Docs:** [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) § App right sidebar; ADR [`ai/adr/GARMENTS_INVENTORY_COMPANION.md`](./ai/adr/GARMENTS_INVENTORY_COMPANION.md); [`GARMENTS_PLUGIN.md`](./GARMENTS_PLUGIN.md).
+
+---
+
+## 2026-09-23 – Invoices: currency + VAT from contact, editable on draft
+
+**Typ:** Enhancement  
+**Scope:** Invoice form currency select (SEK/EUR/USD/NOK/DKK); contact `currency` + `taxRate` seed invoice defaults (and line VAT on customer change / create-from-contact); removed SEK-only issue gate on client + `vatEngine`. VAT rates remain 0/6/12/25.  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Choosing a contact prefills currency and momssats; both can still be changed on the draft invoice before issue.
+
+---
+
+## 2026-09-22 – Invoices: ML VAT compliance (lock, credit link, SEK VAT, förenklad)
+
+**Typ:** Feature / compliance  
+**Scope:** Invoices plugin — migration `164-invoices-ml-vat-compliance.sql` (`supply_date`, `content_profile`, `credited_invoice_*`, `correction_summary`, `vat_breakdown`, `invoice_issue_snapshots`); server `vatEngine.js` + `mlLock.js` + model create/update/delete/PDF; client `invoiceMlCompliance.ts`, status/form/view lock, credit-note hard link, VAT select 0/6/12/25, per-rate pricing/PDF. Script: `npm run migrate:invoices-ml-vat-compliance`. Design brief: `docs/ai/design/INVOICES_ML_VAT_COMPLIANCE_UX.md`. Legal–Accounted follow-up brief: `docs/ai/external/LEGAL_ACCOUNTED_INVOICES_REQUEST.md` (retention/journal/kassaregister — **not** in this ship).  
+**QA:** B1/B2 (issued→draft unlock + status-only PUT) verified in rework; overall still **Underkänt** until docs (this entry + `INVOICES_PLUGIN.md`) and re-review. **Security:** not yet reviewed for this epic. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Leaving draft freezes ML fields and stores an issue snapshot. Corrections use a credit note hard-linked to an issued standard invoice (with correction summary). Issue-time VAT is SEK-only with rates 0/6/12/25; receipt/cash may be `simplified` under ≤ 4 000 SEK incl. VAT. Live preview and PDF both show **Leveransdatum** (supply date, falling back to issue date when empty).
+
+**Begränsningar:** Snapshot insert stores JSON + hash (PDF bytes column reserved). No DB CHECK forcing legacy credit notes to have a link — app gates new/updated credit notes. Reverse charge / exemption / export postures refused in v1. Currency is editable on drafts (defaults from contact); förenklad profile still requires SEK ≤ 4 000.
+
+---
+
+## 2026-09-22 – Garments: size summary sorts XS→XXL
+
+**Typ:** Fix  
+**Scope:** `compareClothingSizes` in `inventoryListColumns` (fit summary + size dropdowns)  
+**Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Size summary (and inventory size pickers) sort clothing sizes small→large (XS, S, M, L, XL, XXL, …) instead of alphabetically.
+
+---
+
 ## 2026-09-22 – Garments: share UI scoped to current list
 
 **Typ:** Fix  

@@ -18,6 +18,7 @@ import {
   getDuplicateDialogNameLabel,
 } from '@/core/app/crossPluginDialogHandlers';
 import { renderDetailPanelHeaderRight } from '@/core/app/detailPanelHeaderRight';
+import { shouldCloseCompanionForPrimary } from '@/core/companion/companionPrimarySurface';
 import { isCompanionEnabled } from '@/core/companion/getCompanionCandidates';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
 import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
@@ -231,10 +232,10 @@ export function AppContent() {
   }, [isDesktopLayout, closeCompanionPanel]);
 
   useEffect(() => {
-    if (currentPage === 'schedule') {
+    if (companionPlugin && shouldCloseCompanionForPrimary(companionPlugin, currentPage)) {
       closeCompanionPanel();
     }
-  }, [currentPage, closeCompanionPanel]);
+  }, [companionPlugin, currentPage, closeCompanionPanel]);
 
   useEffect(() => {
     if (companionPlugin && !isCompanionEnabled(companionPlugin, enabledPlugins)) {
@@ -548,11 +549,22 @@ export function AppContent() {
   // Mail-layout plugins (contentOwnsScroll) keep the list mounted on desktop and
   // render create/edit/view in the list detail column instead of DetailPanel.
   // Include view so edit→save (panelMode stays open as view) does not swap the list away.
+  const garmentsPanelKind =
+    currentPlugin?.name === 'garments' && currentPluginContext
+      ? (currentPluginContext.panelKind as 'list' | 'inventory' | undefined)
+      : undefined;
+  const garmentsInlinePanelMatchesRoute =
+    currentPlugin?.name !== 'garments' ||
+    (currentPage === 'garments-inventory' && garmentsPanelKind === 'inventory') ||
+    ((currentPage === 'garments-lists' || currentPage === 'garments') &&
+      garmentsPanelKind === 'list');
+
   const inlineDesktopPanel =
     Boolean(currentPagePlugin?.contentOwnsScroll) &&
     isDesktopLayout &&
     Boolean(currentPlugin) &&
     currentPlugin?.name === currentPagePlugin?.name &&
+    garmentsInlinePanelMatchesRoute &&
     (currentMode === 'create' || currentMode === 'edit' || currentMode === 'view');
 
   const detailPanelOpen = isAnyPanelOpen && !inlineDesktopPanel;

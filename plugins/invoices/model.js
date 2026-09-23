@@ -24,6 +24,19 @@ const {
   withResolvedInvoiceTotals,
   resolveInvoiceTotals,
 } = require('./invoiceTotals');
+const {
+  buildVatBreakdown,
+  deriveContentProfile,
+  isIssuedStatus,
+  normalizeCurrency,
+  validateContentProfile,
+  validateVatEngine,
+} = require('./vatEngine');
+const {
+  assertDraftDeletable,
+  hasMlFieldMutation,
+  resolveIssuedStatusTransition,
+} = require('./mlLock');
 
 class InvoiceModel {
   constructor() {
@@ -114,6 +127,15 @@ class InvoiceModel {
       }
     }
 
+    let vatBreakdown = row.vat_breakdown || null;
+    if (typeof vatBreakdown === 'string') {
+      try {
+        vatBreakdown = JSON.parse(vatBreakdown);
+      } catch (e) {
+        vatBreakdown = null;
+      }
+    }
+
     const invoice = {
       id: row.id.toString(),
       invoiceNumber: row.invoice_number,
@@ -128,8 +150,14 @@ class InvoiceModel {
       orderNumber: row.order_number || '',
       deliveryMethod: row.delivery_method || '',
       issueDate: row.issue_date,
+      supplyDate: row.supply_date || null,
       dueDate: row.due_date,
       invoiceType: row.invoice_type || 'invoice',
+      contentProfile: row.content_profile || 'full',
+      creditedInvoiceId: row.credited_invoice_id ? row.credited_invoice_id.toString() : null,
+      creditedInvoiceNumber: row.credited_invoice_number || null,
+      correctionSummary: row.correction_summary || null,
+      vatBreakdown: Array.isArray(vatBreakdown) ? vatBreakdown : null,
       subtotal: parseFloat(row.subtotal || 0),
       totalDiscount: parseFloat(row.total_discount || 0),
       subtotalAfterDiscount: parseFloat(row.subtotal_after_discount || 0),
@@ -146,6 +174,299 @@ class InvoiceModel {
     };
 
     return this.applyEffectiveStatus(withResolvedInvoiceTotals(invoice));
+  }
+
+  _formatDateForDB(dateValue) {
+    if (!dateValue) return null;
+    if (dateValue instanceof Date) {
+      return dateValue.toISOString();
+    }
+    if (typeof dateValue === 'string') {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+        return new Date(dateValue + 'T12:00:00Z').toISOString();
+      }
+      return dateValue;
+    }
+    return null;
+  }
+
+  _throwGateError(code, message, field = 'general', statusCode = 400) {
+    throw new AppError(message, statusCode, code, {
+      errors: [{ field, message }],
+    });
+  }
+
+  async _resolveCreditLink(req, invoiceType, invoiceData, currentInvoice) {
+    const type = sanitizeInvoiceNumberingType(invoiceType);
+    if (type !== 'credit_note') {
+      return {
+        creditedInvoiceId: null,
+        creditedInvoiceNumber: null,
+        correctionSummary: null,
+      };
+    }
+
+    const rawId = invoiceData.creditedInvoiceId ?? currentInvoice?.creditedInvoiceId ?? null;
+    if (rawId == null || String(rawId).trim() === '') {
+      this._throwGateError(
+        'CREDIT_LINK_REQUIRED',
+        'Credit notes must link to an original invoice.',
+        'creditedInvoiceId',
+      );
+    }
+
+    const creditedId = typeof rawId === 'string' ? parseInt(rawId, 10) : Number(rawId);
+    if (!Number.isFinite(creditedId)) {
+      this._throwGateError(
+        'CREDIT_LINK_REQUIRED',
+        'Credit notes must link to an original invoice.',
+        'creditedInvoiceId',
+      );
+    }
+
+    const original = await this.getById(req, creditedId);
+    if (!original) {
+      this._throwGateError(
+        'CREDIT_LINK_REQUIRED',
+        'Original invoice not found in this tenant.',
+        'creditedInvoiceId',
+        404,
+      );
+    }
+    if (sanitizeInvoiceNumberingType(original.invoiceType) !== 'invoice') {
+      this._throwGateError(
+        'CREDIT_LINK_REQUIRED',
+        'Credit notes may only reference a standard invoice.',
+        'creditedInvoiceId',
+      );
+    }
+    if (!isIssuedStatus(original.status)) {
+      this._throwGateError(
+        'CREDIT_LINK_REQUIRED',
+        'Credit notes may only reference an issued invoice.',
+        'creditedInvoiceId',
+      );
+    }
+
+    const correctionSummary = String(
+      invoiceData.correctionSummary ?? currentInvoice?.correctionSummary ?? '',
+    ).trim();
+    if (!correctionSummary) {
+      this._throwGateError(
+        'CORRECTION_SUMMARY_REQUIRED',
+        'Describe what changed versus the original invoice.',
+        'correctionSummary',
+      );
+    }
+
+    // Imprint number is server-owned from the original at create; keep on update.
+    const creditedInvoiceNumber =
+      currentInvoice?.creditedInvoiceNumber || original.invoiceNumber || String(original.id);
+
+    return {
+      creditedInvoiceId: creditedId,
+      creditedInvoiceNumber,
+      correctionSummary,
+    };
+  }
+
+  /**
+   * Shared create/update gate: type, VAT, credit link, content profile, supply date.
+   */
+  async _buildPersistPayload(req, invoiceData, currentInvoice) {
+    const invoiceType = sanitizeInvoiceNumberingType(
+      invoiceData.invoiceType ?? currentInvoice?.invoiceType ?? 'invoice',
+    );
+
+    if (
+      currentInvoice &&
+      isIssuedStatus(currentInvoice.status) &&
+      hasMlFieldMutation(currentInvoice, {
+        ...invoiceData,
+        invoiceType,
+      })
+    ) {
+      this._throwGateError(
+        'INVOICE_ML_LOCKED',
+        'This document is issued and cannot be changed.',
+        'general',
+        409,
+      );
+    }
+
+    // Issued rows: only status may move via payment ledger / overdue / canceled path —
+    // if caller sent ML fields that match, we still rewrite from current for safety.
+    const source =
+      currentInvoice && isIssuedStatus(currentInvoice.status)
+        ? {
+            ...currentInvoice,
+            status: invoiceData.status,
+          }
+        : invoiceData;
+
+    const lineItems = source.lineItems || currentInvoice?.lineItems || [];
+    const invoiceDiscount = source.invoiceDiscount ?? currentInvoice?.invoiceDiscount ?? 0;
+
+    const totals = resolveInvoiceTotals({
+      invoiceType,
+      lineItems,
+      invoiceDiscount,
+    });
+
+    let status = sanitizeClientInvoiceStatus(source.status, currentInvoice?.status || 'draft');
+    const wasDraft = !currentInvoice || !isIssuedStatus(currentInvoice.status);
+    const willIssue = wasDraft && isIssuedStatus(status);
+
+    const issueDate = this._formatDateForDB(source.issueDate ?? currentInvoice?.issueDate);
+    let supplyDate = this._formatDateForDB(source.supplyDate ?? currentInvoice?.supplyDate);
+    if (willIssue && !supplyDate) {
+      supplyDate = issueDate;
+    }
+
+    const dueDate = this._formatDateForDB(source.dueDate ?? currentInvoice?.dueDate);
+    if (status === 'sent' && this.isPastDue(dueDate)) {
+      status = 'overdue';
+    }
+
+    const currency = normalizeCurrency(source.currency ?? currentInvoice?.currency);
+    const vatCheck = validateVatEngine(
+      { ...source, currency, lineItems, invoiceType },
+      { supplyDate, issuing: willIssue || isIssuedStatus(status) },
+    );
+    if (!vatCheck.ok) {
+      this._throwGateError(vatCheck.code, vatCheck.message, vatCheck.field || 'general');
+    }
+
+    const credit = await this._resolveCreditLink(req, invoiceType, source, currentInvoice);
+
+    const profileCheck = validateContentProfile({
+      invoiceType,
+      contentProfile: source.contentProfile ?? currentInvoice?.contentProfile,
+      currency,
+      total: totals.total,
+    });
+    if (!profileCheck.ok) {
+      this._throwGateError(
+        profileCheck.code,
+        profileCheck.message,
+        profileCheck.field || 'contentProfile',
+      );
+    }
+
+    // Soft draft credit notes still need link+summary (same as FE).
+    if (invoiceType === 'credit_note' && !willIssue && !isIssuedStatus(status)) {
+      // _resolveCreditLink already enforced
+    }
+
+    const vatBreakdown = buildVatBreakdown(lineItems, invoiceDiscount);
+    const contentProfile =
+      profileCheck.contentProfile ||
+      deriveContentProfile({ invoiceType, currency, total: totals.total });
+
+    let contactId = source.contactId
+      ? typeof source.contactId === 'string'
+        ? parseInt(source.contactId, 10)
+        : source.contactId
+      : null;
+    if (currentInvoice && isIssuedStatus(currentInvoice.status)) {
+      contactId = currentInvoice.contactId
+        ? typeof currentInvoice.contactId === 'string'
+          ? parseInt(currentInvoice.contactId, 10)
+          : currentInvoice.contactId
+        : null;
+    }
+
+    const estimateId = source.estimateId
+      ? typeof source.estimateId === 'string'
+        ? parseInt(source.estimateId, 10)
+        : source.estimateId
+      : currentInvoice?.estimateId
+        ? typeof currentInvoice.estimateId === 'string'
+          ? parseInt(currentInvoice.estimateId, 10)
+          : currentInvoice.estimateId
+        : null;
+
+    return {
+      invoiceType,
+      willIssue,
+      wasDraft,
+      status,
+      totals,
+      vatBreakdown,
+      contentProfile,
+      currency,
+      contactId,
+      estimateId,
+      issueDate,
+      supplyDate,
+      dueDate,
+      lineItems,
+      invoiceDiscount,
+      credit,
+      contactName: source.contactName ?? currentInvoice?.contactName ?? '',
+      organizationNumber: source.organizationNumber ?? currentInvoice?.organizationNumber ?? '',
+      notes: source.notes ?? currentInvoice?.notes ?? '',
+      paymentTerms: source.paymentTerms ?? currentInvoice?.paymentTerms ?? '',
+      orderNumber: source.orderNumber ?? currentInvoice?.orderNumber ?? '',
+      deliveryMethod: source.deliveryMethod ?? currentInvoice?.deliveryMethod ?? '',
+    };
+  }
+
+  async _insertIssueSnapshot(req, invoiceId, snapshotInvoice) {
+    const context = this._getContext(req);
+    const cryptoHash = crypto
+      .createHash('sha256')
+      .update(JSON.stringify(snapshotInvoice))
+      .digest('hex');
+    try {
+      await context.pool.query(
+        `INSERT INTO invoice_issue_snapshots
+           (user_id, invoice_id, content_hash, snapshot_json)
+         VALUES ($1, $2, $3, $4::jsonb)
+         ON CONFLICT (invoice_id) DO NOTHING`,
+        [context.userId, invoiceId, cryptoHash, JSON.stringify(snapshotInvoice)],
+      );
+    } catch (error) {
+      // Table may not exist until migration 164 — surface clearly.
+      if (error?.code === '42P01') {
+        throw new AppError(
+          'Invoice snapshots table not found. Please run database migrations.',
+          500,
+          AppError.CODES.DATABASE_ERROR,
+        );
+      }
+      throw error;
+    }
+  }
+
+  async getIssueSnapshot(req, invoiceId) {
+    try {
+      const context = this._getContext(req);
+      const result = await context.pool.query(
+        `SELECT id, invoice_id, issued_at, content_hash, snapshot_json, pdf_bytes, pdf_sha256
+         FROM invoice_issue_snapshots
+         WHERE invoice_id = $1 AND user_id = $2`,
+        [invoiceId, context.userId],
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      if (error?.code === '42P01') {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /** Fill PDF bytes once on an existing snapshot (never overwrite non-null PDF). */
+  async fillIssueSnapshotPdf(req, invoiceId, pdfBuffer) {
+    const context = this._getContext(req);
+    const sha = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+    await context.pool.query(
+      `UPDATE invoice_issue_snapshots
+       SET pdf_bytes = $1, pdf_sha256 = $2
+       WHERE invoice_id = $3 AND user_id = $4 AND pdf_bytes IS NULL`,
+      [pdfBuffer, sha, invoiceId, context.userId],
+    );
   }
 
   transformPaymentRow(row) {
@@ -352,10 +673,11 @@ class InvoiceModel {
   async create(req, invoiceData) {
     try {
       const db = Database.get(req);
+      const prepared = await this._buildPersistPayload(req, invoiceData, null);
 
       const invoiceNumber =
-        invoiceData.invoiceNumber ||
-        (await this.getNextInvoiceNumber(req, invoiceData.invoiceType || 'invoice'));
+        invoiceData.invoiceNumber || (await this.getNextInvoiceNumber(req, prepared.invoiceType));
+
       const {
         subtotal,
         totalDiscount,
@@ -364,60 +686,29 @@ class InvoiceModel {
         subtotalAfterInvoiceDiscount,
         totalVat,
         total,
-      } = resolveInvoiceTotals({
-        invoiceType: invoiceData.invoiceType || 'invoice',
-        lineItems: invoiceData.lineItems || [],
-        invoiceDiscount: invoiceData.invoiceDiscount || 0,
-      });
-
-      const contactId = invoiceData.contactId
-        ? typeof invoiceData.contactId === 'string'
-          ? parseInt(invoiceData.contactId, 10)
-          : invoiceData.contactId
-        : null;
-      const estimateId = invoiceData.estimateId
-        ? typeof invoiceData.estimateId === 'string'
-          ? parseInt(invoiceData.estimateId, 10)
-          : invoiceData.estimateId
-        : null;
-
-      const formatDateForDB = (dateValue) => {
-        if (!dateValue) return null;
-        if (dateValue instanceof Date) {
-          return dateValue.toISOString();
-        }
-        if (typeof dateValue === 'string') {
-          if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-            return new Date(dateValue + 'T12:00:00Z').toISOString();
-          }
-          return dateValue;
-        }
-        return null;
-      };
-
-      const issueDate = formatDateForDB(invoiceData.issueDate);
-      const dueDate = formatDateForDB(invoiceData.dueDate);
-
-      let status = sanitizeClientInvoiceStatus(invoiceData.status, 'draft');
-      if (status === 'sent' && this.isPastDue(dueDate)) {
-        status = 'overdue';
-      }
+      } = prepared.totals;
 
       const result = await db.insert('invoices', {
         invoice_number: invoiceNumber,
-        contact_id: contactId,
-        contact_name: invoiceData.contactName || '',
-        organization_number: invoiceData.organizationNumber || '',
-        currency: invoiceData.currency || 'SEK',
-        line_items: JSON.stringify(invoiceData.lineItems || []),
-        invoice_discount: invoiceData.invoiceDiscount || 0,
-        notes: invoiceData.notes || '',
-        payment_terms: invoiceData.paymentTerms || '',
-        order_number: invoiceData.orderNumber || '',
-        delivery_method: invoiceData.deliveryMethod || '',
-        issue_date: issueDate,
-        due_date: dueDate,
-        invoice_type: invoiceData.invoiceType || 'invoice',
+        contact_id: prepared.contactId,
+        contact_name: prepared.contactName || '',
+        organization_number: prepared.organizationNumber || '',
+        currency: prepared.currency,
+        line_items: JSON.stringify(prepared.lineItems || []),
+        invoice_discount: prepared.invoiceDiscount || 0,
+        notes: prepared.notes || '',
+        payment_terms: prepared.paymentTerms || '',
+        order_number: prepared.orderNumber || '',
+        delivery_method: prepared.deliveryMethod || '',
+        issue_date: prepared.issueDate,
+        supply_date: prepared.supplyDate,
+        due_date: prepared.dueDate,
+        invoice_type: prepared.invoiceType,
+        content_profile: prepared.contentProfile,
+        credited_invoice_id: prepared.credit.creditedInvoiceId,
+        credited_invoice_number: prepared.credit.creditedInvoiceNumber,
+        correction_summary: prepared.credit.correctionSummary,
+        vat_breakdown: JSON.stringify(prepared.vatBreakdown || []),
         subtotal: subtotal,
         total_discount: totalDiscount,
         subtotal_after_discount: subtotalAfterDiscount,
@@ -425,18 +716,24 @@ class InvoiceModel {
         subtotal_after_invoice_discount: subtotalAfterInvoiceDiscount,
         total_vat: totalVat,
         total: total,
-        status,
+        status: prepared.status,
         paid_at: null,
         amount_paid: 0,
-        estimate_id: estimateId,
+        estimate_id: prepared.estimateId,
       });
+
+      const created = this.transformRow(result);
+
+      if (prepared.willIssue && created?.id) {
+        await this._insertIssueSnapshot(req, created.id, created);
+      }
 
       Logger.info('Invoice created successfully', {
         invoiceId: result.id,
         invoiceNumber,
       });
 
-      return this.transformRow(result);
+      return created;
     } catch (error) {
       Logger.error('Failed to create invoice', error, {
         invoiceNumber: invoiceData.invoiceNumber,
@@ -497,6 +794,24 @@ class InvoiceModel {
         throw new AppError('Invoice not found', 404, AppError.CODES.NOT_FOUND);
       }
 
+      // Issued: never rewrite ML columns. Status-only allowlist; ignore ML body (B2).
+      // Refuse unlock via draft (B1).
+      if (isIssuedStatus(currentInvoice.status)) {
+        const transition = resolveIssuedStatusTransition(
+          currentInvoice.status,
+          invoiceData.status,
+          { isPastDue: this.isPastDue(currentInvoice.dueDate) },
+        );
+        if (!transition.ok) {
+          this._throwGateError(transition.code, transition.message, 'status', 409);
+        }
+        if (transition.status !== currentInvoice.status) {
+          await db.update('invoices', invoiceId, { status: transition.status });
+        }
+        return this.refreshInvoicePaymentState(req, invoiceId);
+      }
+
+      const prepared = await this._buildPersistPayload(req, invoiceData, currentInvoice);
       const {
         subtotal,
         totalDiscount,
@@ -505,53 +820,28 @@ class InvoiceModel {
         subtotalAfterInvoiceDiscount,
         totalVat,
         total,
-      } = resolveInvoiceTotals({
-        invoiceType: invoiceData.invoiceType || currentInvoice.invoiceType || 'invoice',
-        lineItems: invoiceData.lineItems || [],
-        invoiceDiscount: invoiceData.invoiceDiscount || 0,
-      });
-
-      let contactId = invoiceData.contactId
-        ? typeof invoiceData.contactId === 'string'
-          ? parseInt(invoiceData.contactId, 10)
-          : invoiceData.contactId
-        : null;
-      // Customer is immutable once the invoice leaves draft.
-      if (currentInvoice.status && currentInvoice.status !== 'draft') {
-        contactId = currentInvoice.contactId
-          ? typeof currentInvoice.contactId === 'string'
-            ? parseInt(currentInvoice.contactId, 10)
-            : currentInvoice.contactId
-          : null;
-        invoiceData.contactName = currentInvoice.contactName;
-        invoiceData.organizationNumber = currentInvoice.organizationNumber;
-      }
-      const estimateId = invoiceData.estimateId
-        ? typeof invoiceData.estimateId === 'string'
-          ? parseInt(invoiceData.estimateId, 10)
-          : invoiceData.estimateId
-        : null;
-
-      // amountPaid / paid / partially_paid are owned by invoice_payments (refresh below).
-      let status = sanitizeClientInvoiceStatus(invoiceData.status, currentInvoice.status);
-      if (status === 'sent' && this.isPastDue(invoiceData.dueDate || currentInvoice.dueDate)) {
-        status = 'overdue';
-      }
+      } = prepared.totals;
 
       await db.update('invoices', invoiceId, {
-        contact_id: contactId,
-        contact_name: invoiceData.contactName || '',
-        organization_number: invoiceData.organizationNumber || '',
-        currency: invoiceData.currency || 'SEK',
-        line_items: JSON.stringify(invoiceData.lineItems || []),
-        invoice_discount: invoiceData.invoiceDiscount || 0,
-        notes: invoiceData.notes || '',
-        payment_terms: invoiceData.paymentTerms || '',
-        order_number: invoiceData.orderNumber || '',
-        delivery_method: invoiceData.deliveryMethod || '',
-        issue_date: invoiceData.issueDate || null,
-        due_date: invoiceData.dueDate || null,
-        invoice_type: invoiceData.invoiceType || 'invoice',
+        contact_id: prepared.contactId,
+        contact_name: prepared.contactName || '',
+        organization_number: prepared.organizationNumber || '',
+        currency: prepared.currency,
+        line_items: JSON.stringify(prepared.lineItems || []),
+        invoice_discount: prepared.invoiceDiscount || 0,
+        notes: prepared.notes || '',
+        payment_terms: prepared.paymentTerms || '',
+        order_number: prepared.orderNumber || '',
+        delivery_method: prepared.deliveryMethod || '',
+        issue_date: prepared.issueDate,
+        supply_date: prepared.supplyDate,
+        due_date: prepared.dueDate,
+        invoice_type: prepared.invoiceType,
+        content_profile: prepared.contentProfile,
+        credited_invoice_id: prepared.credit.creditedInvoiceId,
+        credited_invoice_number: prepared.credit.creditedInvoiceNumber,
+        correction_summary: prepared.credit.correctionSummary,
+        vat_breakdown: JSON.stringify(prepared.vatBreakdown || []),
         subtotal: subtotal,
         total_discount: totalDiscount,
         subtotal_after_discount: subtotalAfterDiscount,
@@ -559,14 +849,19 @@ class InvoiceModel {
         subtotal_after_invoice_discount: subtotalAfterInvoiceDiscount,
         total_vat: totalVat,
         total: total,
-        status,
-        estimate_id: estimateId,
+        status: prepared.status,
+        estimate_id: prepared.estimateId,
       });
 
       Logger.info('Invoice updated', { invoiceId });
 
-      // Reconcile denormalized amount_paid + payment-derived status from ledger.
-      return this.refreshInvoicePaymentState(req, invoiceId);
+      const refreshed = await this.refreshInvoicePaymentState(req, invoiceId);
+
+      if (prepared.willIssue) {
+        await this._insertIssueSnapshot(req, invoiceId, refreshed);
+      }
+
+      return refreshed;
     } catch (error) {
       Logger.error('Failed to update invoice', error, { invoiceId });
 
@@ -582,10 +877,25 @@ class InvoiceModel {
       const pool = req.tenantPool;
       const userId = req.session?.user?.id;
 
+      const ids = Array.isArray(idsTextArray)
+        ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
+        : [];
+      if (ids.length > 0) {
+        for (const id of ids) {
+          const invoice = await this.getById(req, id);
+          if (invoice) {
+            try {
+              assertDraftDeletable(invoice);
+            } catch (lockErr) {
+              throw new AppError(lockErr.message, 409, 'INVOICE_ML_LOCKED', {
+                errors: [{ field: 'general', message: lockErr.message }],
+              });
+            }
+          }
+        }
+      }
+
       if (pool && userId) {
-        const ids = Array.isArray(idsTextArray)
-          ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
-          : [];
         if (ids.length > 0) {
           const integerIds = ids.map((id) => {
             const parsed = parseInt(id, 10);
@@ -613,6 +923,17 @@ class InvoiceModel {
 
   async delete(req, invoiceId) {
     try {
+      const invoice = await this.getById(req, invoiceId);
+      if (!invoice) {
+        throw new AppError('Invoice not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      try {
+        assertDraftDeletable(invoice);
+      } catch (lockErr) {
+        throw new AppError(lockErr.message, 409, 'INVOICE_ML_LOCKED', {
+          errors: [{ field: 'general', message: lockErr.message }],
+        });
+      }
       const db = Database.get(req);
       await db.deleteRecord('invoices', invoiceId);
       Logger.info('Invoice deleted', { invoiceId });

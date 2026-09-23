@@ -52,6 +52,7 @@ export interface Invoice {
   deliveryMethod?: string;
 
   issueDate?: Date | string | null;
+  supplyDate?: Date | string | null;
   dueDate?: Date | string | null;
 
   // Totals — denormalized cache. Always derive via resolveInvoiceTotals / withResolvedInvoiceTotals.
@@ -62,9 +63,14 @@ export interface Invoice {
   subtotalAfterInvoiceDiscount: number;
   totalVat: number;
   total: number;
+  vatBreakdown?: Array<{ rate: number; taxBase: number; vatAmount: number }>;
 
   status?: InvoiceStatus;
   invoiceType?: 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt';
+  contentProfile?: 'full' | 'simplified';
+  creditedInvoiceId?: string | number | null;
+  creditedInvoiceNumber?: string | null;
+  correctionSummary?: string | null;
   paidAt?: Date | string | null;
   amountPaid?: number;
   createdAt?: Date | string | null;

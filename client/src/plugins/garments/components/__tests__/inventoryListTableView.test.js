@@ -28,7 +28,6 @@ describe('Garment inventory list split view wiring', () => {
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);
     expect(listSrc).not.toMatch(/sticky top-0 z-20/);
     expect(listSrc).not.toMatch(/useQuickContextPreview/);
-    expect(listSrc).not.toMatch(/InventoryQuickContextPanel/);
     expect(listSrc).toMatch(/usePersistedToolbarCollapsed/);
     expect(listSrc).toMatch(/garments\.collapseToolbar/);
     expect(listSrc).toMatch(/garments\.expandToolbar/);
@@ -39,6 +38,31 @@ describe('Garment inventory list split view wiring', () => {
     expect(listSrc).not.toMatch(/aria-label="Sort by"/);
   });
 
+  test('inventory companion is view-only inside the flyout', () => {
+    expect(listSrc).toMatch(/isCompanion\?: boolean/);
+    expect(listSrc).toMatch(/isInventoryEffective/);
+    expect(listSrc).not.toMatch(/companionLayout/);
+    expect(listSrc).toMatch(/InventoryQuickContextPanel/);
+    expect(listSrc).toMatch(/readOnly/);
+    expect(listSrc).toMatch(/headerTrailing/);
+    expect(listSrc).toMatch(/setPreviewInventory\(null\)/);
+    expect(listSrc).toMatch(/isCompanion && previewInventory/);
+    expect(listSrc).toMatch(/ExternalLink/);
+    expect(listSrc).toMatch(/openInventoryForView\(item\)/);
+    expect(listSrc).toMatch(/closeCompanionPanel/);
+    expect(listSrc).not.toMatch(/openFullInventory/);
+    expect(tableSrc).not.toMatch(/companionLayout/);
+    expect(tableSrc).not.toMatch(/COMPANION_INVENTORY_COLUMN_IDS/);
+    expect(tableSrc).toMatch(/articleName/);
+    expect(tableSrc).toMatch(/inventoryIdentityMeta/);
+    expect(panelSrc).toMatch(/readOnly/);
+    const appContentSrc = fs.readFileSync(
+      path.join(__dirname, '../../../../core/app/AppContent.tsx'),
+      'utf8',
+    );
+    expect(appContentSrc).toMatch(/shouldCloseCompanionForPrimary/);
+  });
+
   test('inventory list previews items on wide screens without opening the global panel', () => {
     expect(listSrc).toMatch(/previewInventory/);
     expect(listSrc).toMatch(/previewList/);
@@ -47,7 +71,7 @@ describe('Garment inventory list split view wiring', () => {
     expect(listSrc).toMatch(/handleInventoryRowActivate/);
     expect(listSrc).toMatch(/handleListRowActivate/);
     expect(listSrc).toMatch(/isCompactViewport/);
-    expect(listSrc).toMatch(/showDesktopSplit = !isCompactViewport/);
+    expect(listSrc).toMatch(/showDesktopSplit = isCompanion \? false : !isCompactViewport/);
     expect(listSrc).toMatch(/grid-cols-\[minmax\(220px,20%\)_minmax\(0,1fr\)\]/);
     expect(listSrc).toMatch(/grid-rows-\[minmax\(0,1fr\)\]/);
     expect(listSrc).toMatch(/h-full min-h-0 overflow-y-auto overscroll-contain/);
@@ -138,8 +162,16 @@ describe('Garment inventory list split view wiring', () => {
     expect(panelSrc).toMatch(/onVariantQuantityChange/);
     expect(formSrc).toMatch(/addVariant/);
     expect(tableSrc).toMatch(/totalQuantity/);
-    expect(tableSrc).toMatch(/visibleColumnIds/);
-    expect(listSrc).toMatch(/resolveVisibleInventoryTableColumns/);
+    expect(tableSrc).not.toMatch(/visibleColumnIds/);
+    expect(tableSrc).not.toMatch(/field: 'brand'/);
+    expect(listSrc).not.toMatch(/resolveVisibleInventoryTableColumns/);
+    expect(listSrc).not.toMatch(/setVisibleColumnIds/);
+    const settingsSrc = fs.readFileSync(
+      path.join(__dirname, '../GarmentsInventorySettingsView.tsx'),
+      'utf8',
+    );
+    expect(settingsSrc).not.toMatch(/TableColumnsSettingsSection/);
+    expect(settingsSrc).toMatch(/'tags' \| 'import'/);
   });
 
   test('inventory bulk select supports list visibility like contacts assignable', () => {

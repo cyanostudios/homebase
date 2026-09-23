@@ -11,12 +11,14 @@ import {
   Shirt,
   Tag,
   Trash2,
+  X,
   XCircle,
+  ExternalLink,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,6 +35,7 @@ import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
+import { useCompanionPanelOptional } from '@/core/app/CompanionPanelContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
@@ -51,7 +54,11 @@ import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { pathToNavPage } from '@/core/routing/routeMap';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
-import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import {
+  PLUGIN_PAGE_LIST_SHELL_CLASS,
+  PLUGIN_PAGE_SECTION_GAP_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+} from '@/core/ui/pluginPageStyles';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
@@ -83,11 +90,6 @@ import {
   type GarmentSortOrder,
   type InventorySortField,
 } from '../utils/garmentListSort';
-import {
-  resolveVisibleInventoryTableColumns,
-  type InventoryTableColumnId,
-} from '../utils/inventoryTableColumns';
-
 import { GarmentForm } from './GarmentForm';
 import { GarmentListTable } from './GarmentListTable';
 import {
@@ -103,6 +105,7 @@ import { GarmentView } from './GarmentView';
 import { InventoryBulkListsDialog } from './InventoryBulkListsDialog';
 import { InventoryBulkTagsDialog } from './InventoryBulkTagsDialog';
 import { InventoryListTable } from './InventoryListTable';
+import { InventoryQuickContextPanel } from './InventoryQuickContextPanel';
 
 const LIST_SORT_OPTIONS: { value: GarmentSortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'common.updated' },
@@ -122,8 +125,10 @@ const INVENTORY_SORT_OPTIONS: { value: InventorySortField; labelKey: string }[] 
 
 const GARMENTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.garments.toolbar.filtersVisible';
 
-export const GarmentList: React.FC = () => {
+export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = false }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const companionPanel = useCompanionPanelOptional();
   const {
     garmentLists,
     inventoryItems,
@@ -177,28 +182,38 @@ export const GarmentList: React.FC = () => {
     [hasTeams],
   );
 
-  const isInventory = garmentsNavPage === 'garments-inventory';
+  const isInventoryEffective =
+    isCompanion || pathToNavPage(location.pathname) === 'garments-inventory';
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
-  const showDesktopSplit = !isCompactViewport;
+  const showDesktopSplit = isCompanion ? false : !isCompactViewport;
 
   const [inventorySettingsCategory, setInventorySettingsCategory] =
     useState<GarmentsInventorySettingsCategory>('tags');
   const [listsSettingsCategory, setListsSettingsCategory] =
     useState<GarmentsListsSettingsCategory>('customColumns');
 
-  useMobileActions({
-    onAdd: () =>
-      attemptNavigation(() => (isInventory ? openInventoryPanel(null) : openGarmentPanel(null))),
-    onSettings: () =>
-      attemptNavigation(() => openGarmentsSettings(isInventory ? 'inventory' : 'lists')),
-  });
+  useMobileActions(
+    isCompanion
+      ? {}
+      : {
+          onAdd: () =>
+            attemptNavigation(() =>
+              isInventoryEffective ? openInventoryPanel(null) : openGarmentPanel(null),
+            ),
+          onSettings: () =>
+            attemptNavigation(() =>
+              openGarmentsSettings(isInventoryEffective ? 'inventory' : 'lists'),
+            ),
+        },
+  );
 
   const { searchTerm, setSearchTerm } = usePersistedListSearch('garments');
   useRegisterMobileSearch({
     value: searchTerm,
     onChange: setSearchTerm,
-    placeholder: isInventory ? t('garments.searchInventory') : t('garments.searchLists'),
+    placeholder: isInventoryEffective ? t('garments.searchInventory') : t('garments.searchLists'),
+    enabled: !isCompanion,
   });
 
   const [selectionMode, setSelectionMode] = useState(false);
@@ -213,9 +228,6 @@ export const GarmentList: React.FC = () => {
     }
   }, [hasTeams, listSort]);
 
-  const [visibleColumnIds, setVisibleColumnIds] = useState<InventoryTableColumnId[]>(() =>
-    resolveVisibleInventoryTableColumns(null),
-  );
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [inventoryTagFilter, setInventoryTagFilter] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -238,7 +250,8 @@ export const GarmentList: React.FC = () => {
   } | null>(null);
 
   const modeMatchesPanel =
-    (isInventory && panelKind === 'inventory') || (!isInventory && panelKind === 'list');
+    (isInventoryEffective && panelKind === 'inventory') ||
+    (!isInventoryEffective && panelKind === 'list');
   const inlineForm =
     showDesktopSplit &&
     isGarmentPanelOpen &&
@@ -249,13 +262,13 @@ export const GarmentList: React.FC = () => {
   const detailList = inlinePanelView && panelKind === 'list' ? currentGarment : previewList;
   const detailInventory =
     inlinePanelView && panelKind === 'inventory' ? currentInventoryItem : previewInventory;
-  const detailOpen = Boolean(isInventory ? detailInventory : detailList);
+  const detailOpen = Boolean(isInventoryEffective ? detailInventory : detailList);
   const activeListItemId =
     (inlineForm || inlinePanelView) && modeMatchesPanel
-      ? isInventory
+      ? isInventoryEffective
         ? (currentInventoryItem?.id ?? null)
         : (currentGarment?.id ?? null)
-      : isInventory
+      : isInventoryEffective
         ? (previewInventory?.id ?? null)
         : (previewList?.id ?? null);
 
@@ -313,7 +326,6 @@ export const GarmentList: React.FC = () => {
           return;
         }
         setAvailableTags(normalizeInventoryTags(settings?.tags));
-        setVisibleColumnIds(resolveVisibleInventoryTableColumns(settings));
       })
       .catch(() => {});
     return () => {
@@ -322,7 +334,7 @@ export const GarmentList: React.FC = () => {
   }, [getSettings, settingsVersion]);
 
   useEffect(() => {
-    if (isInventory) {
+    if (isInventoryEffective) {
       if (!previewInventory) {
         return;
       }
@@ -362,12 +374,12 @@ export const GarmentList: React.FC = () => {
           (next.checkboxColumns?.length ?? 0) > 0 ? next.checkboxColumns : current.checkboxColumns,
       };
     });
-  }, [garmentLists, inventoryItems, isInventory, previewInventory]);
+  }, [garmentLists, inventoryItems, isInventoryEffective, previewInventory]);
 
   // Soft-selected lists need a full getList payload for PersonMatrix (index omits persons).
   // Refresh into garmentLists too so person PATCH/optimistic updates reach the preview.
   useEffect(() => {
-    if (isInventory || !previewList?.id) {
+    if (isInventoryEffective || !previewList?.id) {
       return;
     }
     if (Array.isArray(previewList.persons)) {
@@ -388,16 +400,16 @@ export const GarmentList: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [isInventory, previewList?.id, previewList?.persons, refreshGarmentList]);
+  }, [isInventoryEffective, previewList?.id, previewList?.persons, refreshGarmentList]);
 
   useEffect(() => {
     if (!showDesktopSplit || !isGarmentPanelOpen || !modeMatchesPanel) {
       return;
     }
     if (panelMode === 'edit' || panelMode === 'view') {
-      if (isInventory && currentInventoryItem) {
+      if (isInventoryEffective && currentInventoryItem) {
         setPreviewInventory(currentInventoryItem);
-      } else if (!isInventory && currentGarment) {
+      } else if (!isInventoryEffective && currentGarment) {
         setPreviewList(currentGarment);
       }
     }
@@ -406,7 +418,7 @@ export const GarmentList: React.FC = () => {
     isGarmentPanelOpen,
     modeMatchesPanel,
     panelMode,
-    isInventory,
+    isInventoryEffective,
     currentInventoryItem,
     currentGarment,
   ]);
@@ -464,8 +476,8 @@ export const GarmentList: React.FC = () => {
   }, [availableTags, inventoryItems]);
 
   const visibleIds = useMemo(
-    () => (isInventory ? filteredInventory : filteredLists).map((item) => String(item.id)),
-    [filteredInventory, filteredLists, isInventory],
+    () => (isInventoryEffective ? filteredInventory : filteredLists).map((item) => String(item.id)),
+    [filteredInventory, filteredLists, isInventoryEffective],
   );
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -517,7 +529,7 @@ export const GarmentList: React.FC = () => {
     }
     setDeleting(true);
     try {
-      if (isInventory) {
+      if (isInventoryEffective) {
         await deleteInventoryItems(selectedIds);
       } else {
         await deleteGarments(selectedIds);
@@ -562,6 +574,12 @@ export const GarmentList: React.FC = () => {
   };
 
   const handleInventoryRowActivate = (item: InventoryItem) => {
+    if (isCompanion) {
+      setPreviewInventory((current) =>
+        current && String(current.id) === String(item.id) ? null : item,
+      );
+      return;
+    }
     if (isCompactViewport) {
       attemptNavigation(() => openInventoryForView(item));
       return;
@@ -605,11 +623,11 @@ export const GarmentList: React.FC = () => {
 
   const handleInlineFormCancel = useCallback(() => {
     if (panelMode === 'edit') {
-      if (isInventory && currentInventoryItem) {
+      if (isInventoryEffective && currentInventoryItem) {
         openInventoryForView(currentInventoryItem);
         return;
       }
-      if (!isInventory && currentGarment) {
+      if (!isInventoryEffective && currentGarment) {
         openGarmentForView(currentGarment);
         return;
       }
@@ -619,7 +637,7 @@ export const GarmentList: React.FC = () => {
     closeGarmentPanel,
     currentGarment,
     currentInventoryItem,
-    isInventory,
+    isInventoryEffective,
     openGarmentForView,
     openInventoryForView,
     panelMode,
@@ -645,7 +663,7 @@ export const GarmentList: React.FC = () => {
   const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
     const disabled = selectedCount === 0;
     const actions: BulkActionRoundItem[] = [];
-    if (isInventory) {
+    if (isInventoryEffective) {
       actions.push({
         key: 'tags',
         label: t('garments.bulkTagsAction'),
@@ -670,15 +688,15 @@ export const GarmentList: React.FC = () => {
       onClick: () => setShowBulkDeleteModal(true),
     });
     return actions;
-  }, [isInventory, selectedCount, t]);
+  }, [isInventoryEffective, selectedCount, t]);
 
-  const totalCount = isInventory ? inventoryItems.length : garmentLists.length;
-  const filteredCount = isInventory ? filteredInventory.length : filteredLists.length;
-  const primarySort = isInventory ? inventorySort : listSort;
-  const sortOptions = isInventory ? INVENTORY_SORT_OPTIONS : listSortOptions;
+  const totalCount = isInventoryEffective ? inventoryItems.length : garmentLists.length;
+  const filteredCount = isInventoryEffective ? filteredInventory.length : filteredLists.length;
+  const primarySort = isInventoryEffective ? inventorySort : listSort;
+  const sortOptions = isInventoryEffective ? INVENTORY_SORT_OPTIONS : listSortOptions;
 
   const handlePrimarySortChange = (field: string) => {
-    if (isInventory) {
+    if (isInventoryEffective) {
       handleInventorySortChange(field as InventorySortField);
     } else {
       handleListSortChange(field as GarmentSortField);
@@ -811,7 +829,7 @@ export const GarmentList: React.FC = () => {
   };
 
   const renderFilterChips = () => {
-    if (!isInventory) {
+    if (!isInventoryEffective) {
       return null;
     }
 
@@ -855,11 +873,11 @@ export const GarmentList: React.FC = () => {
     );
   };
 
-  if (garmentsContentView === 'settings') {
+  if (garmentsContentView === 'settings' && !isCompanion) {
     return (
       <div className="plugin-garments min-h-full bg-background">
         <div className="px-4 py-4 md:px-6">
-          {isInventory ? (
+          {isInventoryEffective ? (
             <GarmentsInventorySettingsView
               selectedCategory={inventorySettingsCategory}
               onSelectedCategoryChange={setInventorySettingsCategory}
@@ -879,7 +897,7 @@ export const GarmentList: React.FC = () => {
   }
 
   const toolbarEdgeToggle =
-    typeof document !== 'undefined' && toolbarToggleBox
+    !isCompanion && typeof document !== 'undefined' && toolbarToggleBox
       ? createPortal(
           <div
             className="pointer-events-none fixed z-40 hidden justify-center md:flex"
@@ -921,106 +939,137 @@ export const GarmentList: React.FC = () => {
       <div
         ref={pageShellRef}
         className={cn(
-          'plugin-garments flex min-h-0 flex-1 flex-col',
-          PLUGIN_PAGE_LIST_SHELL_CLASS,
-          showDesktopSplit
-            ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
-            : 'overflow-y-auto md:pt-3',
+          'plugin-garments',
+          isCompanion
+            ? PLUGIN_PAGE_LIST_SHELL_CLASS
+            : cn(
+                'flex min-h-0 flex-1 flex-col',
+                PLUGIN_PAGE_LIST_SHELL_CLASS,
+                showDesktopSplit
+                  ? 'overflow-hidden px-3 pb-3 pt-3 md:px-3 md:pb-3 md:pt-3'
+                  : 'overflow-y-auto md:pt-3',
+              ),
         )}
       >
         <div
-          className={cn(
-            'flex min-h-0 min-w-0 flex-1 flex-col',
-            showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
-          )}
+          className={
+            isCompanion
+              ? PLUGIN_PAGE_SECTION_GAP_CLASS
+              : cn(
+                  'flex min-h-0 min-w-0 flex-1 flex-col',
+                  showDesktopSplit && toolbarCollapsed ? 'gap-0' : 'gap-3',
+                )
+          }
         >
-          <div className="relative hidden shrink-0 md:block">
-            <div
-              className={cn(
-                'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
-                toolbarCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
-              )}
-              aria-hidden={toolbarCollapsed}
-            >
-              <div className="min-h-0 overflow-hidden">
-                <div
-                  id="garments-mail-toolbar"
-                  className={cn(
-                    'flex flex-wrap items-center justify-between gap-3',
-                    toolbarCollapsed && 'pointer-events-none',
-                  )}
-                >
-                  <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-                    <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
-                      {t(isInventory ? 'nav.garments-inventory' : 'nav.garments-lists')}
-                    </h2>
-                    <ExpandableIconButton
-                      icon={Settings}
-                      label={t('common.settings')}
-                      variant="soft"
-                      onClick={() =>
-                        attemptNavigation(() =>
-                          openGarmentsSettings(isInventory ? 'inventory' : 'lists'),
-                        )
-                      }
-                    />
-                    {renderSortDropdown('h-11 rounded-full')}
-                    <ListFilterChipsToggle
-                      visible={filtersVisible}
-                      onVisibleChange={setFiltersVisible}
-                      className="h-11 rounded-full"
-                    />
-                    {renderSelectControls('h-11 rounded-full')}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <RoundExpandableSearch
-                      value={searchTerm}
-                      onChange={setSearchTerm}
-                      placeholder={
-                        isInventory ? t('garments.searchInventory') : t('garments.searchLists')
-                      }
-                    />
-                    <ExpandableIconButton
-                      icon={Plus}
-                      label={isInventory ? t('garments.addInventory') : t('garments.addList')}
-                      variant="soft"
-                      onClick={() =>
-                        attemptNavigation(() =>
-                          isInventory ? openInventoryPanel(null) : openGarmentPanel(null),
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-                {filtersVisible ? (
+          {!(isCompanion && previewInventory) ? (
+            <div className={cn('relative shrink-0', isCompanion ? 'block' : 'hidden md:block')}>
+              <div
+                className={cn(
+                  'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                  toolbarCollapsed && !isCompanion
+                    ? 'grid-rows-[0fr] opacity-0'
+                    : 'grid-rows-[1fr] opacity-100',
+                )}
+                aria-hidden={toolbarCollapsed && !isCompanion}
+              >
+                <div className="min-h-0 overflow-hidden">
                   <div
+                    id="garments-mail-toolbar"
                     className={cn(
-                      LIST_FILTER_AND_SORT_ROW_CLASS,
-                      'pt-2',
-                      toolbarCollapsed && 'pointer-events-none',
+                      'flex flex-wrap items-center justify-between gap-3',
+                      toolbarCollapsed && !isCompanion && 'pointer-events-none',
                     )}
                   >
-                    {renderFilterChips()}
+                    <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                      {!isCompanion ? (
+                        <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
+                          {t(
+                            isInventoryEffective ? 'nav.garments-inventory' : 'nav.garments-lists',
+                          )}
+                        </h2>
+                      ) : null}
+                      {!isCompanion ? (
+                        <ExpandableIconButton
+                          icon={Settings}
+                          label={t('common.settings')}
+                          variant="soft"
+                          onClick={() =>
+                            attemptNavigation(() =>
+                              openGarmentsSettings(isInventoryEffective ? 'inventory' : 'lists'),
+                            )
+                          }
+                        />
+                      ) : null}
+                      {renderSortDropdown('h-11 rounded-full')}
+                      <ListFilterChipsToggle
+                        visible={filtersVisible}
+                        onVisibleChange={setFiltersVisible}
+                        className="h-11 rounded-full"
+                      />
+                      {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <RoundExpandableSearch
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder={
+                          isInventoryEffective
+                            ? t('garments.searchInventory')
+                            : t('garments.searchLists')
+                        }
+                      />
+                      {!isCompanion ? (
+                        <ExpandableIconButton
+                          icon={Plus}
+                          label={
+                            isInventoryEffective
+                              ? t('garments.addInventory')
+                              : t('garments.addList')
+                          }
+                          variant="soft"
+                          onClick={() =>
+                            attemptNavigation(() =>
+                              isInventoryEffective
+                                ? openInventoryPanel(null)
+                                : openGarmentPanel(null),
+                            )
+                          }
+                        />
+                      ) : null}
+                    </div>
                   </div>
-                ) : null}
-                {renderBulkActionBar('py-3')}
+                  {filtersVisible ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {renderFilterChips()}
+                    </div>
+                  ) : null}
+                  {!isCompanion ? renderBulkActionBar('py-3') : null}
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
-            {filtersVisible ? renderFilterChips() : null}
-            <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
-              <ListFilterChipsToggle
-                visible={filtersVisible}
-                onVisibleChange={setFiltersVisible}
-                className="h-7 rounded-md"
-              />
-              {renderSortDropdown('h-7 rounded-md')}
+          {!isCompanion ? (
+            <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
+              {filtersVisible ? renderFilterChips() : null}
+              <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+                <ListFilterChipsToggle
+                  visible={filtersVisible}
+                  onVisibleChange={setFiltersVisible}
+                  className="h-7 rounded-md"
+                />
+                {renderSortDropdown('h-7 rounded-md')}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {selectionMode ? (
+          {!isCompanion && selectionMode ? (
             <div className="shrink-0 py-3 md:hidden">{renderBulkActionBar()}</div>
           ) : null}
 
@@ -1029,11 +1078,11 @@ export const GarmentList: React.FC = () => {
             onClose={() => setShowBulkDeleteModal(false)}
             onConfirm={handleBulkDelete}
             itemCount={selectedCount}
-            itemLabel={isInventory ? t('garments.inventoryItems') : t('garments.lists')}
+            itemLabel={isInventoryEffective ? t('garments.inventoryItems') : t('garments.lists')}
             isLoading={deleting}
           />
 
-          {isInventory ? (
+          {isInventoryEffective ? (
             <>
               <InventoryBulkTagsDialog
                 isOpen={showBulkTagsDialog}
@@ -1064,78 +1113,124 @@ export const GarmentList: React.FC = () => {
                 : 'grid-cols-1 items-start',
             )}
           >
-            <div
-              className={cn(
-                'min-w-0',
-                showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
-              )}
-            >
-              <div className="flex min-w-0 flex-col gap-3">
-                {filteredCount === 0 ? (
-                  <ListEmptyState
-                    message={
-                      searchTerm
-                        ? t('garments.noSearchResults')
-                        : isInventory
-                          ? t('garments.noInventoryYet')
-                          : t('garments.noListsYet')
-                    }
-                    createLabel={
-                      !searchTerm
-                        ? isInventory
-                          ? t('garments.addInventory')
-                          : t('garments.addList')
-                        : undefined
-                    }
-                    onCreate={
-                      !searchTerm
-                        ? () =>
-                            attemptNavigation(() =>
-                              isInventory ? openInventoryPanel(null) : openGarmentPanel(null),
-                            )
-                        : undefined
-                    }
-                  />
-                ) : isInventory ? (
-                  <InventoryListTable
-                    items={filteredInventory}
-                    primarySort={inventorySort}
-                    sortOrder={sortOrder}
-                    onSort={handleTableSortInventory}
-                    isSelected={isSelected}
-                    onRowClick={handleInventoryRowActivate}
-                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                    onCheckboxChange={onVisibleRowCheckboxChange}
-                    allVisibleSelected={allVisibleSelected}
-                    onHeaderCheckboxChange={handleHeaderCheckboxChange}
-                    selectionEnabled={selectionMode}
-                    activeInventoryId={activeListItemId}
-                    recentlyDuplicatedInventoryId={recentlyDuplicatedInventoryId}
-                    visibleColumnIds={visibleColumnIds}
-                  />
-                ) : (
-                  <GarmentListTable
-                    items={filteredLists}
-                    primarySort={listSort}
-                    sortOrder={sortOrder}
-                    onSort={handleTableSortList}
-                    isSelected={isSelected}
-                    onRowClick={handleListRowActivate}
-                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                    onCheckboxChange={onVisibleRowCheckboxChange}
-                    allVisibleSelected={allVisibleSelected}
-                    onHeaderCheckboxChange={handleHeaderCheckboxChange}
-                    recentlyDuplicatedListId={recentlyDuplicatedListId}
-                    selectionEnabled={selectionMode}
-                    activeListId={activeListItemId}
-                  />
-                )}
-
-                <ListFooterBar
-                  meta={<>{t('garments.showingOf', { shown: filteredCount, total: totalCount })}</>}
+            {isCompanion && previewInventory ? (
+              <div
+                className="min-w-0"
+                role="region"
+                aria-label={t('garments.quickContext.title', { defaultValue: 'Quick context' })}
+              >
+                <InventoryQuickContextPanel
+                  item={previewInventory}
+                  readOnly
+                  headerTrailing={
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={ExternalLink}
+                        label={t('garments.quickContext.openFullProfile')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => {
+                          const item = previewInventory;
+                          attemptNavigation(() => {
+                            setPreviewInventory(null);
+                            companionPanel?.closeCompanionPanel();
+                            navigate('/garments/inventory');
+                            openInventoryForView(item);
+                          });
+                        }}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={X}
+                        label={t('common.close')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => setPreviewInventory(null)}
+                      />
+                    </div>
+                  }
                 />
               </div>
-            </div>
+            ) : (
+              <div
+                className={cn(
+                  'min-w-0',
+                  showDesktopSplit && 'h-full min-h-0 overflow-y-auto overscroll-contain',
+                )}
+              >
+                <div className="flex min-w-0 flex-col gap-3">
+                  {filteredCount === 0 ? (
+                    <ListEmptyState
+                      message={
+                        searchTerm
+                          ? t('garments.noSearchResults')
+                          : isInventoryEffective
+                            ? t('garments.noInventoryYet')
+                            : t('garments.noListsYet')
+                      }
+                      createLabel={
+                        !isCompanion && !searchTerm
+                          ? isInventoryEffective
+                            ? t('garments.addInventory')
+                            : t('garments.addList')
+                          : undefined
+                      }
+                      onCreate={
+                        !isCompanion && !searchTerm
+                          ? () =>
+                              attemptNavigation(() =>
+                                isInventoryEffective
+                                  ? openInventoryPanel(null)
+                                  : openGarmentPanel(null),
+                              )
+                          : undefined
+                      }
+                    />
+                  ) : isInventoryEffective ? (
+                    <InventoryListTable
+                      items={filteredInventory}
+                      primarySort={inventorySort}
+                      sortOrder={sortOrder}
+                      onSort={handleTableSortInventory}
+                      isSelected={isSelected}
+                      onRowClick={handleInventoryRowActivate}
+                      onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                      onCheckboxChange={onVisibleRowCheckboxChange}
+                      allVisibleSelected={allVisibleSelected}
+                      onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                      selectionEnabled={selectionMode}
+                      activeInventoryId={activeListItemId}
+                      recentlyDuplicatedInventoryId={recentlyDuplicatedInventoryId}
+                    />
+                  ) : (
+                    <GarmentListTable
+                      items={filteredLists}
+                      primarySort={listSort}
+                      sortOrder={sortOrder}
+                      onSort={handleTableSortList}
+                      isSelected={isSelected}
+                      onRowClick={handleListRowActivate}
+                      onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                      onCheckboxChange={onVisibleRowCheckboxChange}
+                      allVisibleSelected={allVisibleSelected}
+                      onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                      recentlyDuplicatedListId={recentlyDuplicatedListId}
+                      selectionEnabled={selectionMode}
+                      activeListId={activeListItemId}
+                    />
+                  )}
+
+                  <ListFooterBar
+                    meta={
+                      <>{t('garments.showingOf', { shown: filteredCount, total: totalCount })}</>
+                    }
+                  />
+                </div>
+              </div>
+            )}
 
             {showDesktopSplit ? (
               <aside
@@ -1147,8 +1242,8 @@ export const GarmentList: React.FC = () => {
                 {inlineForm ? (
                   <GarmentForm
                     ref={inlineFormRef}
-                    currentGarment={isInventory ? null : currentGarment}
-                    currentItem={isInventory ? null : currentGarment}
+                    currentGarment={isInventoryEffective ? null : currentGarment}
+                    currentItem={isInventoryEffective ? null : currentGarment}
                     onSave={handleInlineFormOnSave}
                     onCancel={handleInlineFormCancel}
                     stacked
@@ -1166,7 +1261,7 @@ export const GarmentList: React.FC = () => {
                     }
                   />
                 ) : detailOpen ? (
-                  isInventory ? (
+                  isInventoryEffective ? (
                     <GarmentView inventoryItem={detailInventory} stacked />
                   ) : (
                     <GarmentView garment={detailList} stacked />

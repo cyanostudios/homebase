@@ -33,6 +33,8 @@ export type DetailHeaderMenusProps = {
   exportActions?: DetailHeaderMenuAction[];
   /** Optional extra toggle menus after Export (e.g. Contacts time log). */
   extraMenus?: DetailHeaderExtraMenu[];
+  /** Rendered in the trigger row immediately before the Actions control. */
+  beforeActions?: React.ReactNode;
   /** Rendered in the trigger row immediately after the Actions control (e.g. quick-add). */
   afterActions?: React.ReactNode;
   /**
@@ -170,6 +172,7 @@ export function DetailHeaderMenus({
   actions,
   exportActions = [],
   extraMenus = [],
+  beforeActions,
   afterActions,
   leading,
   actionsLabel,
@@ -199,6 +202,7 @@ export function DetailHeaderMenus({
         <div className="flex min-w-0 items-center gap-3">
           {leading ? <div className="min-w-0 flex-1">{leading}</div> : null}
           <div className={DETAIL_HEADER_TRIGGER_ROW_CLASS}>
+            {beforeActions ? <span className="inline-flex shrink-0">{beforeActions}</span> : null}
             <span className="inline-flex shrink-0">
               <RoundIconLabelButton
                 icon={Zap}

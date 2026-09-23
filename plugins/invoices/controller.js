@@ -334,6 +334,22 @@ class InvoiceController {
         return res.status(404).json({ error: 'Invoice not found' });
       }
 
+      // Issued documents: prefer immutable archived PDF when present.
+      const snapshot = await this.model.getIssueSnapshot(req, id);
+      if (snapshot?.pdf_bytes) {
+        const pdfBuffer = Buffer.isBuffer(snapshot.pdf_bytes)
+          ? snapshot.pdf_bytes
+          : Buffer.from(snapshot.pdf_bytes);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="faktura-${invoice.invoiceNumber || invoice.id}.pdf"`,
+        );
+        res.setHeader('Content-Length', pdfBuffer.length);
+        res.removeHeader('Content-Encoding');
+        return res.end(pdfBuffer);
+      }
+
       const userId = Context.getUserId(req);
       const [organizationRaw, customer, referencePerson] = await Promise.all([
         this.loadOrganization(req, userId),
@@ -350,6 +366,18 @@ class InvoiceController {
 
       const html = generatePDFHTML(invoice, organization, customer, { referencePerson });
       const pdfBuffer = await renderInvoicePdf(page, html);
+
+      // Fill archived PDF once for issued docs (never overwrite existing bytes).
+      if (snapshot && !snapshot.pdf_bytes && invoice.status !== 'draft') {
+        try {
+          await this.model.fillIssueSnapshotPdf(req, id, pdfBuffer);
+        } catch (fillErr) {
+          Logger.warn('Failed to fill issue snapshot PDF', {
+            invoiceId: id,
+            message: fillErr?.message,
+          });
+        }
+      }
 
       Logger.info('PDF generated', { invoiceId: id, invoiceNumber: invoice.invoiceNumber });
 

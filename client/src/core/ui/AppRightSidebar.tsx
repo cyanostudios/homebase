@@ -6,6 +6,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useCompanionPanel } from '@/core/app/CompanionPanelContext';
 import { getCompanionCandidates } from '@/core/companion/getCompanionCandidates';
+import {
+  resolveCompanionRailIcon,
+  resolveCompanionRailTitleNavPage,
+  shouldHideCompanionRailForPrimary,
+} from '@/core/companion/companionPrimarySurface';
 import type { NavPage } from '@/core/navigation/navTypes';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { pathToNavPage } from '@/core/routing/routeMap';
@@ -39,7 +44,10 @@ export function AppRightSidebar() {
   const enabledPlugins = useEnabledPlugins();
   const currentPage = useMemo(() => pathToNavPage(location.pathname), [location.pathname]);
   const companionCandidates = useMemo(
-    () => getCompanionCandidates(enabledPlugins).filter((entry) => entry.name !== currentPage),
+    () =>
+      getCompanionCandidates(enabledPlugins).filter(
+        (entry) => !shouldHideCompanionRailForPrimary(entry, currentPage),
+      ),
     [enabledPlugins, currentPage],
   );
 
@@ -58,7 +66,7 @@ export function AppRightSidebar() {
   const companionOpen = Boolean(companionPlugin && CompanionListComp);
 
   const companionTitle = companionRegistryEntry
-    ? t(`nav.${companionRegistryEntry.name}`, {
+    ? t(`nav.${resolveCompanionRailTitleNavPage(companionRegistryEntry)}`, {
         defaultValue: companionRegistryEntry.navigation?.label ?? companionRegistryEntry.name,
       })
     : '';
@@ -188,11 +196,12 @@ export function AppRightSidebar() {
             {companionCandidates.length > 0 ? (
               <div className="flex flex-col items-start gap-2 pt-4">
                 {companionCandidates.map((entry) => {
-                  const Icon = entry.navigation?.icon;
+                  const Icon = resolveCompanionRailIcon(entry);
                   if (!Icon) {
                     return null;
                   }
-                  const pluginTitle = t(`nav.${entry.name}`, {
+                  const titleNavPage = resolveCompanionRailTitleNavPage(entry);
+                  const pluginTitle = t(`nav.${titleNavPage}`, {
                     defaultValue: entry.navigation?.label ?? entry.name,
                   });
                   const open = companionPlugin === entry.name;

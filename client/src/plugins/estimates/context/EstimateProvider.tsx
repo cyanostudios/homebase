@@ -462,32 +462,43 @@ export function EstimateProvider({
     }
   }, [panelMode, currentEstimate?.id, syncEstimateShareForEstimate]);
 
-  /** Tasks-style: reuse active link or create with 30-day default. */
-  const openEstimateShareForItem = useCallback(
-    async (estimate: Estimate) => {
+  /** Reuse active link or create with 30-day default — does not open the share dialog. */
+  const ensureEstimateShareForItem = useCallback(
+    async (estimate: Estimate): Promise<EstimateShare | null> => {
       setEstimateShareIsCreatingShare(true);
       try {
         const shares = await estimateShareApi.getShares(estimate.id);
         const active = shares.find((s) => new Date(s.validUntil) > new Date());
         if (active) {
           setEstimateShareExistingShare(active);
-          setEstimateShareShowDialog(true);
-          return;
+          return active;
         }
         const share = await estimateShareApi.createShare({
           estimateId: estimate.id,
           validUntil: defaultEstimateShareValidUntil(),
         });
         setEstimateShareExistingShare(share);
-        setEstimateShareShowDialog(true);
+        return share;
       } catch (error) {
-        console.error('Failed to create share:', error);
+        console.error('Failed to ensure estimate share:', error);
         alert(error instanceof Error ? error.message : 'Failed to create share link');
+        return null;
       } finally {
         setEstimateShareIsCreatingShare(false);
       }
     },
     [defaultEstimateShareValidUntil],
+  );
+
+  /** Tasks-style: ensure share then open ShareDialog. */
+  const openEstimateShareForItem = useCallback(
+    async (estimate: Estimate) => {
+      const share = await ensureEstimateShareForItem(estimate);
+      if (share) {
+        setEstimateShareShowDialog(true);
+      }
+    },
+    [ensureEstimateShareForItem],
   );
 
   const handleEstimateCopyShareUrl = useCallback(() => {
@@ -824,6 +835,7 @@ export function EstimateProvider({
     setEstimateShareShowExpiredModal,
     estimateShareIsCreatingShare,
     syncEstimateShareForEstimate,
+    ensureEstimateShareForItem,
     openEstimateShareForItem,
     handleEstimateCopyShareUrl,
     handleEstimateRevokeShare,

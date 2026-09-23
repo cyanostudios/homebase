@@ -10,7 +10,6 @@ import {
   Link2,
   ListOrdered,
   Receipt,
-  Send,
   SlidersHorizontal,
   StickyNote,
   Users,
@@ -51,9 +50,11 @@ import {
 } from '@/plugins/contacts/types/contacts';
 
 import type { Invoice } from '../context/InvoicesContext';
+import { useInvoices } from '../hooks/useInvoices';
 import { useInvoiceStatusActions } from '../hooks/useInvoiceStatusActions';
 import type { Invoice as InvoiceRecord } from '../types/invoices';
 import { resolveInvoiceTotals } from '../utils/invoiceTotals';
+import { deriveInvoiceContentProfile } from '../utils/invoiceMlCompliance';
 import { displayPlainText } from '../utils/htmlText';
 import { formatInvoiceAmount, formatInvoiceMoney } from '../utils/formatInvoiceAmount';
 import {
@@ -135,6 +136,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
   );
   const enabledPlugins = useEnabledPlugins();
   const { contacts, user } = useApp();
+  const { validationErrors } = useInvoices();
   const {
     showStatusModal,
     pendingStatus,
@@ -202,6 +204,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
           orderNumber: actualItem.orderNumber,
           deliveryMethod: actualItem.deliveryMethod,
           issueDate: actualItem.issueDate,
+          supplyDate: actualItem.supplyDate,
           dueDate: actualItem.dueDate,
           status: actualItem.status,
           invoiceType: actualItem.invoiceType,
@@ -330,6 +333,20 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
 
   const informationCard = (
     <div className="space-y-4">
+      {validationErrors.some((e) => !e.message.includes('Warning')) ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30">
+          <div className="text-sm font-medium text-red-800 dark:text-red-400">
+            {t('common.cannotSave', { defaultValue: 'Cannot save invoice' })}
+          </div>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700 dark:text-red-300">
+            {validationErrors
+              .filter((e) => !e.message.includes('Warning'))
+              .map((e, i) => (
+                <li key={e.field ?? `err-${i}`}>{e.message}</li>
+              ))}
+          </ul>
+        </div>
+      ) : null}
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('invoices.information')}
@@ -359,6 +376,15 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
                 {t('invoices.issueDate')}
               </div>
               <div className={factValueClass}>{issueDateLabel}</div>
+            </div>
+            <div>
+              <div className={factLabelClass}>
+                <Calendar className="h-3 w-3" />
+                {t('invoices.supplyDate', { defaultValue: 'Supply date' })}
+              </div>
+              <div className={factValueClass}>
+                {formatDate(actualItem.supplyDate) || issueDateLabel}
+              </div>
             </div>
             <div>
               <div className={factLabelClass}>
@@ -394,6 +420,48 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
               <div className={factLabelClass}>{t('invoices.paymentTerms')}</div>
               <div className={cn(factValueClass, 'truncate')}>{paymentTermsLabel}</div>
             </div>
+            {invoiceType === 'receipt' || invoiceType === 'cash_invoice' ? (
+              <div>
+                <div className={factLabelClass}>
+                  {t('invoices.contentProfile', { defaultValue: 'Document profile' })}
+                </div>
+                <div className={factValueClass}>
+                  {deriveInvoiceContentProfile({
+                    invoiceType,
+                    currency,
+                    total: totals.total,
+                  }) === 'simplified'
+                    ? t('invoices.contentProfileSimplified', { defaultValue: 'Simplified' })
+                    : t('invoices.contentProfileFull', { defaultValue: 'Full' })}
+                </div>
+              </div>
+            ) : null}
+            {invoiceType === 'credit_note' ? (
+              <>
+                <div>
+                  <div className={factLabelClass}>
+                    {t('invoices.creditsInvoice', { defaultValue: 'Credits invoice' })}
+                  </div>
+                  <div className={factValueClass}>
+                    {actualItem.creditedInvoiceNumber
+                      ? formatDisplayNumber('invoices', actualItem.creditedInvoiceNumber)
+                      : '—'}
+                  </div>
+                </div>
+                {actualItem.correctionSummary ? (
+                  <div className="md:col-span-2">
+                    <div className={factLabelClass}>
+                      {t('invoices.correctionSummary', {
+                        defaultValue: 'Correction summary',
+                      })}
+                    </div>
+                    <div className={cn(factValueClass, 'whitespace-pre-wrap font-medium')}>
+                      {actualItem.correctionSummary}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
           </div>
         </DetailSection>
       </Card>
@@ -459,6 +527,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
                 orderNumber: actualItem.orderNumber || '',
                 deliveryMethod: actualItem.deliveryMethod || '',
                 issueDate: actualItem.issueDate ? new Date(actualItem.issueDate) : null,
+                supplyDate: actualItem.supplyDate ? new Date(actualItem.supplyDate) : null,
                 dueDate: actualItem.dueDate ? new Date(actualItem.dueDate) : null,
                 status,
                 invoiceType: actualItem.invoiceType || 'invoice',
@@ -467,17 +536,6 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
               invoiceNumber={actualItem.invoiceNumber}
             />
             <div className="mt-4 flex justify-end gap-2">
-              {status === 'draft' ? (
-                <RoundIconLabelButton
-                  type="button"
-                  icon={Send}
-                  label={t('invoices.send', { defaultValue: 'Send' })}
-                  variant="soft"
-                  size="xs"
-                  alwaysExpanded
-                  onClick={() => handleStatusChange(statusInvoice, 'sent')}
-                />
-              ) : null}
               <RoundIconLabelButton
                 type="button"
                 icon={Eye}
@@ -577,6 +635,8 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
               totals={totals}
               currency={currency}
               invoiceDiscount={invoiceDiscount}
+              lineItems={actualItem.lineItems}
+              invoiceType={invoiceType}
             />
           </DetailSection>
         </Card>
@@ -695,6 +755,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
         isOpen={showStatusModal}
         status={pendingStatus || ''}
         invoiceNumber={pendingInvoice?.invoiceNumber || ''}
+        isIssuing={(pendingInvoice?.status || actualItem?.status || 'draft') === 'draft'}
         onConfirm={handleModalConfirm}
         onClose={handleModalCancel}
       />

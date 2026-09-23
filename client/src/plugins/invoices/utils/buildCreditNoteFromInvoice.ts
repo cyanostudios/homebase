@@ -1,15 +1,20 @@
 import type { Invoice } from '../context/InvoicesContext';
 import { displayPlainText } from './htmlText';
 import { computeDueDateFromPaymentTerms } from './invoiceDueDate';
+import { canCreateCreditNoteFromInvoiceMl } from './invoiceMlCompliance';
 
 /** True when Actions may offer “Create credit note” from this document. */
-export function canCreateCreditNoteFromInvoice(invoice: { invoiceType?: string | null }): boolean {
-  return (invoice.invoiceType || 'invoice') === 'invoice';
+export function canCreateCreditNoteFromInvoice(invoice: {
+  invoiceType?: string | null;
+  status?: string | null;
+}): boolean {
+  return canCreateCreditNoteFromInvoiceMl(invoice);
 }
 
 /**
  * Build create payload for a credit note from an invoice.
  * Line amounts stay positive; `resolveInvoiceTotals` signs the document total negative.
+ * Persists hard link fields for server (Architect epic B); notes imprint remains UX aid only.
  */
 export function buildCreditNoteCreatePayload(
   original: Invoice,
@@ -30,6 +35,8 @@ export function buildCreditNoteCreatePayload(
     id: `${Date.now()}-${Math.random()}`,
   }));
 
+  const creditedInvoiceNumber = original.invoiceNumber || String(original.id);
+
   return {
     contactId: original.contactId ?? null,
     contactName: original.contactName || '',
@@ -42,11 +49,16 @@ export function buildCreditNoteCreatePayload(
     orderNumber: original.orderNumber || '',
     deliveryMethod: original.deliveryMethod || '',
     issueDate: issueDate.toISOString(),
+    supplyDate: issueDate.toISOString(),
     dueDate: dueDate.toISOString(),
     invoiceNumber,
     invoiceType: 'credit_note',
     status: 'draft',
     paidAt: null,
     amountPaid: 0,
+    creditedInvoiceId: original.id,
+    creditedInvoiceNumber,
+    correctionSummary: creditAgainstLabel,
+    contentProfile: 'full',
   };
 }

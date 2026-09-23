@@ -1,12 +1,15 @@
-import { Search, X } from 'lucide-react';
+import { Search, UserPlus, X } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { FORM_GHOST_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { LIST_SEARCH_FIELD_PROPS } from '@/core/ui/listSearchFieldProps';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import type { Contact } from '@/plugins/contacts/types/contacts';
@@ -53,7 +56,10 @@ export function InvoiceCustomerSelect({
   errorMessage,
 }: InvoiceCustomerSelectProps) {
   const { t } = useTranslation();
-  const { contacts } = useContacts();
+  const { contacts, openContactPanel } = useContacts();
+  const { attemptNavigation } = useGlobalNavigationGuard();
+  const enabledPlugins = useEnabledPlugins();
+  const canCreateContact = enabledPlugins.has('contacts');
   const [contactSearch, setContactSearch] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -79,6 +85,12 @@ export function InvoiceCustomerSelect({
 
   const openPopover = editable && showSuggestions;
 
+  const handleCreateContact = () => {
+    setShowSuggestions(false);
+    setContactSearch('');
+    attemptNavigation(() => openContactPanel(null));
+  };
+
   return (
     <div className="px-4 py-4">
       <div className="flex items-center gap-3">
@@ -91,96 +103,112 @@ export function InvoiceCustomerSelect({
 
         <div className="min-w-0 flex-1">
           {editable ? (
-            <Popover open={openPopover} onOpenChange={setShowSuggestions}>
-              <PopoverAnchor asChild>
-                <div className="relative w-full min-w-0">
-                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    {...LIST_SEARCH_FIELD_PROPS}
-                    id="invoice-contact"
-                    name="homebase-invoice-customer-search"
-                    value={showSuggestions || !displayName ? contactSearch : displayName}
-                    onChange={(event) => {
-                      setContactSearch(event.target.value);
-                      setShowSuggestions(true);
-                    }}
-                    onFocus={() => {
-                      setContactSearch('');
-                      setShowSuggestions(true);
-                    }}
-                    placeholder={t('invoices.selectCustomer', {
-                      defaultValue: 'Select a customer…',
-                    })}
-                    className={cn(
-                      FORM_GHOST_INPUT_CLASS,
-                      'pl-7 font-semibold',
-                      displayName && !showSuggestions ? 'pr-8' : '',
-                      errorMessage ? 'ring-1 ring-destructive' : '',
-                    )}
-                    aria-invalid={Boolean(errorMessage)}
-                  />
-                  {displayName && !showSuggestions ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      icon={X}
-                      className="absolute right-0.5 top-1/2 h-6 w-6 -translate-y-1/2 p-0 text-muted-foreground hover:text-foreground"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onCustomerChange(null);
-                        setContactSearch('');
+            <div className="flex items-center gap-2">
+              <Popover open={openPopover} onOpenChange={setShowSuggestions}>
+                <PopoverAnchor asChild>
+                  <div className="relative w-full min-w-0 flex-1">
+                    <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      {...LIST_SEARCH_FIELD_PROPS}
+                      id="invoice-contact"
+                      name="homebase-invoice-customer-search"
+                      value={showSuggestions || !displayName ? contactSearch : displayName}
+                      onChange={(event) => {
+                        setContactSearch(event.target.value);
+                        setShowSuggestions(true);
                       }}
-                      aria-label={t('invoices.removeCustomer', {
-                        defaultValue: 'Remove customer',
+                      onFocus={() => {
+                        setContactSearch('');
+                        setShowSuggestions(true);
+                      }}
+                      placeholder={t('invoices.selectCustomer', {
+                        defaultValue: 'Select a customer…',
                       })}
+                      className={cn(
+                        FORM_GHOST_INPUT_CLASS,
+                        'pl-7 font-semibold',
+                        displayName && !showSuggestions ? 'pr-8' : '',
+                        errorMessage ? 'ring-1 ring-destructive' : '',
+                      )}
+                      aria-invalid={Boolean(errorMessage)}
                     />
-                  ) : null}
-                </div>
-              </PopoverAnchor>
-              <PopoverContent
-                align="start"
-                side="bottom"
-                sideOffset={6}
-                className="z-[120] w-[var(--radix-popover-trigger-width)] max-h-64 overflow-y-auto rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
-              >
-                {suggestions.length > 0 ? (
-                  suggestions.map((contact) => {
-                    const name = contact.companyName ?? `Contact ${contact.id}`;
-                    const contactMeta = [contact.organizationNumber, contact.email]
-                      .filter(Boolean)
-                      .join(' · ');
-                    return (
-                      <button
-                        key={contact.id}
+                    {displayName && !showSuggestions ? (
+                      <Button
                         type="button"
-                        className="flex w-full items-start justify-between gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-accent"
-                        onClick={() => {
-                          onCustomerChange(contact);
+                        variant="ghost"
+                        size="sm"
+                        icon={X}
+                        className="absolute right-0.5 top-1/2 h-6 w-6 -translate-y-1/2 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onCustomerChange(null);
                           setContactSearch('');
-                          setShowSuggestions(false);
                         }}
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-xs font-medium">{name}</span>
-                          {contactMeta ? (
-                            <span className="block truncate text-[11px] text-muted-foreground">
-                              {contactMeta}
-                            </span>
-                          ) : null}
-                        </span>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="px-2.5 py-2 text-[11px] text-muted-foreground">
-                    {contactSearch.trim()
-                      ? t('common.noResults')
-                      : t('invoices.selectCustomer', { defaultValue: 'Select a customer…' })}
+                        aria-label={t('invoices.removeCustomer', {
+                          defaultValue: 'Remove customer',
+                        })}
+                      />
+                    ) : null}
                   </div>
-                )}
-              </PopoverContent>
-            </Popover>
+                </PopoverAnchor>
+                <PopoverContent
+                  align="start"
+                  side="bottom"
+                  sideOffset={6}
+                  className="z-[120] w-[var(--radix-popover-trigger-width)] max-h-64 overflow-y-auto rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
+                >
+                  {suggestions.length > 0 ? (
+                    suggestions.map((contact) => {
+                      const name = contact.companyName ?? `Contact ${contact.id}`;
+                      const contactMeta = [contact.organizationNumber, contact.email]
+                        .filter(Boolean)
+                        .join(' · ');
+                      return (
+                        <button
+                          key={contact.id}
+                          type="button"
+                          className="flex w-full items-start justify-between gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-accent"
+                          onClick={() => {
+                            onCustomerChange(contact);
+                            setContactSearch('');
+                            setShowSuggestions(false);
+                          }}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-xs font-medium">{name}</span>
+                            {contactMeta ? (
+                              <span className="block truncate text-[11px] text-muted-foreground">
+                                {contactMeta}
+                              </span>
+                            ) : null}
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="px-2.5 py-2 text-[11px] text-muted-foreground">
+                      {contactSearch.trim()
+                        ? t('common.noResults')
+                        : t('invoices.selectCustomer', { defaultValue: 'Select a customer…' })}
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+              {canCreateContact ? (
+                <RoundIconLabelButton
+                  type="button"
+                  icon={UserPlus}
+                  label={t('invoices.createContact', {
+                    defaultValue: 'Create contact',
+                  })}
+                  variant="secondary"
+                  size="sm"
+                  alwaysExpanded
+                  className="shrink-0"
+                  onClick={handleCreateContact}
+                />
+              ) : null}
+            </div>
           ) : (
             <Input
               type="text"

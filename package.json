@@ -56,6 +56,7 @@
     "migrate:invoices-recurring-payments-user-id": "node scripts/run-invoices-recurring-payments-user-id-migration.js",
     "migrate:invoices-status-partially-paid": "node scripts/run-invoices-status-partially-paid-migration.js",
     "migrate:invoices-order-delivery": "node scripts/run-invoices-order-delivery-migration.js",
+    "migrate:invoices-ml-vat-compliance": "node scripts/run-invoices-ml-vat-compliance-migration.js",
     "migrate:estimates-invoice-alignment": "node scripts/run-estimates-invoice-alignment-migration.js",
     "migrate:schedule-counts-toward-capacity": "node scripts/run-schedule-counts-toward-capacity-migration.js",
     "migrate:matches-team-external": "node scripts/run-matches-team-external-migration.js",

@@ -5,17 +5,22 @@ import {
 import type { Invoice } from '../../context/InvoicesContext';
 
 describe('canCreateCreditNoteFromInvoice', () => {
-  it('allows only standard invoices', () => {
-    expect(canCreateCreditNoteFromInvoice({ invoiceType: 'invoice' })).toBe(true);
-    expect(canCreateCreditNoteFromInvoice({})).toBe(true);
-    expect(canCreateCreditNoteFromInvoice({ invoiceType: 'credit_note' })).toBe(false);
-    expect(canCreateCreditNoteFromInvoice({ invoiceType: 'cash_invoice' })).toBe(false);
-    expect(canCreateCreditNoteFromInvoice({ invoiceType: 'receipt' })).toBe(false);
+  it('allows only issued standard invoices', () => {
+    expect(canCreateCreditNoteFromInvoice({ invoiceType: 'invoice', status: 'sent' })).toBe(true);
+    expect(canCreateCreditNoteFromInvoice({ invoiceType: 'invoice', status: 'draft' })).toBe(false);
+    expect(canCreateCreditNoteFromInvoice({})).toBe(false);
+    expect(canCreateCreditNoteFromInvoice({ invoiceType: 'credit_note', status: 'sent' })).toBe(
+      false,
+    );
+    expect(canCreateCreditNoteFromInvoice({ invoiceType: 'cash_invoice', status: 'sent' })).toBe(
+      false,
+    );
+    expect(canCreateCreditNoteFromInvoice({ invoiceType: 'receipt', status: 'paid' })).toBe(false);
   });
 });
 
 describe('buildCreditNoteCreatePayload', () => {
-  it('copies positive lines and sets credit_note draft fields', () => {
+  it('copies positive lines and persists hard credit link fields', () => {
     const original = {
       id: '9',
       contactId: '3',
@@ -55,6 +60,10 @@ describe('buildCreditNoteCreatePayload', () => {
     expect(payload.contactId).toBe('3');
     expect(payload.contactName).toBe('Acme');
     expect(payload.invoiceDiscount).toBe(5);
+    expect(payload.creditedInvoiceId).toBe('9');
+    expect(payload.creditedInvoiceNumber).toBe('2026-010');
+    expect(payload.correctionSummary).toBe('Credit against invoice 2026-010');
+    expect(payload.contentProfile).toBe('full');
     expect(payload.notes).toContain('Thanks');
     expect(payload.notes).toContain('Credit against invoice 2026-010');
     const lines = payload.lineItems as Array<{ quantity: number; unitPrice: number; id: string }>;

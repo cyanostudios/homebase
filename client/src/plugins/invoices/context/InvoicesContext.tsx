@@ -16,9 +16,16 @@ export interface Invoice {
   orderNumber?: string;
   deliveryMethod?: string;
   issueDate?: Date | string | null;
+  /** Supply / delivery date; defaults to issue date at leave-draft (server). */
+  supplyDate?: Date | string | null;
   dueDate?: Date | string | null;
   status?: 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled' | 'partially_paid';
   invoiceType?: 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt';
+  /** full | simplified — derived / server-stamped. */
+  contentProfile?: 'full' | 'simplified';
+  creditedInvoiceId?: string | number | null;
+  creditedInvoiceNumber?: string | null;
+  correctionSummary?: string | null;
   paidAt?: Date | string | null;
   amountPaid?: number;
   createdAt?: Date | string | null;
@@ -28,6 +35,7 @@ export interface Invoice {
   totalVat?: number;
   subtotal?: number;
   totalDiscount?: number;
+  vatBreakdown?: Array<{ rate: number; taxBase: number; vatAmount: number }>;
 }
 
 export interface InvoiceShare {
@@ -47,6 +55,8 @@ export type InvoiceCreatePrefill = {
   organizationNumber?: string;
   currency?: string;
   paymentTerms?: string;
+  /** Contact tax rate % — used as default line VAT on create. */
+  taxRate?: string;
 };
 
 export interface InvoicesContextType {
@@ -85,6 +95,8 @@ export interface InvoicesContextType {
   /** Load active share for an invoice (soft preview + panel view). */
   syncInvoiceShareForInvoice: (invoiceId: string | null | undefined) => Promise<void>;
   openCreateInvoiceShare: () => void;
+  /** Reuse active share or create a 30-day link — does not open the share dialog. */
+  ensureInvoiceShareForItem: (invoice: Invoice) => Promise<InvoiceShare | null>;
   openInvoiceShareForItem: (invoice: Invoice) => Promise<void>;
   openInvoiceShareDialog: () => void;
   handleCopyInvoiceShareUrl: () => void;
@@ -163,6 +175,7 @@ const EMPTY_INVOICES_CONTEXT: InvoicesContextType = {
   setShowInvoiceShareDialog: () => {},
   syncInvoiceShareForInvoice: async () => {},
   openCreateInvoiceShare: () => {},
+  ensureInvoiceShareForItem: async () => null,
   openInvoiceShareForItem: async () => {},
   openInvoiceShareDialog: () => {},
   handleCopyInvoiceShareUrl: () => {},

@@ -10,7 +10,6 @@ import {
   Package,
   Percent,
   Receipt,
-  Send,
   SlidersHorizontal,
   StickyNote,
   Truck,
@@ -62,6 +61,15 @@ import {
   calculateInvoiceLineItem,
 } from '../types/invoices';
 import { resolveInvoiceTotals } from '../utils/invoiceTotals';
+import {
+  deriveInvoiceContentProfile,
+  FORENKLAD_TOTAL_CEILING_SEK,
+  INVOICE_CURRENCY_OPTIONS,
+  INVOICE_VAT_RATES,
+  isInvoiceIssued,
+  resolveInvoiceCurrency,
+  resolveInvoiceVatRateFromContact,
+} from '../utils/invoiceMlCompliance';
 import {
   computeDueDateFromPaymentTerms,
   formatInvoiceDueDate,
@@ -213,6 +221,8 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+    /** Default VAT for new line items — seeded from contact taxRate, overridable per line. */
+    const [defaultVatRate, setDefaultVatRate] = useState(25);
 
     const [formData, setFormData] = useState(() => {
       const issueDate = new Date();
@@ -229,9 +239,14 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         orderNumber: '',
         deliveryMethod: '',
         issueDate,
+        supplyDate: issueDate as Date | null,
         dueDate: dueDateFromIssueAndTerms(issueDate, paymentTerms),
         status: 'draft' as 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled' | 'partially_paid',
         invoiceType: 'invoice' as 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt',
+        contentProfile: 'full' as 'full' | 'simplified',
+        creditedInvoiceId: null as string | number | null,
+        creditedInvoiceNumber: '' as string,
+        correctionSummary: '',
       };
     });
 
@@ -254,11 +269,14 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           : new Date();
         const paymentTerms = normalizePaymentTermsSelectValue(currentInvoice.paymentTerms);
         const storedDue = currentInvoice.dueDate ? new Date(currentInvoice.dueDate as any) : null;
+        const supplyDate = currentInvoice.supplyDate
+          ? new Date(currentInvoice.supplyDate as any)
+          : issueDate;
         setFormData({
           contactId: currentInvoice.contactId || '',
           contactName: currentInvoice.contactName || '',
           organizationNumber: currentInvoice.organizationNumber || '',
-          currency: currentInvoice.currency || 'SEK',
+          currency: resolveInvoiceCurrency(currentInvoice.currency),
           lineItems: migrated,
           invoiceDiscount: currentInvoice.invoiceDiscount || 0,
           notes: displayPlainText(currentInvoice.notes || ''),
@@ -266,10 +284,22 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           orderNumber: currentInvoice.orderNumber || '',
           deliveryMethod: currentInvoice.deliveryMethod || '',
           issueDate,
+          supplyDate,
           dueDate: storedDue ?? dueDateFromIssueAndTerms(issueDate, paymentTerms),
           status: (currentInvoice.status as any) || 'draft',
           invoiceType: (currentInvoice.invoiceType as any) || 'invoice',
+          contentProfile: (currentInvoice.contentProfile as any) || 'full',
+          creditedInvoiceId: currentInvoice.creditedInvoiceId ?? null,
+          creditedInvoiceNumber: currentInvoice.creditedInvoiceNumber || '',
+          correctionSummary: currentInvoice.correctionSummary || '',
         });
+        const contactTax = contacts?.find(
+          (c) => String(c.id) === String(currentInvoice.contactId),
+        )?.taxRate;
+        const fromLines = migrated.find((li) => li.kind !== 'text')?.vatRate;
+        setDefaultVatRate(
+          resolveInvoiceVatRateFromContact(contactTax ?? (fromLines != null ? fromLines : 25)),
+        );
         markClean();
         setDuplicatedItemIds(new Set());
         return;
@@ -277,11 +307,13 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
 
       const issueDate = new Date();
       const paymentTerms = normalizePaymentTermsSelectValue(invoiceCreatePrefill?.paymentTerms);
+      const prefillVat = resolveInvoiceVatRateFromContact(invoiceCreatePrefill?.taxRate);
+      setDefaultVatRate(prefillVat);
       setFormData({
         contactId: invoiceCreatePrefill?.contactId || '',
         contactName: invoiceCreatePrefill?.contactName || '',
         organizationNumber: invoiceCreatePrefill?.organizationNumber || '',
-        currency: invoiceCreatePrefill?.currency || 'SEK',
+        currency: resolveInvoiceCurrency(invoiceCreatePrefill?.currency),
         lineItems: [],
         invoiceDiscount: 0,
         notes: '',
@@ -289,9 +321,14 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         orderNumber: '',
         deliveryMethod: '',
         issueDate,
+        supplyDate: issueDate,
         dueDate: dueDateFromIssueAndTerms(issueDate, paymentTerms),
         status: 'draft',
         invoiceType: 'invoice',
+        contentProfile: 'full',
+        creditedInvoiceId: null,
+        creditedInvoiceNumber: '',
+        correctionSummary: '',
       });
       markClean();
       setDuplicatedItemIds(new Set());
@@ -301,6 +338,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     const resetForm = useCallback(() => {
       const issueDate = new Date();
       const paymentTerms = '30';
+      setDefaultVatRate(25);
       setFormData({
         contactId: '',
         contactName: '',
@@ -313,9 +351,14 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         orderNumber: '',
         deliveryMethod: '',
         issueDate,
+        supplyDate: issueDate,
         dueDate: dueDateFromIssueAndTerms(issueDate, paymentTerms),
         status: 'draft',
         invoiceType: 'invoice',
+        contentProfile: 'full',
+        creditedInvoiceId: null,
+        creditedInvoiceNumber: '',
+        correctionSummary: '',
       });
       markClean();
       setDuplicatedItemIds(new Set());
@@ -402,6 +445,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
             orderNumber: formData.orderNumber,
             deliveryMethod: formData.deliveryMethod,
             issueDate: formData.issueDate,
+            supplyDate: formData.supplyDate,
             dueDate: formData.dueDate,
             status: formData.status,
             invoiceType: formData.invoiceType,
@@ -458,6 +502,9 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     };
 
     const requestStatusChange = (nextStatus: string) => {
+      if (isInvoiceIssued(currentInvoice?.status) && nextStatus === 'draft') {
+        return;
+      }
       if (nextStatus === 'draft') {
         updateField('status', nextStatus);
         return;
@@ -486,6 +533,8 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         organizationNumber?: string;
         currency?: string;
         paymentTerms?: string;
+        taxRate?: string;
+        contactType?: string;
       } | null,
     ) => {
       if ((formData.status || 'draft') !== 'draft') {
@@ -493,16 +542,28 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
       }
       if (contact) {
         const paymentTerms = normalizePaymentTermsSelectValue(contact.paymentTerms);
+        const currency = resolveInvoiceCurrency(contact.currency);
+        const vatRate = resolveInvoiceVatRateFromContact(
+          contact.contactType === 'private' ? '0' : contact.taxRate,
+        );
+        setDefaultVatRate(vatRate);
         setFormData((prev) => {
           const issueDate = prev.issueDate;
+          const lineItems = (prev.lineItems || []).map((item) => {
+            if (item?.kind === 'text') {
+              return item;
+            }
+            return calculateInvoiceLineItem({ ...item, vatRate });
+          });
           return {
             ...prev,
             contactId: String(contact.id),
             contactName: contact.companyName || '',
             organizationNumber: contact.organizationNumber || '',
-            currency: contact.currency || 'SEK',
+            currency,
             paymentTerms,
             dueDate: dueDateFromIssueAndTerms(issueDate, paymentTerms),
+            lineItems,
           };
         });
         if (validationErrors.length > 0) {
@@ -529,7 +590,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         unit: DEFAULT_INVOICE_LINE_ITEM_UNIT,
         unitPrice: 0,
         discount: 0,
-        vatRate: 25,
+        vatRate: defaultVatRate,
         sortOrder: formData.lineItems.length,
       });
       updateField('lineItems', [...formData.lineItems, newItem]);
@@ -599,6 +660,18 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     const propSelectClass = FORM_GHOST_PROP_CONTROL_CLASS;
     const dueDisplay = formatInvoiceDueDate(formData.dueDate);
     const showDueUrgency = formData.status !== 'paid' && formData.status !== 'canceled';
+    const derivedProfile = deriveInvoiceContentProfile({
+      invoiceType: formData.invoiceType,
+      currency: formData.currency,
+      total: totals.total,
+    });
+    const isCreditNote = formData.invoiceType === 'credit_note';
+    const showProfileRow =
+      formData.invoiceType === 'receipt' || formData.invoiceType === 'cash_invoice';
+    const forenkladOverLimit =
+      showProfileRow &&
+      String(formData.currency || 'SEK').toUpperCase() === 'SEK' &&
+      Math.abs(totals.total) > FORENKLAD_TOTAL_CEILING_SEK;
 
     const invoiceNumberLabel = currentInvoice
       ? formatDisplayNumber('invoices', currentInvoice.invoiceNumber || currentInvoice.id)
@@ -818,6 +891,39 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                       className={cn(FORM_GHOST_TEXTAREA_CLASS, 'min-h-[4.5rem] flex-1')}
                     />
                   </div>
+
+                  {isCreditNote ? (
+                    <div className="flex min-h-0 flex-1 flex-col gap-3">
+                      <div>
+                        <div className={FACT_LABEL_CLASS}>
+                          <Receipt className="h-3 w-3" />
+                          {t('invoices.creditsInvoice', { defaultValue: 'Credits invoice' })}
+                        </div>
+                        <div className={cn(FORM_GHOST_READONLY_CLASS, 'mt-1')}>
+                          {formData.creditedInvoiceNumber
+                            ? formatDisplayNumber('invoices', formData.creditedInvoiceNumber)
+                            : '—'}
+                        </div>
+                      </div>
+                      <div className="flex min-h-0 flex-1 flex-col">
+                        <Label htmlFor="invoice-correction-summary" className={FACT_LABEL_CLASS}>
+                          {t('invoices.correctionSummary', {
+                            defaultValue: 'Correction summary',
+                          })}
+                        </Label>
+                        <Textarea
+                          id="invoice-correction-summary"
+                          value={formData.correctionSummary}
+                          onChange={(e) => updateField('correctionSummary', e.target.value)}
+                          rows={2}
+                          placeholder={t('invoices.correctionSummaryPlaceholder', {
+                            defaultValue: 'What changed vs the original invoice?',
+                          })}
+                          className={cn(FORM_GHOST_TEXTAREA_CLASS, 'min-h-[4.5rem] flex-1')}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </Card>
 
@@ -839,25 +945,28 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                       <span className="text-sm text-slate-500 dark:text-slate-400">
                         {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
                       </span>
-                      <NativeSelect
-                        id="invoice-type"
-                        value={formData.invoiceType}
-                        onChange={(e) => updateField('invoiceType', e.target.value as any)}
-                        className={propSelectClass}
-                      >
-                        <option value="invoice">
-                          {t('invoices.type.invoice', { defaultValue: 'Invoice' })}
-                        </option>
-                        <option value="credit_note">
+                      {isCreditNote ? (
+                        <span className="text-sm font-medium text-foreground">
                           {t('invoices.type.credit_note', { defaultValue: 'Credit note' })}
-                        </option>
-                        <option value="cash_invoice">
-                          {t('invoices.type.cash_invoice', { defaultValue: 'Cash invoice' })}
-                        </option>
-                        <option value="receipt">
-                          {t('invoices.type.receipt', { defaultValue: 'Receipt' })}
-                        </option>
-                      </NativeSelect>
+                        </span>
+                      ) : (
+                        <NativeSelect
+                          id="invoice-type"
+                          value={formData.invoiceType}
+                          onChange={(e) => updateField('invoiceType', e.target.value as any)}
+                          className={propSelectClass}
+                        >
+                          <option value="invoice">
+                            {t('invoices.type.invoice', { defaultValue: 'Invoice' })}
+                          </option>
+                          <option value="cash_invoice">
+                            {t('invoices.type.cash_invoice', { defaultValue: 'Cash invoice' })}
+                          </option>
+                          <option value="receipt">
+                            {t('invoices.type.receipt', { defaultValue: 'Receipt' })}
+                          </option>
+                        </NativeSelect>
+                      )}
                     </div>
 
                     <div className={DETAIL_PROP_ROW_CLASS}>
@@ -873,6 +982,64 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                         variant="default"
                         propWidth
                       />
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <div className="min-w-0 flex-1 pr-3">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">
+                          {t('invoices.supplyDate', { defaultValue: 'Supply date' })}
+                        </span>
+                        <p className="mt-0.5 text-left text-xs text-muted-foreground">
+                          {t('invoices.supplyDateHelp', {
+                            defaultValue: 'Defaults to issue date if empty when you issue.',
+                          })}
+                        </p>
+                      </div>
+                      <DatePicker
+                        id="invoice-supply-date"
+                        value={formData.supplyDate}
+                        onChange={(date) => updateField('supplyDate', date)}
+                        placeholder={t('tasks.setDueDate', { defaultValue: 'Set date' })}
+                        clearLabel={t('tasks.clearDueDate', { defaultValue: 'Clear date' })}
+                        variant="default"
+                        propWidth
+                      />
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.vatRate', { defaultValue: 'VAT' })}
+                      </span>
+                      <NativeSelect
+                        id="invoice-vat-rate"
+                        value={defaultVatRate}
+                        onChange={(e) => {
+                          const vatRate = resolveInvoiceVatRateFromContact(e.target.value);
+                          setDefaultVatRate(vatRate);
+                          setFormData((prev) => ({
+                            ...prev,
+                            lineItems: (prev.lineItems || []).map((item) => {
+                              if (item?.kind === 'text') {
+                                return item;
+                              }
+                              return calculateInvoiceLineItem({ ...item, vatRate });
+                            }),
+                          }));
+                          if (validationErrors.length > 0) {
+                            clearValidationErrors();
+                          }
+                          markDirty();
+                        }}
+                        disabled={(formData.status || 'draft') !== 'draft'}
+                        className={propSelectClass}
+                        aria-label={t('invoices.vatRate', { defaultValue: 'VAT' })}
+                      >
+                        {INVOICE_VAT_RATES.map((rate) => (
+                          <option key={rate} value={rate}>
+                            {rate}%
+                          </option>
+                        ))}
+                      </NativeSelect>
                     </div>
 
                     <div className={DETAIL_PROP_ROW_CLASS}>
@@ -953,17 +1120,44 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                       </span>
                       <NativeSelect
                         id="invoice-currency"
-                        value={formData.currency}
+                        value={resolveInvoiceCurrency(formData.currency)}
                         onChange={(e) => updateField('currency', e.target.value)}
+                        disabled={(formData.status || 'draft') !== 'draft'}
                         className={propSelectClass}
+                        aria-label={t('invoices.currency', { defaultValue: 'Currency' })}
                       >
-                        <option value="SEK">SEK</option>
-                        <option value="EUR">EUR</option>
-                        <option value="USD">USD</option>
-                        <option value="NOK">NOK</option>
-                        <option value="DKK">DKK</option>
+                        {INVOICE_CURRENCY_OPTIONS.map((code) => (
+                          <option key={code} value={code}>
+                            {code}
+                          </option>
+                        ))}
                       </NativeSelect>
                     </div>
+
+                    {showProfileRow ? (
+                      <div className={DETAIL_PROP_ROW_CLASS}>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">
+                          {t('invoices.contentProfile', { defaultValue: 'Document profile' })}
+                        </span>
+                        <span className="text-sm font-medium text-foreground">
+                          {derivedProfile === 'simplified'
+                            ? t('invoices.contentProfileSimplified', {
+                                defaultValue: 'Simplified',
+                              })
+                            : t('invoices.contentProfileFull', { defaultValue: 'Full' })}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {forenkladOverLimit ? (
+                      <p className="text-xs text-amber-800 dark:text-amber-300">
+                        {t('invoices.forenkladOverLimitHint', {
+                          ceiling: FORENKLAD_TOTAL_CEILING_SEK,
+                          defaultValue:
+                            'Over {{ceiling}} SEK incl. VAT — full invoice fields required (not simplified).',
+                        })}
+                      </p>
+                    ) : null}
 
                     <div className={DETAIL_PROP_ROW_CLASS}>
                       <span className="text-sm text-slate-500 dark:text-slate-400">
@@ -973,6 +1167,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                         invoice={{ status: formData.status }}
                         onStatusChange={requestStatusChange}
                         hideInlineLabel
+                        issuedLocked={isInvoiceIssued(currentInvoice?.status)}
                       />
                     </div>
                   </div>
@@ -1000,17 +1195,6 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                     invoiceNumber={currentInvoice?.invoiceNumber}
                   />
                   <div className="mt-4 flex justify-end gap-2">
-                    {formData.status === 'draft' ? (
-                      <RoundIconLabelButton
-                        type="button"
-                        icon={Send}
-                        label={t('invoices.send', { defaultValue: 'Send' })}
-                        variant="soft"
-                        size="xs"
-                        alwaysExpanded
-                        onClick={() => requestStatusChange('sent')}
-                      />
-                    ) : null}
                     <RoundIconLabelButton
                       type="button"
                       icon={Eye}
@@ -1116,6 +1300,8 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                     totals={totals}
                     currency={formData.currency}
                     invoiceDiscount={Number(formData.invoiceDiscount || 0)}
+                    lineItems={formData.lineItems}
+                    invoiceType={formData.invoiceType}
                   />
                 </DetailSection>
               </Card>
@@ -1160,6 +1346,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           isOpen={showStatusModal}
           status={pendingStatus || ''}
           invoiceNumber={currentInvoice?.invoiceNumber || ''}
+          isIssuing={(formData.status || 'draft') === 'draft'}
           onConfirm={confirmStatusChange}
           onClose={cancelStatusChange}
         />

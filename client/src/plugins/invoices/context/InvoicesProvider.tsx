@@ -23,7 +23,13 @@ import {
   canCreateCreditNoteFromInvoice,
 } from '../utils/buildCreditNoteFromInvoice';
 import { computeDueDateFromPaymentTerms } from '../utils/invoiceDueDate';
-import { withResolvedInvoiceTotals } from '../utils/invoiceTotals';
+import {
+  deriveInvoiceContentProfile,
+  isInvoiceIssued,
+  isInvoiceStatusOnlyPayload,
+  validateInvoiceMlClient,
+} from '../utils/invoiceMlCompliance';
+import { resolveInvoiceTotals, withResolvedInvoiceTotals } from '../utils/invoiceTotals';
 import {
   clearPendingInvoiceCreate,
   hasPendingInvoiceCreate,
@@ -48,6 +54,7 @@ function normalizeInvoiceDates(invoice: any): Invoice {
     createdAt: invoice.createdAt ? new Date(invoice.createdAt) : null,
     updatedAt: invoice.updatedAt ? new Date(invoice.updatedAt) : null,
     issueDate: invoice.issueDate ? new Date(invoice.issueDate) : null,
+    supplyDate: invoice.supplyDate ? new Date(invoice.supplyDate) : null,
     dueDate: invoice.dueDate ? new Date(invoice.dueDate) : null,
     paidAt: invoice.paidAt ? new Date(invoice.paidAt) : null,
   }) as Invoice;
@@ -165,8 +172,30 @@ export function InvoicesProvider({
     );
   }, []);
 
-  const validate = (_data: any): ValidationError[] => {
-    return [];
+  const validate = (data: any): ValidationError[] => {
+    const totals = resolveInvoiceTotals({
+      invoiceType: data?.invoiceType,
+      lineItems: data?.lineItems,
+      invoiceDiscount: data?.invoiceDiscount,
+      total: data?.total,
+      totalVat: data?.totalVat,
+      subtotal: data?.subtotal,
+    });
+    const issuing = isInvoiceIssued(data?.status);
+    return validateInvoiceMlClient(
+      {
+        status: data?.status,
+        invoiceType: data?.invoiceType,
+        currency: data?.currency,
+        lineItems: data?.lineItems,
+        invoiceDiscount: data?.invoiceDiscount,
+        total: totals.total,
+        creditedInvoiceId: data?.creditedInvoiceId,
+        correctionSummary: data?.correctionSummary,
+        issuing,
+      },
+      t,
+    );
   };
 
   const openCreateInvoicePanel = useCallback(
@@ -192,7 +221,7 @@ export function InvoicesProvider({
     setRecentlyDuplicatedInvoiceId(null);
     setInvoiceCreatePrefill(null);
     setCurrentInvoice(item);
-    setPanelMode(item ? 'edit' : 'create');
+    setPanelMode(item ? (isInvoiceIssued(item.status) ? 'view' : 'edit') : 'create');
     setIsInvoicesPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -257,6 +286,10 @@ export function InvoicesProvider({
   }, [location.pathname]);
 
   const openInvoiceForEdit = (item: Invoice) => {
+    // Issued documents are ML-locked — do not open edit (Estimates invoiced pattern).
+    if (isInvoiceIssued(item.status)) {
+      return;
+    }
     clearPendingInvoiceCreate();
     clearInvoiceSelectionCore();
     setRecentlyDuplicatedInvoiceId(null);
@@ -337,22 +370,53 @@ export function InvoicesProvider({
   } = usePluginNavigation(invoices, currentInvoice, openInvoiceForView, browseOrderIds);
 
   const saveInvoice = async (raw: any): Promise<boolean> => {
-    const errors = validate(raw);
-    setValidationErrors(errors);
-    const blocking = errors.filter((e) => !e.message.includes('Warning'));
-    if (blocking.length > 0) {
-      return false;
+    // Issued status-only PUT must not run leave-draft / issue ML validation.
+    const statusOnly = isInvoiceStatusOnlyPayload(raw);
+    if (!statusOnly) {
+      const errors = validate(raw);
+      setValidationErrors(errors);
+      const blocking = errors.filter((e) => !e.message.includes('Warning'));
+      if (blocking.length > 0) {
+        return false;
+      }
+    } else {
+      setValidationErrors([]);
     }
 
     try {
+      const idToUpdate = raw?.id ?? currentInvoice?.id ?? null;
+
+      if (statusOnly && idToUpdate) {
+        const saved = await api.updateItem(String(idToUpdate), { status: raw.status });
+        const normalized = normalizeInvoiceDates(saved);
+        setInvoices((prev) =>
+          prev.map((i) => (String(i.id) === String(idToUpdate) ? normalized : i)),
+        );
+        setCurrentInvoice((prev) =>
+          prev && String(prev.id) === String(idToUpdate) ? normalized : prev,
+        );
+        setValidationErrors([]);
+        return true;
+      }
+
       const formattedData = {
         ...raw,
+        contentProfile:
+          raw.contentProfile ||
+          deriveInvoiceContentProfile({
+            invoiceType: raw.invoiceType,
+            currency: raw.currency,
+            total: resolveInvoiceTotals(raw).total,
+          }),
         issueDate:
           raw.issueDate instanceof Date ? raw.issueDate.toISOString() : raw.issueDate || null,
+        supplyDate:
+          raw.supplyDate instanceof Date
+            ? raw.supplyDate.toISOString()
+            : raw.supplyDate ||
+              (raw.issueDate instanceof Date ? raw.issueDate.toISOString() : raw.issueDate || null),
         dueDate: raw.dueDate instanceof Date ? raw.dueDate.toISOString() : raw.dueDate || null,
       };
-
-      const idToUpdate = raw?.id ?? currentInvoice?.id ?? null;
 
       if (idToUpdate) {
         const saved = await api.updateItem(String(idToUpdate), formattedData);
@@ -381,6 +445,13 @@ export function InvoicesProvider({
 
       if (err?.status === 409 && Array.isArray(err.errors)) {
         validationErrors.push(...err.errors);
+      } else if (err?.code === 'INVOICE_ML_LOCKED' || err?.status === 409) {
+        validationErrors.push({
+          field: 'general',
+          message: t('invoices.validation.mlLocked', {
+            defaultValue: 'This document is issued and cannot be changed.',
+          }),
+        });
       } else if (err?.details && Array.isArray(err.details)) {
         err.details.forEach((detail: any) => {
           if (typeof detail === 'string') {
@@ -530,9 +601,9 @@ export function InvoicesProvider({
     void syncInvoiceShareForInvoice(currentInvoice.id);
   }, [currentInvoice?.id, syncInvoiceShareForInvoice]);
 
-  /** Tasks-style: reuse active link or create with 30-day default — no date picker modal. */
-  const openInvoiceShareForItem = useCallback(
-    async (invoice: Invoice) => {
+  /** Reuse active link or create with 30-day default — does not open the share dialog. */
+  const ensureInvoiceShareForItem = useCallback(
+    async (invoice: Invoice): Promise<InvoiceShare | null> => {
       setShareTargetInvoice(invoice);
       setIsCreatingInvoiceShare(true);
       try {
@@ -540,23 +611,34 @@ export function InvoicesProvider({
         const activeShare = shares.find((share) => new Date(share.validUntil) > new Date());
         if (activeShare) {
           setInvoiceShare(activeShare);
-          setShowInvoiceShareDialog(true);
-          return;
+          return activeShare;
         }
         const share = (await api.createShare(
           invoice.id,
           defaultShareValidUntilDate(),
         )) as InvoiceShare;
         setInvoiceShare(share);
-        setShowInvoiceShareDialog(true);
+        return share;
       } catch (error) {
-        console.error('Failed to open invoice share:', error);
+        console.error('Failed to ensure invoice share:', error);
         alert(error instanceof Error ? error.message : 'Failed to open share');
+        return null;
       } finally {
         setIsCreatingInvoiceShare(false);
       }
     },
     [api],
+  );
+
+  /** Tasks-style: ensure share then open ShareDialog — no date picker modal. */
+  const openInvoiceShareForItem = useCallback(
+    async (invoice: Invoice) => {
+      const share = await ensureInvoiceShareForItem(invoice);
+      if (share) {
+        setShowInvoiceShareDialog(true);
+      }
+    },
+    [ensureInvoiceShareForItem],
   );
 
   const openCreateInvoiceShare = useCallback(() => {
@@ -723,6 +805,7 @@ export function InvoicesProvider({
     setShowInvoiceShareDialog,
     syncInvoiceShareForInvoice,
     openCreateInvoiceShare,
+    ensureInvoiceShareForItem,
     openInvoiceShareForItem,
     openInvoiceShareDialog,
     handleCopyInvoiceShareUrl,
