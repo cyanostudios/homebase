@@ -21,6 +21,30 @@ describe('computeScheduleStats', () => {
     });
   });
 
+  it('counts identical day+time windows once regardless of how many teams share them', () => {
+    expect(
+      computeScheduleStats([
+        slot('17:00', '18:00'),
+        slot('17:00', '18:00'),
+        slot('17:00', '18:00'),
+        slot('17:00', '18:00'),
+      ]),
+    ).toEqual({
+      totalMinutes: 60,
+      hours: 1,
+      minutes: 0,
+    });
+  });
+
+  it('counts the same clock time on different days separately', () => {
+    expect(
+      computeScheduleStats([
+        { ...slot('17:00', '18:00'), day: 'monday' },
+        { ...slot('17:00', '18:00'), day: 'tuesday' },
+      ]).totalMinutes,
+    ).toBe(120);
+  });
+
   it('excludes opted-out sessions', () => {
     expect(
       computeScheduleStats([
@@ -33,6 +57,16 @@ describe('computeScheduleStats', () => {
       hours: 2,
       minutes: 30,
     });
+  });
+
+  it('still counts a shared window once when at least one team opts in', () => {
+    expect(
+      computeScheduleStats([
+        slot('17:00', '18:00', false),
+        slot('17:00', '18:00', false),
+        slot('17:00', '18:00', true),
+      ]).totalMinutes,
+    ).toBe(60);
   });
 
   it('returns zero when all sessions are opted out', () => {
