@@ -303,14 +303,24 @@ export function slotCountsTowardCapacity(slot: ScheduleSlot): boolean {
   return slot.countsTowardCapacity !== false;
 }
 
+/**
+ * Booked capacity is wall-clock time per day, not per team.
+ * Multiple teams in the same day+start+end window count once.
+ */
 export function computeScheduleStats(slots: ScheduleSlot[]): {
   totalMinutes: number;
   hours: number;
   minutes: number;
 } {
-  const totalMinutes = slots
-    .filter(slotCountsTowardCapacity)
-    .reduce((sum, slot) => sum + getSlotDurationMinutes(slot), 0);
+  const uniqueWindows = new Map<string, number>();
+  for (const slot of slots) {
+    if (!slotCountsTowardCapacity(slot)) continue;
+    const key = `${slot.day}|${slot.startTime}|${slot.endTime || slot.startTime}`;
+    if (!uniqueWindows.has(key)) {
+      uniqueWindows.set(key, getSlotDurationMinutes(slot));
+    }
+  }
+  const totalMinutes = [...uniqueWindows.values()].reduce((sum, minutes) => sum + minutes, 0);
   return {
     totalMinutes,
     hours: Math.floor(totalMinutes / 60),

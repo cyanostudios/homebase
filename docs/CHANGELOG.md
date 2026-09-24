@@ -4,6 +4,16 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-24 – Schedule: bokad tid räknar unik tidslucka, inte per lag
+
+**Typ:** Bugfix  
+**Scope:** `computeScheduleStats` (Schedule footer / kapacitet).  
+**QA / Security:** Pending. **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Flera lag i samma dag + start–slut (t.ex. fyra lag 17:00–18:00) räknas som **en** timme bokad tid, inte en timme per lag. Olika dagar eller olika klockslag summeras fortfarande var för sig. Opt-out (`countsTowardCapacity: false`) oförändrad.
+
+---
+
 ## 2026-09-23 – Settings DetailSection chrome (subtleTitle + icon + card padding)
 
 **Typ:** UI  
