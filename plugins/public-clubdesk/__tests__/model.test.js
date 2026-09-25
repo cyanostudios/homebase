@@ -112,8 +112,35 @@ describe('PublicClubdeskModel', () => {
         price: 45,
         category: 'Drinks',
         sequenceOrder: 1,
+        inventorySlug: null,
       },
     ]);
+  });
+
+  test('transformPriceListItem exposes inventorySlug only when inventory published', () => {
+    expect(
+      model.transformPriceListItem({
+        title: 'Milk',
+        description: null,
+        price: 10,
+        category: null,
+        sequence_order: 1,
+        inventory_slug: 'milk',
+        inventory_publication_status: 'published',
+      }).inventorySlug,
+    ).toBe('milk');
+
+    expect(
+      model.transformPriceListItem({
+        title: 'Milk',
+        description: null,
+        price: 10,
+        category: null,
+        sequence_order: 1,
+        inventory_slug: 'milk',
+        inventory_publication_status: 'draft',
+      }).inventorySlug,
+    ).toBeNull();
   });
 
   test('listPublishedGuides filters by owner and published status', async () => {

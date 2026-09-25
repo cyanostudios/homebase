@@ -70,6 +70,21 @@ export function useClubdeskInventoryDomain(options: {
     null,
   );
 
+  /** Always land on inventory URL (navigateToItem is a no-op off /clubdesk/inventory). */
+  const goToInventoryItemUrl = useCallback(
+    (item: ClubdeskInventoryItem) => {
+      const slug = buildSlug(item, inventoryItems, 'slug');
+      const targetPath = `/clubdesk/inventory/${slug}`;
+      deepLinkPathSyncedRef.current = targetPath;
+      if (pathname.startsWith('/clubdesk/inventory')) {
+        navigateToItem(item, inventoryItems, 'slug');
+      } else {
+        navigate(targetPath);
+      }
+    },
+    [deepLinkPathSyncedRef, inventoryItems, navigate, navigateToItem, pathname],
+  );
+
   const bulk = useBulkSelection();
 
   const ensureFullInventoryItem = useCallback(async (item: ClubdeskInventoryItem) => {
@@ -119,8 +134,7 @@ export function useClubdeskInventoryDomain(options: {
       clearValidationErrors();
       onCloseOtherPanels();
       if (item) {
-        deepLinkPathSyncedRef.current = `/clubdesk/inventory/${buildSlug(item, inventoryItems, 'slug')}`;
-        navigateToItem(item, inventoryItems, 'slug');
+        goToInventoryItemUrl(item);
         void ensureFullInventoryItem(item).then((full) => {
           setCurrentInventoryItem(full);
           setInventoryItems((prev) =>
@@ -133,10 +147,8 @@ export function useClubdeskInventoryDomain(options: {
       clearGuideSelection,
       clearPriceListSelection,
       clearValidationErrors,
-      deepLinkPathSyncedRef,
       ensureFullInventoryItem,
-      inventoryItems,
-      navigateToItem,
+      goToInventoryItemUrl,
       onCloseOtherPanels,
       setActiveDomain,
       setCurrentClubdesk,
@@ -161,8 +173,7 @@ export function useClubdeskInventoryDomain(options: {
       setIsClubdeskPanelOpen(true);
       clearValidationErrors();
       onCloseOtherPanels();
-      deepLinkPathSyncedRef.current = `/clubdesk/inventory/${buildSlug(item, inventoryItems, 'slug')}`;
-      navigateToItem(item, inventoryItems, 'slug');
+      goToInventoryItemUrl(item);
       void ensureFullInventoryItem(item).then((full) => {
         setCurrentInventoryItem(full);
         setInventoryItems((prev) =>
@@ -174,10 +185,8 @@ export function useClubdeskInventoryDomain(options: {
       clearGuideSelection,
       clearPriceListSelection,
       clearValidationErrors,
-      deepLinkPathSyncedRef,
       ensureFullInventoryItem,
-      inventoryItems,
-      navigateToItem,
+      goToInventoryItemUrl,
       onCloseOtherPanels,
       setActiveDomain,
       setCurrentClubdesk,
@@ -191,10 +200,8 @@ export function useClubdeskInventoryDomain(options: {
   const openInventoryForViewRef = useRef<(item: ClubdeskInventoryItem) => void>(() => {});
   const openInventoryForView = useCallback(
     (item: ClubdeskInventoryItem) => {
-      if (!pathname.startsWith('/clubdesk')) {
-        navigate(`/clubdesk/inventory/${buildSlug(item, inventoryItems, 'slug')}`);
-        return;
-      }
+      clearGuideSelection();
+      clearPriceListSelection();
       setRecentlyDuplicatedInventoryId(null);
       setActiveDomain('inventory');
       setCurrentClubdesk(null);
@@ -205,7 +212,7 @@ export function useClubdeskInventoryDomain(options: {
       setIsClubdeskPanelOpen(true);
       clearValidationErrors();
       onCloseOtherPanels();
-      navigateToItem(item, inventoryItems, 'slug');
+      goToInventoryItemUrl(item);
       void ensureFullInventoryItem(item).then((full) => {
         setCurrentInventoryItem(full);
         setInventoryItems((prev) =>
@@ -214,13 +221,12 @@ export function useClubdeskInventoryDomain(options: {
       });
     },
     [
+      clearGuideSelection,
+      clearPriceListSelection,
       clearValidationErrors,
       ensureFullInventoryItem,
-      inventoryItems,
-      navigate,
-      navigateToItem,
+      goToInventoryItemUrl,
       onCloseOtherPanels,
-      pathname,
       setActiveDomain,
       setCurrentClubdesk,
       setCurrentPriceList,

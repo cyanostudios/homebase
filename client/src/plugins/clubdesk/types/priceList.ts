@@ -10,6 +10,11 @@ export interface ClubdeskPriceListItem {
   price: number;
   category: string | null;
   sequenceOrder: number;
+  inventoryItemId?: string | null;
+  inventoryVariantId?: string | null;
+  inventoryArticleName?: string | null;
+  inventorySlug?: string | null;
+  inventoryVariantLabel?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -45,6 +50,12 @@ export interface ClubdeskPriceListItemPayload {
   price: number;
   category: string | null;
   sequenceOrder: number;
+  inventoryItemId?: string | null;
+  inventoryVariantId?: string | null;
+  /** Denormalized for editor status; stripped before API save. */
+  inventoryArticleName?: string | null;
+  inventorySlug?: string | null;
+  inventoryVariantLabel?: string | null;
   /** Client-only React list key; stripped before API save. */
   clientKey?: string;
 }

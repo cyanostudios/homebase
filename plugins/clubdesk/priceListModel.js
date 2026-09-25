@@ -806,11 +806,21 @@ class PriceListModel {
     return this.queryChild(
       dbOrTx,
       `
-        SELECT i.*
+        SELECT
+          i.*,
+          inv.article_name AS inventory_article_name,
+          inv.slug AS inventory_slug,
+          v.audience AS inventory_variant_audience,
+          v.color AS inventory_variant_color,
+          v.size AS inventory_variant_size
         FROM ${this.itemsTable} i
         LEFT JOIN ${this.categoriesTable} c
           ON c.price_list_id = i.price_list_id
           AND lower(btrim(c.name)) = lower(btrim(COALESCE(i.category, '')))
+        LEFT JOIN clubdesk_inventory_items inv
+          ON inv.id = i.inventory_item_id
+        LEFT JOIN clubdesk_inventory_variants v
+          ON v.id = i.inventory_variant_id
         WHERE i.price_list_id = $1
         ORDER BY
           CASE WHEN i.category IS NULL OR btrim(i.category) = '' THEN 1 ELSE 0 END ASC,
@@ -833,11 +843,22 @@ class PriceListModel {
             description,
             price,
             category,
-            sequence_order
+            sequence_order,
+            inventory_item_id,
+            inventory_variant_id
           )
-          VALUES ($1, $2, $3, $4, $5, $6)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `,
-        [priceListId, item.title, item.description, item.price, item.category, item.sequenceOrder],
+        [
+          priceListId,
+          item.title,
+          item.description,
+          item.price,
+          item.category,
+          item.sequenceOrder,
+          item.inventoryItemId,
+          item.inventoryVariantId,
+        ],
       );
     }
   }
@@ -920,6 +941,7 @@ class PriceListModel {
       const items = this.normalizeItems(data.items) ?? [];
       this.assertPublishedHasItems(fields.publicationStatus ?? 'draft', items.length);
       await this.assertTitleUnique(db, userId, fields.title);
+      await this.assertInventoryLinksOwned(db, userId, items);
       const sortOrder = await this.nextSortOrder(db, userId);
 
       const created = await db.transaction(async (tx) => {
@@ -1013,6 +1035,7 @@ class PriceListModel {
       let itemCount;
       if (replaceItems) {
         itemCount = items.length;
+        await this.assertInventoryLinksOwned(db, userId, items);
       } else {
         const existingItems = await this.getItemsForPriceList(db, id);
         itemCount = existingItems.length;

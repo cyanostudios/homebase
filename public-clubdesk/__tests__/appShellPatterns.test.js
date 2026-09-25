@@ -240,6 +240,9 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(priceList).not.toMatch(/featured_image/);
     expect(router).toMatch(/\/price-list/);
     expect(priceList).toMatch(/price-list-row__desc/);
+    expect(priceList).toMatch(/inventorySlug/);
+    expect(priceList).toMatch(/Visa produkt/);
+    expect(priceList).toMatch(/\/inventory\//);
     expect(priceList).toMatch(/option-card__title/);
     expect(css).toMatch(/\.price-list-row__desc\s*\{[\s\S]*?white-space:\s*pre-line/);
     expect(css).toMatch(/\.price-list-row__price/);

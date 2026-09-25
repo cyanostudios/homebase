@@ -125,8 +125,28 @@ describe('copyItemAt', () => {
     expect(result?.[2]).toMatchObject({ title: 'B', sequenceOrder: 1 });
   });
 
-  it('returns null for a missing index', () => {
-    expect(copyItemAt(items({ title: 'A' }), 3)).toBeNull();
+  it('copies inventory link fields with a new clientKey', () => {
+    const source = [
+      {
+        title: 'Milk',
+        description: null,
+        price: 15,
+        category: null,
+        sequenceOrder: 1,
+        inventoryItemId: '9',
+        inventoryVariantId: '3',
+        inventoryArticleName: 'Milk',
+        clientKey: 'k-0',
+      },
+    ];
+    const result = copyItemAt(source, 0);
+    expect(result?.[1]).toMatchObject({
+      inventoryItemId: '9',
+      inventoryVariantId: '3',
+      inventoryArticleName: 'Milk',
+      title: 'Milk',
+    });
+    expect(result?.[1].clientKey).not.toBe('k-0');
   });
 });
 

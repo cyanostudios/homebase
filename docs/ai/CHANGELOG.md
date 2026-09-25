@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Clubdesk inventory Epic 2 — Security docs sync (2026-09-25)
+
+Efter **QA Godkänt** + **Security Godkänt**: ADR [`adr/CLUBDESK_INVENTORY_EPIC2.md`](adr/CLUBDESK_INVENTORY_EPIC2.md) status Accepted; residuals INV2-S1–S3 dokumenterade. Produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) §Epic 2 riskrad uppdaterad. **Working tree; local-first; ej prod-release.**
+
+## Clubdesk inventory Epic 2 — docs sync (2026-09-25)
+
+Docs efter QA Underkänt (B1–B2): ADR [`adr/CLUBDESK_INVENTORY_EPIC2.md`](adr/CLUBDESK_INVENTORY_EPIC2.md); produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) §Epic 2; Epic 1 ADR seam → Epic 2; plugin Etapp1 migrate **172**; public README price-list `inventorySlug`. **Working tree; local-first; ej prod-release.** (Superseded for Security status by Security docs sync above.)
+
 ## Shared ImageLightbox — docs sync (2026-09-25)
 
 Efter QA Godkänt (scoped): `ImageLightbox` i `core/ui`; Files + SportAdmin content-bilder. Operator: [`FILES_PLUGIN.md`](../FILES_PLUGIN.md), [`SPORTADMIN_PLUGIN.md`](../SPORTADMIN_PLUGIN.md). Standards: [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) §0, [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) canonical table. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §Shared ImageLightbox. Security N/A (QA). **Working tree; local-first; ej prod-release.**

@@ -35,23 +35,23 @@ Env (main server): `PUBLIC_CLUBDESK_USER_ID` or `PUBLIC_CLUBDESK_USER_EMAIL`, `P
 | `GET /api/branding.php`         | Org `name` + `logoUrl` from Account Profile (`tenants.organization`)                       |
 | `GET /api/info_contacts.php`    | Contacts whitelist (`name`, `phone`, `email`, `blurb`); `[]` when `contacts.visible=false` |
 
-Requires `APP_DB_URL` (tenant Postgres). See `railway.env.example`. Apply tenant migration **`171-clubdesk-inventory.sql`** locally (`npm run migrate:clubdesk-inventory`) before inventory APIs return data. Edit content in backoffice **Clubdesk** (guides, price lists, **Inventory**) and **Clubdesk → Info** (site content, Swish profiles, Kontakt).
+Requires `APP_DB_URL` (tenant Postgres). See `railway.env.example`. Apply tenant migrations **`171-clubdesk-inventory.sql`** and **`172-clubdesk-price-list-inventory-link.sql`** locally (`npm run migrate:clubdesk-inventory`, `npm run migrate:clubdesk-price-list-inventory-link`, or `npm run migrate:clubdesk`) before inventory APIs / price-list inventory links work. Edit content in backoffice **Clubdesk** (guides, price lists, **Inventory**) and **Clubdesk → Info** (site content, Swish profiles, Kontakt).
 
 ## Routes
 
-| Path                | Surface                                                                                                                         |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                 | Hem: CMS-header, **featured** square cards (guides, price lists, inventory), then option rows (+ Swish/Kontakt/Om when visible) |
-| `/guides/`          | Guides listing (kategorier + option cards)                                                                                      |
-| `/inventory/`       | Inventory listing (option cards)                                                                                                |
-| `/inventory/:slug`  | Inventory article detail (SSR; variants, prices, tags)                                                                          |
-| `/kategori/:slug/`  | Guides category listing                                                                                                         |
-| `/guide/:slug`      | Guide step detail                                                                                                               |
-| `/price-lists/`     | Price list cards                                                                                                                |
-| `/price-list/:slug` | Price list rows + cart; **Nollställ varukorg**; Swish QR under Att betala when profile linked                                   |
-| `/swish/`           | Org Swish QR + nummer; empty when site-content `swish.visible=false`                                                            |
-| `/kontakt/`         | Contacts list; empty when `contacts.visible=false` (API returns `items: []`)                                                    |
-| `/info/`            | Om/About tab (CMS; blanked when `info.visible=false`)                                                                           |
+| Path                | Surface                                                                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/`                 | Hem: CMS-header, **featured** square cards (guides, price lists, inventory), then option rows (+ Swish/Kontakt/Om when visible)                                                                        |
+| `/guides/`          | Guides listing (kategorier + option cards)                                                                                                                                                             |
+| `/inventory/`       | Inventory listing (option cards)                                                                                                                                                                       |
+| `/inventory/:slug`  | Inventory article detail (SSR; variants, prices, tags)                                                                                                                                                 |
+| `/kategori/:slug/`  | Guides category listing                                                                                                                                                                                |
+| `/guide/:slug`      | Guide step detail                                                                                                                                                                                      |
+| `/price-lists/`     | Price list cards                                                                                                                                                                                       |
+| `/price-list/:slug` | Price list rows + cart; **Nollställ varukorg**; Swish QR under Att betala when profile linked; optional **Visa produkt** → `/inventory/{slug}` when row has published inventory link (`inventorySlug`) |
+| `/swish/`           | Org Swish QR + nummer; empty when site-content `swish.visible=false`                                                                                                                                   |
+| `/kontakt/`         | Contacts list; empty when `contacts.visible=false` (API returns `items: []`)                                                                                                                           |
+| `/info/`            | Om/About tab (CMS; blanked when `info.visible=false`)                                                                                                                                                  |
 
 Bottom tabs: **Hem | Guides | Price list | Inventory**. Om/About, Swish och Kontakt nås via rader på Hem (när respektive `visible` och Kontakt har rader).
 
@@ -91,7 +91,7 @@ Separate Railway service (not Homebase Node). Pattern: [`docs/PUBLIC_APP_TEMPLAT
 
 ## Notes
 
-- Only `publication_status = 'published'` rows are exposed for guides, price lists, and inventory. `featured` controls Hem square cards only (not publication). Public inventory omits internal fields (`purchase_price`, `comment`).
+- Only `publication_status = 'published'` rows are exposed for guides, price lists, and inventory. `featured` controls Hem square cards only (not publication). Public inventory omits internal fields (`purchase_price`, `comment`). Price-list line `inventorySlug` is set only when the linked inventory article is published.
 - Info contacts: presence = published (no flag); empty list → no Hem row / empty `/kontakt/` state. `meta.visible=false` on contacts also forces API `items: []` and empty SSR.
 - Site-content HTML is allowlist-sanitized on read; empty cards keep hub tiles / Info fallback copy.
 - Visual design: request-form-inspired listing shell (Poppins, violet); see [`docs/PUBLIC_APP_DESIGN.md`](../docs/PUBLIC_APP_DESIGN.md) + ADR [`CLUBDESK_PUBLIC_COMPANION.md`](../docs/ai/adr/CLUBDESK_PUBLIC_COMPANION.md).

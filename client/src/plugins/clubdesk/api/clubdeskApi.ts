@@ -91,6 +91,17 @@ function normalizePriceList(row: ClubdeskPriceList): ClubdeskPriceList {
           description: item.description ?? null,
           price: Number(item.price) || 0,
           category: item.category ?? null,
+          inventoryItemId:
+            item.inventoryItemId != null && item.inventoryItemId !== ''
+              ? String(item.inventoryItemId)
+              : null,
+          inventoryVariantId:
+            item.inventoryVariantId != null && item.inventoryVariantId !== ''
+              ? String(item.inventoryVariantId)
+              : null,
+          inventoryArticleName: item.inventoryArticleName ?? null,
+          inventorySlug: item.inventorySlug ?? null,
+          inventoryVariantLabel: item.inventoryVariantLabel ?? null,
         }))
       : row.items,
   };

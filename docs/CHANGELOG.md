@@ -4,6 +4,17 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-25 – Clubdesk inventory ↔ price list (epic 2)
+
+**Typ:** Feature  
+**Scope:** Optional link from Clubdesk **price list** rows to **inventory** articles (optional variant). Migration **`172-clubdesk-price-list-inventory-link.sql`** (`inventory_item_id` / `inventory_variant_id`, ON DELETE SET NULL). Free-text rows unchanged. Admin: link/unlink in price-list editor (snapshot title/price). Public price-list detail: `inventorySlug` only when linked inventory is **published**; SSR “Visa produkt” → `/inventory/{slug}`.  
+**Risk:** Low–medium. Run `npm run migrate:clubdesk-price-list-inventory-link` (or `npm run migrate:clubdesk`) after Epic 1/`171`. Ownership checks on save. Security Godkänt 2026-09-25 (residuals INV2-S1–S3 Low/Info — see ADR).  
+**Local-first.** Not deployed to production unless explicitly released.
+
+**Sammanfattning:** Prislistor kan blanda inventarielänkade rader och fri text. Pris/titel är snapshot vid länk — ingen live-sync. ADR: [`ai/adr/CLUBDESK_INVENTORY_EPIC2.md`](ai/adr/CLUBDESK_INVENTORY_EPIC2.md).
+
+---
+
 ## 2026-09-25 – Clubdesk inventory (epic 1)
 
 **Typ:** Feature  

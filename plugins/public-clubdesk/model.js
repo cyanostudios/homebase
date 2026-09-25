@@ -53,12 +53,17 @@ class PublicClubdeskModel {
   }
 
   transformPriceListItem(row) {
+    const slug =
+      row.inventory_publication_status === 'published' && row.inventory_slug
+        ? String(row.inventory_slug)
+        : null;
     return {
       title: row.title ?? '',
       description: row.description ?? null,
       price: Number(row.price),
       category: row.category ?? null,
       sequenceOrder: Number(row.sequence_order),
+      inventorySlug: slug,
     };
   }
 
@@ -278,11 +283,20 @@ class PublicClubdeskModel {
     const parent = parentResult.rows[0];
     const itemsResult = await pool.query(
       `
-        SELECT i.title, i.description, i.price, i.category, i.sequence_order
+        SELECT
+          i.title,
+          i.description,
+          i.price,
+          i.category,
+          i.sequence_order,
+          inv.slug AS inventory_slug,
+          inv.publication_status AS inventory_publication_status
         FROM clubdesk_price_list_items i
         LEFT JOIN clubdesk_price_list_item_categories c
           ON c.price_list_id = i.price_list_id
           AND lower(btrim(c.name)) = lower(btrim(COALESCE(i.category, '')))
+        LEFT JOIN clubdesk_inventory_items inv
+          ON inv.id = i.inventory_item_id
         WHERE i.price_list_id = $1
         ORDER BY
           CASE WHEN i.category IS NULL OR btrim(i.category) = '' THEN 1 ELSE 0 END ASC,

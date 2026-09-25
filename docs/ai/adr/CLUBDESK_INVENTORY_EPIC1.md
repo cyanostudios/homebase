@@ -4,7 +4,7 @@
 **Date:** 2026-09-25  
 **Parent:** [`CLUBDESK_PLUGIN_ETAPP1.md`](CLUBDESK_PLUGIN_ETAPP1.md) (same `clubdesk` plugin gate)  
 **Public companion:** [`CLUBDESK_PUBLIC_COMPANION.md`](CLUBDESK_PUBLIC_COMPANION.md) (Pattern A extended)  
-**Scope source:** TPM Grind 1 — garments **catalog** parity under Clubdesk; distinct DB from `garment_inventory_*`; publication like guides/price lists. Epic 2 (price-list ↔ inventory linkage) out of scope.  
+**Scope source:** TPM Grind 1 — garments **catalog** parity under Clubdesk; distinct DB from `garment_inventory_*`; publication like guides/price lists. **Epic 2** (price-list ↔ inventory linkage) delivered separately — see [`CLUBDESK_INVENTORY_EPIC2.md`](CLUBDESK_INVENTORY_EPIC2.md).  
 **Gates:** QA Godkänt 2026-09-25; Security Godkänt 2026-09-25 (residuals INV-S7–S10 Low, non-blocking).
 
 ## Context
@@ -31,7 +31,7 @@ Epic 1 adds a third Clubdesk content domain **Inventory**: admin CRUD + settings
 
 8. **Public UX (verified)** — Bottom tab **Inventory**; listing `/inventory/` (SPA); detail `/inventory/:slug` SSR (`inventory.php`, Caddy `@inventoryDetail`). Featured published articles can appear on Hem square cards (same `featured` flag pattern as guides/price lists). Edit in backoffice **Clubdesk → Inventory**.
 
-9. **Epic 2 seam** — Do **not** modify `clubdesk_price_list_items` in Epic 1. Intended extension: nullable FKs `inventory_item_id` / optional `inventory_variant_id` on price-list rows while keeping free-text rows for non-inventory items.
+9. **Epic 2 seam (implemented)** — Nullable FKs `inventory_item_id` / optional `inventory_variant_id` on `clubdesk_price_list_items` while keeping free-text rows — see [`CLUBDESK_INVENTORY_EPIC2.md`](CLUBDESK_INVENTORY_EPIC2.md) (migration **172**).
 
 ## Configuration
 
@@ -51,7 +51,7 @@ Epic 1 adds a third Clubdesk content domain **Inventory**: admin CRUD + settings
 
 ## Out of scope
 
-- Epic 2 price-list ↔ inventory linkage (beyond FK seam above)
+- ~~Epic 2 price-list ↔ inventory linkage~~ → [`CLUBDESK_INVENTORY_EPIC2.md`](CLUBDESK_INVENTORY_EPIC2.md)
 - Garments lists / companion / data migration from garments stock
 - Production deploy / prod DB (local-first until explicit release)
 

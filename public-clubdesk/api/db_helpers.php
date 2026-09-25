@@ -224,7 +224,11 @@ SELECT
           'description', COALESCE(i.description, ''),
           'price', i.price,
           'category', COALESCE(i.category, ''),
-          'sequenceOrder', i.sequence_order
+          'sequenceOrder', i.sequence_order,
+          'inventorySlug', CASE
+            WHEN inv.publication_status = 'published' THEN inv.slug
+            ELSE NULL
+          END
         )
         ORDER BY
           CASE WHEN i.category IS NULL OR btrim(i.category) = '' THEN 1 ELSE 0 END ASC,
@@ -237,6 +241,8 @@ SELECT
       LEFT JOIN clubdesk_price_list_item_categories c
         ON c.price_list_id = i.price_list_id
         AND lower(btrim(c.name)) = lower(btrim(COALESCE(i.category, '')))
+      LEFT JOIN clubdesk_inventory_items inv
+        ON inv.id = i.inventory_item_id
       WHERE i.price_list_id = p.id
     ),
     '[]'::json
@@ -267,7 +273,11 @@ SELECT
           'description', COALESCE(i.description, ''),
           'price', i.price,
           'category', COALESCE(i.category, ''),
-          'sequenceOrder', i.sequence_order
+          'sequenceOrder', i.sequence_order,
+          'inventorySlug', CASE
+            WHEN inv.publication_status = 'published' THEN inv.slug
+            ELSE NULL
+          END
         )
         ORDER BY
           CASE WHEN i.category IS NULL OR btrim(i.category) = '' THEN 1 ELSE 0 END ASC,
@@ -280,6 +290,8 @@ SELECT
       LEFT JOIN clubdesk_price_list_item_categories c
         ON c.price_list_id = i.price_list_id
         AND lower(btrim(c.name)) = lower(btrim(COALESCE(i.category, '')))
+      LEFT JOIN clubdesk_inventory_items inv
+        ON inv.id = i.inventory_item_id
       WHERE i.price_list_id = p.id
     ),
     '[]'::json

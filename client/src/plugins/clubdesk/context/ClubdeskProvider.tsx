@@ -93,6 +93,8 @@ function toPriceListPayload(
       price: Number(item.price) || 0,
       category: item.category ?? null,
       sequenceOrder: item.sequenceOrder ?? index + 1,
+      inventoryItemId: item.inventoryItemId ?? null,
+      inventoryVariantId: item.inventoryVariantId ?? null,
     })),
     ...overrides,
   };
@@ -830,6 +832,8 @@ export function ClubdeskProvider({
               price: Number(item.price) || 0,
               category: item.category?.trim() ? item.category.trim() : null,
               sequenceOrder: item.sequenceOrder ?? index + 1,
+              inventoryItemId: item.inventoryItemId ? String(item.inventoryItemId) : null,
+              inventoryVariantId: item.inventoryVariantId ? String(item.inventoryVariantId) : null,
             };
           }),
         ),
@@ -1490,6 +1494,8 @@ export function ClubdeskProvider({
           price: Number(row.price) || 0,
           category: row.category ?? null,
           sequenceOrder: row.sequenceOrder ?? index + 1,
+          inventoryItemId: row.inventoryItemId ?? null,
+          inventoryVariantId: row.inventoryVariantId ?? null,
         })),
       });
     },

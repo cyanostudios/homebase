@@ -19,6 +19,7 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { DetailHeaderMetaRow } from '@/core/ui/DetailHeaderMenus';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
@@ -38,8 +39,10 @@ import { QUICK_CONTEXT_LINK_TILE_CLASS } from '@/core/ui/QuickContextLinkTile';
 import { cn } from '@/lib/utils';
 
 import { useClubdesk } from '../hooks/useClubdesk';
+import type { ClubdeskInventoryItem } from '../types/inventory';
 import type {
   ClubdeskPriceList,
+  ClubdeskPriceListItem,
   ClubdeskPriceListItemCategory,
   PublicationStatus,
 } from '../types/priceList';
@@ -115,8 +118,48 @@ export function PriceListView({
     updatePriceListPublicationStatus,
     updatePriceListFeatured,
     validationErrors,
+    inventoryItems,
+    openInventoryForView,
   } = useClubdesk();
   const [reorderingCategory, setReorderingCategory] = useState(false);
+  const [pendingOpenInventory, setPendingOpenInventory] = useState<ClubdeskInventoryItem | null>(
+    null,
+  );
+
+  const resolveInventoryForPriceListItem = useCallback(
+    (item: ClubdeskPriceListItem): ClubdeskInventoryItem | null => {
+      if (!item.inventoryItemId) {
+        return null;
+      }
+      const inv = inventoryItems.find((row) => String(row.id) === String(item.inventoryItemId));
+      if (inv) {
+        return inv;
+      }
+      return {
+        id: String(item.inventoryItemId),
+        articleName: item.inventoryArticleName || item.title,
+        brand: '',
+        description: null,
+        material: '',
+        purchasePrice: null,
+        recommendedPrice: null,
+        salePrice: null,
+        currency: 'SEK',
+        comment: null,
+        tags: [],
+        slug: item.inventorySlug || String(item.inventoryItemId),
+        featuredImageUrl: null,
+        publicationStatus: 'draft',
+        featured: false,
+        variants: [],
+        totalQuantity: 0,
+        variantCount: 0,
+        createdAt: '',
+        updatedAt: '',
+      };
+    },
+    [inventoryItems],
+  );
 
   const viewItem = priceList ?? currentPriceList;
 
@@ -440,6 +483,34 @@ export function PriceListView({
                     >
                       <div className="min-w-0 flex-1">
                         <div className={DETAIL_LIST_ITEM_TITLE_CLASS}>{item.title}</div>
+                        {item.inventoryItemId ? (
+                          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                            <span>
+                              {t('clubdesk.priceList.inventoryMeta', {
+                                name:
+                                  [item.inventoryArticleName, item.inventoryVariantLabel]
+                                    .filter((p) => (p ?? '').trim())
+                                    .join(' · ') || item.title,
+                              })}
+                            </span>
+                            <button
+                              type="button"
+                              className={cn(
+                                'font-medium text-primary underline-offset-2 hover:underline',
+                              )}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const inv = resolveInventoryForPriceListItem(item);
+                                if (inv) {
+                                  setPendingOpenInventory(inv);
+                                }
+                              }}
+                            >
+                              {t('clubdesk.priceList.openInInventory')}
+                            </button>
+                          </div>
+                        ) : null}
                         {item.description ? (
                           <div className="mt-1 text-xs text-muted-foreground">
                             <RichTextContent content={item.description} />
@@ -531,6 +602,23 @@ export function PriceListView({
           systemId={formatDisplayNumber('clubdesk', viewItem.id)}
         />
       ) : null}
+      <ConfirmDialog
+        isOpen={pendingOpenInventory !== null}
+        title={t('clubdesk.priceList.openInInventoryConfirmTitle')}
+        message={t('clubdesk.priceList.openInInventoryConfirmMessage', {
+          name: pendingOpenInventory?.articleName ?? '',
+        })}
+        confirmText={t('clubdesk.priceList.openInInventory')}
+        cancelText={t('common.cancel')}
+        variant="warning"
+        onConfirm={() => {
+          if (pendingOpenInventory) {
+            openInventoryForView(pendingOpenInventory);
+          }
+          setPendingOpenInventory(null);
+        }}
+        onCancel={() => setPendingOpenInventory(null)}
+      />
     </DetailLayout>
   );
 }
