@@ -4,6 +4,16 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-25 – Docs: list default = title + meta row
+
+**Typ:** Docs  
+**Scope:** `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` §4, `UI_AND_UX_STANDARDS_V3.md` §0.1, checklist + plugin standards cross-refs.  
+**Risk:** None (documentation only). **Local-first.**
+
+**Sammanfattning:** Default listdesign förtydligad: **en identity-kolumn med rubrik + metarad**. Extra tabellkolumner endast vid explicit produkt-/UX-beslut — inte “metadata columns later”. Tasks/Requests statusikon-undantag oförändrat.
+
+---
+
 ## 2026-09-24 – Schedule: bokad tid räknar unik tidslucka, inte per lag
 
 **Typ:** Bugfix  

@@ -2,6 +2,10 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## List default title + meta row — docs clarify (2026-09-25)
+
+Docs-only: default list row composition = **title + meta under identity**; multi-column tables are not the default. Updated [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) §4, [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) §0.1, plus checklist/standards cross-refs. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-25 Docs list default. **Working tree; local-first; ej prod-release.** Residual: golden template `YourItemListTable` still title-only (no meta example).
+
 ## Mail / Pulse / AI Providers — stacked routing+view + Pulse `sms_enabled` (2026-09-23)
 
 Docs efter **QA Approved** + **Security Approved** för stacked Global/Per-plugin routing cards, provider detail Information/Configuration/Test utan `?tab=`, `StatusOutlineBadge`, och Pulse migration `165` / `sms_enabled` (fail-closed send; session plugin gate). Inherited residual **A1** oförändrad (väntar TPM).
