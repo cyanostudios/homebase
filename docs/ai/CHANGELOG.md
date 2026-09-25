@@ -2,6 +2,10 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Grind 1 approval → Subagent orchestration (2026-09-25)
+
+Normativt: när användaren godkänner TPM:s Output Contract (inkl. Plan **Build**) ska TPM **omedelbart** orkestrera specialister via Task/`Delegate:` — inte be om manuell `@role`. Överlämningsrad efter Grind 1 avslutar inte TPM-mandat. Uppdaterat: [`roles/technical-project-manager.md`](roles/technical-project-manager.md) §10.1, [`team-workflow.md`](team-workflow.md) Efter överlämning, [`cursor-implementation.md`](cursor-implementation.md) TPM subagent orchestration, `.cursor/rules/role-technical-project-manager.mdc`. Manuell `@role` kvar som fallback. **Working tree; local-first; ej prod-release.**
+
 ## List default title + meta row — docs clarify (2026-09-25)
 
 Docs-only: default list row composition = **title + meta under identity**; multi-column tables are not the default. Updated [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) §4, [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) §0.1, plus checklist/standards cross-refs. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-25 Docs list default. **Working tree; local-first; ej prod-release.** Residual: golden template `YourItemListTable` still title-only (no meta example).

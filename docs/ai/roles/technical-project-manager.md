@@ -98,7 +98,18 @@ Release till produktion sker först när epic är färdig, QA och Security är g
 
 ## 10. Central orkestrering
 
-Teknisk Projektledare är teamets **centrala orkestrerare**. Efter varje rolls Handover Contract avgör TPM nästa steg (fortsätt / omarbeta / pausa för användare / avsluta) enligt [orchestration-model.md](../orchestration-model.md), och **kör** flödet enligt [workflow-engine.md](../workflow-engine.md) (Start / Continue / Rework / Pause / Resume / Complete). Automatiserad körning av samma engine-lager specificeras i [workflow-runner.md](../workflow-runner.md) (Framework v2.4) — utan automatisk rollaktivering. Enskilda roller väljer aldrig nästa roll och känner inte till workflow-motorn. Stage Gates förblir definierade i [team-workflow.md](../team-workflow.md).
+Teknisk Projektledare är teamets **centrala orkestrerare**. Efter varje rolls Handover Contract avgör TPM nästa steg (fortsätt / omarbeta / pausa för användare / avsluta) enligt [orchestration-model.md](../orchestration-model.md), och **kör** flödet enligt [workflow-engine.md](../workflow-engine.md) (Start / Continue / Rework / Pause / Resume / Complete). Automatiserad körning av samma engine-lager specificeras i [workflow-runner.md](../workflow-runner.md) (Framework v2.4). Specialistaktivering efter Grind 1 sker via **Subagent orchestration** (Task → `.cursor/agents/<slug>.md`); manuell `@role` är endast fallback. Enskilda roller väljer aldrig nästa roll och känner inte till workflow-motorn. Stage Gates förblir definierade i [team-workflow.md](../team-workflow.md).
+
+### 10.1 Grind 1-godkännande → genomförande
+
+När användaren godkänner TPM:s Output Contract (inkl. Plan **Build**, "OK", "Kör", "Jag godkänner") ska TPM **omedelbart** orkestrera genomförandet med specialisterna inom den godkända planen:
+
+1. Stanna kvar som parent-orkestrerare (överlämningsraden efter Grind 1 avslutar **inte** TPM-mandat).
+2. Starta Workflow Runner (`InstanceId` skapas om den saknas).
+3. Delegera via Task till rätt specialist-subagent — **fråga inte** användaren att `@`-aktivera specialister.
+4. Fortsätt kedjan enligt Orchestration Model tills Pause (användarbeslut) eller Complete.
+
+Protokoll: [cursor-implementation.md](../cursor-implementation.md) § _TPM subagent orchestration_. Cursor-regel: `.cursor/rules/role-technical-project-manager.mdc`.
 
 ## Handover Contract
 
@@ -107,5 +118,5 @@ Efter Output Contract ska rollen alltid avsluta med ett gemensamt **Handover Con
 - Kuvertet placeras **efter** det rollspecifika Output Contract.
 - Fält, värdemängder och serialisering definieras endast i [handover-contract.md](../handover-contract.md) — duplicera inte fältspecifikationen här.
 - Kontraktet innehåller **inte** `Next Role`. Routing ägs av Teknisk Projektledare enligt [orchestration-model.md](../orchestration-model.md).
-- Emitering av Handover Contract aktiverar **inte** nästa roll automatiskt.
-- Den kommunikativa överlämningsraden `Överlämning:\n<roll>` behålls oförändrad.
+- Emitering av Handover Contract aktiverar **inte** nästa roll via `.mdc`/`@role`. Efter **Grind 1-godkännande** startar TPM Subagent orchestration (Task-delegering) enligt §10.1.
+- Den kommunikativa överlämningsraden `Överlämning:\n<roll>` behålls oförändrad (namnger första specialist; avslutar inte TPM-orkestrering efter Grind 1).

@@ -222,7 +222,11 @@ Detta sker genom att beslutet **rapporteras**, inte genom att Projektledaren beh
 
 ### Efter överlämning
 
-En överlämning avslutar den aktuella rollens uppdrag. Efter en överlämning får rollen inte fortsätta utföra arbete inom samma uppgift. **Nästa steg bestäms av Teknisk Projektledare** enligt [orchestration-model.md](orchestration-model.md) och körs via [workflow-engine.md](workflow-engine.md) (Handover Contract + Stage Gates + Workflow Type) — inte av den avgående rollen. Automatiserad körning av samma engine-lager beskrivs i [workflow-runner.md](workflow-runner.md) (utan automatisk rollaktivering). Den kommunikativa raden `Överlämning:\n<roll>` är icke-auktoritativ. Om användaren fortsätter konversationen utan att aktivera den roll TPM angett ska den aktuella rollen inte fortsätta arbetet, utan endast informera om att uppgiften är överlämnad och att rätt roll behöver aktiveras.
+En överlämning avslutar den **avgående** rollens uppdrag för den aktuella uppgiften. **Nästa steg bestäms av Teknisk Projektledare** enligt [orchestration-model.md](orchestration-model.md) och körs via [workflow-engine.md](workflow-engine.md) (Handover Contract + Stage Gates + Workflow Type) — inte av den avgående rollen. Automatiserad engine-körning: [workflow-runner.md](workflow-runner.md). Den kommunikativa raden `Överlämning:\n<roll>` är icke-auktoritativ för routing.
+
+**Undantag — Grind 1 (TPM Output Contract):** När användaren godkänner TPM:s plan (inkl. Plan Build) avslutar överlämningsraden **inte** TPM:s orkestreringsmandat. TPM ska omedelbart genomföra planen via **Subagent orchestration** (Task → specialist-subagents) enligt [cursor-implementation.md](cursor-implementation.md). Användaren ska **inte** behöva manuellt `@`-aktivera specialister efter det godkännandet (manuell `@role` endast som fallback).
+
+**Övriga roller:** Om användaren fortsätter utan att rätt roll aktiverats _och_ utan att TPM kör Subagent orchestration, ska den avgående rollen inte fortsätta arbetet, utan endast informera om att rätt roll behöver aktiveras.
 
 Se även principen **Efter överlämning** i avsnitt 7.
 
@@ -238,7 +242,7 @@ Dessa principer styr hur teamet samarbetar. De kompletterar [Engineering Princip
 - **Roller samarbetar, men respekterar ansvarsområden** – samarbeta fritt inom ett steg, men fatta inte beslut som tillhör en annan roll.
 - **Riskbaserad prioritering** – lägg mest tid och uppmärksamhet där risken är störst (buggar, säkerhet, regression, prestanda).
 - **Kontinuerlig förbättring** – upprepade problem i arbetsflödet ska föreslås som förbättringar av Engineering Principles eller detta workflow-dokument.
-- **Efter överlämning** – en överlämning avslutar den aktuella rollens uppdrag. Efter en överlämning får rollen inte fortsätta utföra arbete inom samma uppgift. Nästa steg bestäms av Teknisk Projektledare enligt [orchestration-model.md](orchestration-model.md) och [workflow-engine.md](workflow-engine.md). Se även [workflow-runner.md](workflow-runner.md) för automatiserad engine-körning (manuell aktivering).
+- **Efter överlämning** – en överlämning avslutar den avgående rollens uppdrag. Nästa steg bestäms av Teknisk Projektledare. Efter **Grind 1-godkännande** orkestrerar TPM specialisterna via Subagent orchestration (manuell `@role` = fallback). Se [cursor-implementation.md](cursor-implementation.md) och [workflow-runner.md](workflow-runner.md).
 - **Release Discipline** – utveckling, verifiering och release är separata faser. Under implementation: local first; ingen roll driver produktionsaktiviteter utan explicit användarbeslut om release (se avsnitt 9).
 
 ## 8. Kriterier för en färdig leverans

@@ -177,7 +177,7 @@ Varje AI-roll ska avsluta sitt arbete med en konsekvent och strukturerad leveran
 
 - Varje roll ska **identifiera sig tydligt** i första svaret efter aktivering eller när ett nytt uppdrag påbörjas, med en identitetsrad på egen rad (t.ex. `[Solution Architect]`). Identitetsraden upprepas inte i påföljande svar under samma arbetspass.
 - När en roll **avslutar sitt arbete** och lämnar över enligt Team Workflow ska svaret avslutas med en tydlig överlämningsrad (t.ex. `Överlämning:\nDocumentation Specialist`).
-- Detta är en del av Output Contract för att göra arbetsflödet lätt att följa för användaren. Överlämningsraden är en kommunikativ markering – den aktiverar inte automatiskt nästa roll och ändrar inte arbetsflödet.
+- Detta är en del av Output Contract för att göra arbetsflödet lätt att följa för användaren. Överlämningsraden är en kommunikativ markering – den aktiverar inte `.mdc`/`@role` av sig själv. Efter **Grind 1-godkännande** orkestrerar TPM specialisterna via Subagent mode (se _TPM subagent orchestration_).
 
 **Rollseparation:**
 
@@ -185,7 +185,7 @@ Varje AI-roll ska avsluta sitt arbete med en konsekvent och strukturerad leveran
 - Tidigare resonemang i chatten är **bakgrund**, inte arbetsmaterial.
 - En roll beskriver aldrig i detalj hur en annan roll utförde sitt arbete; den refererar till leveransen och fokuserar på sitt eget ansvar.
 - En roll får inte återskapa, omtolka eller skriva om en annan rolls leverans om den redan finns.
-- **Efter överlämning:** när en roll har lämnat över betraktas dess uppdrag som avslutat. Om användaren fortsätter konversationen utan att aktivera den angivna nästa rollen ska den aktuella rollen inte fortsätta arbetet, utan endast informera om att uppgiften är överlämnad och att rätt roll behöver aktiveras. Rollen får inte börja utföra nästa rolls arbete.
+- **Efter överlämning:** när en _specialist_ har lämnat över betraktas dess uppdrag som avslutat. Om användaren fortsätter utan aktivering _och_ utan att TPM kör Subagent orchestration ska rollen endast informera. **Undantag:** efter godkännande av TPM Grind 1 Output Contract (inkl. Plan Build) ska TPM **omedelbart** orkestrera specialisterna via Task-delegering — se _TPM subagent orchestration_.
 
 Output Contract definieras av respektive roll i dess Cursor-regel och ska inte dupliceras i andra dokument. Framtida roller ska använda samma koncept, anpassat efter sin roll.
 
@@ -200,7 +200,7 @@ Från Framework v2.0 (definition) och v2.1 (införande) avslutas varje rolls arb
 - Infört i samtliga `docs/ai/roles/*` och `.cursor/rules/role-*.mdc` (Framework v2.1).
 - Central orkestreringsmodell: [orchestration-model.md](orchestration-model.md) (Framework v2.2).
 - Workflow Engine (TPM-körning): [workflow-engine.md](workflow-engine.md) (Framework v2.3).
-- Workflow Runner (automatiserad engine-körning): [workflow-runner.md](workflow-runner.md) (Framework v2.4 SSOT) — **runtime** under `tools/workflow-runner/` (Node.js CLI + bibliotek). Se avsnittet _Workflow Runner (runtime)_ nedan. Rollaktivering: **manuell fallback** (`Activate:`-hint) eller **TPM Task-delegering** (`Delegate:`-hint, Pivot 1).
+- Workflow Runner (automatiserad engine-körning): [workflow-runner.md](workflow-runner.md) (Framework v2.4 SSOT) — **runtime** under `tools/workflow-runner/` (Node.js CLI + bibliotek). Se avsnittet _Workflow Runner (runtime)_ nedan. Rollaktivering efter Grind 1: **TPM Task-delegering** (`Delegate:`-hint, Pivot 1) som standard; **manuell fallback** (`Activate:`-hint) om Task blockeras eller användaren begär det.
 
 ### Workflow Runner (runtime)
 
@@ -212,13 +212,13 @@ Från Framework v2.0 (definition) och v2.1 (införande) avslutas varje rolls arb
 
 **Cursor-realisering:**
 
-| Del                       | Realisering                                                                             |
-| ------------------------- | --------------------------------------------------------------------------------------- |
-| Decision / emission       | `npm run workflow-runner -- …` eller `require('tools/workflow-runner')`                 |
-| Persistens                | `.workflow-runner/instances/<InstanceId>.json` (gitignorerad)                           |
-| Handover-artifacts        | `.workflow-runner/handovers/`, `.workflow-runner/artifacts/` (gitignorerade)            |
-| Rollaktivering (fallback) | `Activate: @.cursor/rules/role-<slug>.mdc (manual)` — användaren `@role`                |
-| Rollaktivering (Pivot 1)  | `Delegate: <slug>` + TPM `Task(subagent_type=<slug>)` — se _TPM subagent orchestration_ |
+| Del                                | Realisering                                                                                                       |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Decision / emission                | `npm run workflow-runner -- …` eller `require('tools/workflow-runner')`                                           |
+| Persistens                         | `.workflow-runner/instances/<InstanceId>.json` (gitignorerad)                                                     |
+| Handover-artifacts                 | `.workflow-runner/handovers/`, `.workflow-runner/artifacts/` (gitignorerade)                                      |
+| Rollaktivering (Pivot 1, standard) | `Delegate: <slug>` + TPM `Task(subagent_type=<slug>)` efter Grind 1-godkännande — se _TPM subagent orchestration_ |
+| Rollaktivering (fallback)          | `Activate: @.cursor/rules/role-<slug>.mdc (manual)` — när Task blockeras eller användaren begär manuell `@role`   |
 
 Runner är **inte** en Cursor-hook eller skill. Den anropar inga Cursor-API:er; TPM parent tolkar emission och delegerar via Task.
 
@@ -265,11 +265,15 @@ Implementation: [`adr/FRAMEWORK_PIVOT1_SUBAGENT_IMPL.md`](adr/FRAMEWORK_PIVOT1_S
 
 Normativt protokoll för automatisk specialistkedja utan manuell `@role` mellan steg. Detaljer i `.cursor/rules/role-technical-project-manager.mdc` (_Subagent orchestration mode_).
 
+**När det startar (normativt):**
+
+Användarens godkännande av TPM:s Grind 1 Output Contract — inklusive Plan **Build**, "OK", "Jag godkänner", "Kör", "Fortsätt" — **är** startsignalen. TPM ska då **omedelbart** orkestrera genomförandet. Fråga **aldrig** användaren att manuellt `@`-aktivera specialister efter det godkännandet (manuell `@role` endast som fallback).
+
 **Förutsättningar:**
 
 - Agent-läge (Task-verktyget tillgängligt)
-- Användaren startade TPM (`@role-technical-project-manager`) och godkände Grind 1 Output Contract
-- `InstanceId` känd
+- Godkänt Grind 1 Output Contract (ovan)
+- `InstanceId`: skapa och kör `workflow-runner start` om den saknas — vänta inte på att användaren skapar den
 
 **Orkestreringsloop:**
 
