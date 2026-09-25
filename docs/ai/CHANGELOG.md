@@ -2,6 +2,18 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Clubdesk dual price + inventory Duplicate — Security docs sync (2026-09-25)
+
+Efter **QA Godkänt** + **Security Godkänt** (dual price / public COALESCE / inventory Duplicate): ADR [`adr/CLUBDESK_INVENTORY_EPIC2.md`](adr/CLUBDESK_INVENTORY_EPIC2.md) residuals **INV2-S1–S5**; Etapp1 migrate **173**; produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) riskrader; public [`public-clubdesk/README.md`](../../public-clubdesk/README.md) effective price note. **Working tree; local-first; ej prod-release.**
+
+## Clubdesk inventory Duplicate — docs after QA B1 (2026-09-25)
+
+Produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) §inventory Duplicate (Actions / DuplicateDialog / draft + cleared art.nr). Åtgärdar QA Underkänt B1. **Working tree; local-first; ej prod-release.**
+
+## Clubdesk price list dual price — docs sync (2026-09-25)
+
+ADR [`adr/CLUBDESK_INVENTORY_EPIC2.md`](adr/CLUBDESK_INVENTORY_EPIC2.md) §3 dual price (`price_override` + live inventory catalog); migration **173**; produkt [`docs/CHANGELOG.md`](../CHANGELOG.md). **Working tree; local-first; ej prod-release.**
+
 ## Clubdesk inventory Epic 2 — Security docs sync (2026-09-25)
 
 Efter **QA Godkänt** + **Security Godkänt**: ADR [`adr/CLUBDESK_INVENTORY_EPIC2.md`](adr/CLUBDESK_INVENTORY_EPIC2.md) status Accepted; residuals INV2-S1–S3 dokumenterade. Produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) §Epic 2 riskrad uppdaterad. **Working tree; local-first; ej prod-release.**

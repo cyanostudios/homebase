@@ -10,6 +10,8 @@ import {
   type RoundIconLabelButtonVariant,
 } from '@/components/ui/round-icon-label-button';
 
+import { BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS } from './BulkActionRoundBar';
+
 type DialogRoundButtonProps = Omit<
   RoundIconLabelButtonProps,
   'icon' | 'label' | 'alwaysExpanded' | 'variant'
@@ -62,7 +64,8 @@ export function DialogDeleteButton({ label, ...props }: DialogRoundButtonProps) 
     <RoundIconLabelButton
       icon={Trash2}
       label={label ?? t('common.delete')}
-      variant="danger"
+      variant="secondary"
+      contentClassName={BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS}
       alwaysExpanded
       {...props}
     />

@@ -13,6 +13,10 @@ describe('PriceListItemsEditor wiring', () => {
     expect(formSrc).toMatch(
       /const copyItem = \(index: number\) => \{\s*setFormData\(\(prev\) => \{[\s\S]*?\}\);\s*setDuplicatedItemIndexes\(new Set\(\[index \+ 1\]\)\)/,
     );
+    expect(formSrc).toMatch(/renumberWithinCategories\(\[emptyItem\(1\), \.\.\.prev\.items\]\)/);
+    expect(formSrc).toMatch(
+      /const addItem = \(\) => \{[\s\S]*?setDuplicatedItemIndexes\(new Set\(\[0\]\)\)/,
+    );
     expect(formSrc).not.toMatch(/aria-label=\{t\('clubdesk\.priceList\.removeItem'\)\}/);
   });
 
@@ -22,15 +26,34 @@ describe('PriceListItemsEditor wiring', () => {
     expect(editorSrc).toMatch(/LINE_ITEM_EDIT_ROW_CLASS/);
     expect(editorSrc).toMatch(/PRICE_LIST_ITEM_EDIT_GRID_CLASS/);
     expect(editorSrc).toMatch(/PRICE_LIST_ITEM_STACK_CLASS/);
+    expect(editorSrc).toMatch(/PRICE_LIST_ITEM_PRICE_CATEGORY_ROW_CLASS/);
+    expect(editorSrc).toMatch(/rows=\{2\}/);
     expect(editorSrc).toMatch(/canReorderItemWithinCategory/);
     expect(editorSrc).toMatch(/removeItemConfirm/);
-    expect(editorSrc).toMatch(/dangerSoft/);
     expect(editorSrc).toMatch(/item\.clientKey/);
     expect(editorSrc).toMatch(/pendingDeleteIndex !== null/);
     expect(editorSrc).toMatch(/\(item\.price \?\? 0\) !== 0/);
+    expect(editorSrc).toMatch(/inventoryPrice/);
+    expect(editorSrc).toMatch(/listPrice/);
+    expect(editorSrc).toMatch(/priceOverride/);
+    expect(editorSrc).toMatch(/inventoryCatalogPrice/);
     expect(editorSrc).toMatch(/linkInventory/);
+    expect(editorSrc).toMatch(/unlinkInventory[\s\S]*?PRICE_LIST_UNLINK_CONTENT_CLASS/);
+    expect(editorSrc).toMatch(/removeItem[\s\S]*?BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS/);
     expect(editorSrc).toMatch(/buildInventoryLinkPatch/);
     expect(editorSrc).toMatch(/clearInventoryLinkPatch/);
     expect(editorSrc).toMatch(/SelectContent className="z-\[130\]"/);
+    // Bulk unlink/delete live on DetailSection action (items heading row)
+    expect(formSrc).toMatch(/action=\{/);
+    expect(formSrc).toMatch(/addItem/);
+    expect(formSrc).toMatch(/unlinkAll/);
+    expect(formSrc).toMatch(/deleteAll/);
+    expect(formSrc).toMatch(/pendingBulkAction/);
+    expect(formSrc).toMatch(/PRICE_LIST_UNLINK_CONTENT_CLASS/);
+    expect(formSrc).toMatch(/BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS/);
+    expect(formSrc).toMatch(/unlinkAllItems/);
+    expect(formSrc).toMatch(/removeAllItems/);
+    expect(formSrc).toMatch(/clearInventoryLinkPatch/);
+    expect(formSrc).toMatch(/syncPriceListItemsWithInventoryCatalog/);
   });
 });

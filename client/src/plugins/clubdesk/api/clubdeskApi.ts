@@ -90,6 +90,15 @@ function normalizePriceList(row: ClubdeskPriceList): ClubdeskPriceList {
           sequenceOrder: item.sequenceOrder ?? index + 1,
           description: item.description ?? null,
           price: Number(item.price) || 0,
+          priceOverride:
+            item.priceOverride != null && Number.isFinite(Number(item.priceOverride))
+              ? Number(item.priceOverride)
+              : null,
+          inventoryCatalogPrice:
+            item.inventoryCatalogPrice != null &&
+            Number.isFinite(Number(item.inventoryCatalogPrice))
+              ? Number(item.inventoryCatalogPrice)
+              : null,
           category: item.category ?? null,
           inventoryItemId:
             item.inventoryItemId != null && item.inventoryItemId !== ''

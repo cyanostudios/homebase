@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Copy, Link2, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Link2, Search, Trash2, Unlink, X } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,11 +15,11 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS } from '@/core/ui/BulkActionRoundBar';
+import { listReorderRowStyle } from '@/core/ui/listReorderTransition';
 import {
   DETAIL_EMPTY_STATE_CLASS,
   DETAIL_LIST_ITEM_HOVER_CLASS,
-  LINK_BUTTON_FONT_CLASS,
-  LINK_BUTTON_TEXT_IDLE_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { cn } from '@/lib/utils';
@@ -41,9 +41,12 @@ import {
   LINE_ITEM_EDIT_ROW_CLASS,
   LINE_ITEM_EDIT_SCROLL_CLASS,
   LINE_ITEM_FIELD_CLASS,
+  LINE_ITEM_SECONDARY_TEXT_CLASS,
   PRICE_LIST_ITEM_EDIT_GRID_CLASS,
   PRICE_LIST_ITEM_EDIT_TRACK_CLASS,
+  PRICE_LIST_ITEM_PRICE_CATEGORY_ROW_CLASS,
   PRICE_LIST_ITEM_STACK_CLASS,
+  PRICE_LIST_UNLINK_CONTENT_CLASS,
 } from '../utils/priceListItemStyles';
 
 export type PriceListItemsEditorProps = {
@@ -51,7 +54,6 @@ export type PriceListItemsEditorProps = {
   categoryOptions: string[];
   duplicatedIndexes: Set<number>;
   getTitleError?: (index: number) => string | undefined;
-  onAdd: () => void;
   onUpdate: (index: number, patch: Partial<ClubdeskPriceListItemPayload>) => void;
   onDuplicate: (index: number) => void;
   onRemove: (index: number) => void;
@@ -118,9 +120,10 @@ function ItemActions({
         type="button"
         icon={Trash2}
         label={t('clubdesk.priceList.removeItem')}
-        variant="dangerSoft"
+        variant="secondary"
         size="xs"
         expandOnHover={false}
+        contentClassName={BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS}
         onClick={() => onDelete(index)}
       />
     </div>
@@ -207,167 +210,166 @@ function InventoryLinkRow({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      {linked ? (
-        <span className="text-xs text-muted-foreground">
-          {t('clubdesk.priceList.linkedTo', {
-            name: linkedLabel || item.inventoryArticleName || item.title,
-          })}
-        </span>
-      ) : null}
-
-      <Popover
-        open={pickerOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            closePicker();
-          } else {
-            setPickerOpen(true);
-          }
-        }}
-      >
-        <PopoverAnchor asChild>
-          {linked ? (
-            <button
-              type="button"
-              className={cn(LINK_BUTTON_FONT_CLASS, LINK_BUTTON_TEXT_IDLE_CLASS, 'text-xs')}
-              onClick={() => setPickerOpen(true)}
-            >
-              {t('clubdesk.priceList.changeInventoryLink')}
-            </button>
-          ) : (
-            <div>
-              <RoundIconLabelButton
-                type="button"
-                icon={Link2}
-                label={t('clubdesk.priceList.linkInventory')}
-                variant="secondary"
-                size="xs"
-                expandOnHover={false}
-                onClick={() => setPickerOpen(true)}
-              />
-            </div>
-          )}
-        </PopoverAnchor>
-        <PopoverContent
-          align="start"
-          side="bottom"
-          sideOffset={4}
-          className="z-[120] w-[min(22rem,100vw-2rem)] rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
-        >
-          <div className="space-y-2 p-1">
-            {pendingItem ? (
-              <div className="space-y-2 px-1 py-1">
-                <p className="text-xs font-semibold">{pendingItem.articleName}</p>
-                <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
-                  {t('clubdesk.priceList.pickVariant')}
-                </Label>
-                <Select value={pendingVariantId} onValueChange={setPendingVariantId}>
-                  <SelectTrigger className={LINE_ITEM_COMPACT_SELECT_CLASS}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="z-[130]">
-                    <SelectItem value="__none__">
-                      {t('clubdesk.priceList.noSpecificVariant')}
-                    </SelectItem>
-                    {(pendingItem.variants || []).map((v) => (
-                      <SelectItem key={String(v.id)} value={String(v.id)}>
-                        {formatInventoryVariantLabel(v) || t('clubdesk.priceList.variantFallback')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex justify-end gap-2 pt-1">
-                  <button
-                    type="button"
-                    className={cn(LINK_BUTTON_FONT_CLASS, LINK_BUTTON_TEXT_IDLE_CLASS, 'text-xs')}
-                    onClick={() => {
-                      setPendingItem(null);
-                      setPendingVariantId('__none__');
-                    }}
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <RoundIconLabelButton
-                    type="button"
-                    icon={Link2}
-                    label={t('clubdesk.priceList.useInventory')}
-                    variant="soft"
-                    size="xs"
-                    alwaysExpanded
-                    onClick={confirmPending}
-                  />
-                </div>
+    <div className="contents">
+      <div className="shrink-0 self-end">
+        {linked ? (
+          <RoundIconLabelButton
+            type="button"
+            icon={Unlink}
+            label={t('clubdesk.priceList.unlinkInventory')}
+            variant="secondary"
+            size="xs"
+            expandOnHover={false}
+            contentClassName={PRICE_LIST_UNLINK_CONTENT_CLASS}
+            onClick={() => onUpdate(index, clearInventoryLinkPatch())}
+          />
+        ) : (
+          <Popover
+            open={pickerOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                closePicker();
+              } else {
+                setPickerOpen(true);
+              }
+            }}
+          >
+            <PopoverAnchor asChild>
+              <div>
+                <RoundIconLabelButton
+                  type="button"
+                  icon={Link2}
+                  label={t('clubdesk.priceList.linkInventory')}
+                  variant="soft"
+                  size="xs"
+                  expandOnHover={false}
+                  onClick={() => setPickerOpen(true)}
+                />
               </div>
-            ) : (
-              <>
-                <div className="relative px-1 pt-1">
-                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t('clubdesk.priceList.searchInventory')}
-                    className={cn(LINE_ITEM_COMPACT_INPUT_CLASS, 'pl-8')}
-                    autoFocus
-                    disabled={loadingDetail}
-                  />
-                </div>
-                {inventoryItems.length === 0 ? (
-                  <p className={cn(DETAIL_EMPTY_STATE_CLASS, 'px-2 py-3 text-left text-xs')}>
-                    {t('clubdesk.priceList.emptyInventoryHint')}
-                  </p>
-                ) : suggestions.length === 0 ? (
-                  <p className={cn(DETAIL_EMPTY_STATE_CLASS, 'px-2 py-3 text-left text-xs')}>
-                    {t('clubdesk.priceList.noInventoryMatches')}
-                  </p>
-                ) : (
-                  <div className="max-h-52 overflow-y-auto">
-                    {suggestions.map((row) => (
-                      <button
-                        key={row.id}
+            </PopoverAnchor>
+            <PopoverContent
+              align="end"
+              side="bottom"
+              sideOffset={4}
+              className="z-[120] w-[min(22rem,100vw-2rem)] rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
+            >
+              <div className="space-y-2 p-1">
+                {pendingItem ? (
+                  <div className="space-y-2 px-1 py-1">
+                    <p className="text-xs font-semibold">{pendingItem.articleName}</p>
+                    <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
+                      {t('clubdesk.priceList.pickVariant')}
+                    </Label>
+                    <Select value={pendingVariantId} onValueChange={setPendingVariantId}>
+                      <SelectTrigger className={LINE_ITEM_COMPACT_SELECT_CLASS}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="z-[130]">
+                        <SelectItem value="__none__">
+                          {t('clubdesk.priceList.noSpecificVariant')}
+                        </SelectItem>
+                        {(pendingItem.variants || []).map((v) => (
+                          <SelectItem key={String(v.id)} value={String(v.id)}>
+                            {formatInventoryVariantLabel(v) ||
+                              t('clubdesk.priceList.variantFallback')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <RoundIconLabelButton
                         type="button"
-                        className={cn(
-                          'flex w-full items-start rounded-lg px-2.5 py-2 text-left',
-                          DETAIL_LIST_ITEM_HOVER_CLASS,
-                        )}
-                        disabled={loadingDetail}
-                        onClick={() => void selectArticle(row)}
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-xs font-extrabold">
-                            {row.articleName}
-                          </span>
-                          <span className="block truncate text-[11px] text-muted-foreground">
-                            {[
-                              row.brand,
-                              row.variantCount > 0
-                                ? t('clubdesk.priceList.variantCount', {
-                                    count: row.variantCount,
-                                  })
-                                : null,
-                            ]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
+                        icon={X}
+                        label={t('common.cancel')}
+                        variant="secondary"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={() => {
+                          setPendingItem(null);
+                          setPendingVariantId('__none__');
+                        }}
+                      />
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={Link2}
+                        label={t('clubdesk.priceList.useInventory')}
+                        variant="soft"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={confirmPending}
+                      />
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    <div className="relative px-1 pt-1">
+                      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder={t('clubdesk.priceList.searchInventory')}
+                        className={cn(LINE_ITEM_COMPACT_INPUT_CLASS, 'pl-8')}
+                        autoFocus
+                        disabled={loadingDetail}
+                      />
+                    </div>
+                    {inventoryItems.length === 0 ? (
+                      <p className={cn(DETAIL_EMPTY_STATE_CLASS, 'px-2 py-3 text-left text-xs')}>
+                        {t('clubdesk.priceList.emptyInventoryHint')}
+                      </p>
+                    ) : suggestions.length === 0 ? (
+                      <p className={cn(DETAIL_EMPTY_STATE_CLASS, 'px-2 py-3 text-left text-xs')}>
+                        {t('clubdesk.priceList.noInventoryMatches')}
+                      </p>
+                    ) : (
+                      <div className="max-h-52 overflow-y-auto">
+                        {suggestions.map((row) => (
+                          <button
+                            key={row.id}
+                            type="button"
+                            className={cn(
+                              'flex w-full items-start rounded-lg px-2.5 py-2 text-left',
+                              DETAIL_LIST_ITEM_HOVER_CLASS,
+                            )}
+                            disabled={loadingDetail}
+                            onClick={() => void selectArticle(row)}
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-xs font-extrabold">
+                                {row.articleName}
+                              </span>
+                              <span className="block truncate text-[11px] text-muted-foreground">
+                                {[
+                                  row.brand,
+                                  row.variantCount > 0
+                                    ? t('clubdesk.priceList.variantCount', {
+                                        count: row.variantCount,
+                                      })
+                                    : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')}
+                              </span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
-        </PopoverContent>
-      </Popover>
-
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
       {linked ? (
-        <button
-          type="button"
-          className={cn(LINK_BUTTON_FONT_CLASS, LINK_BUTTON_TEXT_IDLE_CLASS, 'text-xs')}
-          onClick={() => onUpdate(index, clearInventoryLinkPatch())}
-        >
-          {t('clubdesk.priceList.unlinkInventory')}
-        </button>
+        <div className="col-span-2">
+          <span className={LINE_ITEM_SECONDARY_TEXT_CLASS}>
+            {t('clubdesk.priceList.inventoryMeta', {
+              name: linkedLabel || item.inventoryArticleName || item.title,
+            })}
+          </span>
+        </div>
       ) : null}
     </div>
   );
@@ -378,7 +380,6 @@ export function PriceListItemsEditor({
   categoryOptions,
   duplicatedIndexes,
   getTitleError,
-  onAdd,
   onUpdate,
   onDuplicate,
   onRemove,
@@ -394,6 +395,7 @@ export function PriceListItemsEditor({
       (item.title?.trim() ?? '') !== '' ||
       (item.description?.replace(/<[^>]*>/g, '').trim() ?? '') !== '' ||
       (item.price ?? 0) !== 0 ||
+      (item.priceOverride != null && Number(item.priceOverride) !== 0) ||
       Boolean(item.inventoryItemId);
     if (hasContent) {
       setPendingDeleteIndex(index);
@@ -402,45 +404,46 @@ export function PriceListItemsEditor({
     }
   };
 
-  const addButton = (
-    <RoundIconLabelButton
-      type="button"
-      icon={Plus}
-      label={t('clubdesk.priceList.addItem')}
-      variant="soft"
-      size="xs"
-      alwaysExpanded
-      onClick={onAdd}
-    />
-  );
-
   return (
     <>
       {items.length === 0 ? (
         <div className="rounded-md border border-dashed border-border/70 px-3 py-6 text-center">
           <p className={DETAIL_EMPTY_STATE_CLASS}>{t('clubdesk.priceList.noItemsYet')}</p>
-          <div className="mt-3 flex justify-center">{addButton}</div>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          <div className={LINE_ITEM_EDIT_SCROLL_CLASS}>
-            <div className={PRICE_LIST_ITEM_EDIT_TRACK_CLASS}>
-              {items.map((item, index) => {
-                const titleError = getTitleError?.(index);
-                const isDuplicated = duplicatedIndexes.has(index);
-                return (
-                  <div
-                    key={
-                      item.clientKey ||
-                      `price-list-item-${item.sequenceOrder}-${item.category ?? ''}-${item.title}`
-                    }
-                    className={cn(
-                      LINE_ITEM_EDIT_ROW_CLASS,
-                      isDuplicated && 'bg-green-50 dark:bg-green-950/30',
-                    )}
-                  >
-                    <div className={PRICE_LIST_ITEM_EDIT_GRID_CLASS}>
-                      <div className={PRICE_LIST_ITEM_STACK_CLASS}>
+        <div className={LINE_ITEM_EDIT_SCROLL_CLASS}>
+          <div className={PRICE_LIST_ITEM_EDIT_TRACK_CLASS}>
+            {items.map((item, index) => {
+              const titleError = getTitleError?.(index);
+              const isDuplicated = duplicatedIndexes.has(index);
+              const inventoryCatalog =
+                item.inventoryCatalogPrice != null &&
+                Number.isFinite(Number(item.inventoryCatalogPrice))
+                  ? Number(item.inventoryCatalogPrice)
+                  : null;
+              const listPriceFollowing =
+                item.priceOverride == null || !Number.isFinite(Number(item.priceOverride));
+              const listPriceValue = listPriceFollowing
+                ? (inventoryCatalog ?? '')
+                : Number(item.priceOverride);
+              return (
+                <div
+                  key={
+                    item.clientKey ||
+                    `price-list-item-${item.sequenceOrder}-${item.category ?? ''}-${item.title}`
+                  }
+                  className={cn(
+                    LINE_ITEM_EDIT_ROW_CLASS,
+                    isDuplicated && 'bg-green-50 dark:bg-green-950/30',
+                  )}
+                  style={listReorderRowStyle(
+                    item.clientKey ||
+                      `price-list-item-${item.sequenceOrder}-${item.category ?? ''}-${item.title}`,
+                  )}
+                >
+                  <div className={PRICE_LIST_ITEM_EDIT_GRID_CLASS}>
+                    <div className={PRICE_LIST_ITEM_STACK_CLASS}>
+                      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1">
                         <div className={LINE_ITEM_FIELD_CLASS}>
                           <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
                             {t('clubdesk.priceList.title')}
@@ -451,25 +454,104 @@ export function PriceListItemsEditor({
                             placeholder={t('clubdesk.priceList.itemTitlePlaceholder')}
                             className={cn(
                               LINE_ITEM_COMPACT_INPUT_CLASS,
+                              'font-semibold',
                               titleError && FORM_INPUT_ERROR_CLASS,
                             )}
                           />
                         </div>
                         <InventoryLinkRow item={item} index={index} onUpdate={onUpdate} />
-                        <div className={LINE_ITEM_FIELD_CLASS}>
-                          <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
-                            {t('clubdesk.priceList.price')}
-                          </Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={item.price}
-                            onChange={(e) =>
-                              onUpdate(index, { price: Number(e.target.value) || 0 })
-                            }
-                            className={cn(LINE_ITEM_COMPACT_INPUT_CLASS, 'text-right')}
-                          />
-                        </div>
+                      </div>
+                      <div
+                        className={cn(
+                          PRICE_LIST_ITEM_PRICE_CATEGORY_ROW_CLASS,
+                          item.inventoryItemId && 'grid-cols-3',
+                        )}
+                      >
+                        {item.inventoryItemId ? (
+                          <>
+                            <div className={LINE_ITEM_FIELD_CLASS}>
+                              <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
+                                {t('clubdesk.priceList.inventoryPrice')}
+                              </Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={
+                                  item.inventoryCatalogPrice != null &&
+                                  Number.isFinite(Number(item.inventoryCatalogPrice))
+                                    ? item.inventoryCatalogPrice
+                                    : ''
+                                }
+                                readOnly
+                                tabIndex={-1}
+                                className={cn(
+                                  LINE_ITEM_COMPACT_INPUT_CLASS,
+                                  'text-right text-muted-foreground',
+                                )}
+                              />
+                            </div>
+                            <div className={LINE_ITEM_FIELD_CLASS}>
+                              <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
+                                {t('clubdesk.priceList.listPrice')}
+                              </Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={listPriceValue}
+                                onFocus={(e) => e.currentTarget.select()}
+                                onChange={(e) => {
+                                  const raw = e.target.value.trim();
+                                  if (raw === '') {
+                                    onUpdate(index, {
+                                      priceOverride: null,
+                                      price: inventoryCatalog ?? 0,
+                                    });
+                                    return;
+                                  }
+                                  const n = Number(raw);
+                                  if (!Number.isFinite(n)) {
+                                    return;
+                                  }
+                                  // Typing the catalog amount keeps following inventory.
+                                  if (inventoryCatalog != null && n === inventoryCatalog) {
+                                    onUpdate(index, {
+                                      priceOverride: null,
+                                      price: inventoryCatalog,
+                                    });
+                                    return;
+                                  }
+                                  onUpdate(index, {
+                                    priceOverride: n,
+                                    price: n,
+                                  });
+                                }}
+                                className={cn(
+                                  LINE_ITEM_COMPACT_INPUT_CLASS,
+                                  'text-right',
+                                  listPriceFollowing && 'text-muted-foreground',
+                                )}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <div className={LINE_ITEM_FIELD_CLASS}>
+                            <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
+                              {t('clubdesk.priceList.price')}
+                            </Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.price}
+                              onChange={(e) =>
+                                onUpdate(index, {
+                                  price: Number(e.target.value) || 0,
+                                  priceOverride: null,
+                                })
+                              }
+                              className={cn(LINE_ITEM_COMPACT_INPUT_CLASS, 'text-right')}
+                            />
+                          </div>
+                        )}
                         <div className={LINE_ITEM_FIELD_CLASS}>
                           <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
                             {t('clubdesk.priceList.category')}
@@ -501,42 +583,41 @@ export function PriceListItemsEditor({
                           </Select>
                         </div>
                       </div>
-                      <div className={cn(LINE_ITEM_FIELD_CLASS, 'h-full')}>
-                        <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
-                          {t('clubdesk.priceList.description')}
-                        </Label>
-                        <Textarea
-                          value={item.description ?? ''}
-                          onChange={(e) => {
-                            const html = e.target.value;
-                            onUpdate(index, {
-                              description: isEmptyRichText(html) ? null : html,
-                            });
-                          }}
-                          rows={5}
-                          placeholder={t('clubdesk.priceList.itemDescriptionPlaceholder')}
-                          className={cn(
-                            LINE_ITEM_COMPACT_INPUT_CLASS,
-                            'min-h-[6.5rem] flex-1 resize-y py-1.5',
-                          )}
-                        />
-                      </div>
-                      <ItemActions
-                        index={index}
-                        canMoveUp={canReorderItemWithinCategory(items, index, -1)}
-                        canMoveDown={canReorderItemWithinCategory(items, index, 1)}
-                        onMoveUp={onMoveUp}
-                        onMoveDown={onMoveDown}
-                        onDuplicate={onDuplicate}
-                        onDelete={handleDeleteClick}
+                    </div>
+                    <div className={cn(LINE_ITEM_FIELD_CLASS, 'h-full')}>
+                      <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
+                        {t('clubdesk.priceList.description')}
+                      </Label>
+                      <Textarea
+                        value={item.description ?? ''}
+                        onChange={(e) => {
+                          const html = e.target.value;
+                          onUpdate(index, {
+                            description: isEmptyRichText(html) ? null : html,
+                          });
+                        }}
+                        rows={2}
+                        placeholder={t('clubdesk.priceList.itemDescriptionPlaceholder')}
+                        className={cn(
+                          LINE_ITEM_COMPACT_INPUT_CLASS,
+                          'min-h-[2.75rem] flex-1 resize-y py-1.5',
+                        )}
                       />
                     </div>
+                    <ItemActions
+                      index={index}
+                      canMoveUp={canReorderItemWithinCategory(items, index, -1)}
+                      canMoveDown={canReorderItemWithinCategory(items, index, 1)}
+                      onMoveUp={onMoveUp}
+                      onMoveDown={onMoveDown}
+                      onDuplicate={onDuplicate}
+                      onDelete={handleDeleteClick}
+                    />
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="flex justify-end">{addButton}</div>
         </div>
       )}
 

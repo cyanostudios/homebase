@@ -76,6 +76,7 @@ describe('PriceListModel', () => {
         title: 'Coffee',
         description: null,
         price: 12.5,
+        priceOverride: null,
         category: 'Drinks',
         sequenceOrder: 1,
         inventoryItemId: null,
@@ -85,11 +86,31 @@ describe('PriceListModel', () => {
         title: 'Tea',
         description: null,
         price: 0,
+        priceOverride: null,
         category: null,
         sequenceOrder: 1,
         inventoryItemId: null,
         inventoryVariantId: null,
       },
+    ]);
+  });
+
+  test('normalizeItems accepts priceOverride and uses it as effective price', () => {
+    const items = model.normalizeItems([
+      {
+        title: 'Milk',
+        price: 15,
+        priceOverride: 99,
+        inventoryItemId: 9,
+      },
+    ]);
+    expect(items).toEqual([
+      expect.objectContaining({
+        title: 'Milk',
+        price: 99,
+        priceOverride: 99,
+        inventoryItemId: 9,
+      }),
     ]);
   });
 
@@ -158,12 +179,15 @@ describe('PriceListModel', () => {
         title: 'Milk 1L',
         description: null,
         price: '12.00',
+        price_override: null,
         category: 'Dairy',
         sequence_order: 1,
         inventory_item_id: 9,
         inventory_variant_id: 3,
         inventory_article_name: 'Milk',
         inventory_slug: 'milk',
+        inventory_sale_price: '15.00',
+        inventory_recommended_price: '12.00',
         inventory_variant_audience: 'Dairy',
         inventory_variant_color: 'Whole',
         inventory_variant_size: '1 L',
@@ -177,6 +201,41 @@ describe('PriceListModel', () => {
         inventoryArticleName: 'Milk',
         inventorySlug: 'milk',
         inventoryVariantLabel: 'Dairy · Whole · 1 L',
+        inventoryCatalogPrice: 15,
+        priceOverride: null,
+        price: 15,
+      }),
+    );
+  });
+
+  test('transformItemRow prefers priceOverride over inventory catalog', () => {
+    expect(
+      model.transformItemRow({
+        id: 1,
+        price_list_id: 2,
+        title: 'Milk',
+        description: null,
+        price: '12.00',
+        price_override: '20.00',
+        category: null,
+        sequence_order: 1,
+        inventory_item_id: 9,
+        inventory_variant_id: null,
+        inventory_article_name: 'Milk',
+        inventory_slug: 'milk',
+        inventory_sale_price: '15.00',
+        inventory_recommended_price: '12.00',
+        inventory_variant_audience: null,
+        inventory_variant_color: null,
+        inventory_variant_size: null,
+        created_at: 't1',
+        updated_at: 't2',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        priceOverride: 20,
+        inventoryCatalogPrice: 15,
+        price: 20,
       }),
     );
   });

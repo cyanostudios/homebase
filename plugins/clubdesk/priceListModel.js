@@ -81,7 +81,38 @@ class PriceListModel {
           ? null
           : String(raw.description);
 
-      let price = Number(raw.price);
+      let priceOverride = null;
+      if (
+        raw.priceOverride !== undefined &&
+        raw.priceOverride !== null &&
+        raw.priceOverride !== ''
+      ) {
+        const overrideNum = Number(raw.priceOverride);
+        if (!Number.isFinite(overrideNum)) {
+          throw new AppError(
+            `items[${i}].priceOverride must be a number`,
+            400,
+            AppError.CODES.VALIDATION_ERROR,
+            [{ field: 'priceOverride', message: `items[${i}].priceOverride must be a number` }],
+          );
+        }
+        if (overrideNum < 0 || overrideNum > 9999999999.99) {
+          throw new AppError(
+            `items[${i}].priceOverride must be between 0 and 9999999999.99`,
+            400,
+            AppError.CODES.VALIDATION_ERROR,
+            [
+              {
+                field: 'priceOverride',
+                message: `items[${i}].priceOverride must be between 0 and 9999999999.99`,
+              },
+            ],
+          );
+        }
+        priceOverride = overrideNum;
+      }
+
+      let price = priceOverride != null ? priceOverride : Number(raw.price);
       if (!Number.isFinite(price)) {
         price = 0;
       }
@@ -120,6 +151,7 @@ class PriceListModel {
         title,
         description,
         price,
+        priceOverride,
         category,
         sequenceOrder,
         inventoryItemId,
@@ -365,12 +397,51 @@ class PriceListModel {
   }
 
   transformItemRow(row) {
+    const sale =
+      row.inventory_sale_price !== null && row.inventory_sale_price !== undefined
+        ? Number(row.inventory_sale_price)
+        : null;
+    const recommended =
+      row.inventory_recommended_price !== null && row.inventory_recommended_price !== undefined
+        ? Number(row.inventory_recommended_price)
+        : null;
+    let inventoryCatalogPrice = null;
+    if (sale != null && Number.isFinite(sale)) {
+      inventoryCatalogPrice = sale;
+    } else if (recommended != null && Number.isFinite(recommended)) {
+      inventoryCatalogPrice = recommended;
+    }
+
+    let priceOverride = null;
+    if (
+      row.price_override !== null &&
+      row.price_override !== undefined &&
+      row.price_override !== ''
+    ) {
+      const n = Number(row.price_override);
+      if (Number.isFinite(n)) {
+        priceOverride = n;
+      }
+    }
+
+    const storedPrice = Number(row.price);
+    const effective =
+      priceOverride != null
+        ? priceOverride
+        : inventoryCatalogPrice != null
+          ? inventoryCatalogPrice
+          : Number.isFinite(storedPrice)
+            ? storedPrice
+            : 0;
+
     return {
       id: String(row.id),
       priceListId: String(row.price_list_id),
       title: row.title ?? '',
       description: row.description ?? null,
-      price: Number(row.price),
+      price: effective,
+      priceOverride,
+      inventoryCatalogPrice,
       category: row.category ?? null,
       sequenceOrder: Number(row.sequence_order),
       inventoryItemId:
@@ -810,6 +881,8 @@ class PriceListModel {
           i.*,
           inv.article_name AS inventory_article_name,
           inv.slug AS inventory_slug,
+          inv.sale_price AS inventory_sale_price,
+          inv.recommended_price AS inventory_recommended_price,
           v.audience AS inventory_variant_audience,
           v.color AS inventory_variant_color,
           v.size AS inventory_variant_size
@@ -833,8 +906,53 @@ class PriceListModel {
     );
   }
 
+  /**
+   * When linked and no override, set price from inventory sale → recommended.
+   */
+  async applyCatalogPricesWhenFollowingInventory(dbOrTx, items) {
+    const needIds = [
+      ...new Set(
+        items
+          .filter((it) => it.inventoryItemId != null && it.priceOverride == null)
+          .map((it) => it.inventoryItemId),
+      ),
+    ];
+    if (needIds.length === 0) {
+      return items;
+    }
+    const rows = await this.queryChild(
+      dbOrTx,
+      `
+        SELECT id, sale_price, recommended_price
+        FROM clubdesk_inventory_items
+        WHERE id = ANY($1::int[])
+      `,
+      [needIds],
+    );
+    const byId = new Map(rows.map((r) => [Number(r.id), r]));
+    return items.map((it) => {
+      if (it.inventoryItemId == null || it.priceOverride != null) {
+        return it;
+      }
+      const row = byId.get(it.inventoryItemId);
+      if (!row) {
+        return it;
+      }
+      const sale = row.sale_price != null ? Number(row.sale_price) : null;
+      const rec = row.recommended_price != null ? Number(row.recommended_price) : null;
+      let catalog = 0;
+      if (sale != null && Number.isFinite(sale)) {
+        catalog = sale;
+      } else if (rec != null && Number.isFinite(rec)) {
+        catalog = rec;
+      }
+      return { ...it, price: catalog };
+    });
+  }
+
   async insertItems(tx, priceListId, items) {
-    for (const item of items) {
+    const resolved = await this.applyCatalogPricesWhenFollowingInventory(tx, items);
+    for (const item of resolved) {
       await tx.query(
         `
           INSERT INTO ${this.itemsTable} (
@@ -842,18 +960,20 @@ class PriceListModel {
             title,
             description,
             price,
+            price_override,
             category,
             sequence_order,
             inventory_item_id,
             inventory_variant_id
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         `,
         [
           priceListId,
           item.title,
           item.description,
           item.price,
+          item.priceOverride,
           item.category,
           item.sequenceOrder,
           item.inventoryItemId,

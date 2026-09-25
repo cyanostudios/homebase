@@ -1,4 +1,15 @@
-import { ArrowDown, ArrowUp, Check, History, Info, Plus, Tags, Trash2, X } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  History,
+  Info,
+  Plus,
+  Tags,
+  Trash2,
+  Unlink,
+  X,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -27,8 +38,10 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS } from '@/core/ui/BulkActionRoundBar';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
+import { listReorderRowStyle, runListReorderTransition } from '@/core/ui/listReorderTransition';
 import {
   DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
@@ -58,6 +71,11 @@ import {
   renumberWithinCategories,
   reorderItems,
 } from '../utils/priceListItemOps';
+import {
+  clearInventoryLinkPatch,
+  syncPriceListItemsWithInventoryCatalog,
+} from '../utils/priceListInventoryLink';
+import { PRICE_LIST_UNLINK_CONTENT_CLASS } from '../utils/priceListItemStyles';
 
 import { PriceListItemsEditor } from './PriceListItemsEditor';
 
@@ -66,6 +84,8 @@ function emptyItem(order: number): ClubdeskPriceListItemPayload {
     title: '',
     description: null,
     price: 0,
+    priceOverride: null,
+    inventoryCatalogPrice: null,
     category: null,
     sequenceOrder: order,
     inventoryItemId: null,
@@ -106,6 +126,14 @@ function formDataFromPriceList(priceList: ClubdeskPriceList | null): ClubdeskPri
       title: item.title || '',
       description: item.description ?? null,
       price: Number(item.price) || 0,
+      priceOverride:
+        item.priceOverride != null && Number.isFinite(Number(item.priceOverride))
+          ? Number(item.priceOverride)
+          : null,
+      inventoryCatalogPrice:
+        item.inventoryCatalogPrice != null && Number.isFinite(Number(item.inventoryCatalogPrice))
+          ? Number(item.inventoryCatalogPrice)
+          : null,
       category: item.category ?? null,
       sequenceOrder: item.sequenceOrder ?? index + 1,
       inventoryItemId: item.inventoryItemId ?? null,
@@ -188,6 +216,7 @@ export const PriceListForm = React.forwardRef<
     createPriceListCategory,
     reorderPriceListCategories,
     deletePriceListCategory,
+    inventoryItems,
   } = useClubdesk();
   const priceList = currentPriceList;
   const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
@@ -203,6 +232,9 @@ export const PriceListForm = React.forwardRef<
   const [categoryOrderNames, setCategoryOrderNames] = useState<string[] | null>(null);
   const [categoryPendingDelete, setCategoryPendingDelete] = useState<string | null>(null);
   const [duplicatedItemIndexes, setDuplicatedItemIndexes] = useState<Set<number>>(() => new Set());
+  const [pendingBulkAction, setPendingBulkAction] = useState<'unlinkAll' | 'deleteAll' | null>(
+    null,
+  );
   const [moveToCategory, setMoveToCategory] = useState<string>('__uncategorized__');
   const [categoryDeleteError, setCategoryDeleteError] = useState<string | null>(null);
   const [deletingCategory, setDeletingCategory] = useState(false);
@@ -212,6 +244,11 @@ export const PriceListForm = React.forwardRef<
   );
 
   const isCurrentlySubmitting = isSaving || isSubmitting;
+
+  const linkedItemCount = useMemo(
+    () => formData.items.filter((item) => Boolean(item.inventoryItemId)).length,
+    [formData.items],
+  );
 
   /** Catalog order first (for public/kiosk), then local-only names, then orphan item categories. */
   const orderedCategoryEntries = useMemo(() => {
@@ -294,6 +331,17 @@ export const PriceListForm = React.forwardRef<
     }
   }, [priceList, markClean, resetForm]);
 
+  // Keep inventory catalog / effective price in sync when linked products change (no dirty flag).
+  useEffect(() => {
+    setFormData((prev) => {
+      const items = syncPriceListItemsWithInventoryCatalog(prev.items, inventoryItems);
+      if (items === prev.items) {
+        return prev;
+      }
+      return { ...prev, items };
+    });
+  }, [inventoryItems]);
+
   const handleSubmit = useCallback(async () => {
     if (isCurrentlySubmitting) {
       return;
@@ -375,8 +423,9 @@ export const PriceListForm = React.forwardRef<
   const addItem = () => {
     setFormData((prev) => ({
       ...prev,
-      items: [...prev.items, emptyItem(prev.items.length + 1)],
+      items: renumberWithinCategories([emptyItem(1), ...prev.items]),
     }));
+    setDuplicatedItemIndexes(new Set([0]));
     markDirty();
     clearValidationErrors();
   };
@@ -391,17 +440,40 @@ export const PriceListForm = React.forwardRef<
     clearValidationErrors();
   };
 
-  const moveItem = (index: number, direction: -1 | 1) => {
-    setFormData((prev) => {
-      const next = reorderItems(prev.items, index, direction);
-      if (!next) {
-        return prev;
-      }
-      return { ...prev, items: next };
-    });
+  const unlinkAllItems = () => {
+    setFormData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item.inventoryItemId ? { ...item, ...clearInventoryLinkPatch() } : item,
+      ),
+    }));
+    markDirty();
+    clearValidationErrors();
+  };
+
+  const removeAllItems = () => {
+    setFormData((prev) => ({
+      ...prev,
+      items: [],
+    }));
     setDuplicatedItemIndexes(new Set());
     markDirty();
     clearValidationErrors();
+  };
+
+  const moveItem = (index: number, direction: -1 | 1) => {
+    runListReorderTransition(() => {
+      setFormData((prev) => {
+        const next = reorderItems(prev.items, index, direction);
+        if (!next) {
+          return prev;
+        }
+        return { ...prev, items: next };
+      });
+      setDuplicatedItemIndexes(new Set());
+      markDirty();
+      clearValidationErrors();
+    });
   };
 
   const copyItem = (index: number) => {
@@ -554,8 +626,10 @@ export const PriceListForm = React.forwardRef<
     const serverOrdered = next.filter((entry) => entry.id);
     const localOrdered = next.filter((entry) => !entry.id).map((entry) => entry.name);
 
-    setCategoryOrderNames(next.map((entry) => entry.name));
-    setLocalCategories(localOrdered);
+    runListReorderTransition(() => {
+      setCategoryOrderNames(next.map((entry) => entry.name));
+      setLocalCategories(localOrdered);
+    });
 
     if (priceList?.id && serverOrdered.length > 0) {
       setReorderingCategory(true);
@@ -835,7 +909,8 @@ export const PriceListForm = React.forwardRef<
                       orderedCategoryEntries.map((entry, index) => (
                         <div
                           key={`${entry.id ?? 'local'}-${entry.name}`}
-                          className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/20 px-2 py-1.5"
+                          className="line-item-reorder-row flex items-center gap-2 rounded-md border border-border/50 bg-muted/20 px-2 py-1.5"
+                          style={listReorderRowStyle(`${entry.id ?? 'local'}-${entry.name}`)}
                         >
                           <span className="min-w-0 flex-1 truncate text-xs font-medium">
                             {entry.name}
@@ -920,6 +995,44 @@ export const PriceListForm = React.forwardRef<
                   icon={Tags}
                   iconPlugin="clubdesk"
                   className="p-6"
+                  action={
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <RoundIconLabelButton
+                        type="button"
+                        icon={Plus}
+                        label={t('clubdesk.priceList.addItem')}
+                        variant="soft"
+                        size="xs"
+                        alwaysExpanded
+                        onClick={addItem}
+                      />
+                      {formData.items.length > 0 ? (
+                        <>
+                          <RoundIconLabelButton
+                            type="button"
+                            icon={Unlink}
+                            label={t('clubdesk.priceList.unlinkAll')}
+                            variant="secondary"
+                            size="xs"
+                            alwaysExpanded
+                            disabled={linkedItemCount === 0}
+                            contentClassName={PRICE_LIST_UNLINK_CONTENT_CLASS}
+                            onClick={() => setPendingBulkAction('unlinkAll')}
+                          />
+                          <RoundIconLabelButton
+                            type="button"
+                            icon={Trash2}
+                            label={t('clubdesk.priceList.deleteAll')}
+                            variant="secondary"
+                            size="xs"
+                            alwaysExpanded
+                            contentClassName={BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS}
+                            onClick={() => setPendingBulkAction('deleteAll')}
+                          />
+                        </>
+                      ) : null}
+                    </div>
+                  }
                 >
                   {getFieldError('items') ? (
                     <p className="mb-3 text-sm text-destructive">
@@ -932,7 +1045,6 @@ export const PriceListForm = React.forwardRef<
                     categoryOptions={categoryOptions}
                     duplicatedIndexes={duplicatedItemIndexes}
                     getTitleError={(index) => getFieldError(`items.${index}.title`)?.message}
-                    onAdd={addItem}
                     onUpdate={updateItem}
                     onDuplicate={copyItem}
                     onRemove={removeItem}
@@ -986,6 +1098,34 @@ export const PriceListForm = React.forwardRef<
         onConfirm={handleDiscardChanges}
         onCancel={cancelDiscard}
         variant="warning"
+      />
+
+      <ConfirmDialog
+        isOpen={pendingBulkAction === 'unlinkAll'}
+        title={t('clubdesk.priceList.unlinkAll')}
+        message={t('clubdesk.priceList.unlinkAllConfirm', { count: linkedItemCount })}
+        confirmText={t('clubdesk.priceList.unlinkAll')}
+        cancelText={t('common.cancel')}
+        variant="warning"
+        onConfirm={() => {
+          unlinkAllItems();
+          setPendingBulkAction(null);
+        }}
+        onCancel={() => setPendingBulkAction(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={pendingBulkAction === 'deleteAll'}
+        title={t('clubdesk.priceList.deleteAll')}
+        message={t('clubdesk.priceList.deleteAllConfirm', { count: formData.items.length })}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        variant="danger"
+        onConfirm={() => {
+          removeAllItems();
+          setPendingBulkAction(null);
+        }}
+        onCancel={() => setPendingBulkAction(null)}
       />
 
       <AlertDialog

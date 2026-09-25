@@ -7,7 +7,12 @@ export interface ClubdeskPriceListItem {
   priceListId?: string;
   title: string;
   description: string | null;
+  /** Effective / fallback price (always set). */
   price: number;
+  /** Optional free list price; null = follow inventory catalog when linked. */
+  priceOverride?: number | null;
+  /** Live catalog price from inventory (sale → recommended); editor/display. */
+  inventoryCatalogPrice?: number | null;
   category: string | null;
   sequenceOrder: number;
   inventoryItemId?: string | null;
@@ -48,6 +53,8 @@ export interface ClubdeskPriceListItemPayload {
   title: string;
   description: string | null;
   price: number;
+  priceOverride?: number | null;
+  inventoryCatalogPrice?: number | null;
   category: string | null;
   sequenceOrder: number;
   inventoryItemId?: string | null;

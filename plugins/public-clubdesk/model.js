@@ -57,10 +57,44 @@ class PublicClubdeskModel {
       row.inventory_publication_status === 'published' && row.inventory_slug
         ? String(row.inventory_slug)
         : null;
+    let priceOverride = null;
+    if (
+      row.price_override !== null &&
+      row.price_override !== undefined &&
+      row.price_override !== ''
+    ) {
+      const n = Number(row.price_override);
+      if (Number.isFinite(n)) {
+        priceOverride = n;
+      }
+    }
+    const sale =
+      row.inventory_sale_price !== null && row.inventory_sale_price !== undefined
+        ? Number(row.inventory_sale_price)
+        : null;
+    const recommended =
+      row.inventory_recommended_price !== null && row.inventory_recommended_price !== undefined
+        ? Number(row.inventory_recommended_price)
+        : null;
+    let catalog = null;
+    if (sale != null && Number.isFinite(sale)) {
+      catalog = sale;
+    } else if (recommended != null && Number.isFinite(recommended)) {
+      catalog = recommended;
+    }
+    const stored = Number(row.price);
+    const price =
+      priceOverride != null
+        ? priceOverride
+        : catalog != null
+          ? catalog
+          : Number.isFinite(stored)
+            ? stored
+            : 0;
     return {
       title: row.title ?? '',
       description: row.description ?? null,
-      price: Number(row.price),
+      price,
       category: row.category ?? null,
       sequenceOrder: Number(row.sequence_order),
       inventorySlug: slug,
@@ -287,10 +321,13 @@ class PublicClubdeskModel {
           i.title,
           i.description,
           i.price,
+          i.price_override,
           i.category,
           i.sequence_order,
           inv.slug AS inventory_slug,
-          inv.publication_status AS inventory_publication_status
+          inv.publication_status AS inventory_publication_status,
+          inv.sale_price AS inventory_sale_price,
+          inv.recommended_price AS inventory_recommended_price
         FROM clubdesk_price_list_items i
         LEFT JOIN clubdesk_price_list_item_categories c
           ON c.price_list_id = i.price_list_id

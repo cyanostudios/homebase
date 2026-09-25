@@ -31,6 +31,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DatePicker } from '@/core/ui/DatePicker';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
+import { runListReorderTransition } from '@/core/ui/listReorderTransition';
 import {
   DETAIL_PROP_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -497,16 +498,18 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
     };
 
     const moveLineItem = (index: number, direction: 'up' | 'down') => {
-      const items = [...formData.lineItems];
       const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= items.length) {
+      if (targetIndex < 0 || targetIndex >= formData.lineItems.length) {
         return;
       }
-      [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
-      items.forEach((item, i) => {
-        item.sortOrder = i;
+      runListReorderTransition(() => {
+        const items = [...formData.lineItems];
+        [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
+        items.forEach((item, i) => {
+          item.sortOrder = i;
+        });
+        updateField('lineItems', items);
       });
-      updateField('lineItems', items);
     };
 
     const updateLineItem = (index: number, field: keyof LineItem, value: any) => {

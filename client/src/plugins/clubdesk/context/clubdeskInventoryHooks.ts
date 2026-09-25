@@ -471,6 +471,7 @@ export function useClubdeskInventoryDomain(options: {
     isSaving,
     recentlyDuplicatedInventoryId,
     setRecentlyDuplicatedInventoryId,
+    ensureFullInventoryItem,
     openInventoryPanel,
     openInventoryForEdit,
     openInventoryForView,

@@ -87,6 +87,7 @@
     "migrate:clubdesk-site-content-contacts-card": "node scripts/run-clubdesk-site-content-contacts-card-migration.js",
     "migrate:clubdesk-inventory": "node scripts/run-clubdesk-inventory-migration.js",
     "migrate:clubdesk-price-list-inventory-link": "node scripts/run-clubdesk-price-list-inventory-link-migration.js",
+    "migrate:clubdesk-price-list-price-override": "node scripts/run-clubdesk-price-list-price-override-migration.js",
     "migrate:sportadmin": "node scripts/run-sportadmin-migration.js",
     "set:tenant-plugins": "node scripts/set-tenant-plugin-access.js",
     "migrate:ingest-tenants": "node scripts/run-ingest-tenant-migrations.js",

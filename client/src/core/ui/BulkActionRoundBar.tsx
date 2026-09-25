@@ -19,10 +19,13 @@ export type BulkActionRoundItem = {
   contentClassName?: string;
 };
 
+/** Shared with ConfirmDialog / DialogDeleteButton — gray secondary shell, red icon+label. */
+export const BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS =
+  'text-red-600 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300';
+
 const bulkContentToneClass = {
   default: 'text-foreground group-hover:text-primary',
-  destructive:
-    'text-red-600 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300',
+  destructive: BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS,
 } as const;
 
 const countPillSizeClass: Record<RoundIconLabelButtonSize, string> = {

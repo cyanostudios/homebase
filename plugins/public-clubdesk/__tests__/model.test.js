@@ -143,6 +143,53 @@ describe('PublicClubdeskModel', () => {
     ).toBeNull();
   });
 
+  test('transformPriceListItem resolves effective price override then catalog then stored', () => {
+    expect(
+      model.transformPriceListItem({
+        title: 'Milk',
+        description: null,
+        price: 10,
+        price_override: 99,
+        category: null,
+        sequence_order: 1,
+        inventory_sale_price: 15,
+        inventory_recommended_price: 12,
+        inventory_slug: null,
+        inventory_publication_status: null,
+      }).price,
+    ).toBe(99);
+
+    expect(
+      model.transformPriceListItem({
+        title: 'Milk',
+        description: null,
+        price: 10,
+        price_override: null,
+        category: null,
+        sequence_order: 1,
+        inventory_sale_price: 15,
+        inventory_recommended_price: 12,
+        inventory_slug: null,
+        inventory_publication_status: null,
+      }).price,
+    ).toBe(15);
+
+    expect(
+      model.transformPriceListItem({
+        title: 'Milk',
+        description: null,
+        price: 10,
+        price_override: null,
+        category: null,
+        sequence_order: 1,
+        inventory_sale_price: null,
+        inventory_recommended_price: 12,
+        inventory_slug: null,
+        inventory_publication_status: null,
+      }).price,
+    ).toBe(12);
+  });
+
   test('listPublishedGuides filters by owner and published status', async () => {
     const pool = { query: jest.fn().mockResolvedValue({ rows: [] }) };
     await model.listPublishedGuides(pool, 42);
