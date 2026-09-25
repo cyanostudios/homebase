@@ -93,6 +93,13 @@ export interface ClubdeskContextType {
     item: ClubdeskPriceList,
     newName: string,
   ) => Promise<{ closePanel: () => void; highlightId?: string }>;
+  getInventoryDuplicateConfig: (
+    item: ClubdeskInventoryItem | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly: boolean } | null;
+  executeInventoryDuplicate: (
+    item: ClubdeskInventoryItem,
+    newName: string,
+  ) => Promise<{ closePanel: () => void; highlightId?: string }>;
   clearValidationErrors: () => void;
   selectedClubdeskIds: string[];
   toggleClubdeskSelected: (id: string) => void;
@@ -203,6 +210,8 @@ const EMPTY_CLUBDESK_CONTEXT: ClubdeskContextType = {
   executeDuplicate: async () => ({ closePanel: () => {} }),
   getPriceListDuplicateConfig: () => null,
   executePriceListDuplicate: async () => ({ closePanel: () => {} }),
+  getInventoryDuplicateConfig: () => null,
+  executeInventoryDuplicate: async () => ({ closePanel: () => {} }),
   clearValidationErrors: () => {},
   selectedClubdeskIds: [],
   toggleClubdeskSelected: () => {},

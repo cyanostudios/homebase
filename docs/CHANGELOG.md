@@ -4,14 +4,32 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-25 – Clubdesk inventory: Duplicate under Actions
+
+**Typ:** Enhancement  
+**Scope:** Inventory detail **Actions** → **Duplicate** (`DuplicateDialog`), same pattern as guides/price lists. Copy is created as **draft**; variants keep audience/color/size/qty; **article numbers cleared**. List highlight via `recentlyDuplicatedInventoryId`.  
+**Risk:** Low. Uses existing inventory create (CSRF + `clubdesk` gate). Security Godkänt 2026-09-25 with dual-price WT. Local-first.  
+**Sammanfattning:** PLUGIN_VIEW DetailHeaderMenus duplicate parity for Clubdesk inventory.
+
+---
+
+## 2026-09-25 – Clubdesk price list: dual price (inventory + list override)
+
+**Typ:** Enhancement  
+**Scope:** Price-list items linked to inventory show **inventory price** (sale → recommended, live) and optional **list price** (`price_override`). Empty list price → effective/public price follows inventory. Migration **`173-clubdesk-price-list-price-override.sql`**. Free-text rows keep a single price field.  
+**Risk:** Low. Run `npm run migrate:clubdesk-price-list-price-override` (or `migrate:clubdesk`). Security Godkänt 2026-09-25 (residuals **INV2-S4–S5** Low/Info + INV2-S1–S3 — see ADR). Local-first.  
+**Sammanfattning:** ADR [`ai/adr/CLUBDESK_INVENTORY_EPIC2.md`](ai/adr/CLUBDESK_INVENTORY_EPIC2.md) updated (decision §3 dual price; Security residuals INV2-S1–S5).
+
+---
+
 ## 2026-09-25 – Clubdesk inventory ↔ price list (epic 2)
 
 **Typ:** Feature  
-**Scope:** Optional link from Clubdesk **price list** rows to **inventory** articles (optional variant). Migration **`172-clubdesk-price-list-inventory-link.sql`** (`inventory_item_id` / `inventory_variant_id`, ON DELETE SET NULL). Free-text rows unchanged. Admin: link/unlink in price-list editor (snapshot title/price). Public price-list detail: `inventorySlug` only when linked inventory is **published**; SSR “Visa produkt” → `/inventory/{slug}`.  
-**Risk:** Low–medium. Run `npm run migrate:clubdesk-price-list-inventory-link` (or `npm run migrate:clubdesk`) after Epic 1/`171`. Ownership checks on save. Security Godkänt 2026-09-25 (residuals INV2-S1–S3 Low/Info — see ADR).  
+**Scope:** Optional link from Clubdesk **price list** rows to **inventory** articles (optional variant). Migration **`172-clubdesk-price-list-inventory-link.sql`** (`inventory_item_id` / `inventory_variant_id`, ON DELETE SET NULL). Free-text rows unchanged. Admin: link/unlink in price-list editor. Public price-list detail: `inventorySlug` only when linked inventory is **published**; SSR “Visa produkt” → `/inventory/{slug}`. Dual price (override vs catalog) — see entry above / migration **173**.  
+**Risk:** Low–medium. Run `npm run migrate:clubdesk-price-list-inventory-link` (or `npm run migrate:clubdesk`) after Epic 1/`171`. Ownership checks on save. Security Godkänt 2026-09-25 (residuals **INV2-S1–S5** Low/Info — see ADR).  
 **Local-first.** Not deployed to production unless explicitly released.
 
-**Sammanfattning:** Prislistor kan blanda inventarielänkade rader och fri text. Pris/titel är snapshot vid länk — ingen live-sync. ADR: [`ai/adr/CLUBDESK_INVENTORY_EPIC2.md`](ai/adr/CLUBDESK_INVENTORY_EPIC2.md).
+**Sammanfattning:** Prislistor kan blanda inventarielänkade rader och fri text. ADR: [`ai/adr/CLUBDESK_INVENTORY_EPIC2.md`](ai/adr/CLUBDESK_INVENTORY_EPIC2.md).
 
 ---
 

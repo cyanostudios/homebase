@@ -309,6 +309,14 @@ function createClubdeskRoutes(
       .optional()
       .isFloat({ min: 0, max: 9999999999.99 })
       .withMessage('each item price must be a number between 0 and 9999999999.99'),
+    body('items.*.priceOverride')
+      .optional({ values: 'null' })
+      .custom((value) => {
+        if (value === null || value === undefined || value === '') return true;
+        const num = typeof value === 'number' ? value : Number(value);
+        return Number.isFinite(num) && num >= 0 && num <= 9999999999.99;
+      })
+      .withMessage('each item priceOverride must be a number between 0 and 9999999999.99'),
     body('items.*.sequenceOrder')
       .optional()
       .isInt()

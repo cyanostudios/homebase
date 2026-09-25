@@ -16,9 +16,9 @@ export const INVOICE_FORM_INPUT_CLASS = FORM_INPUT_CLASS;
 export const LINE_ITEM_LIST_ROW_CLASS =
   'flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border border-border/50 px-2 py-1';
 
-/** Compact line-item edit row shell (form). */
+/** Compact line-item edit row shell (form). Supports View Transition reorder. */
 export const LINE_ITEM_EDIT_ROW_CLASS =
-  'flex items-start gap-2 rounded-md border border-border/60 px-2.5 py-2';
+  'line-item-reorder-row flex items-start gap-2 rounded-md border border-border/60 px-2.5 py-2';
 
 export const LINE_ITEM_COMPACT_LABEL_CLASS =
   'block text-[10px] font-normal leading-none text-slate-400 dark:text-slate-500';

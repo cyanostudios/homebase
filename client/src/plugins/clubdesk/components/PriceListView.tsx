@@ -23,6 +23,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
+import { listReorderRowStyle } from '@/core/ui/listReorderTransition';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import {
@@ -48,6 +49,10 @@ import type {
 } from '../types/priceList';
 import { formatPriceListPrice } from '../utils/formatPriceListPrice';
 import { groupItemsByCategory } from '../utils/priceListItemOps';
+import {
+  resolveEffectivePriceListItemPrice,
+  syncPriceListItemsWithInventoryCatalog,
+} from '../utils/priceListInventoryLink';
 
 import { ClubdeskPublicationPropertiesFields } from './ClubdeskPublicationPropertiesFields';
 import { PriceListDetailHeaderMenus } from './PriceListDetailHeaderMenus';
@@ -187,9 +192,14 @@ export function PriceListView({
     return map;
   }, [sortedCatalog]);
 
+  const liveItems = useMemo(
+    () => syncPriceListItemsWithInventoryCatalog(viewItem?.items || [], inventoryItems),
+    [viewItem?.items, inventoryItems],
+  );
+
   const groups = useMemo(
-    () => groupItemsByCategory(viewItem?.items || [], catalogOrder),
-    [viewItem?.items, catalogOrder],
+    () => groupItemsByCategory(liveItems, catalogOrder),
+    [liveItems, catalogOrder],
   );
 
   const handleMoveCategory = useCallback(
@@ -479,7 +489,13 @@ export function PriceListView({
                   {group.items.map((item, index) => (
                     <li
                       key={item.id ?? `${group.category}-${index}`}
-                      className={cn(QUICK_CONTEXT_LINK_TILE_CLASS, 'flex items-start gap-3')}
+                      className={cn(
+                        QUICK_CONTEXT_LINK_TILE_CLASS,
+                        'line-item-reorder-row flex items-start gap-3',
+                      )}
+                      style={listReorderRowStyle(
+                        String(item.id ?? `${group.category}-${index}-${item.title}`),
+                      )}
                     >
                       <div className="min-w-0 flex-1">
                         <div className={DETAIL_LIST_ITEM_TITLE_CLASS}>{item.title}</div>
@@ -519,7 +535,11 @@ export function PriceListView({
                       </div>
                       <div className="flex-shrink-0 pt-0.5 font-mono text-sm font-semibold tabular-nums">
                         {formatPriceListPrice(
-                          item.price,
+                          resolveEffectivePriceListItemPrice({
+                            priceOverride: item.priceOverride,
+                            inventoryCatalogPrice: item.inventoryCatalogPrice,
+                            price: item.price,
+                          }),
                           viewItem.currency || 'SEK',
                           i18n.language,
                         )}

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { NativeSelect } from '@/components/ui/select';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { listReorderRowStyle } from '@/core/ui/listReorderTransition';
 import { cn } from '@/lib/utils';
 
 import type { InvoiceLineItem } from '../types/invoices';
@@ -188,6 +189,7 @@ export function InvoiceLineItemsEditor({
                         LINE_ITEM_EDIT_ROW_CLASS,
                         isDuplicated && 'bg-green-50 dark:bg-green-950/30',
                       )}
+                      style={listReorderRowStyle(String(item.id || `text-${index}`))}
                     >
                       <div className="flex min-w-0 flex-1 items-start gap-2.5">
                         <div className={cn(LINE_ITEM_FIELD_CLASS, 'flex-1')}>
@@ -223,6 +225,7 @@ export function InvoiceLineItemsEditor({
                       LINE_ITEM_EDIT_ROW_CLASS,
                       isDuplicated && 'bg-green-50 dark:bg-green-950/30',
                     )}
+                    style={listReorderRowStyle(String(item.id || `line-${index}`))}
                   >
                     <div className={LINE_ITEM_EDIT_GRID_CLASS}>
                       <div className={LINE_ITEM_FIELD_CLASS}>

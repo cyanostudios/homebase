@@ -507,3 +507,20 @@
 .timer-rail-ripple {
   animation: widget-rail-ripple 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
+
+/*
+ * Subtle list reorder for line-item / price-list rows.
+ * Pair with runListReorderTransition() + listReorderRowStyle(stableId).
+ */
+::view-transition-group(*) {
+  animation-duration: 220ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

@@ -9,6 +9,7 @@ import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
+import { runListReorderTransition } from '@/core/ui/listReorderTransition';
 import {
   CLUBDESK_SUBPAGE_SET,
   resolveClubdeskPanelClosePath,
@@ -43,6 +44,8 @@ import {
   reorderItems,
   renumberWithinCategories,
 } from '../utils/priceListItemOps';
+import { resolveEffectivePriceListItemPrice } from '../utils/priceListInventoryLink';
+import { buildDuplicatedItemVariantPayloads } from '../utils/inventoryValidation';
 
 import {
   ClubdeskContext,
@@ -829,7 +832,15 @@ export function ClubdeskProvider({
             return {
               title: item.title.trim(),
               description,
-              price: Number(item.price) || 0,
+              priceOverride:
+                item.priceOverride != null && Number.isFinite(Number(item.priceOverride))
+                  ? Number(item.priceOverride)
+                  : null,
+              price: resolveEffectivePriceListItemPrice({
+                priceOverride: item.priceOverride,
+                inventoryCatalogPrice: item.inventoryCatalogPrice,
+                price: Number(item.price) || 0,
+              }),
               category: item.category?.trim() ? item.category.trim() : null,
               sequenceOrder: item.sequenceOrder ?? index + 1,
               inventoryItemId: item.inventoryItemId ? String(item.inventoryItemId) : null,
@@ -1359,17 +1370,19 @@ export function ClubdeskProvider({
       try {
         setIsSaving(true);
         const saved = await clubdeskApi.reorderPriceListItems(priceList.id, category, orderedIds);
-        setPriceLists((prev) =>
-          prev.map((row) =>
-            String(row.id) === String(saved.id)
-              ? { ...row, ...saved, itemCount: saved.items?.length ?? saved.itemCount }
-              : row,
-          ),
-        );
-        if (currentPriceList && String(currentPriceList.id) === String(saved.id)) {
-          setCurrentPriceList(saved);
-        }
-        clearValidationErrors();
+        runListReorderTransition(() => {
+          setPriceLists((prev) =>
+            prev.map((row) =>
+              String(row.id) === String(saved.id)
+                ? { ...row, ...saved, itemCount: saved.items?.length ?? saved.itemCount }
+                : row,
+            ),
+          );
+          if (currentPriceList && String(currentPriceList.id) === String(saved.id)) {
+            setCurrentPriceList(saved);
+          }
+          clearValidationErrors();
+        });
       } catch (error: unknown) {
         const err = error as { message?: string; error?: string };
         setValidationErrors([
@@ -1492,6 +1505,10 @@ export function ClubdeskProvider({
           title: row.title,
           description: row.description ?? null,
           price: Number(row.price) || 0,
+          priceOverride:
+            row.priceOverride != null && Number.isFinite(Number(row.priceOverride))
+              ? Number(row.priceOverride)
+              : null,
           category: row.category ?? null,
           sequenceOrder: row.sequenceOrder ?? index + 1,
           inventoryItemId: row.inventoryItemId ?? null,
@@ -1515,6 +1532,47 @@ export function ClubdeskProvider({
         { ...saved, itemCount: saved.items?.length ?? saved.itemCount ?? 0 },
         ...prev,
       ]);
+      return saved;
+    },
+    closePanel: closeClubdeskPanel,
+  });
+
+  const createInventoryDuplicate = useCallback(
+    async (item: ClubdeskInventoryItem, newName: string): Promise<ClubdeskInventoryItem> => {
+      const full = await inventoryDomain.ensureFullInventoryItem(item);
+      const nextName = (newName ?? '').trim() || full.articleName?.trim() || 'Untitled';
+      return clubdeskApi.createInventoryItem({
+        articleName: nextName,
+        slug: slugify(nextName) || undefined,
+        brand: full.brand ?? '',
+        description: full.description,
+        material: full.material ?? '',
+        purchasePrice: full.purchasePrice,
+        recommendedPrice: full.recommendedPrice,
+        salePrice: full.salePrice,
+        currency: full.currency || 'SEK',
+        comment: full.comment,
+        tags: [...(full.tags || [])],
+        featuredImageUrl: full.featuredImageUrl,
+        publicationStatus: 'draft',
+        featured: full.featured === true,
+        variants: buildDuplicatedItemVariantPayloads(full.variants || []),
+      });
+    },
+    [inventoryDomain.ensureFullInventoryItem],
+  );
+
+  const {
+    getDuplicateConfig: getInventoryDuplicateConfig,
+    executeDuplicate: executeInventoryDuplicate,
+  } = usePluginDuplicate({
+    getDefaultName: (item: ClubdeskInventoryItem) =>
+      `${t('common.copyOf')} ${item.articleName?.trim() || 'Item'}`,
+    nameLabel: t('clubdesk.inventory.articleName'),
+    confirmOnly: false,
+    createDuplicate: async (item, newName) => {
+      const saved = await createInventoryDuplicate(item, newName);
+      inventoryDomain.setInventoryItems((prev) => [saved, ...prev]);
       return saved;
     },
     closePanel: closeClubdeskPanel,
@@ -1649,17 +1707,19 @@ export function ClubdeskProvider({
       reorderPriceListCategories,
       deletePriceListCategory: deletePriceListCategoryFn,
       getDuplicateConfig: isInventoryUi
-        ? () => null as ReturnType<typeof getDuplicateConfig>
+        ? (getInventoryDuplicateConfig as unknown as typeof getDuplicateConfig)
         : isPriceListUi
           ? (getPriceListDuplicateConfig as unknown as typeof getDuplicateConfig)
           : getDuplicateConfig,
       executeDuplicate: isInventoryUi
-        ? async () => ({ closePanel: () => {} }) as Awaited<ReturnType<typeof executeDuplicate>>
+        ? (executeInventoryDuplicate as unknown as typeof executeDuplicate)
         : isPriceListUi
           ? (executePriceListDuplicate as unknown as typeof executeDuplicate)
           : executeDuplicate,
       getPriceListDuplicateConfig,
       executePriceListDuplicate,
+      getInventoryDuplicateConfig,
+      executeInventoryDuplicate,
       clearValidationErrors,
       selectedClubdeskIds,
       toggleClubdeskSelected: toggleClubdeskSelectedCore,
@@ -1758,6 +1818,8 @@ export function ClubdeskProvider({
       executeDuplicate,
       getPriceListDuplicateConfig,
       executePriceListDuplicate,
+      getInventoryDuplicateConfig,
+      executeInventoryDuplicate,
       clearValidationErrors,
       selectedClubdeskIds,
       toggleClubdeskSelectedCore,

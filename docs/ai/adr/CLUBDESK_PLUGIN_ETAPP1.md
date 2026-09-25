@@ -28,16 +28,16 @@
 
 **Inventory (Epic 1, 2026-09-25):** Third admin domain + public published catalog — full decision in [`CLUBDESK_INVENTORY_EPIC1.md`](CLUBDESK_INVENTORY_EPIC1.md). Same plugin gate; no new grant. Distinct from Garments inventory tables.
 
-**Price list ↔ inventory (Epic 2, 2026-09-25):** Optional FKs on price-list items + snapshot pricing; public `inventorySlug` when inventory published — [`CLUBDESK_INVENTORY_EPIC2.md`](CLUBDESK_INVENTORY_EPIC2.md).
+**Price list ↔ inventory (Epic 2, 2026-09-25):** Optional FKs on price-list items + dual price (`price_override` / live catalog, migration **173**); public `inventorySlug` when inventory published — [`CLUBDESK_INVENTORY_EPIC2.md`](CLUBDESK_INVENTORY_EPIC2.md).
 
 **Note:** Instructions category UX was later aligned with this form-owned pattern (separate plugin; documented in Instructions ADR). Tables remain separate.
 
 ## Configuration
 
-| Item    | Value                                                                                                                                                                                                                                                 |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Migrate | `npm run migrate:clubdesk` (tenant: 119, 120, **122**, **123**, **171** inventory, **172** price-list↔inventory; main grant: 121) or `npm run migrate:clubdesk-inventory` (**171**) / `npm run migrate:clubdesk-price-list-inventory-link` (**172**) |
-| Enable  | `npm run set:tenant-plugins -- --enable=clubdesk` (add `--both` on release / parity)                                                                                                                                                                  |
+| Item    | Value                                                                                                                                                                                                                                                                                                                                          |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migrate | `npm run migrate:clubdesk` (tenant: 119, 120, **122**, **123**, **171** inventory, **172** price-list↔inventory, **173** price_override; main grant: 121) or `npm run migrate:clubdesk-inventory` (**171**) / `npm run migrate:clubdesk-price-list-inventory-link` (**172**) / `npm run migrate:clubdesk-price-list-price-override` (**173**) |
+| Enable  | `npm run set:tenant-plugins -- --enable=clubdesk` (add `--both` on release / parity)                                                                                                                                                                                                                                                           |
 
 ## Security (residuals)
 

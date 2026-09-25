@@ -1,8 +1,12 @@
 import {
   buildInventoryLinkPatch,
+  catalogPriceFromInventoryFields,
   clearInventoryLinkPatch,
   formatInventoryVariantLabel,
+  resolveEffectivePriceListItemPrice,
   snapshotPriceFromInventory,
+  syncPriceListItemsWithInventoryCatalog,
+  withLiveInventoryCatalogPrice,
 } from '../priceListInventoryLink';
 
 describe('priceListInventoryLink', () => {
@@ -41,6 +45,91 @@ describe('priceListInventoryLink', () => {
     ).toBe(0);
   });
 
+  test('catalogPriceFromInventoryFields mirrors snapshot without zero fallback', () => {
+    expect(catalogPriceFromInventoryFields(15, 12)).toBe(15);
+    expect(catalogPriceFromInventoryFields(null, 12)).toBe(12);
+    expect(catalogPriceFromInventoryFields(null, null)).toBeNull();
+  });
+
+  test('resolveEffectivePriceListItemPrice prefers override then catalog then price', () => {
+    expect(
+      resolveEffectivePriceListItemPrice({
+        priceOverride: 99,
+        inventoryCatalogPrice: 15,
+        price: 10,
+      }),
+    ).toBe(99);
+    expect(
+      resolveEffectivePriceListItemPrice({
+        priceOverride: null,
+        inventoryCatalogPrice: 15,
+        price: 10,
+      }),
+    ).toBe(15);
+    expect(
+      resolveEffectivePriceListItemPrice({
+        priceOverride: null,
+        inventoryCatalogPrice: null,
+        price: 10,
+      }),
+    ).toBe(10);
+  });
+
+  test('withLiveInventoryCatalogPrice refreshes catalog and price when following', () => {
+    const inventoryById = new Map([['9', { ...baseItem, salePrice: 42 }]]);
+    const row = {
+      title: 'Milk',
+      description: null as string | null,
+      price: 15,
+      priceOverride: null as number | null,
+      inventoryCatalogPrice: 15 as number | null,
+      category: null as string | null,
+      sequenceOrder: 1,
+      inventoryItemId: '9',
+    };
+    expect(withLiveInventoryCatalogPrice(row, inventoryById)).toEqual({
+      ...row,
+      inventoryCatalogPrice: 42,
+      price: 42,
+    });
+  });
+
+  test('withLiveInventoryCatalogPrice keeps list override but updates catalog field', () => {
+    const inventoryById = new Map([['9', { ...baseItem, salePrice: 42 }]]);
+    const row = {
+      title: 'Milk',
+      description: null as string | null,
+      price: 99,
+      priceOverride: 99 as number | null,
+      inventoryCatalogPrice: 15 as number | null,
+      category: null as string | null,
+      sequenceOrder: 1,
+      inventoryItemId: '9',
+    };
+    expect(withLiveInventoryCatalogPrice(row, inventoryById)).toEqual({
+      ...row,
+      inventoryCatalogPrice: 42,
+      price: 99,
+      priceOverride: 99,
+    });
+  });
+
+  test('syncPriceListItemsWithInventoryCatalog returns same array when unchanged', () => {
+    const items = [
+      {
+        title: 'Milk',
+        description: null as string | null,
+        price: 15,
+        priceOverride: null as number | null,
+        inventoryCatalogPrice: 15 as number | null,
+        category: null as string | null,
+        sequenceOrder: 1,
+        inventoryItemId: '9',
+      },
+    ];
+    expect(syncPriceListItemsWithInventoryCatalog(items, [baseItem])).toBe(items);
+  });
+
   test('buildInventoryLinkPatch fills title/price and optional description', () => {
     const patch = buildInventoryLinkPatch(baseItem, null, { description: null });
     expect(patch).toMatchObject({
@@ -48,6 +137,8 @@ describe('priceListInventoryLink', () => {
       inventoryVariantId: null,
       title: 'Milk',
       price: 15,
+      priceOverride: null,
+      inventoryCatalogPrice: 15,
       description: 'Fresh milk',
     });
 
@@ -83,6 +174,7 @@ describe('priceListInventoryLink', () => {
       inventoryArticleName: null,
       inventorySlug: null,
       inventoryVariantLabel: null,
+      inventoryCatalogPrice: null,
     });
   });
 });

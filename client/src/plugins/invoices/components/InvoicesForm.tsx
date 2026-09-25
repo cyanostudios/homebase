@@ -29,6 +29,7 @@ import { useApp } from '@/core/api/AppContext';
 import { EMPTY_ORGANIZATION, organizationApi } from '@/core/api/organizationApi';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { runListReorderTransition } from '@/core/ui/listReorderTransition';
 import { DatePicker } from '@/core/ui/DatePicker';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
@@ -643,16 +644,18 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     };
 
     const moveLineItem = (index: number, direction: 'up' | 'down') => {
-      const items = [...formData.lineItems];
       const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= items.length) {
+      if (targetIndex < 0 || targetIndex >= formData.lineItems.length) {
         return;
       }
-      [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
-      items.forEach((item, i) => {
-        item.sortOrder = i;
+      runListReorderTransition(() => {
+        const items = [...formData.lineItems];
+        [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
+        items.forEach((item, i) => {
+          item.sortOrder = i;
+        });
+        updateField('lineItems', items);
       });
-      updateField('lineItems', items);
     };
 
     const getFieldError = (field: string) => validationErrors.find((e) => e.field === field);

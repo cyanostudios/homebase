@@ -222,7 +222,12 @@ SELECT
         json_build_object(
           'title', i.title,
           'description', COALESCE(i.description, ''),
-          'price', i.price,
+          'price', COALESCE(
+            i.price_override,
+            inv.sale_price,
+            inv.recommended_price,
+            i.price
+          ),
           'category', COALESCE(i.category, ''),
           'sequenceOrder', i.sequence_order,
           'inventorySlug', CASE
@@ -271,7 +276,12 @@ SELECT
         json_build_object(
           'title', i.title,
           'description', COALESCE(i.description, ''),
-          'price', i.price,
+          'price', COALESCE(
+            i.price_override,
+            inv.sale_price,
+            inv.recommended_price,
+            i.price
+          ),
           'category', COALESCE(i.category, ''),
           'sequenceOrder', i.sequence_order,
           'inventorySlug', CASE

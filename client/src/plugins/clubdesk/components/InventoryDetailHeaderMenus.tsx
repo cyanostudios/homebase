@@ -1,9 +1,10 @@
-import { Edit, Trash2 } from 'lucide-react';
+import { Copy, Edit, Trash2 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailHeaderMenus, type DetailHeaderMenuAction } from '@/core/ui/DetailHeaderMenus';
+import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 
 import { useClubdesk } from '../hooks/useClubdesk';
 import type { ClubdeskInventoryItem } from '../types/inventory';
@@ -20,12 +21,19 @@ export function InventoryDetailHeaderMenus({
     openInventoryForEdit,
     deleteInventoryItem,
     closeClubdeskPanel,
+    getInventoryDuplicateConfig,
+    executeInventoryDuplicate,
+    setRecentlyDuplicatedInventoryId,
     getInventoryDeleteMessage,
   } = useClubdesk();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+
+  const duplicateConfig = getInventoryDuplicateConfig(item);
+  const canDuplicate = Boolean(duplicateConfig);
 
   const actions = useMemo((): DetailHeaderMenuAction[] => {
-    return [
+    const buttons: DetailHeaderMenuAction[] = [
       {
         id: 'edit',
         icon: Edit,
@@ -42,7 +50,20 @@ export function InventoryDetailHeaderMenus({
         onClick: () => setShowDeleteConfirm(true),
       },
     ];
-  }, [item, openInventoryForEdit, t]);
+
+    if (canDuplicate) {
+      buttons.push({
+        id: 'duplicate',
+        icon: Copy,
+        label: t('common.duplicate'),
+        variant: 'secondary',
+        contentClassName: 'text-green-600 dark:text-green-400',
+        onClick: () => setShowDuplicateDialog(true),
+      });
+    }
+
+    return buttons;
+  }, [canDuplicate, item, openInventoryForEdit, t]);
 
   return (
     <DetailHeaderMenus actions={actions} actionsLabel={t('common.headerActions')} leading={leading}>
@@ -59,6 +80,27 @@ export function InventoryDetailHeaderMenus({
         }}
         onCancel={() => setShowDeleteConfirm(false)}
         variant="danger"
+      />
+
+      <DuplicateDialog
+        isOpen={showDuplicateDialog}
+        onConfirm={(newName) => {
+          executeInventoryDuplicate(item, newName)
+            .then(({ closePanel, highlightId }) => {
+              closePanel();
+              if (highlightId) {
+                setRecentlyDuplicatedInventoryId(highlightId);
+              }
+              setShowDuplicateDialog(false);
+            })
+            .catch(() => {
+              setShowDuplicateDialog(false);
+            });
+        }}
+        onCancel={() => setShowDuplicateDialog(false)}
+        defaultName={duplicateConfig?.defaultName ?? ''}
+        nameLabel={duplicateConfig?.nameLabel ?? t('clubdesk.inventory.articleName')}
+        confirmOnly={Boolean(duplicateConfig?.confirmOnly)}
       />
     </DetailHeaderMenus>
   );

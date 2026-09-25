@@ -91,7 +91,7 @@ Separate Railway service (not Homebase Node). Pattern: [`docs/PUBLIC_APP_TEMPLAT
 
 ## Notes
 
-- Only `publication_status = 'published'` rows are exposed for guides, price lists, and inventory. `featured` controls Hem square cards only (not publication). Public inventory omits internal fields (`purchase_price`, `comment`). Price-list line `inventorySlug` is set only when the linked inventory article is published.
+- Only `publication_status = 'published'` rows are exposed for guides, price lists, and inventory. `featured` controls Hem square cards only (not publication). Public inventory omits internal fields (`purchase_price`, `comment`). Price-list line `inventorySlug` is set only when the linked inventory article is published. Public line **price** is `COALESCE(price_override, inventory.sale_price, inventory.recommended_price, stored price)` (Node + PHP); sale/recommended may apply even if the linked inventory article is still draft (slug remains gated).
 - Info contacts: presence = published (no flag); empty list → no Hem row / empty `/kontakt/` state. `meta.visible=false` on contacts also forces API `items: []` and empty SSR.
 - Site-content HTML is allowlist-sanitized on read; empty cards keep hub tiles / Info fallback copy.
 - Visual design: request-form-inspired listing shell (Poppins, violet); see [`docs/PUBLIC_APP_DESIGN.md`](../docs/PUBLIC_APP_DESIGN.md) + ADR [`CLUBDESK_PUBLIC_COMPANION.md`](../docs/ai/adr/CLUBDESK_PUBLIC_COMPANION.md).
