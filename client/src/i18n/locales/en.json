@@ -3300,7 +3300,7 @@
     },
     "statistics": {
       "title": "Teams statistics",
-      "embeddedDescription": "Overview of team status and roster size.",
+      "description": "Overview of team status, players, series, and responsibles.",
       "overview": "Team overview",
       "totalTeams": "Total teams",
       "active": "Active",

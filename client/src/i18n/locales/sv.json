@@ -3294,7 +3294,7 @@
     },
     "statistics": {
       "title": "Lagstatistik",
-      "embeddedDescription": "Översikt av lagstatus och truppstorlek.",
+      "description": "Översikt av lagstatus, spelare, serie och ansvariga.",
       "overview": "Lagöversikt",
       "totalTeams": "Totalt antal lag",
       "active": "Aktiva",
