@@ -53,12 +53,17 @@ class PublicClubdeskModel {
   }
 
   transformPriceListItem(row) {
+    const slug =
+      row.inventory_publication_status === 'published' && row.inventory_slug
+        ? String(row.inventory_slug)
+        : null;
     return {
       title: row.title ?? '',
       description: row.description ?? null,
       price: Number(row.price),
       category: row.category ?? null,
       sequenceOrder: Number(row.sequence_order),
+      inventorySlug: slug,
     };
   }
 
@@ -278,11 +283,20 @@ class PublicClubdeskModel {
     const parent = parentResult.rows[0];
     const itemsResult = await pool.query(
       `
-        SELECT i.title, i.description, i.price, i.category, i.sequence_order
+        SELECT
+          i.title,
+          i.description,
+          i.price,
+          i.category,
+          i.sequence_order,
+          inv.slug AS inventory_slug,
+          inv.publication_status AS inventory_publication_status
         FROM clubdesk_price_list_items i
         LEFT JOIN clubdesk_price_list_item_categories c
           ON c.price_list_id = i.price_list_id
           AND lower(btrim(c.name)) = lower(btrim(COALESCE(i.category, '')))
+        LEFT JOIN clubdesk_inventory_items inv
+          ON inv.id = i.inventory_item_id
         WHERE i.price_list_id = $1
         ORDER BY
           CASE WHEN i.category IS NULL OR btrim(i.category) = '' THEN 1 ELSE 0 END ASC,
@@ -295,6 +309,165 @@ class PublicClubdeskModel {
     );
 
     return this.transformPriceListDetail(parent, itemsResult.rows);
+  }
+
+  transformInventoryListRow(row) {
+    const parseMoney = (raw) => {
+      if (raw === undefined || raw === null || raw === '') return null;
+      const num = typeof raw === 'number' ? raw : parseFloat(String(raw));
+      return Number.isNaN(num) ? null : num;
+    };
+    return {
+      id: String(row.id),
+      articleName: row.article_name ?? '',
+      brand: row.brand ?? '',
+      slug: row.slug ?? '',
+      description: row.description ?? null,
+      material: row.material ?? '',
+      recommendedPrice: parseMoney(row.recommended_price),
+      salePrice: parseMoney(row.sale_price),
+      currency: row.currency ?? 'SEK',
+      tags: Array.isArray(row.tags)
+        ? row.tags
+        : typeof row.tags === 'string'
+          ? (() => {
+              try {
+                const parsed = JSON.parse(row.tags);
+                return Array.isArray(parsed) ? parsed : [];
+              } catch {
+                return [];
+              }
+            })()
+          : [],
+      featuredImageUrl: row.featured_image_url ?? null,
+      featured: row.featured === true || row.featured === 't' || row.featured === 'true',
+      variantCount:
+        row.variant_count !== null && row.variant_count !== undefined
+          ? Number(row.variant_count)
+          : 0,
+      updatedAt: row.updated_at ?? null,
+    };
+  }
+
+  transformPublicInventoryVariant(row) {
+    return {
+      sku: row.sku ?? '',
+      audience: row.audience ?? '',
+      color: row.color ?? '',
+      size: row.size ?? '',
+      quantity: row.quantity != null ? Number(row.quantity) : 0,
+      sortOrder: row.sort_order != null ? Number(row.sort_order) : 0,
+    };
+  }
+
+  transformInventoryDetail(row, variants = []) {
+    return {
+      ...this.transformInventoryListRow({
+        ...row,
+        variant_count: variants.length,
+      }),
+      variants: variants.map((v) => this.transformPublicInventoryVariant(v)),
+    };
+  }
+
+  /**
+   * @param {import('pg').Pool} pool
+   * @param {number} ownerUserId
+   */
+  async listPublishedInventory(pool, ownerUserId) {
+    const result = await pool.query(
+      `
+        SELECT
+          i.id,
+          i.article_name,
+          i.brand,
+          i.slug,
+          i.description,
+          i.material,
+          i.recommended_price,
+          i.sale_price,
+          i.currency,
+          i.tags,
+          i.featured_image_url,
+          i.featured,
+          i.sort_order,
+          i.updated_at,
+          COALESCE(v.cnt, 0)::int AS variant_count
+        FROM clubdesk_inventory_items i
+        LEFT JOIN (
+          SELECT item_id, COUNT(*)::int AS cnt
+          FROM clubdesk_inventory_variants
+          GROUP BY item_id
+        ) v ON v.item_id = i.id
+        WHERE i.user_id = $1
+          AND i.publication_status = 'published'
+        ORDER BY
+          i.sort_order ASC NULLS LAST,
+          lower(i.article_name) ASC,
+          i.id ASC
+      `,
+      [ownerUserId],
+    );
+    return result.rows.map((row) => this.transformInventoryListRow(row));
+  }
+
+  /**
+   * @param {import('pg').Pool} pool
+   * @param {number} ownerUserId
+   * @param {string} slugOrId
+   */
+  async getPublishedInventoryBySlugOrId(pool, ownerUserId, slugOrId) {
+    const raw = String(slugOrId ?? '').trim();
+    if (!raw) {
+      throw new AppError('Invalid slug or id', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+
+    const asId = parseInt(raw, 10);
+    const isNumericId = String(asId) === raw && asId > 0;
+
+    let parentResult;
+    if (isNumericId) {
+      parentResult = await pool.query(
+        `
+          SELECT *
+          FROM clubdesk_inventory_items
+          WHERE id = $2
+            AND user_id = $1
+            AND publication_status = 'published'
+          LIMIT 1
+        `,
+        [ownerUserId, asId],
+      );
+    } else {
+      parentResult = await pool.query(
+        `
+          SELECT *
+          FROM clubdesk_inventory_items
+          WHERE lower(slug) = lower($2)
+            AND user_id = $1
+            AND publication_status = 'published'
+          LIMIT 1
+        `,
+        [ownerUserId, raw],
+      );
+    }
+
+    if (!parentResult.rows.length) {
+      return null;
+    }
+
+    const parent = parentResult.rows[0];
+    const variantsResult = await pool.query(
+      `
+        SELECT sku, audience, color, size, quantity, sort_order
+        FROM clubdesk_inventory_variants
+        WHERE item_id = $1
+        ORDER BY sort_order ASC, id ASC
+      `,
+      [parent.id],
+    );
+
+    return this.transformInventoryDetail(parent, variantsResult.rows);
   }
 
   /**

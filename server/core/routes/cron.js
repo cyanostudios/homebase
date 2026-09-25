@@ -60,4 +60,35 @@ router.post('/cups/refresh', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/cron/sportadmin/sync
+ *
+ * Syncs SportAdmin connectors for tenants with plugin access and a due refresh.
+ * Required header: x-cron-secret: <CRON_SECRET env var>
+ */
+router.post('/sportadmin/sync', async (req, res) => {
+  const provided = req.get('x-cron-secret') || '';
+  const expected = process.env.CRON_SECRET || '';
+
+  if (!expected) {
+    return res.status(503).json({ error: 'CRON_SECRET is not configured on this server' });
+  }
+
+  if (!timingSafeEqual(provided, expected)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  try {
+    const { runSportadminCronSync } = require('../../../plugins/sportadmin/services/cronSync');
+    const { userId } = req.body || {};
+    const summary = await runSportadminCronSync({ userId: userId ?? undefined });
+    return res.json(summary);
+  } catch (err) {
+    const ServiceManager = require('../ServiceManager');
+    const logger = ServiceManager.get('logger');
+    logger.error('sportadmin cron endpoint failed', err);
+    return res.status(500).json({ error: 'Cron job failed', message: err?.message });
+  }
+});
+
 module.exports = router;

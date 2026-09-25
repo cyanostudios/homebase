@@ -68,6 +68,11 @@ function emptyItem(order: number): ClubdeskPriceListItemPayload {
     price: 0,
     category: null,
     sequenceOrder: order,
+    inventoryItemId: null,
+    inventoryVariantId: null,
+    inventoryArticleName: null,
+    inventorySlug: null,
+    inventoryVariantLabel: null,
     clientKey: newClientKey('new'),
   };
 }
@@ -103,6 +108,11 @@ function formDataFromPriceList(priceList: ClubdeskPriceList | null): ClubdeskPri
       price: Number(item.price) || 0,
       category: item.category ?? null,
       sequenceOrder: item.sequenceOrder ?? index + 1,
+      inventoryItemId: item.inventoryItemId ?? null,
+      inventoryVariantId: item.inventoryVariantId ?? null,
+      inventoryArticleName: item.inventoryArticleName ?? null,
+      inventorySlug: item.inventorySlug ?? null,
+      inventoryVariantLabel: item.inventoryVariantLabel ?? null,
       clientKey: item.id || newClientKey(`loaded-${index}`),
     })),
   };

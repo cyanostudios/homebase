@@ -15,12 +15,15 @@ import {
   shouldKeepPendingGuideItemPath,
   shouldKeepPendingPriceListItemPath,
 } from '@/core/routing/clubdeskRoutes';
+import { useClubdeskInventoryDomain } from './clubdeskInventoryHooks';
+import type { ClubdeskInventoryItem } from '../types/inventory';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { buildSlug, resolveSlug, slugify } from '@/core/utils/slugUtils';
 
 import { clubdeskApi } from '../api/clubdeskApi';
 import { ClubdeskDetailHeaderMenus } from '../components/ClubdeskDetailHeaderMenus';
 import { PriceListDetailHeaderMenus } from '../components/PriceListDetailHeaderMenus';
+import { InventoryDetailHeaderMenus } from '../components/InventoryDetailHeaderMenus';
 import type {
   Clubdesk,
   ClubdeskCategory,
@@ -90,6 +93,8 @@ function toPriceListPayload(
       price: Number(item.price) || 0,
       category: item.category ?? null,
       sequenceOrder: item.sequenceOrder ?? index + 1,
+      inventoryItemId: item.inventoryItemId ?? null,
+      inventoryVariantId: item.inventoryVariantId ?? null,
     })),
     ...overrides,
   };
@@ -166,6 +171,23 @@ export function ClubdeskProvider({
     selectedCount: priceListSelectedCount,
   } = useBulkSelection();
 
+  const inventoryDomain = useClubdeskInventoryDomain({
+    isAuthenticated,
+    navigate,
+    pathname: location.pathname,
+    onCloseOtherPanels,
+    setIsClubdeskPanelOpen,
+    setPanelMode,
+    setActiveDomain,
+    clearGuideSelection: clearClubdeskSelectionCore,
+    clearPriceListSelection: clearPriceListSelectionCore,
+    setCurrentClubdesk: () => setCurrentClubdesk(null),
+    setCurrentPriceList: () => setCurrentPriceList(null),
+    setPriceListCategories: () => setPriceListCategories([]),
+    deepLinkPathSyncedRef,
+    t,
+  });
+
   const closeClubdeskPanel = useCallback(() => {
     // Prefer window.location: handlePageChange navigates first, then closes
     // panels in the same tick — React's location is still the item URL.
@@ -173,9 +195,11 @@ export function ClubdeskProvider({
     setIsClubdeskPanelOpen(false);
     setCurrentClubdesk(null);
     setCurrentPriceList(null);
+    inventoryDomain.setCurrentInventoryItem(null);
     setPriceListCategories([]);
     setPanelMode('create');
     setValidationErrors([]);
+    inventoryDomain.clearInventoryValidationErrors();
     const target = resolveClubdeskPanelClosePath(pathname);
     if (target) {
       navigate(target);
@@ -624,8 +648,12 @@ export function ClubdeskProvider({
   const guideNav = usePluginNavigation(clubdesk, currentClubdesk, openClubdeskForView);
   const priceListNav = usePluginNavigation(priceLists, currentPriceList, openPriceListForView);
 
-  const nav =
-    activeDomain === 'priceLists' || location.pathname.startsWith('/clubdesk/price-list')
+  const isInventoryUi =
+    activeDomain === 'inventory' || location.pathname.startsWith('/clubdesk/inventory');
+
+  const nav = isInventoryUi
+    ? inventoryDomain.inventoryNav
+    : activeDomain === 'priceLists' || location.pathname.startsWith('/clubdesk/price-list')
       ? priceListNav
       : guideNav;
 
@@ -804,6 +832,8 @@ export function ClubdeskProvider({
               price: Number(item.price) || 0,
               category: item.category?.trim() ? item.category.trim() : null,
               sequenceOrder: item.sequenceOrder ?? index + 1,
+              inventoryItemId: item.inventoryItemId ? String(item.inventoryItemId) : null,
+              inventoryVariantId: item.inventoryVariantId ? String(item.inventoryVariantId) : null,
             };
           }),
         ),
@@ -1464,6 +1494,8 @@ export function ClubdeskProvider({
           price: Number(row.price) || 0,
           category: row.category ?? null,
           sequenceOrder: row.sequenceOrder ?? index + 1,
+          inventoryItemId: row.inventoryItemId ?? null,
+          inventoryVariantId: row.inventoryVariantId ?? null,
         })),
       });
     },
@@ -1491,11 +1523,30 @@ export function ClubdeskProvider({
   const isPriceListUi =
     activeDomain === 'priceLists' || location.pathname.startsWith('/clubdesk/price-list');
 
+  function inventoryAsClubdeskProxy(item: ClubdeskInventoryItem | null): Clubdesk | null {
+    if (!item) {
+      return null;
+    }
+    return {
+      id: item.id,
+      title: item.articleName,
+      slug: item.slug,
+      description: item.description,
+      featuredImageUrl: item.featuredImageUrl,
+      category: null,
+      publicationStatus: item.publicationStatus,
+      featured: item.featured,
+      steps: [],
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
+  }
+
   // Core chrome may call getDeleteMessage(currentClubdesk); on price-list tab that alias is a price list.
   const getDeleteMessage = (item: Clubdesk | null) =>
     buildDeleteMessage(
       t,
-      isPriceListUi ? 'clubdesk.priceList' : 'clubdesk',
+      isInventoryUi ? 'clubdesk.inventory' : isPriceListUi ? 'clubdesk.priceList' : 'clubdesk',
       item?.title || undefined,
     );
 
@@ -1507,6 +1558,14 @@ export function ClubdeskProvider({
       if (mode !== 'view') {
         return null;
       }
+      if (isInventoryUi) {
+        return inventoryDomain.currentInventoryItem ? (
+          <InventoryDetailHeaderMenus
+            key={inventoryDomain.currentInventoryItem.id}
+            item={inventoryDomain.currentInventoryItem}
+          />
+        ) : null;
+      }
       if (isPriceListUi) {
         return currentPriceList ? (
           <PriceListDetailHeaderMenus key={currentPriceList.id} priceList={currentPriceList} />
@@ -1516,14 +1575,24 @@ export function ClubdeskProvider({
         <ClubdeskDetailHeaderMenus key={currentClubdesk.id} clubdesk={currentClubdesk} />
       ) : null;
     },
-    [currentClubdesk, currentPriceList, isPriceListUi],
+    [
+      currentClubdesk,
+      currentPriceList,
+      inventoryDomain.currentInventoryItem,
+      isInventoryUi,
+      isPriceListUi,
+    ],
   );
 
   const value = useMemo<ClubdeskContextType>(
     () => ({
       isClubdeskPanelOpen,
       // Core panel chrome reads `currentClubdesk` + `openClubdeskFor*`. Alias price-list APIs on that tab.
-      currentClubdesk: (isPriceListUi ? currentPriceList : currentClubdesk) as Clubdesk | null,
+      currentClubdesk: (isInventoryUi
+        ? inventoryAsClubdeskProxy(inventoryDomain.currentInventoryItem)
+        : isPriceListUi
+          ? currentPriceList
+          : currentClubdesk) as Clubdesk | null,
       panelMode,
       activeDomain,
       validationErrors,
@@ -1538,19 +1607,27 @@ export function ClubdeskProvider({
       priceListCategories,
       refreshPriceListCategories,
       isSaving,
-      openClubdeskPanel: isPriceListUi
-        ? (openPriceListPanel as unknown as typeof openClubdeskPanel)
-        : openClubdeskPanel,
-      openClubdeskForEdit: isPriceListUi
-        ? (openPriceListForEdit as unknown as typeof openClubdeskForEdit)
-        : openClubdeskForEdit,
-      openClubdeskForView: isPriceListUi
-        ? (openPriceListForView as unknown as typeof openClubdeskForView)
-        : openClubdeskForView,
+      openClubdeskPanel: isInventoryUi
+        ? (inventoryDomain.openInventoryPanel as unknown as typeof openClubdeskPanel)
+        : isPriceListUi
+          ? (openPriceListPanel as unknown as typeof openClubdeskPanel)
+          : openClubdeskPanel,
+      openClubdeskForEdit: isInventoryUi
+        ? (inventoryDomain.openInventoryForEdit as unknown as typeof openClubdeskForEdit)
+        : isPriceListUi
+          ? (openPriceListForEdit as unknown as typeof openClubdeskForEdit)
+          : openClubdeskForEdit,
+      openClubdeskForView: isInventoryUi
+        ? (inventoryDomain.openInventoryForView as unknown as typeof openClubdeskForView)
+        : isPriceListUi
+          ? (openPriceListForView as unknown as typeof openClubdeskForView)
+          : openClubdeskForView,
       closeClubdeskPanel,
-      saveClubdesk: isPriceListUi
-        ? (savePriceList as unknown as typeof saveClubdesk)
-        : saveClubdesk,
+      saveClubdesk: isInventoryUi
+        ? (inventoryDomain.saveInventoryItem as unknown as typeof saveClubdesk)
+        : isPriceListUi
+          ? (savePriceList as unknown as typeof saveClubdesk)
+          : saveClubdesk,
       deleteClubdesk,
       deleteClubdesks,
       updateClubdeskPublicationStatus,
@@ -1571,12 +1648,16 @@ export function ClubdeskProvider({
       createPriceListCategory,
       reorderPriceListCategories,
       deletePriceListCategory: deletePriceListCategoryFn,
-      getDuplicateConfig: isPriceListUi
-        ? (getPriceListDuplicateConfig as unknown as typeof getDuplicateConfig)
-        : getDuplicateConfig,
-      executeDuplicate: isPriceListUi
-        ? (executePriceListDuplicate as unknown as typeof executeDuplicate)
-        : executeDuplicate,
+      getDuplicateConfig: isInventoryUi
+        ? () => null as ReturnType<typeof getDuplicateConfig>
+        : isPriceListUi
+          ? (getPriceListDuplicateConfig as unknown as typeof getDuplicateConfig)
+          : getDuplicateConfig,
+      executeDuplicate: isInventoryUi
+        ? async () => ({ closePanel: () => {} }) as Awaited<ReturnType<typeof executeDuplicate>>
+        : isPriceListUi
+          ? (executePriceListDuplicate as unknown as typeof executeDuplicate)
+          : executeDuplicate,
       getPriceListDuplicateConfig,
       executePriceListDuplicate,
       clearValidationErrors,
@@ -1606,11 +1687,33 @@ export function ClubdeskProvider({
       hasNextItem: nav.hasNextItem,
       currentItemIndex: nav.currentItemIndex,
       totalItems: nav.totalItems,
+      inventoryItems: inventoryDomain.inventoryItems,
+      currentInventoryItem: inventoryDomain.currentInventoryItem,
+      openInventoryPanel: inventoryDomain.openInventoryPanel,
+      openInventoryForEdit: inventoryDomain.openInventoryForEdit,
+      openInventoryForView: inventoryDomain.openInventoryForView,
+      saveInventoryItem: inventoryDomain.saveInventoryItem,
+      deleteInventoryItem: inventoryDomain.deleteInventoryItem,
+      deleteInventoryItems: inventoryDomain.deleteInventoryItems,
+      updateInventoryVariantQuantity: inventoryDomain.updateInventoryVariantQuantity,
+      importInventoryItems: inventoryDomain.importInventoryItems,
+      selectedInventoryIds: inventoryDomain.inventoryBulk.selectedIds,
+      toggleInventorySelected: inventoryDomain.inventoryBulk.toggleSelection,
+      selectAllInventory: inventoryDomain.inventoryBulk.selectAll,
+      mergeIntoInventorySelection: inventoryDomain.inventoryBulk.mergeIntoSelection,
+      clearInventorySelection: inventoryDomain.inventoryBulk.clearSelection,
+      inventorySelectedCount: inventoryDomain.inventoryBulk.selectedCount,
+      isInventorySelected: inventoryDomain.inventoryBulk.isSelected,
+      getInventoryDeleteMessage: inventoryDomain.getInventoryDeleteMessage,
+      recentlyDuplicatedInventoryId: inventoryDomain.recentlyDuplicatedInventoryId,
+      setRecentlyDuplicatedInventoryId: inventoryDomain.setRecentlyDuplicatedInventoryId,
       getPanelTitle,
     }),
     [
       isClubdeskPanelOpen,
+      isInventoryUi,
       isPriceListUi,
+      inventoryDomain,
       currentClubdesk,
       panelMode,
       activeDomain,

@@ -78,6 +78,8 @@ describe('PriceListModel', () => {
         price: 12.5,
         category: 'Drinks',
         sequenceOrder: 1,
+        inventoryItemId: null,
+        inventoryVariantId: null,
       },
       {
         title: 'Tea',
@@ -85,8 +87,98 @@ describe('PriceListModel', () => {
         price: 0,
         category: null,
         sequenceOrder: 1,
+        inventoryItemId: null,
+        inventoryVariantId: null,
       },
     ]);
+  });
+
+  test('normalizeItems accepts optional inventory FKs', () => {
+    const items = model.normalizeItems([
+      {
+        title: 'Milk',
+        price: 15,
+        inventoryItemId: 9,
+        inventoryVariantId: 3,
+      },
+    ]);
+    expect(items).toEqual([
+      expect.objectContaining({
+        title: 'Milk',
+        inventoryItemId: 9,
+        inventoryVariantId: 3,
+      }),
+    ]);
+  });
+
+  test('normalizeItems rejects variant without item', () => {
+    expect(() => model.normalizeItems([{ title: 'Milk', inventoryVariantId: 3 }])).toThrow(
+      AppError,
+    );
+  });
+
+  test('assertInventoryLinksOwned rejects foreign inventory item', async () => {
+    const db = {
+      query: jest.fn().mockResolvedValue([]),
+    };
+    await expect(
+      model.assertInventoryLinksOwned(db, 1, [
+        {
+          title: 'X',
+          inventoryItemId: 99,
+          inventoryVariantId: null,
+        },
+      ]),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  test('assertInventoryLinksOwned accepts owned item and matching variant', async () => {
+    const db = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([{ id: 9 }])
+        .mockResolvedValueOnce([{ id: 3, item_id: 9 }]),
+    };
+    await expect(
+      model.assertInventoryLinksOwned(db, 1, [
+        {
+          title: 'X',
+          inventoryItemId: 9,
+          inventoryVariantId: 3,
+        },
+      ]),
+    ).resolves.toBeUndefined();
+  });
+
+  test('transformItemRow maps inventory link fields', () => {
+    expect(
+      model.transformItemRow({
+        id: 1,
+        price_list_id: 2,
+        title: 'Milk 1L',
+        description: null,
+        price: '12.00',
+        category: 'Dairy',
+        sequence_order: 1,
+        inventory_item_id: 9,
+        inventory_variant_id: 3,
+        inventory_article_name: 'Milk',
+        inventory_slug: 'milk',
+        inventory_variant_audience: 'Dairy',
+        inventory_variant_color: 'Whole',
+        inventory_variant_size: '1 L',
+        created_at: 't1',
+        updated_at: 't2',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        inventoryItemId: '9',
+        inventoryVariantId: '3',
+        inventoryArticleName: 'Milk',
+        inventorySlug: 'milk',
+        inventoryVariantLabel: 'Dairy · Whole · 1 L',
+      }),
+    );
   });
 
   test('normalizeItems allows same sequenceOrder in different categories', () => {

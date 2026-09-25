@@ -224,7 +224,11 @@ SELECT
           'description', COALESCE(i.description, ''),
           'price', i.price,
           'category', COALESCE(i.category, ''),
-          'sequenceOrder', i.sequence_order
+          'sequenceOrder', i.sequence_order,
+          'inventorySlug', CASE
+            WHEN inv.publication_status = 'published' THEN inv.slug
+            ELSE NULL
+          END
         )
         ORDER BY
           CASE WHEN i.category IS NULL OR btrim(i.category) = '' THEN 1 ELSE 0 END ASC,
@@ -237,6 +241,8 @@ SELECT
       LEFT JOIN clubdesk_price_list_item_categories c
         ON c.price_list_id = i.price_list_id
         AND lower(btrim(c.name)) = lower(btrim(COALESCE(i.category, '')))
+      LEFT JOIN clubdesk_inventory_items inv
+        ON inv.id = i.inventory_item_id
       WHERE i.price_list_id = p.id
     ),
     '[]'::json
@@ -267,7 +273,11 @@ SELECT
           'description', COALESCE(i.description, ''),
           'price', i.price,
           'category', COALESCE(i.category, ''),
-          'sequenceOrder', i.sequence_order
+          'sequenceOrder', i.sequence_order,
+          'inventorySlug', CASE
+            WHEN inv.publication_status = 'published' THEN inv.slug
+            ELSE NULL
+          END
         )
         ORDER BY
           CASE WHEN i.category IS NULL OR btrim(i.category) = '' THEN 1 ELSE 0 END ASC,
@@ -280,6 +290,8 @@ SELECT
       LEFT JOIN clubdesk_price_list_item_categories c
         ON c.price_list_id = i.price_list_id
         AND lower(btrim(c.name)) = lower(btrim(COALESCE(i.category, '')))
+      LEFT JOIN clubdesk_inventory_items inv
+        ON inv.id = i.inventory_item_id
       WHERE i.price_list_id = p.id
     ),
     '[]'::json
@@ -422,4 +434,119 @@ SQL
         }
         throw $e;
     }
+}
+
+function publicAppInventorySql(PDO $pdo): string
+{
+    $featuredSelect = publicAppTableHasColumn($pdo, 'clubdesk_inventory_items', 'featured')
+        ? 'i.featured'
+        : 'FALSE AS featured';
+
+    return <<<SQL
+SELECT
+  i.id,
+  i.article_name,
+  i.brand,
+  i.slug,
+  i.description,
+  i.material,
+  i.recommended_price,
+  i.sale_price,
+  i.currency,
+  i.tags,
+  i.featured_image_url,
+  {$featuredSelect},
+  i.sort_order,
+  i.updated_at,
+  (
+    SELECT COUNT(*)::int
+    FROM clubdesk_inventory_variants v
+    WHERE v.item_id = i.id
+  ) AS variant_count
+FROM clubdesk_inventory_items i
+WHERE i.publication_status = 'published'
+ORDER BY
+  i.sort_order ASC NULLS LAST,
+  lower(i.article_name) ASC,
+  i.id ASC
+SQL;
+}
+
+/**
+ * @return array{sql: string, params: array<int, mixed>}
+ */
+function publicAppInventoryBySlugSql(string $slugOrId): array
+{
+    $variantsAgg = <<<'SQL'
+COALESCE(
+  (
+    SELECT json_agg(
+      json_build_object(
+        'sku', COALESCE(v.sku, ''),
+        'audience', COALESCE(v.audience, ''),
+        'color', COALESCE(v.color, ''),
+        'size', COALESCE(v.size, ''),
+        'quantity', v.quantity,
+        'sortOrder', v.sort_order
+      )
+      ORDER BY v.sort_order ASC, v.id ASC
+    )
+    FROM clubdesk_inventory_variants v
+    WHERE v.item_id = i.id
+  ),
+  '[]'::json
+) AS variants
+SQL;
+
+    if (ctype_digit($slugOrId)) {
+        return [
+            'sql' => <<<SQL
+SELECT
+  i.id,
+  i.article_name,
+  i.brand,
+  i.slug,
+  i.description,
+  i.material,
+  i.recommended_price,
+  i.sale_price,
+  i.currency,
+  i.tags,
+  i.featured_image_url,
+  i.featured,
+  i.updated_at,
+  {$variantsAgg}
+FROM clubdesk_inventory_items i
+WHERE i.id = ?
+  AND i.publication_status = 'published'
+LIMIT 1
+SQL,
+            'params' => [(int) $slugOrId],
+        ];
+    }
+
+    return [
+        'sql' => <<<SQL
+SELECT
+  i.id,
+  i.article_name,
+  i.brand,
+  i.slug,
+  i.description,
+  i.material,
+  i.recommended_price,
+  i.sale_price,
+  i.currency,
+  i.tags,
+  i.featured_image_url,
+  i.featured,
+  i.updated_at,
+  {$variantsAgg}
+FROM clubdesk_inventory_items i
+WHERE lower(i.slug) = lower(?)
+  AND i.publication_status = 'published'
+LIMIT 1
+SQL,
+        'params' => [$slugOrId],
+    ];
 }

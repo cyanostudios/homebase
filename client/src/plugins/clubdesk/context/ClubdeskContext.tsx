@@ -1,5 +1,7 @@
 import React, { createContext, useContext } from 'react';
 
+import type { ImportResult } from '@/core/utils/importUtils';
+
 import type {
   Clubdesk,
   ClubdeskCategory,
@@ -12,9 +14,10 @@ import type {
   ClubdeskPriceListItemCategory,
   ClubdeskPriceListPayload,
 } from '../types/priceList';
+import type { ClubdeskInventoryItem, ClubdeskInventoryItemPayload } from '../types/inventory';
 
 export type ClubdeskPanelMode = 'create' | 'edit' | 'view';
-export type ClubdeskActiveDomain = 'guides' | 'priceLists';
+export type ClubdeskActiveDomain = 'guides' | 'priceLists' | 'inventory';
 
 export interface ClubdeskContextType {
   isClubdeskPanelOpen: boolean;
@@ -105,6 +108,30 @@ export interface ClubdeskContextType {
   isSelected: (id: string) => boolean;
   priceListSelectedCount: number;
   isPriceListSelected: (id: string) => boolean;
+  inventoryItems: ClubdeskInventoryItem[];
+  currentInventoryItem: ClubdeskInventoryItem | null;
+  openInventoryPanel: (item: ClubdeskInventoryItem | null) => void;
+  openInventoryForEdit: (item: ClubdeskInventoryItem) => void;
+  openInventoryForView: (item: ClubdeskInventoryItem) => void;
+  saveInventoryItem: (data: ClubdeskInventoryItemPayload) => Promise<boolean>;
+  deleteInventoryItem: (id: string) => Promise<void>;
+  deleteInventoryItems: (ids: string[]) => Promise<void>;
+  updateInventoryVariantQuantity: (
+    itemId: string,
+    variantId: string,
+    quantity: number,
+  ) => Promise<boolean>;
+  importInventoryItems: (data: Record<string, string>[]) => Promise<ImportResult>;
+  selectedInventoryIds: string[];
+  toggleInventorySelected: (id: string) => void;
+  selectAllInventory: (ids: string[]) => void;
+  mergeIntoInventorySelection: (ids: string[]) => void;
+  clearInventorySelection: () => void;
+  inventorySelectedCount: number;
+  isInventorySelected: (id: string) => boolean;
+  getInventoryDeleteMessage: (item: ClubdeskInventoryItem | null) => string;
+  recentlyDuplicatedInventoryId: string | null;
+  setRecentlyDuplicatedInventoryId: (id: string | null) => void;
   getDeleteMessage: (item: Clubdesk | null) => string;
   getPriceListDeleteMessage: (item: ClubdeskPriceList | null) => string;
   getPanelTitle: (mode?: string, item?: Clubdesk | null) => React.ReactNode;
@@ -191,6 +218,26 @@ const EMPTY_CLUBDESK_CONTEXT: ClubdeskContextType = {
   isSelected: () => false,
   priceListSelectedCount: 0,
   isPriceListSelected: () => false,
+  inventoryItems: [],
+  currentInventoryItem: null,
+  openInventoryPanel: () => {},
+  openInventoryForEdit: () => {},
+  openInventoryForView: () => {},
+  saveInventoryItem: async () => false,
+  deleteInventoryItem: async () => {},
+  deleteInventoryItems: async () => {},
+  updateInventoryVariantQuantity: async () => false,
+  importInventoryItems: async () => ({ successCount: 0, failureCount: 0 }),
+  selectedInventoryIds: [],
+  toggleInventorySelected: () => {},
+  selectAllInventory: () => {},
+  mergeIntoInventorySelection: () => {},
+  clearInventorySelection: () => {},
+  inventorySelectedCount: 0,
+  isInventorySelected: () => false,
+  getInventoryDeleteMessage: () => '',
+  recentlyDuplicatedInventoryId: null,
+  setRecentlyDuplicatedInventoryId: () => {},
   getDeleteMessage: () => '',
   getPriceListDeleteMessage: () => '',
   getPanelTitle: () => null,

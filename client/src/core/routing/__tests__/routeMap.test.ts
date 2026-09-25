@@ -22,6 +22,7 @@ describe('pathToNavPage', () => {
   });
 
   it('maps clubdesk sub-routes without colliding with guide slugs', () => {
+    expect(pathToNavPage('/clubdesk/inventory')).toBe('clubdesk-inventory');
     expect(pathToNavPage('/clubdesk/price-list')).toBe('clubdesk-price-list');
     expect(pathToNavPage('/clubdesk/price-list/beer')).toBe('clubdesk-price-list');
     expect(pathToNavPage('/clubdesk/info')).toBe('clubdesk-info');

@@ -17,6 +17,7 @@ describe('ClubdeskListingUrls', () => {
     expect(pathForListing('guides', 'Alla')).toBe('/guides/');
     expect(pathForListing('all', 'Alla')).toBe('/guides/');
     expect(pathForListing('price-lists', 'Alla')).toBe('/price-lists/');
+    expect(pathForListing('inventory', 'Alla')).toBe('/inventory/');
     expect(pathForListing('info', 'Alla')).toBe('/info/');
     expect(pathForListing('category', 'Kaffe')).toBe('/kategori/kaffe/');
   });

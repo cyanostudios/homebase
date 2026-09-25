@@ -8,6 +8,7 @@ import {
 describe('isClubdeskSubRoute', () => {
   it('recognizes named clubdesk sub-routes', () => {
     expect(isClubdeskSubRoute('clubdesk', 'price-list')).toBe(true);
+    expect(isClubdeskSubRoute('clubdesk', 'inventory')).toBe(true);
     expect(isClubdeskSubRoute('clubdesk', 'info')).toBe(true);
   });
 

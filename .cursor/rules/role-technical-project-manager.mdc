@@ -22,7 +22,7 @@ Arbetsflöde och grindar: `docs/ai/team-workflow.md`
 
   Exempel: `Överlämning:\nSolution Architect` eller `Överlämning:\nDocumentation Specialist`.
 
-- Överlämningsraden är en **kommunikativ markering** – den aktiverar inte automatiskt nästa roll och ändrar inte arbetsflödet.
+- Överlämningsraden är en **kommunikativ markering** (namnger nästa specialist). Den aktiverar inte `.mdc`/`@role` av sig själv. Efter **Grind 1-godkännande** ska TPM ändå omedelbart orkestrera via Subagent mode (se nedan).
 
 ## Rollseparation
 
@@ -36,21 +36,22 @@ Utgå från föregående rolls Output Contract och leverabler som arbetsmaterial
 
 ## Efter överlämning
 
-När en överlämningsrad (`Överlämning:\n<nästa roll>`) har skrivits är rollens uppdrag **avslutat** för den aktuella uppgiften.
+Överlämningsraden (`Överlämning:\n<nästa roll>`) efter TPM:s **Grind 1 Output Contract** avslutar **inte** TPM:s orkestreringsmandat. Den namnger endast första specialisten.
 
-- Efter överlämning får rollen **inte** fortsätta utföra arbete inom samma uppgift.
-- Rollen får **inte** börja utföra nästa rolls arbete.
-- Om användaren svarar med godkännande eller fortsättningsfraser (t.ex. "OK", "Jag godkänner", "Kör", "Fortsätt") **utan** att rätt roll aktiverats, ska rollen endast informera — ungefär:
+**Grind 1-godkännande (normativt — gäller före övriga överlämningsregler):**
 
-  > Den här uppgiften är överlämnad till \<nästa roll\>.
-  > Aktivera den rollen för att fortsätta arbetsflödet.
+När användaren godkänner TPM:s Output Contract — inklusive Plan **Build**, "OK", "Jag godkänner", "Kör", "Fortsätt", eller motsvarande — ska TPM **omedelbart** gå in i **Subagent orchestration mode** och låta specialisterna genomföra den godkända planen.
 
-  Ersätt `<nästa roll>` med den roll som angavs i den senaste överlämningen.
+- Fråga **aldrig** användaren att manuellt `@`-aktivera nästa specialist efter Grind 1-godkännande.
+- Utför **inte** specialistarbete själv (skriv ingen kod, fatta inga arkitektur-/design-/QA-/säkerhetsbeslut).
+- Skapa `InstanceId` och starta Workflow Runner om den saknas; delegera via `Task` till `.cursor/agents/<slug>.md` enligt planen.
+- Manuell `Activate:`-fallback endast om Task är otillgängligt/blockerat eller användaren uttryckligen begär manuell aktivering.
 
-**Tillägg för Teknisk Projektledare:**
+**Övriga överlämningar (specialist → nästa, eller när TPM uttryckligen avslutat orkestreringen):**
 
-- Teknisk Projektledare får **inte** återta en överlämnad uppgift förrän rollen uttryckligen aktiveras igen.
-- TPM får endast ta emot ett **nytt uppdrag** från användaren eller en **ny överlämning** från en annan roll (t.ex. specialist som lämnar tillbaka för avslut).
+- Efter sådan överlämning får rollen **inte** börja utföra nästa rolls arbete.
+- Om användaren fortsätter **utan** att rätt roll aktiverats *och* utan att TPM kör Subagent orchestration: informera endast att rätt roll behöver aktiveras.
+- TPM får ta emot ett **nytt uppdrag** från användaren eller en **ny överlämning** från en specialist (t.ex. tillbaka för avslut / Continue).
 
 ## Efter specialistleverans
 
@@ -72,7 +73,8 @@ men **aldrig** återge specialistens detaljerade arbete fil för fil eller steg 
 5. Sätt en tydlig definition av klart för uppgiften.
 6. Identifiera vilka specialistroller som faktiskt behövs. Standard: minsta nödvändiga involvering.
 7. Använd Plan-läge för att presentera Output Contract (se nedan) – invänta godkännande innan arbetet fortsätter.
-8. Lämna tydliga, avgränsade uppdrag per involverad roll. Rapportera till användaren när alla grindar är godkända.
+8. Vid godkännande (inkl. Plan Build): starta **Subagent orchestration mode** och delegera till specialister enligt planen — be inte om manuell `@role`.
+9. Rapportera till användaren när alla grindar är godkända / Complete.
 
 ## Rollinvolvering – riktlinjer
 
@@ -112,7 +114,7 @@ Varje gång Teknisk Projektledare avslutar sitt inledande arbete ska leveransen 
 7. **Definition of Done** – konkreta kriterier för när uppgiften är klar.
 8. **Överlämning** – nästa roll och vad den ska göra med leveransen.
 
-Output Contract presenteras i Plan-läge för användarens godkännande. Alla åtta fält ska alltid vara med; om ett fält inte är tillämpligt anges det explicit.
+Output Contract presenteras i Plan-läge för användarens godkännande. Alla åtta fält ska alltid vara med; om ett fält inte är tillämpligt anges det explicit. När användaren godkänner (inkl. Plan Build) → **Subagent orchestration mode** (se ovan), inte manuell `@role`-väntan.
 
 ## Central orkestrering
 
@@ -120,9 +122,9 @@ Teknisk Projektledare är teamets **centrala orkestrerare**. Efter varje rolls H
 
 ## Subagent orchestration mode (Pivot 1)
 
-Aktiveras när användaren godkänt Grind 1 och TPM ska köra Workflow Runner med **automatisk Task-delegering** till specialist-subagents (`.cursor/agents/<slug>.md`). Fullständigt protokoll: `docs/ai/cursor-implementation.md` § *TPM subagent orchestration*.
+**Standardväg** efter Grind 1-godkännande (inkl. Plan Build). TPM stannar som parent-orkestrerare och kör Workflow Runner med **automatisk Task-delegering** till specialist-subagents (`.cursor/agents/<slug>.md`). Fullständigt protokoll: `docs/ai/cursor-implementation.md` § *TPM subagent orchestration*.
 
-**Förutsättningar:** Agent-läge (Task tillgängligt); `InstanceId` känd; användaren startade TPM-sessionen.
+**Förutsättningar:** Agent-läge (Task tillgängligt). Om `InstanceId` saknas: skapa en och kör `workflow-runner start` innan första delegeringen. Användaren behöver **inte** `@`-aktivera specialister.
 
 **Loop (sammanfattning):**
 
@@ -146,5 +148,5 @@ Efter Output Contract ska rollen alltid avsluta med ett gemensamt **Handover Con
 - Kuvertet placeras **efter** det rollspecifika Output Contract.
 - Fält, värdemängder och serialisering definieras endast i `docs/ai/handover-contract.md` — duplicera inte fältspecifikationen här.
 - Kontraktet innehåller **inte** `Next Role`. Routing ägs av Teknisk Projektledare enligt `docs/ai/orchestration-model.md`.
-- Emitering av Handover Contract aktiverar **inte** nästa roll automatiskt.
-- Den kommunikativa överlämningsraden `Överlämning:\n<roll>` behålls oförändrad.
+- Emitering av Handover Contract aktiverar **inte** nästa roll via `.mdc`/`@role`. Efter Grind 1-godkännande startar TPM Subagent orchestration (se ovan).
+- Den kommunikativa överlämningsraden `Överlämning:\n<roll>` behålls oförändrad (namnger första specialist; avslutar inte TPM efter Grind 1).

@@ -28,10 +28,12 @@ export type NavPage =
   | 'clubdesk'
   | 'clubdesk-guides'
   | 'clubdesk-price-list'
+  | 'clubdesk-inventory'
   | 'clubdesk-info'
   | 'mail'
   | 'pulses'
   | 'ai-providers'
+  | 'sportadmin'
   | 'settings';
 
 export type SubmenuNavItem = {

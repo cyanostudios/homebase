@@ -2,8 +2,9 @@
  * Public Clubdesk listing client — request-form-inspired shell.
  * Guides: /api/items.php + /guide/:slug
  * Price lists: /api/price_lists.php + /price-list/:slug
+ * Inventory: /api/inventory.php + /inventory/:slug (SSR detail)
  * Site content: /api/site_content.php (home + info cards)
- * Listing URLs: `/`, `/guides/`, `/price-lists/`, `/info/`, `/kategori/:slug/`.
+ * Listing URLs: `/`, `/guides/`, `/price-lists/`, `/inventory/`, `/info/`, `/kategori/:slug/`.
  * Org Swish: `/swish/` (SSR detail, linked from Hem row).
  * Kontakt: `/kontakt/` (SSR detail, linked from Hem row when contacts exist).
  */
@@ -23,6 +24,7 @@ const API_BASE = resolvePublicAppApiOrigin();
 const ITEMS_API_URL = window.PUBLIC_APP_API_URL || `${API_BASE}/api/items.php`;
 const PRICE_LISTS_API_URL =
   window.PUBLIC_APP_PRICE_LISTS_API_URL || `${API_BASE}/api/price_lists.php`;
+const INVENTORY_API_URL = window.PUBLIC_APP_INVENTORY_API_URL || `${API_BASE}/api/inventory.php`;
 const SITE_CONTENT_API_URL =
   window.PUBLIC_APP_SITE_CONTENT_API_URL || `${API_BASE}/api/site_content.php`;
 const INFO_CONTACTS_API_URL =
@@ -85,6 +87,7 @@ async function loadOrgBranding() {
 
 const ICON_GUIDE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
 const ICON_PRICE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><path d="M18 15v6M15 18h6"/></svg>`;
+const ICON_INVENTORY = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg>`;
 const ICON_INFO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></svg>`;
 const ICON_SWISH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><path d="M14 14h5v5"/><path d="M14 19h.01"/></svg>`;
 const ICON_KONTAKT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
@@ -124,6 +127,12 @@ function priceListHref(item) {
   return `/price-list/${encodeURIComponent(String(item.id || ''))}`;
 }
 
+function inventoryHref(item) {
+  const slug = String(item.slug || '').trim();
+  if (slug) return `/inventory/${encodeURIComponent(slug)}`;
+  return `/inventory/${encodeURIComponent(String(item.id || ''))}`;
+}
+
 function itemName(item) {
   return String(item.name || item.title || '').trim() || 'Utan namn';
 }
@@ -143,6 +152,18 @@ function itemMeta(item) {
   const stepCount = Number(item.stepCount ?? item.step_count ?? 0);
   if (stepCount > 0) {
     return stepCount === 1 ? '1 steg' : `${stepCount} steg`;
+  }
+  return '';
+}
+
+function inventoryMeta(item) {
+  const qty = Number(item.totalQuantity ?? item.total_quantity ?? 0);
+  if (qty > 0) {
+    return qty === 1 ? '1 st' : `${qty} st`;
+  }
+  const variants = Number(item.variantCount ?? item.variant_count ?? 0);
+  if (variants > 0) {
+    return variants === 1 ? '1 variant' : `${variants} varianter`;
   }
   return '';
 }
@@ -212,23 +233,27 @@ function renderOptionCard({ href, title, description, kind, spaTab }) {
   const icon =
     kind === 'price-list'
       ? ICON_PRICE
-      : kind === 'info'
-        ? ICON_INFO
-        : kind === 'swish'
-          ? ICON_SWISH
-          : kind === 'kontakt'
-            ? ICON_KONTAKT
-            : ICON_GUIDE;
+      : kind === 'inventory'
+        ? ICON_INVENTORY
+        : kind === 'info'
+          ? ICON_INFO
+          : kind === 'swish'
+            ? ICON_SWISH
+            : kind === 'kontakt'
+              ? ICON_KONTAKT
+              : ICON_GUIDE;
   const kindClass =
     kind === 'price-list'
       ? 'price-list'
-      : kind === 'info'
-        ? 'info'
-        : kind === 'swish'
-          ? 'swish'
-          : kind === 'kontakt'
-            ? 'kontakt'
-            : 'guide';
+      : kind === 'inventory'
+        ? 'inventory'
+        : kind === 'info'
+          ? 'info'
+          : kind === 'swish'
+            ? 'swish'
+            : kind === 'kontakt'
+              ? 'kontakt'
+              : 'guide';
   const spaAttr = spaTab ? ` data-home-spa="${escapeHtml(spaTab)}"` : '';
   return `<a class="option-card" href="${escapeHtml(href)}"${spaAttr}>
     <span class="option-card__icon option-card__icon--${kindClass}">${icon}</span>
@@ -257,6 +282,27 @@ function renderPriceListCard(item) {
     title: itemName(item),
     description: priceListDescription(item),
     kind: 'price-list',
+  });
+}
+
+function inventoryDescription(item) {
+  const name = String(item.articleName || item.article_name || item.name || '').trim() || 'Artikel';
+  const desc = truncateText(item.description || '');
+  if (desc) return desc;
+  const meta = inventoryMeta(item);
+  const brand = String(item.brand || '').trim();
+  if (meta && brand) return `${brand} · ${meta}`;
+  return meta || brand || name;
+}
+
+function renderInventoryCard(item) {
+  const title =
+    String(item.articleName || item.article_name || item.name || '').trim() || 'Artikel';
+  return renderOptionCard({
+    href: inventoryHref(item),
+    title,
+    description: inventoryDescription(item),
+    kind: 'inventory',
   });
 }
 
@@ -318,9 +364,17 @@ function itemImageUrl(item) {
 }
 
 function renderHomeSquareCard(item, kind) {
-  const href = kind === 'price-list' ? priceListHref(item) : itemHref(item);
-  const name = itemName(item);
-  const img = kind === 'guide' ? itemImageUrl(item) : '';
+  const href =
+    kind === 'price-list'
+      ? priceListHref(item)
+      : kind === 'inventory'
+        ? inventoryHref(item)
+        : itemHref(item);
+  const name =
+    kind === 'inventory'
+      ? String(item.articleName || item.article_name || item.name || '').trim() || 'Artikel'
+      : itemName(item);
+  const img = kind === 'guide' || kind === 'inventory' ? itemImageUrl(item) : '';
   const initial = (name || '?').charAt(0).toUpperCase();
   const media = img
     ? `<img class="home-square-card__img" src="${escapeHtml(img)}" alt="" loading="lazy" />`
@@ -454,6 +508,9 @@ function renderHomeHub() {
   const priceLists = Array.isArray(window.__PUBLIC_APP_PRICE_LISTS__)
     ? window.__PUBLIC_APP_PRICE_LISTS__
     : [];
+  const inventory = Array.isArray(window.__PUBLIC_APP_INVENTORY__)
+    ? window.__PUBLIC_APP_INVENTORY__
+    : [];
   const site = window.__PUBLIC_APP_SITE_CONTENT__ || {};
   const homeHtml = String(site.home?.contentHtml || '').trim();
   const homeTitle = String(site.home?.title || '').trim();
@@ -466,6 +523,7 @@ function renderHomeHub() {
   const featuredCards = [
     ...guides.filter(isFeaturedItem).map((item) => renderHomeSquareCard(item, 'guide')),
     ...priceLists.filter(isFeaturedItem).map((item) => renderHomeSquareCard(item, 'price-list')),
+    ...inventory.filter(isFeaturedItem).map((item) => renderHomeSquareCard(item, 'inventory')),
   ];
 
   const infoContacts = Array.isArray(window.__PUBLIC_APP_INFO_CONTACTS__)
@@ -580,6 +638,25 @@ function renderPriceListListing() {
   });
 }
 
+function renderInventoryListing() {
+  const container = document.getElementById('rows-container');
+  if (!container) return;
+  const items = Array.isArray(window.__PUBLIC_APP_INVENTORY__)
+    ? window.__PUBLIC_APP_INVENTORY__
+    : [];
+  const bodyHtml =
+    items.length === 0
+      ? `<div class="empty-state empty-state--inset">Inget inventarie just nu</div>`
+      : `<section class="home-section home-section--rows">
+          <div class="option-list item-grid">${items.map(renderInventoryCard).join('')}</div>
+        </section>`;
+  container.innerHTML = renderPageChrome({
+    title: 'Inventory',
+    subtitleHtml: plainSubtitle('Publicerade artiklar och varianter.'),
+    bodyHtml,
+  });
+}
+
 function renderInfoListing() {
   const container = document.getElementById('rows-container');
   if (!container) return;
@@ -653,6 +730,12 @@ function applyFilter() {
     return;
   }
 
+  if (tab === 'inventory') {
+    setStatus('');
+    renderInventoryListing();
+    return;
+  }
+
   const filter = window.__PUBLIC_APP_FILTER__ || 'Alla';
   const items = Array.isArray(window.__PUBLIC_APP_ITEMS__) ? window.__PUBLIC_APP_ITEMS__ : [];
 
@@ -706,9 +789,10 @@ function applyRouteFromLocation({ replaceUrl = false } = {}) {
 
 async function loadItems() {
   try {
-    const [guidesRes, priceRes, siteRes, contactsRes] = await Promise.all([
+    const [guidesRes, priceRes, inventoryRes, siteRes, contactsRes] = await Promise.all([
       fetch(ITEMS_API_URL),
       fetch(PRICE_LISTS_API_URL),
+      fetch(INVENTORY_API_URL),
       fetch(SITE_CONTENT_API_URL),
       fetch(INFO_CONTACTS_API_URL),
     ]);
@@ -717,6 +801,15 @@ async function loadItems() {
 
     const guidesData = await guidesRes.json();
     const priceData = await priceRes.json();
+    let inventory = [];
+    if (inventoryRes.ok) {
+      try {
+        const inventoryData = await inventoryRes.json();
+        inventory = Array.isArray(inventoryData.inventory) ? inventoryData.inventory : [];
+      } catch {
+        inventory = [];
+      }
+    }
     let siteData = {
       home: { contentHtml: '', title: '' },
       info: { contentHtml: '', title: '', visible: true },
@@ -767,6 +860,7 @@ async function loadItems() {
 
     window.__PUBLIC_APP_ITEMS__ = items;
     window.__PUBLIC_APP_PRICE_LISTS__ = priceLists;
+    window.__PUBLIC_APP_INVENTORY__ = inventory;
     window.__PUBLIC_APP_SITE_CONTENT__ = siteData;
     window.__PUBLIC_APP_INFO_CONTACTS__ = infoContacts;
     window.__PUBLIC_APP_CATEGORY_ORDER__ = Array.isArray(guidesData.categoryOrder)
@@ -791,6 +885,7 @@ function initBottomBar() {
       if (key === 'info') return { tab: 'info', filter: 'Alla' };
       if (key === 'guides' || key === 'all') return { tab: 'guides', filter: 'Alla' };
       if (key === 'price-lists') return { tab: 'price-lists', filter: 'Alla' };
+      if (key === 'inventory') return { tab: 'inventory', filter: 'Alla' };
       return { tab: 'home', filter: 'Alla' };
     });
   });

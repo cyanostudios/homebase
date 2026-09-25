@@ -6,6 +6,11 @@ export type PriceListItemLike = {
   price: number;
   category: string | null;
   sequenceOrder: number;
+  inventoryItemId?: string | null;
+  inventoryVariantId?: string | null;
+  inventoryArticleName?: string | null;
+  inventorySlug?: string | null;
+  inventoryVariantLabel?: string | null;
   /** Client-only React list key; never persisted (stripped in savePriceList). */
   clientKey?: string;
 };
@@ -99,13 +104,9 @@ export function copyItemAt<T extends PriceListItemLike>(items: T[], index: numbe
   }
   const next: T[] = [...items];
   next.splice(index + 1, 0, {
-    title: source.title,
-    description: source.description,
-    price: source.price,
-    category: source.category,
-    sequenceOrder: source.sequenceOrder,
+    ...source,
     clientKey: newClientKey('copy'),
-  } as T);
+  });
   return renumberWithinCategories(next);
 }
 

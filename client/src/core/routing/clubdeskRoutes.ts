@@ -1,5 +1,5 @@
 /** Named clubdesk sub-route URL segments (not guide item slugs). */
-export const CLUBDESK_SUBPAGES = ['price-list', 'info'] as const;
+export const CLUBDESK_SUBPAGES = ['price-list', 'inventory', 'info'] as const;
 
 export type ClubdeskSubpage = (typeof CLUBDESK_SUBPAGES)[number];
 
@@ -19,6 +19,17 @@ export function isClubdeskSubRoute(
  * path and must not clobber that pending item URL — otherwise navigate looks
  * like a fresh deep link and `openPriceListForView` bounces edit back to view.
  */
+export function shouldKeepPendingInventoryItemPath(
+  currentPathname: string,
+  pendingPath: string | null,
+): boolean {
+  const current = currentPathname.replace(/\/+$/, '') || '/';
+  if (current !== '/clubdesk/inventory') {
+    return false;
+  }
+  return Boolean(pendingPath && pendingPath.startsWith('/clubdesk/inventory/'));
+}
+
 export function shouldKeepPendingPriceListItemPath(
   currentPathname: string,
   pendingPath: string | null,
@@ -64,7 +75,7 @@ export function shouldKeepPendingGuideItemPath(
  */
 export function resolveClubdeskPanelClosePath(
   pathname: string,
-): '/clubdesk' | '/clubdesk/price-list' | null {
+): '/clubdesk' | '/clubdesk/price-list' | '/clubdesk/inventory' | null {
   const parts = pathname.replace(/\/+$/, '').split('/').filter(Boolean);
   if (parts[0] !== 'clubdesk') {
     return null;
@@ -73,6 +84,10 @@ export function resolveClubdeskPanelClosePath(
   // /clubdesk/price-list/:slug → price-list index; /clubdesk/price-list → stay
   if (parts[1] === 'price-list') {
     return parts[2] ? '/clubdesk/price-list' : null;
+  }
+
+  if (parts[1] === 'inventory') {
+    return parts[2] ? '/clubdesk/inventory' : null;
   }
 
   // Named subpages without an item slug (e.g. /clubdesk/info)

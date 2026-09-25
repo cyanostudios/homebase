@@ -29,10 +29,12 @@ export const navPageToPath: Record<NavPage, string> = {
   clubdesk: '/clubdesk',
   'clubdesk-guides': '/clubdesk',
   'clubdesk-price-list': '/clubdesk/price-list',
+  'clubdesk-inventory': '/clubdesk/inventory',
   'clubdesk-info': '/clubdesk/info',
   mail: '/mail',
   pulses: '/pulses',
   'ai-providers': '/ai-providers',
+  sportadmin: '/sportadmin',
   settings: '/settings',
 };
 

@@ -103,7 +103,7 @@ Diagnostic routes **`/storage/objects`** and **`/storage/google-drive/health`** 
 - **Settings (full-page only):** `openFileSettings` sets `filesContentView === 'settings'`; `FileList` mounts `FileSettingsView` → `FileSettingsForm` → `CloudStorageSettings`. `FileForm` does **not** branch on `panelMode === 'settings'` (removed 2026-09-22).
 - Cloud settings: Drive-only + ConfirmDialog.
 - Card/table thumbs: images (non-SVG) via download URL (`?inline=1`); SVG excluded client-side and refused inline server-side (**F-SVG-1**).
-- **Image preview (`FileView`):** raster preview is half the preview column width. Click opens a lightbox (full image, close via backdrop, close button, or Escape). SVG stays excluded.
+- **Image preview (`FileView`):** raster preview is half the preview column width. Click opens shared **`ImageLightbox`** (`client/src/core/ui/ImageLightbox.tsx`) — full image; close via backdrop, X, or Escape (capture). SVG stays excluded.
 
 ---
 

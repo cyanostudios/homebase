@@ -28,5 +28,9 @@ describe('PriceListItemsEditor wiring', () => {
     expect(editorSrc).toMatch(/item\.clientKey/);
     expect(editorSrc).toMatch(/pendingDeleteIndex !== null/);
     expect(editorSrc).toMatch(/\(item\.price \?\? 0\) !== 0/);
+    expect(editorSrc).toMatch(/linkInventory/);
+    expect(editorSrc).toMatch(/buildInventoryLinkPatch/);
+    expect(editorSrc).toMatch(/clearInventoryLinkPatch/);
+    expect(editorSrc).toMatch(/SelectContent className="z-\[130\]"/);
   });
 });

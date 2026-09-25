@@ -95,6 +95,7 @@ function parsePriceListItems(array $item): array
             'description' => (string) ($row['description'] ?? ''),
             'price' => $price,
             'category' => $category,
+            'inventorySlug' => trim((string) ($row['inventorySlug'] ?? '')),
         ];
     }
 
@@ -311,6 +312,9 @@ foreach ($lines as $line) {
                 >
                   <span class="option-card__text">
                     <span class="option-card__title"><?= h($line['title']) ?></span>
+<?php if (!empty($line['inventorySlug'])): ?>
+                    <a class="option-card__desc price-list-row__inventory-link" href="/inventory/<?= h((string) $line['inventorySlug']) ?>">Visa produkt</a>
+<?php endif; ?>
 <?php if ($line['description'] !== ''): ?>
                     <span class="option-card__desc price-list-row__desc"><?= h($line['description']) ?></span>
 <?php endif; ?>

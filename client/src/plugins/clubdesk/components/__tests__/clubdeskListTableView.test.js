@@ -143,7 +143,9 @@ describe('ClubdeskGuidesList table view wiring', () => {
 
   test('router still switches price-list and info without breaking guides list', () => {
     expect(listSrc).toMatch(/clubdesk-price-list/);
+    expect(listSrc).toMatch(/clubdesk-inventory/);
     expect(listSrc).toMatch(/PriceListList/);
+    expect(listSrc).toMatch(/InventoryList/);
     expect(listSrc).toMatch(/clubdesk-info/);
     expect(listSrc).toMatch(/ClubdeskInfoView/);
     expect(listSrc).toMatch(/ClubdeskGuidesList/);
