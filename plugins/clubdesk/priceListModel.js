@@ -18,6 +18,22 @@ class PriceListModel {
     return normalized === null ? '' : normalized.toLowerCase();
   }
 
+  parseOptionalPositiveInt(raw, fieldLabel) {
+    if (raw === undefined || raw === null || raw === '') {
+      return null;
+    }
+    const id = typeof raw === 'number' ? raw : parseInt(String(raw).trim(), 10);
+    if (!Number.isInteger(id) || id < 1) {
+      throw new AppError(
+        `${fieldLabel} must be a positive integer`,
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+        [{ field: fieldLabel, message: `${fieldLabel} must be a positive integer` }],
+      );
+    }
+    return id;
+  }
+
   normalizeItems(items) {
     if (items === undefined || items === null) {
       return null;
@@ -78,16 +94,132 @@ class PriceListModel {
         );
       }
 
+      const inventoryItemId = this.parseOptionalPositiveInt(
+        raw.inventoryItemId !== undefined ? raw.inventoryItemId : raw.inventory_item_id,
+        `items[${i}].inventoryItemId`,
+      );
+      const inventoryVariantId = this.parseOptionalPositiveInt(
+        raw.inventoryVariantId !== undefined ? raw.inventoryVariantId : raw.inventory_variant_id,
+        `items[${i}].inventoryVariantId`,
+      );
+      if (inventoryVariantId != null && inventoryItemId == null) {
+        throw new AppError(
+          `items[${i}].inventoryItemId is required when inventoryVariantId is set`,
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+          [
+            {
+              field: 'inventoryItemId',
+              message: `items[${i}].inventoryItemId is required when inventoryVariantId is set`,
+            },
+          ],
+        );
+      }
+
       normalized.push({
         title,
         description,
         price,
         category,
         sequenceOrder,
+        inventoryItemId,
+        inventoryVariantId,
       });
     }
 
     return normalized;
+  }
+
+  /**
+   * Ensure inventory FK targets belong to the price-list owner and variant belongs to item.
+   */
+  async assertInventoryLinksOwned(dbOrTx, userId, items) {
+    if (!items || items.length === 0) {
+      return;
+    }
+
+    const itemIds = [...new Set(items.map((it) => it.inventoryItemId).filter((id) => id != null))];
+    const variantIds = [
+      ...new Set(items.map((it) => it.inventoryVariantId).filter((id) => id != null)),
+    ];
+
+    let ownedItemIds = new Set();
+    if (itemIds.length > 0) {
+      const rows = await this.queryChild(
+        dbOrTx,
+        `
+          SELECT id
+          FROM clubdesk_inventory_items
+          WHERE user_id = $1
+            AND id = ANY($2::int[])
+        `,
+        [userId, itemIds],
+      );
+      ownedItemIds = new Set(rows.map((r) => Number(r.id)));
+      for (const id of itemIds) {
+        if (!ownedItemIds.has(id)) {
+          throw new AppError('Inventory item not found', 400, AppError.CODES.VALIDATION_ERROR, [
+            { field: 'inventoryItemId', message: 'Inventory item not found' },
+          ]);
+        }
+      }
+    }
+
+    if (variantIds.length === 0) {
+      return;
+    }
+
+    const variantRows = await this.queryChild(
+      dbOrTx,
+      `
+        SELECT id, item_id
+        FROM clubdesk_inventory_variants
+        WHERE id = ANY($1::int[])
+      `,
+      [variantIds],
+    );
+    const variantById = new Map(variantRows.map((r) => [Number(r.id), Number(r.item_id)]));
+
+    for (const it of items) {
+      if (it.inventoryVariantId == null) {
+        continue;
+      }
+      const parentItemId = variantById.get(it.inventoryVariantId);
+      if (parentItemId == null) {
+        throw new AppError('Inventory variant not found', 400, AppError.CODES.VALIDATION_ERROR, [
+          { field: 'inventoryVariantId', message: 'Inventory variant not found' },
+        ]);
+      }
+      if (parentItemId !== it.inventoryItemId) {
+        throw new AppError(
+          'Inventory variant does not belong to inventory item',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+          [
+            {
+              field: 'inventoryVariantId',
+              message: 'Inventory variant does not belong to inventory item',
+            },
+          ],
+        );
+      }
+      if (!ownedItemIds.has(it.inventoryItemId)) {
+        throw new AppError('Inventory item not found', 400, AppError.CODES.VALIDATION_ERROR, [
+          { field: 'inventoryItemId', message: 'Inventory item not found' },
+        ]);
+      }
+    }
+  }
+
+  formatInventoryVariantLabel(row) {
+    const parts = [
+      row.inventory_variant_audience,
+      row.inventory_variant_color,
+      row.inventory_variant_size,
+    ]
+      .map((p) => (p == null ? '' : String(p).trim()))
+      .filter(Boolean);
+    return parts.length ? parts.join(' · ') : null;
   }
 
   normalizeCategoryValue(category) {
@@ -241,6 +373,23 @@ class PriceListModel {
       price: Number(row.price),
       category: row.category ?? null,
       sequenceOrder: Number(row.sequence_order),
+      inventoryItemId:
+        row.inventory_item_id !== null && row.inventory_item_id !== undefined
+          ? String(row.inventory_item_id)
+          : null,
+      inventoryVariantId:
+        row.inventory_variant_id !== null && row.inventory_variant_id !== undefined
+          ? String(row.inventory_variant_id)
+          : null,
+      inventoryArticleName:
+        row.inventory_article_name !== undefined && row.inventory_article_name !== null
+          ? String(row.inventory_article_name)
+          : null,
+      inventorySlug:
+        row.inventory_slug !== undefined && row.inventory_slug !== null
+          ? String(row.inventory_slug)
+          : null,
+      inventoryVariantLabel: this.formatInventoryVariantLabel(row),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

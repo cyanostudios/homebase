@@ -2,6 +2,18 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Shared ImageLightbox — docs sync (2026-09-25)
+
+Efter QA Godkänt (scoped): `ImageLightbox` i `core/ui`; Files + SportAdmin content-bilder. Operator: [`FILES_PLUGIN.md`](../FILES_PLUGIN.md), [`SPORTADMIN_PLUGIN.md`](../SPORTADMIN_PLUGIN.md). Standards: [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) §0, [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) canonical table. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §Shared ImageLightbox. Security N/A (QA). **Working tree; local-first; ej prod-release.**
+
+## Clubdesk inventory Epic 1 — docs sync (2026-09-25)
+
+Docs efter **QA Godkänt** + **Security Godkänt**: ADR [`adr/CLUBDESK_INVENTORY_EPIC1.md`](adr/CLUBDESK_INVENTORY_EPIC1.md) status Accepted; operator cross-ref i [`adr/CLUBDESK_PLUGIN_ETAPP1.md`](adr/CLUBDESK_PLUGIN_ETAPP1.md); public [`public-clubdesk/README.md`](../public-clubdesk/README.md) Inventory tab/listing/SSR. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-25 Clubdesk inventory. **Working tree; local-first; ej prod-release.** Security residuals INV-S7–S10 dokumenterade i ADR.
+
+## SportAdmin team modules (trupp/kontakt) — docs sync (2026-09-25)
+
+Discovery uppdaterad: lag-scoped flikar (nyheter/kalender/matcher/truppen/kontakt; galleri skippas). Operator [`SPORTADMIN_PLUGIN.md`](../SPORTADMIN_PLUGIN.md). Discovery [`discovery/SPORTADMIN_SORGENFRI_FF.md`](discovery/SPORTADMIN_SORGENFRI_FF.md). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-25 team tabs. **Working tree; local-first; ej prod-release.**
+
 ## Grind 1 approval → Subagent orchestration (2026-09-25)
 
 Normativt: när användaren godkänner TPM:s Output Contract (inkl. Plan **Build**) ska TPM **omedelbart** orkestrera specialister via Task/`Delegate:` — inte be om manuell `@role`. Överlämningsrad efter Grind 1 avslutar inte TPM-mandat. Uppdaterat: [`roles/technical-project-manager.md`](roles/technical-project-manager.md) §10.1, [`team-workflow.md`](team-workflow.md) Efter överlämning, [`cursor-implementation.md`](cursor-implementation.md) TPM subagent orchestration, `.cursor/rules/role-technical-project-manager.mdc`. Manuell `@role` kvar som fallback. **Working tree; local-first; ej prod-release.**
@@ -9,6 +21,14 @@ Normativt: när användaren godkänner TPM:s Output Contract (inkl. Plan **Build
 ## List default title + meta row — docs clarify (2026-09-25)
 
 Docs-only: default list row composition = **title + meta under identity**; multi-column tables are not the default. Updated [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) §4, [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) §0.1, plus checklist/standards cross-refs. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-25 Docs list default. **Working tree; local-first; ej prod-release.** Residual: golden template `YourItemListTable` still title-only (no meta example).
+
+## SportAdmin Teams list|detail — docs sync (2026-09-25)
+
+Docs efter ersättning av Demo med read-only **Teams** list|detail: ADR [`adr/SPORTADMIN_CONNECTOR_BETA_MVP.md`](adr/SPORTADMIN_CONNECTOR_BETA_MVP.md) §10, design [`design/SPORTADMIN_CONNECTOR_UX.md`](design/SPORTADMIN_CONNECTOR_UX.md) Flow D, operator [`SPORTADMIN_PLUGIN.md`](../SPORTADMIN_PLUGIN.md). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-25. **Working tree; local-first; ej prod-release.**
+
+## SportAdmin Connector beta MVP — docs sync (2026-09-24)
+
+Docs efter **QA Approved** + **Security Approved** för read-only SportAdmin connector: isolerad lagring (`167`/`168`), `/api/sportadmin/*`, cron sync, FE Integration/Demo/Debug, fast host-allowlist + `HOST_NOT_ALLOWED` (S1). Operator: [`SPORTADMIN_PLUGIN.md`](../SPORTADMIN_PLUGIN.md). ADR: [`adr/SPORTADMIN_CONNECTOR_BETA_MVP.md`](adr/SPORTADMIN_CONNECTOR_BETA_MVP.md) status Accepted + verified layout/SSRF note. Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-24 SportAdmin. Discovery/UX oförändrade som källor. **Working tree; local-first; ej prod-release.** Security residuals **S2/S3/S5** dokumenterade — väntar TPM medvetet godkännande; **S4** plattformsbaslinje.
 
 ## Mail / Pulse / AI Providers — stacked routing+view + Pulse `sms_enabled` (2026-09-23)
 

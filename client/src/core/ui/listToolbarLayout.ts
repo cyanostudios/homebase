@@ -20,6 +20,7 @@ export const LEGACY_LIST_TOOLBAR_COLLAPSED_STORAGE_KEYS = [
   'homebase.ai-providers.toolbar.collapsed',
   'homebase.clubdesk.guides.toolbar.collapsed',
   'homebase.clubdesk.priceList.toolbar.collapsed',
+  'homebase.clubdesk.inventory.toolbar.collapsed',
 ] as const;
 
 function readLegacyToolbarCollapsed(): boolean | null {

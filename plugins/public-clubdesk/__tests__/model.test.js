@@ -136,6 +136,66 @@ describe('PublicClubdeskModel', () => {
     expect(sql).toMatch(/publication_status = 'published'/);
   });
 
+  test('transformInventoryListRow omits purchase and comment', () => {
+    const row = model.transformInventoryListRow({
+      id: 4,
+      article_name: 'Ball',
+      brand: 'Adidas',
+      slug: 'ball',
+      description: 'Match ball',
+      material: '',
+      recommended_price: '299',
+      sale_price: '249',
+      currency: 'SEK',
+      tags: ['match'],
+      featured_image_url: null,
+      featured: false,
+      variant_count: 2,
+      updated_at: '2026-09-01T00:00:00.000Z',
+      purchase_price: '100',
+      comment: 'secret',
+    });
+    expect(row).toEqual({
+      id: '4',
+      articleName: 'Ball',
+      brand: 'Adidas',
+      slug: 'ball',
+      description: 'Match ball',
+      material: '',
+      recommendedPrice: 299,
+      salePrice: 249,
+      currency: 'SEK',
+      tags: ['match'],
+      featuredImageUrl: null,
+      featured: false,
+      variantCount: 2,
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    });
+    expect(row).not.toHaveProperty('purchasePrice');
+    expect(row).not.toHaveProperty('comment');
+  });
+
+  test('listPublishedInventory filters by owner and published status', async () => {
+    const pool = { query: jest.fn().mockResolvedValue({ rows: [] }) };
+    await model.listPublishedInventory(pool, 5);
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(params).toEqual([5]);
+    expect(sql).toMatch(/clubdesk_inventory_items/);
+    expect(sql).toMatch(/publication_status = 'published'/);
+    expect(sql).toMatch(/i\.user_id = \$1/);
+  });
+
+  test('getPublishedInventoryBySlugOrId uses id when numeric', async () => {
+    const pool = {
+      query: jest.fn().mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] }),
+    };
+    await model.getPublishedInventoryBySlugOrId(pool, 3, '42');
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(params).toEqual([3, 42]);
+    expect(sql).toMatch(/id = \$2/);
+    expect(sql).toMatch(/publication_status = 'published'/);
+  });
+
   test('getPublishedGuideBySlugOrId uses id when numeric', async () => {
     const pool = {
       query: jest

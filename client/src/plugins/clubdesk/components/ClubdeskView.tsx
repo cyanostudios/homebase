@@ -41,6 +41,7 @@ import type { Clubdesk, PublicationStatus } from '../types/clubdesk';
 
 import { ClubdeskDetailHeaderMenus } from './ClubdeskDetailHeaderMenus';
 import { ClubdeskPublicationPropertiesFields } from './ClubdeskPublicationPropertiesFields';
+import { InventoryView } from './InventoryView';
 import { PriceListView } from './PriceListView';
 
 interface ClubdeskViewProps {
@@ -54,6 +55,9 @@ export const ClubdeskView: React.FC<ClubdeskViewProps> = (props) => {
   const location = useLocation();
   if (pathToNavPage(location.pathname) === 'clubdesk-price-list') {
     return <PriceListView stacked={props.stacked} />;
+  }
+  if (pathToNavPage(location.pathname) === 'clubdesk-inventory') {
+    return <InventoryView stacked={props.stacked} />;
   }
   return <ClubdeskGuideView {...props} />;
 };

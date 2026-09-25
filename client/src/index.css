@@ -422,6 +422,16 @@
 .rich-text-content p {
   @apply mb-2 last:mb-0;
 }
+.rich-text-content table {
+  @apply my-2 w-full border-collapse text-sm;
+}
+.rich-text-content th,
+.rich-text-content td {
+  @apply border border-border/60 px-2 py-1.5 text-left align-top;
+}
+.rich-text-content th {
+  @apply bg-muted/50 font-semibold;
+}
 .rich-text-content ul {
   @apply list-disc pl-5 mb-2 space-y-0.5;
 }

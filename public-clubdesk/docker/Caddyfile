@@ -21,6 +21,13 @@
 		php_fastcgi 127.0.0.1:9000
 	}
 
+	# Inventory SSR — /inventory/:slug (listing stays SPA at /inventory/)
+	@inventoryDetail path_regexp inventoryDetail ^/inventory/[^/]+/?$
+	handle @inventoryDetail {
+		rewrite * /inventory.php
+		php_fastcgi 127.0.0.1:9000
+	}
+
 	# Org Swish SSR
 	@swishPage path /swish /swish/
 	handle @swishPage {
@@ -51,6 +58,9 @@
 		php_fastcgi 127.0.0.1:9000
 	}
 	handle /price-list.php {
+		php_fastcgi 127.0.0.1:9000
+	}
+	handle /inventory.php {
 		php_fastcgi 127.0.0.1:9000
 	}
 	handle /swish.php {

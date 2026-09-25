@@ -42,6 +42,12 @@ const PURIFY_ALLOWED_TAGS = [
   'blockquote',
   'hr',
   'span',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'th',
+  'td',
 ];
 const PURIFY_ALLOWED_ATTR = [
   'class',

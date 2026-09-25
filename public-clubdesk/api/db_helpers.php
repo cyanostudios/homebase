@@ -423,3 +423,118 @@ SQL
         throw $e;
     }
 }
+
+function publicAppInventorySql(PDO $pdo): string
+{
+    $featuredSelect = publicAppTableHasColumn($pdo, 'clubdesk_inventory_items', 'featured')
+        ? 'i.featured'
+        : 'FALSE AS featured';
+
+    return <<<SQL
+SELECT
+  i.id,
+  i.article_name,
+  i.brand,
+  i.slug,
+  i.description,
+  i.material,
+  i.recommended_price,
+  i.sale_price,
+  i.currency,
+  i.tags,
+  i.featured_image_url,
+  {$featuredSelect},
+  i.sort_order,
+  i.updated_at,
+  (
+    SELECT COUNT(*)::int
+    FROM clubdesk_inventory_variants v
+    WHERE v.item_id = i.id
+  ) AS variant_count
+FROM clubdesk_inventory_items i
+WHERE i.publication_status = 'published'
+ORDER BY
+  i.sort_order ASC NULLS LAST,
+  lower(i.article_name) ASC,
+  i.id ASC
+SQL;
+}
+
+/**
+ * @return array{sql: string, params: array<int, mixed>}
+ */
+function publicAppInventoryBySlugSql(string $slugOrId): array
+{
+    $variantsAgg = <<<'SQL'
+COALESCE(
+  (
+    SELECT json_agg(
+      json_build_object(
+        'sku', COALESCE(v.sku, ''),
+        'audience', COALESCE(v.audience, ''),
+        'color', COALESCE(v.color, ''),
+        'size', COALESCE(v.size, ''),
+        'quantity', v.quantity,
+        'sortOrder', v.sort_order
+      )
+      ORDER BY v.sort_order ASC, v.id ASC
+    )
+    FROM clubdesk_inventory_variants v
+    WHERE v.item_id = i.id
+  ),
+  '[]'::json
+) AS variants
+SQL;
+
+    if (ctype_digit($slugOrId)) {
+        return [
+            'sql' => <<<SQL
+SELECT
+  i.id,
+  i.article_name,
+  i.brand,
+  i.slug,
+  i.description,
+  i.material,
+  i.recommended_price,
+  i.sale_price,
+  i.currency,
+  i.tags,
+  i.featured_image_url,
+  i.featured,
+  i.updated_at,
+  {$variantsAgg}
+FROM clubdesk_inventory_items i
+WHERE i.id = ?
+  AND i.publication_status = 'published'
+LIMIT 1
+SQL,
+            'params' => [(int) $slugOrId],
+        ];
+    }
+
+    return [
+        'sql' => <<<SQL
+SELECT
+  i.id,
+  i.article_name,
+  i.brand,
+  i.slug,
+  i.description,
+  i.material,
+  i.recommended_price,
+  i.sale_price,
+  i.currency,
+  i.tags,
+  i.featured_image_url,
+  i.featured,
+  i.updated_at,
+  {$variantsAgg}
+FROM clubdesk_inventory_items i
+WHERE lower(i.slug) = lower(?)
+  AND i.publication_status = 'published'
+LIMIT 1
+SQL,
+        'params' => [$slugOrId],
+    ];
+}

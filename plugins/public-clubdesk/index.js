@@ -87,6 +87,8 @@ function initializePublicClubdeskPlugin(_context) {
   router.get('/guides/:slugOrId', (req, res) => controller.getGuide(req, res));
   router.get('/price-lists', (req, res) => controller.listPriceLists(req, res));
   router.get('/price-lists/:slugOrId', (req, res) => controller.getPriceList(req, res));
+  router.get('/inventory', (req, res) => controller.listInventory(req, res));
+  router.get('/inventory/:slugOrId', (req, res) => controller.getInventory(req, res));
   router.get('/site-content', (req, res) => controller.getSiteContent(req, res));
   router.get('/branding', (req, res) => controller.getBranding(req, res));
 

@@ -13,7 +13,9 @@ describe('public-clubdesk AppShell patterns', () => {
   const js = read('app.js');
   const guide = read('guide.php');
   const priceList = read('price-list.php');
+  const inventoryDetail = read('inventory.php');
   const router = read('router.php');
+  const caddy = read('docker/Caddyfile');
 
   test('header uses fixed --header-h and independent --header-logo-h', () => {
     expect(css).toMatch(/--header-h:\s*3\.75rem/);
@@ -274,6 +276,18 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(js).not.toMatch(/\/api\/public\/clubdesk/);
     expect(js).toMatch(/\/guide\//);
     expect(js).toMatch(/\/price-list\//);
+    expect(js).toMatch(/\/inventory\//);
+    expect(js).toMatch(/\/api\/inventory\.php/);
+  });
+
+  test('inventory article detail SSR mirrors price-list routing', () => {
+    expect(router).toMatch(/inventory\.php/);
+    expect(router).toMatch(/\/inventory\/\(\[a-z0-9-\]\+\)/);
+    expect(inventoryDetail).toMatch(/publicAppInventoryBySlugSql/);
+    expect(inventoryDetail).toMatch(/parseInventoryPath/);
+    expect(inventoryDetail).toMatch(/href="\/inventory\/"/);
+    expect(caddy).toMatch(/inventory\.php/);
+    expect(caddy).toMatch(/inventoryDetail/);
   });
 
   test('uses real listing URLs instead of hash routes', () => {

@@ -32,6 +32,7 @@ module.exports = {
     '<rootDir>/client/src/plugins/cups',
     '<rootDir>/client/src/plugins/mail',
     '<rootDir>/client/src/plugins/pulses',
+    '<rootDir>/client/src/plugins/sportadmin',
   ],
   testMatch: [
     '**/__tests__/**/*.test.js',

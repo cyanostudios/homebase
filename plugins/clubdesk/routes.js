@@ -12,6 +12,7 @@ function createClubdeskRoutes(
   siteContentController,
   swishProfileController,
   infoContactController,
+  inventoryController,
 ) {
   const requirePlugin =
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
@@ -318,6 +319,190 @@ function createClubdeskRoutes(
       .isLength({ max: 100 })
       .withMessage('each item category must not exceed 100 characters'),
   ];
+
+  // --- Inventory: ALL /inventory* routes BEFORE /:id ---
+  if (inventoryController) {
+    const inventoryItemBody = [
+      commonRules.plainString('articleName', 1, 255),
+      commonRules.optionalString('brand', 255),
+      body('description')
+        .optional({ values: 'falsy' })
+        .isString()
+        .isLength({ max: 10000 })
+        .withMessage('description must not exceed 10000 characters'),
+      commonRules.optionalString('material', 500),
+      body('purchasePrice')
+        .optional({ values: 'null' })
+        .custom((value) => {
+          if (value === null || value === undefined || value === '') return true;
+          const num =
+            typeof value === 'number' ? value : parseFloat(String(value).replace(',', '.'));
+          return !Number.isNaN(num) && num >= 0;
+        })
+        .withMessage('purchasePrice must be a number >= 0'),
+      body('recommendedPrice')
+        .optional({ values: 'null' })
+        .custom((value) => {
+          if (value === null || value === undefined || value === '') return true;
+          const num =
+            typeof value === 'number' ? value : parseFloat(String(value).replace(',', '.'));
+          return !Number.isNaN(num) && num >= 0;
+        })
+        .withMessage('recommendedPrice must be a number >= 0'),
+      body('salePrice')
+        .optional({ values: 'null' })
+        .custom((value) => {
+          if (value === null || value === undefined || value === '') return true;
+          const num =
+            typeof value === 'number' ? value : parseFloat(String(value).replace(',', '.'));
+          return !Number.isNaN(num) && num >= 0;
+        })
+        .withMessage('salePrice must be a number >= 0'),
+      commonRules.optionalString('currency', 10),
+      body('comment')
+        .optional({ values: 'falsy' })
+        .isString()
+        .isLength({ max: 2000 })
+        .withMessage('comment must not exceed 2000 characters'),
+      body('tags')
+        .optional()
+        .isArray({ max: 50 })
+        .withMessage('tags must be an array of at most 50 strings'),
+      body('tags.*')
+        .optional()
+        .isString()
+        .isLength({ max: 100 })
+        .withMessage('each tag must be a string of at most 100 characters'),
+      body('variants').optional().isArray({ max: 100 }).withMessage('variants must be an array'),
+      body('slug')
+        .optional({ values: 'falsy' })
+        .isString()
+        .isLength({ max: 255 })
+        .withMessage('slug must not exceed 255 characters'),
+      body('featuredImageUrl')
+        .optional({ values: 'falsy' })
+        .isString()
+        .isLength({ max: 2000 })
+        .withMessage('featuredImageUrl must not exceed 2000 characters'),
+      body('publicationStatus')
+        .optional()
+        .isIn(['draft', 'published'])
+        .withMessage('publicationStatus must be draft or published'),
+      body('featured').optional().isBoolean().withMessage('featured must be a boolean'),
+    ];
+
+    const variantBody = [
+      commonRules.optionalString('sku', 100),
+      commonRules.optionalString('audience', 100),
+      commonRules.optionalString('color', 100),
+      commonRules.optionalString('size', 100),
+      body('quantity').optional().isInt({ min: 0 }).withMessage('quantity must be >= 0'),
+      body('sortOrder').optional().isInt({ min: 0 }),
+    ];
+
+    router.get('/inventory', gate, (req, res) => {
+      inventoryController.getAll(req, res);
+    });
+
+    router.post(
+      '/inventory/import',
+      gate,
+      csrfProtection,
+      body('items').isArray({ max: 200 }).withMessage('items must be an array of at most 200'),
+      validateRequest,
+      (req, res) => {
+        inventoryController.importItems(req, res);
+      },
+    );
+
+    router.post(
+      '/inventory',
+      gate,
+      csrfProtection,
+      ...inventoryItemBody,
+      validateRequest,
+      (req, res) => {
+        inventoryController.create(req, res);
+      },
+    );
+
+    router.get('/inventory/:id', gate, commonRules.id('id'), validateRequest, (req, res) => {
+      inventoryController.getById(req, res);
+    });
+
+    router.put(
+      '/inventory/:id',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      ...inventoryItemBody,
+      validateRequest,
+      (req, res) => {
+        inventoryController.update(req, res);
+      },
+    );
+
+    router.delete(
+      '/inventory/:id',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      validateRequest,
+      (req, res) => {
+        inventoryController.delete(req, res);
+      },
+    );
+
+    router.post(
+      '/inventory/:id/variants',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      ...variantBody,
+      validateRequest,
+      (req, res) => {
+        inventoryController.createVariant(req, res);
+      },
+    );
+
+    router.put(
+      '/inventory/:id/variants/:variantId',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      commonRules.id('variantId'),
+      ...variantBody,
+      validateRequest,
+      (req, res) => {
+        inventoryController.updateVariant(req, res);
+      },
+    );
+
+    router.patch(
+      '/inventory/:id/variants/:variantId/quantity',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      commonRules.id('variantId'),
+      body('quantity').isInt({ min: 0 }).withMessage('quantity must be >= 0'),
+      validateRequest,
+      (req, res) => {
+        inventoryController.updateVariantQuantity(req, res);
+      },
+    );
+
+    router.delete(
+      '/inventory/:id/variants/:variantId',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      commonRules.id('variantId'),
+      validateRequest,
+      (req, res) => {
+        inventoryController.deleteVariant(req, res);
+      },
+    );
+  }
 
   // --- Price lists: ALL /price-lists* routes BEFORE /:id ---
   if (priceListController) {

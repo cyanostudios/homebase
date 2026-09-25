@@ -4,6 +4,41 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-25 – Clubdesk inventory (epic 1)
+
+**Typ:** Feature  
+**Scope:** Third Clubdesk domain **Inventory** (same `clubdesk` plugin): admin list/view/form, variants, tags, settings import; tables `clubdesk_inventory_items` / `clubdesk_inventory_variants` (migration **`171-clubdesk-inventory.sql`**); public tab `/inventory/`, SSR detail `/inventory/:slug`, Node `GET /api/public/clubdesk/inventory*`, PHP `/api/inventory.php`. Published-only public; omits `purchase_price` / `comment`.  
+**Risk:** Low–medium. Run `npm run migrate:clubdesk-inventory` (or `npm run migrate:clubdesk`) locally before use; publish articles in admin for public visibility; re-login after plugin access changes if needed.  
+**Local-first.** Not deployed to production unless explicitly released.
+
+**Sammanfattning:** Första leveransen av lager/inventory under Clubdesk — separat från garments (`garment_inventory_*` orört) — med admin-yta och public-yta för `publication_status=published`. ADR: [`ai/adr/CLUBDESK_INVENTORY_EPIC1.md`](ai/adr/CLUBDESK_INVENTORY_EPIC1.md).
+
+---
+
+## 2026-09-25 – Shared ImageLightbox (Files + SportAdmin)
+
+**Typ:** Enhancement (UI)  
+**Scope:** `core/ui/ImageLightbox`; Files preview uses it; SportAdmin Teams/Pages description + news images open lightbox (header thumbs unchanged).  
+**Risk:** Low. Local-first.
+
+---
+
+## 2026-09-25 – SportAdmin team description image vs news collage
+
+**Typ:** Bugfix (parser)  
+**Scope:** Prefer welcome `.inner` (with editorial imgDiv) over longer NID news collage when picking description image — e.g. [F16 start](https://www.sorgenfriff.se/start/?ID=472267).  
+**Risk:** Low. Re-sync affected teams to refresh `description_image_url`.
+
+---
+
+## 2026-09-25 – SportAdmin team tabs: Truppen + Kontakt
+
+**Typ:** Feature  
+**Scope:** Discover team-scoped modules from each team shell; sync `/grupp/` (players+leaders) and `/sida/` Kontakt into team payload; Teams UI tabs **Truppen** / **Kontakt**. Bildgalleri skipped.  
+**Risk:** Low. Re-sync to populate roster/contact. Public SportAdmin data only (same as other imports).
+
+---
+
 ## 2026-09-25 – Docs: list default = title + meta row
 
 **Typ:** Docs  
@@ -11,6 +46,130 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 **Risk:** None (documentation only). **Local-first.**
 
 **Sammanfattning:** Default listdesign förtydligad: **en identity-kolumn med rubrik + metarad**. Extra tabellkolumner endast vid explicit produkt-/UX-beslut — inte “metadata columns later”. Tasks/Requests statusikon-undantag oförändrat.
+
+---
+
+## 2026-09-25 – SportAdmin parse full sektion/dokument pages
+
+**Typ:** Bugfix (parser)  
+**Scope:** Balanced `.inner` extract + plain-text for infoBox/table list pages  
+**Risk:** Low. Re-sync to refresh page descriptions (e.g. Våra lag och tränare).
+
+---
+
+## 2026-09-25 – SportAdmin allow resource type `page`
+
+**Typ:** Migration (tenant)  
+**Scope:** `170-sportadmin-page-type.sql` — extends `sportadmin_resources_type_chk`  
+**Risk:** Low. Required before Pages sync can upsert.
+
+---
+
+## 2026-09-25 – SportAdmin Pages tab (club navigation)
+
+**Typ:** Feature  
+**Scope:** Discover/sync `page` resources; `GET /pages`; Settings category **Pages** before Teams (list|detail)  
+**Risk:** Low. Re-sync to populate pages. Nyheter/matcher/kalender remain separate types.
+
+---
+
+## 2026-09-25 – SportAdmin team news full body
+
+**Typ:** Enhancement  
+**Scope:** TeamParser `news_items.body` + Teams detail lists full article text with original link  
+**Risk:** Low. Re-sync to populate bodies.
+
+---
+
+## 2026-09-25 – SportAdmin team news thumbnails
+
+**Typ:** Enhancement  
+**Scope:** TeamParser news teaser `image_url` + Teams detail thumbnail  
+**Risk:** Low. Re-sync to populate images.
+
+---
+
+## 2026-09-25 – SportAdmin team news in collapsible card
+
+**Typ:** Enhancement (parser + UI)  
+**Scope:** TeamParser `news_items`, Teams detail collapsible News card (closed by default)  
+**Risk:** Low. Re-sync to populate `news_items` in cache.
+
+**Sammanfattning:** Nyhetsteasers på lagsidor lagras separat och visas i ett kollapsbart kort under beskrivningen (stängt som standard).
+
+---
+
+## 2026-09-25 – SportAdmin team description excludes news teasers
+
+**Typ:** Bugfix (parser)  
+**Scope:** `plugins/sportadmin/parser/TeamParser.js`  
+**Risk:** Low. Re-sync to refresh cache.
+
+**Sammanfattning:** Lagsidors beskrivning inkluderade nyhetsteasers (NID-länkar i `rub` utan news-CSS). De filtreras bort; kvar blir sidans egna introtext.
+
+---
+
+## 2026-09-25 – SportAdmin cron opt-in + daily interval
+
+**Typ:** Config  
+**Scope:** `sportadmin_config.cron_enabled`, migration `169`, Integration toggle, cron skip when off.  
+**Risk:** Low. **Local-first** — run `npm run migrate:sportadmin`.
+
+**Sammanfattning:** Schemalagd synk är **av** som standard (beta). Toggle under Integration. När på: högst **en gång per dygn** (1440 min). Manuell Synka nu opåverkad.
+
+---
+
+## 2026-09-25 – SportAdmin team page body + match snippets
+
+**Typ:** Enhancement  
+**Scope:** `TeamParser`, normalizer, Teams detail UI.  
+**Risk:** Low (read-only; re-sync required for cache). **Local-first.**
+
+**Sammanfattning:** Lagdetalj visar nu sidans huvudtext (inte bara `og:description`) plus Kommande/Spelade matcher från SID-sidan. Kör **Synka nu** för att fylla om cachen.
+
+---
+
+## 2026-09-25 – SportAdmin Demo → Teams list|detail
+
+**Typ:** Feature (UI + thin API mapping)  
+**Scope:** `client/src/plugins/sportadmin`, `plugins/sportadmin/controller.js` team mapping, docs.  
+**Risk:** Low (read-only; no migration). **Local-first.**
+
+**Sammanfattning:** Kategorin **Demo** ersatt av **Teams** — skrivskyddad lista + detaljvy över cachade lag (`GET /api/sportadmin/teams`). Team-API exponerar nu `description` (image fanns redan via `source_image_url`). Integration och Debug oförändrade. Ingen skrivning till operativa `teams`.
+
+---
+
+## 2026-09-24 – SportAdmin settings cards + button chrome
+
+**Typ:** UI  
+**Scope:** `client/src/plugins/sportadmin` Integration/Demo/Debug.  
+**QA / Security:** Pending (UI chrome). **Local-first.**
+
+**Sammanfattning:** Staplade `DETAIL_VIEW` cards (`SportadminSectionCard`) som övriga settings. Body-actions `RoundIconLabelButton` `size="xs"` (`alwaysExpanded`); Sync = primary i Imported-rubriken; Demo-filter = soft/primary-pills.
+
+---
+
+## 2026-09-24 – SportAdmin nav → Beta
+
+**Typ:** UI  
+**Scope:** `pluginRegistry` navigation for `sportadmin`.  
+**QA / Security:** Pending (nav chrome only). **Local-first.**
+
+**Sammanfattning:** SportAdmin flyttad från sidomenykategorin **Sport** till **Beta** (`order: 3`, efter Slots).
+
+---
+
+## 2026-09-24 – SportAdmin Connector (beta MVP)
+
+**Typ:** Feature (beta plugin)  
+**Scope:** `plugins/sportadmin` (read-only connector), migrations `167`/`168`, cron `POST /api/cron/sportadmin/sync`, FE settings shell Integration/Demo/Debug under `/sportadmin`.  
+**QA:** **Godkänt** 2026-09-24 (BE+CHANGELOG; S1 host-gate re-review). **Security:** **Godkänt** 2026-09-24 (S1 fixed; residuals **S2/S3/S5** await TPM). **Local-first; not a prod release** by itself.
+
+**Sammanfattning:** Administratör anger en publik SportAdmin-URL på allowlistade hosts (`*.web.sportadmin.se` m.fl.). Homebase hämtar, normaliserar och cachar publik föreningsinfo (lag, nyheter, matcher, kalenderhändelser, länkar) i isolering (skriver inte till `teams`/`matches`/`schedule`). API under `/api/sportadmin/*`. Manuell sync + cron (30 min standard). Inga credentials/login. Bilder sparas som externa URL:er. Icke-allowlistad URL → **400** `HOST_NOT_ALLOWED` (ingen save/fetch).
+
+**Ops (local):** `npm run migrate:sportadmin` sedan logga ut/in. Enable: `npm run set:tenant-plugins -- --email=… --enable=sportadmin` (lägg `--both` först vid explicit release/parity).
+
+**Docs:** [`SPORTADMIN_PLUGIN.md`](./SPORTADMIN_PLUGIN.md), [`ai/adr/SPORTADMIN_CONNECTOR_BETA_MVP.md`](./ai/adr/SPORTADMIN_CONNECTOR_BETA_MVP.md), [`ai/discovery/SPORTADMIN_SORGENFRI_FF.md`](./ai/discovery/SPORTADMIN_SORGENFRI_FF.md), [`ai/design/SPORTADMIN_CONNECTOR_UX.md`](./ai/design/SPORTADMIN_CONNECTOR_UX.md).
 
 ---
 

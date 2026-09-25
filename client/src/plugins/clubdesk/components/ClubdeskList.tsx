@@ -83,6 +83,7 @@ import { ClubdeskForm } from './ClubdeskForm';
 import { ClubdeskInfoView } from './ClubdeskInfoView';
 import { ClubdeskListTable } from './ClubdeskListTable';
 import { ClubdeskView } from './ClubdeskView';
+import { InventoryList } from './InventoryList';
 import { PriceListList } from './PriceListList';
 
 const UNCATEGORIZED_FILTER = '__uncategorized__';
@@ -108,6 +109,9 @@ export const ClubdeskList: React.FC = () => {
   const page = pathToNavPage(location.pathname);
   if (page === 'clubdesk-price-list') {
     return <PriceListList />;
+  }
+  if (page === 'clubdesk-inventory') {
+    return <InventoryList />;
   }
   if (page === 'clubdesk-info') {
     return <ClubdeskInfoView />;

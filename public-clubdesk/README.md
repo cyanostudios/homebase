@@ -1,6 +1,6 @@
 # Public Clubdesk (Pattern A)
 
-Clubdesk-branded public mini-app for **published guides**, **price lists**, **site-content** (home intro + **Om/About** tab), **org Swish**, and **contacts** (`/kontakt/`).
+Clubdesk-branded public mini-app for **published guides**, **price lists**, **inventory** (catalog articles), **site-content** (home intro + **Om/About** tab), **org Swish**, and **contacts** (`/kontakt/`).
 
 ## Local
 
@@ -16,6 +16,8 @@ Optional Node companion (Homebase API, CORS via `PUBLIC_CLUBDESK_URL`):
 - `GET /api/public/clubdesk/guides/:slugOrId`
 - `GET /api/public/clubdesk/price-lists` → `{ priceLists }`
 - `GET /api/public/clubdesk/price-lists/:slugOrId`
+- `GET /api/public/clubdesk/inventory` → `{ inventory }` (published only; no `purchasePrice` / `comment`)
+- `GET /api/public/clubdesk/inventory/:slugOrId`
 - `GET /api/public/clubdesk/site-content` → `{ home, info: { contentHtml, title, visible }, contacts: { visible }, swish: { visible } }` (allowlist-sanitized; info blanked when `visible=false`)
 - `GET /api/public/clubdesk/branding` → `{ name, logoUrl }` from Account Profile / Settings → Profile (`tenants.organization`)
 
@@ -23,31 +25,35 @@ Env (main server): `PUBLIC_CLUBDESK_USER_ID` or `PUBLIC_CLUBDESK_USER_EMAIL`, `P
 
 ## Same-origin PHP APIs
 
-| Endpoint                     | Data                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------ |
-| `GET /api/items.php`         | Published guides (`items` + `categoryOrder`; includes `featured`)                          |
-| `GET /api/price_lists.php`   | Published price lists (`priceLists`; includes `featured`)                                  |
-| `GET /api/site_content.php`  | Home + Om/About HTML + `contacts`/`swish`/`info` `visible` flags, sanitized                |
-| `GET /api/branding.php`      | Org `name` + `logoUrl` from Account Profile (`tenants.organization`)                       |
-| `GET /api/info_contacts.php` | Contacts whitelist (`name`, `phone`, `email`, `blurb`); `[]` when `contacts.visible=false` |
+| Endpoint                        | Data                                                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------ |
+| `GET /api/items.php`            | Published guides (`items` + `categoryOrder`; includes `featured`)                          |
+| `GET /api/price_lists.php`      | Published price lists (`priceLists`; includes `featured`)                                  |
+| `GET /api/inventory.php`        | Published inventory articles (`inventory`; includes `featured`)                            |
+| `GET /api/inventory_detail.php` | Single published article by `?slug=` or `?id=` (variants + public fields only)             |
+| `GET /api/site_content.php`     | Home + Om/About HTML + `contacts`/`swish`/`info` `visible` flags, sanitized                |
+| `GET /api/branding.php`         | Org `name` + `logoUrl` from Account Profile (`tenants.organization`)                       |
+| `GET /api/info_contacts.php`    | Contacts whitelist (`name`, `phone`, `email`, `blurb`); `[]` when `contacts.visible=false` |
 
-Requires `APP_DB_URL` (tenant Postgres). See `railway.env.example`. Edit content in backoffice **Clubdesk** (guides/price lists) and **Clubdesk → Info** (site content, Swish profiles, Kontakt).
+Requires `APP_DB_URL` (tenant Postgres). See `railway.env.example`. Apply tenant migration **`171-clubdesk-inventory.sql`** locally (`npm run migrate:clubdesk-inventory`) before inventory APIs return data. Edit content in backoffice **Clubdesk** (guides, price lists, **Inventory**) and **Clubdesk → Info** (site content, Swish profiles, Kontakt).
 
 ## Routes
 
-| Path                | Surface                                                                                                           |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `/`                 | Hem: CMS-header, **featured** square cards, then option rows (guides/price lists + Swish/Kontakt/Om when visible) |
-| `/guides/`          | Guides listing (kategorier + option cards)                                                                        |
-| `/kategori/:slug/`  | Guides category listing                                                                                           |
-| `/guide/:slug`      | Guide step detail                                                                                                 |
-| `/price-lists/`     | Price list cards                                                                                                  |
-| `/price-list/:slug` | Price list rows + cart; **Nollställ varukorg**; Swish QR under Att betala when profile linked                     |
-| `/swish/`           | Org Swish QR + nummer; empty when site-content `swish.visible=false`                                              |
-| `/kontakt/`         | Contacts list; empty when `contacts.visible=false` (API returns `items: []`)                                      |
-| `/info/`            | Om/About tab (CMS; blanked when `info.visible=false`)                                                             |
+| Path                | Surface                                                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                 | Hem: CMS-header, **featured** square cards (guides, price lists, inventory), then option rows (+ Swish/Kontakt/Om when visible) |
+| `/guides/`          | Guides listing (kategorier + option cards)                                                                                      |
+| `/inventory/`       | Inventory listing (option cards)                                                                                                |
+| `/inventory/:slug`  | Inventory article detail (SSR; variants, prices, tags)                                                                          |
+| `/kategori/:slug/`  | Guides category listing                                                                                                         |
+| `/guide/:slug`      | Guide step detail                                                                                                               |
+| `/price-lists/`     | Price list cards                                                                                                                |
+| `/price-list/:slug` | Price list rows + cart; **Nollställ varukorg**; Swish QR under Att betala when profile linked                                   |
+| `/swish/`           | Org Swish QR + nummer; empty when site-content `swish.visible=false`                                                            |
+| `/kontakt/`         | Contacts list; empty when `contacts.visible=false` (API returns `items: []`)                                                    |
+| `/info/`            | Om/About tab (CMS; blanked when `info.visible=false`)                                                                           |
 
-Bottom tabs: **Hem | Guides | Price list**. Om/About, Swish och Kontakt nås via rader på Hem (när respektive `visible` och Kontakt har rader).
+Bottom tabs: **Hem | Guides | Price list | Inventory**. Om/About, Swish och Kontakt nås via rader på Hem (när respektive `visible` och Kontakt har rader).
 
 ## PWA (installable)
 
@@ -70,7 +76,7 @@ Separate Railway service (not Homebase Node). Pattern: [`docs/PUBLIC_APP_TEMPLAT
 
 1. Residuals **IC-1** / **SP-1** TPM-accepted at release (2026-09-17). Branding residuals **BR-1** / **CACHE-1** — TPM conscious acceptance at next explicit release (see ADR).
 2. Publish Clubdesk content (`publication_status = published`) — tenant currently may have zero published rows until admin publishes.
-3. Confirm `docker/Caddyfile` routes `/guide/`, `/price-list/`, `/swish/`, `/kontakt/` (not `/instruction/`).
+3. Confirm `docker/Caddyfile` routes `/guide/`, `/price-list/`, `/inventory/` (SSR detail), `/swish/`, `/kontakt/` (not `/instruction/`).
 4. New Railway service: **Root Directory** = `public-clubdesk`, Dockerfile builder, branch `main`.
 5. Vars (paste from local gitignored helpers `.env.railway.clubdesk-site` / `.env.railway.clubdesk-homebase`):
    - `APP_DB_URL` = **tenant** Neon (never main `DATABASE_URL`)
@@ -85,7 +91,7 @@ Separate Railway service (not Homebase Node). Pattern: [`docs/PUBLIC_APP_TEMPLAT
 
 ## Notes
 
-- Only `publication_status = 'published'` rows are exposed for guides/price lists. `featured` controls Hem square cards only (not publication).
+- Only `publication_status = 'published'` rows are exposed for guides, price lists, and inventory. `featured` controls Hem square cards only (not publication). Public inventory omits internal fields (`purchase_price`, `comment`).
 - Info contacts: presence = published (no flag); empty list → no Hem row / empty `/kontakt/` state. `meta.visible=false` on contacts also forces API `items: []` and empty SSR.
 - Site-content HTML is allowlist-sanitized on read; empty cards keep hub tiles / Info fallback copy.
 - Visual design: request-form-inspired listing shell (Poppins, violet); see [`docs/PUBLIC_APP_DESIGN.md`](../docs/PUBLIC_APP_DESIGN.md) + ADR [`CLUBDESK_PUBLIC_COMPANION.md`](../docs/ai/adr/CLUBDESK_PUBLIC_COMPANION.md).

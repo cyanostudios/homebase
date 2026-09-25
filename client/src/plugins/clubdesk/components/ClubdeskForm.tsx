@@ -71,6 +71,7 @@ import type {
 } from '../types/clubdesk';
 import { copyStepAt, reorderSteps } from '../utils/clubdeskStepOps';
 
+import { InventoryForm } from './InventoryForm';
 import { PriceListForm } from './PriceListForm';
 
 function isEmptyRichText(html: string): boolean {
@@ -104,6 +105,11 @@ export const ClubdeskForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>
     if (pathToNavPage(location.pathname) === 'clubdesk-price-list') {
       return (
         <PriceListForm ref={ref} stacked={props.stacked} headerTrailing={props.headerTrailing} />
+      );
+    }
+    if (pathToNavPage(location.pathname) === 'clubdesk-inventory') {
+      return (
+        <InventoryForm ref={ref} stacked={props.stacked} headerTrailing={props.headerTrailing} />
       );
     }
     return <ClubdeskGuideForm ref={ref} {...props} />;

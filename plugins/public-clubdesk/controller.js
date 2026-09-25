@@ -108,6 +108,51 @@ class PublicClubdeskController {
     }
   }
 
+  async listInventory(req, res) {
+    try {
+      const ctx = this.getPoolContext(req);
+      if (!ctx) {
+        return res.status(500).json({ error: 'Public clubdesk service not configured' });
+      }
+
+      const inventory = await this.model.listPublishedInventory(ctx.pool, ctx.ownerUserId);
+      return res.json({ inventory });
+    } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      Logger.error('List public clubdesk inventory failed', error);
+      return res.status(500).json({ error: 'Failed to fetch inventory' });
+    }
+  }
+
+  async getInventory(req, res) {
+    try {
+      const ctx = this.getPoolContext(req);
+      if (!ctx) {
+        return res.status(500).json({ error: 'Public clubdesk service not configured' });
+      }
+
+      const item = await this.model.getPublishedInventoryBySlugOrId(
+        ctx.pool,
+        ctx.ownerUserId,
+        req.params.slugOrId,
+      );
+      if (!item) {
+        return res.status(404).json({ error: 'Inventory item not found' });
+      }
+      return res.json(item);
+    } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      Logger.error('Get public clubdesk inventory failed', error, {
+        slugOrId: req.params.slugOrId,
+      });
+      return res.status(500).json({ error: 'Failed to fetch inventory item' });
+    }
+  }
+
   async getSiteContent(req, res) {
     try {
       const ctx = this.getPoolContext(req);

@@ -38,6 +38,7 @@ describe('buildNavCategories', () => {
     expect(clubdesk?.submenu?.map((s) => s.page)).toEqual([
       'clubdesk-guides',
       'clubdesk-price-list',
+      'clubdesk-inventory',
       'clubdesk-info',
     ]);
   });
@@ -63,9 +64,9 @@ describe('buildNavCategories', () => {
     expect(categories.some((c) => c.id === 'Content')).toBe(false);
   });
 
-  it('puts clubdesk and cups in Apps (after Tools), requests in Main, slots in Beta', () => {
+  it('puts clubdesk and cups in Apps (after Tools), requests in Main, slots and sportadmin in Beta', () => {
     const categories = buildNavCategories(
-      new Set(['clubdesk', 'cups', 'requests', 'teams', 'slots', 'files']),
+      new Set(['clubdesk', 'cups', 'requests', 'teams', 'slots', 'files', 'sportadmin']),
       t,
     );
     expect(categories.some((c) => c.id === 'Content')).toBe(false);
@@ -81,6 +82,9 @@ describe('buildNavCategories', () => {
       'dashboard',
       'requests',
     ]);
-    expect(categories.find((c) => c.id === 'Beta')?.items.map((i) => i.page)).toEqual(['slots']);
+    expect(categories.find((c) => c.id === 'Beta')?.items.map((i) => i.page)).toEqual([
+      'slots',
+      'sportadmin',
+    ]);
   });
 });

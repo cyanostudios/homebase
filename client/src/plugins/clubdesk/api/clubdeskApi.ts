@@ -18,6 +18,12 @@ import type {
 } from '../types/siteContent';
 import type { ClubdeskSwishProfile, ClubdeskSwishProfilePayload } from '../types/swishProfile';
 import type { ClubdeskInfoContact, ClubdeskInfoContactPayload } from '../types/infoContact';
+import type {
+  ClubdeskInventoryImportResult,
+  ClubdeskInventoryItem,
+  ClubdeskInventoryItemPayload,
+  ClubdeskInventoryVariant,
+} from '../types/inventory';
 
 const request = createApiClient('/clubdesk');
 
@@ -87,6 +93,34 @@ function normalizePriceList(row: ClubdeskPriceList): ClubdeskPriceList {
           category: item.category ?? null,
         }))
       : row.items,
+  };
+}
+
+function normalizeInventoryVariant(row: ClubdeskInventoryVariant): ClubdeskInventoryVariant {
+  return {
+    ...row,
+    id: row.id != null ? String(row.id) : undefined,
+    itemId: row.itemId != null ? String(row.itemId) : undefined,
+    sku: row.sku ?? '',
+    audience: row.audience ?? '',
+    color: row.color ?? '',
+    size: row.size ?? '',
+    quantity: row.quantity != null ? Number(row.quantity) : 0,
+    sortOrder: row.sortOrder ?? 0,
+  };
+}
+
+function normalizeInventoryItem(row: ClubdeskInventoryItem): ClubdeskInventoryItem {
+  return {
+    ...row,
+    id: String(row.id),
+    currency: row.currency || 'SEK',
+    publicationStatus: row.publicationStatus === 'published' ? 'published' : 'draft',
+    featured: row.featured === true,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    variants: Array.isArray(row.variants) ? row.variants.map(normalizeInventoryVariant) : [],
+    totalQuantity: row.totalQuantity ?? 0,
+    variantCount: row.variantCount ?? (Array.isArray(row.variants) ? row.variants.length : 0),
   };
 }
 
@@ -348,6 +382,51 @@ class ClubdeskApi {
       method: 'PUT',
       body: JSON.stringify({ orderedIds: orderedIds.map((id) => Number(id)) }),
     }).then((rows) => (rows || []).map(normalizeInfoContact));
+  }
+
+  async getInventoryItems(): Promise<ClubdeskInventoryItem[]> {
+    const rows = await apiRequest<ClubdeskInventoryItem[]>('/inventory');
+    return (rows || []).map(normalizeInventoryItem);
+  }
+
+  async getInventoryItem(id: string): Promise<ClubdeskInventoryItem> {
+    const row = await apiRequest<ClubdeskInventoryItem>(`/inventory/${id}`);
+    return normalizeInventoryItem(row);
+  }
+
+  createInventoryItem(payload: ClubdeskInventoryItemPayload) {
+    return apiRequest<ClubdeskInventoryItem>('/inventory', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then(normalizeInventoryItem);
+  }
+
+  updateInventoryItem(id: string, payload: ClubdeskInventoryItemPayload) {
+    return apiRequest<ClubdeskInventoryItem>(`/inventory/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }).then(normalizeInventoryItem);
+  }
+
+  deleteInventoryItem(id: string) {
+    return apiRequest<{ deleted: boolean }>(`/inventory/${id}`, { method: 'DELETE' });
+  }
+
+  importInventoryItems(items: ClubdeskInventoryItemPayload[]) {
+    return apiRequest<ClubdeskInventoryImportResult>('/inventory/import', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    });
+  }
+
+  updateInventoryVariantQuantity(itemId: string, variantId: string, quantity: number) {
+    return apiRequest<ClubdeskInventoryVariant>(
+      `/inventory/${itemId}/variants/${variantId}/quantity`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ quantity }),
+      },
+    ).then(normalizeInventoryVariant);
   }
 }
 

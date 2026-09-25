@@ -31,6 +31,11 @@ if ($uriPath === '/price-list' || str_starts_with($uriPath, '/price-list/')) {
     return true;
 }
 
+if (preg_match('#^/inventory/([a-z0-9-]+)/?$#i', $uriPath) === 1) {
+    require __DIR__ . '/inventory.php';
+    return true;
+}
+
 if ($uriPath === '/swish' || $uriPath === '/swish/') {
     require __DIR__ . '/swish.php';
     return true;
@@ -43,7 +48,7 @@ if ($uriPath === '/kontakt' || $uriPath === '/kontakt/') {
 
 // SPA listing paths — serve index.html (real URLs, not hash).
 if (
-    preg_match('#^/(guides|alla|price-lists|info)/?$#', $uriPath) === 1
+    preg_match('#^/(guides|alla|price-lists|inventory|info)/?$#', $uriPath) === 1
     || preg_match('#^/kategori/[^/]+/?$#', $uriPath) === 1
 ) {
     require_once __DIR__ . '/api/security_headers.php';

@@ -15,6 +15,7 @@ import {
   ListOrdered,
   Sparkles,
   Package,
+  Link2,
 } from 'lucide-react';
 import React from 'react';
 
@@ -196,6 +197,9 @@ import { useRequests } from '@/plugins/requests/hooks/useRequests';
 // Schedule
 import { ScheduleNullProvider } from '@/plugins/schedule/context/ScheduleContext';
 import { useSchedule } from '@/plugins/schedule/hooks/useSchedule';
+// SportAdmin
+import { SportadminNullProvider } from '@/plugins/sportadmin/context/SportadminContext';
+import { useSportadmin } from '@/plugins/sportadmin/hooks/useSportadmin';
 // ─── Lazy UI components: List / Form / View / dashboardWidget ─────────────────
 // These are loaded on-demand: List when navigating to a plugin page,
 // Form/View when opening a panel, dashboardWidget when Dashboard is rendered.
@@ -251,6 +255,13 @@ const TeamsDashboardWidget = React.lazy(() =>
 // Schedule
 const ScheduleList = React.lazy(() =>
   import('@/plugins/schedule/components/ScheduleList').then((m) => ({ default: m.ScheduleList })),
+);
+
+// SportAdmin
+const SportadminList = React.lazy(() =>
+  import('@/plugins/sportadmin/components/SportadminList').then((m) => ({
+    default: m.SportadminList,
+  })),
 );
 const ScheduleDashboardWidget = React.lazy(() =>
   import('@/plugins/schedule/components/ScheduleDashboardWidget').then((m) => ({
@@ -1083,6 +1094,27 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentOwnsScroll: true,
     slugField: 'providerKey',
     contentViewKey: 'aiProvidersContentView',
+    noPrimaryAction: true,
+  },
+  {
+    name: 'sportadmin',
+    Provider: SportadminNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/sportadmin/context/SportadminProvider').then((m) => m.SportadminProvider),
+    NullProvider: SportadminNullProvider,
+    hook: useSportadmin,
+    panelKey: 'isSportadminPanelOpen',
+    components: {
+      List: SportadminList,
+    },
+    navigation: {
+      category: 'Beta',
+      label: 'SportAdmin',
+      icon: Link2,
+      order: 3,
+    },
+    contentFlush: true,
+    contentOwnsScroll: true,
     noPrimaryAction: true,
   },
   {

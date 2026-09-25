@@ -31,6 +31,7 @@
   function pathForListing(tab, filter) {
     if (tab === 'info') return '/info/';
     if (tab === 'price-lists') return '/price-lists/';
+    if (tab === 'inventory') return '/inventory/';
     if (tab === 'category' || (filter && filter !== 'Alla')) {
       return categoryPath(filter || 'Övrigt');
     }
@@ -49,6 +50,9 @@
     }
     if (path === '/price-lists') {
       return { tab: 'price-lists', filter: 'Alla', categorySlug: null };
+    }
+    if (path === '/inventory') {
+      return { tab: 'inventory', filter: 'Alla', categorySlug: null };
     }
     if (path === '/info') {
       return { tab: 'info', filter: 'Alla', categorySlug: null };

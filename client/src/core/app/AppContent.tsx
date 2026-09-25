@@ -342,13 +342,17 @@ export function AppContent() {
     // Price list item URLs: /clubdesk/price-list/:slug — provider-owned deep link, panel must stay open
     const isClubdeskPriceListItemPath =
       pluginName === 'clubdesk' && itemSlug === 'price-list' && parts.length >= 3;
+    const isClubdeskInventoryItemPath =
+      pluginName === 'clubdesk' && itemSlug === 'inventory' && parts.length >= 3;
 
     const panelBelongsToUrl = (plugin: { name: string; panelKey: string }) =>
       Boolean(
         pluginName &&
           plugin.name === pluginName &&
           itemSlug &&
-          (!isNamedPluginSubRoute || (plugin.name === 'clubdesk' && isClubdeskPriceListItemPath)),
+          (!isNamedPluginSubRoute ||
+            (plugin.name === 'clubdesk' &&
+              (isClubdeskPriceListItemPath || isClubdeskInventoryItemPath))),
       );
 
     /** List URL + create panel is valid (Add / cross-plugin create); do not auto-close. */

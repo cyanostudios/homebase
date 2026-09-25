@@ -1,13 +1,13 @@
 # ADR: Clubdesk plugin — Etapp 1
 
-**Status:** Accepted (Etapp 1) + category-ownership delta (2026-08-07) + public companion (2026-08-07) + Info site content (2026-08-07) + Swish QR wiring (2026-08-07) + **Swish profiles ↔ price lists (2026-08-07)**  
+**Status:** Accepted (Etapp 1) + category-ownership delta (2026-08-07) + public companion (2026-08-07) + Info site content (2026-08-07) + Swish QR wiring (2026-08-07) + **Swish profiles ↔ price lists (2026-08-07)** + **Inventory catalog Epic 1 (2026-09-25)** — see [`CLUBDESK_INVENTORY_EPIC1.md`](CLUBDESK_INVENTORY_EPIC1.md)  
 **Date:** 2026-08-07  
 **Context:** Backoffice kiosk plugin for associations: Guides (Instructions clone) + Price list + Info content cards. Category-delete integrity: **QA Approved** + **Security Approved**. Info site content (migration 122): **QA Approved** + **Security Approved** (HTML residuals below await TPM conscious acceptance). Early singleton Swish-in-meta wiring superseded by **Swish profiles** (migration 123): **QA Approved** + **Security Approved**; residual **SP-1** awaits TPM conscious acceptance — see [`CLUBDESK_SWISH_PROFILES.md`](CLUBDESK_SWISH_PROFILES.md). Public companion: [`CLUBDESK_PUBLIC_COMPANION.md`](CLUBDESK_PUBLIC_COMPANION.md) (local-first; **no prod release**).
 
 ## Decision
 
 1. **Admin plugin `clubdesk`** — `routeBase` `/api/clubdesk`, CSRF on mutations, `requirePlugin('clubdesk')`. Display name Clubdesk, `displayPrefix` CDK.
-2. **Navigation (Invoices pattern)** — Sidebar submenu: Guides (`clubdesk-guides` → `/clubdesk`) + Price list (`clubdesk-price-list` → `/clubdesk/price-list`) + Info (`clubdesk-info` → `/clubdesk/info`). Named segments `price-list` and `info` are reserved; guide slugs rejected. `renderCurrentPage` resolves plugins by name **or** submenu page.
+2. **Navigation (Invoices pattern)** — Sidebar submenu: Guides (`clubdesk-guides` → `/clubdesk`) + Price list (`clubdesk-price-list` → `/clubdesk/price-list`) + **Inventory** (`clubdesk-inventory` → `/clubdesk/inventory`) + Info (`clubdesk-info` → `/clubdesk/info`). Named segments `price-list`, `inventory`, and `info` are reserved; guide slugs rejected. `renderCurrentPage` resolves plugins by name **or** submenu page.
 3. **Guides schema (tenant, migration 119)** — `clubdesk_guides`, `clubdesk_guide_steps`, `clubdesk_guide_categories`. Same publish rule as Instructions (≥1 step). No shared tables with Instructions.
 4. **Price lists schema (tenant, migration 120)** — `clubdesk_price_lists` (currency default `SEK`), `clubdesk_price_list_items` (`NUMERIC(12,2)`, category + sequence), `clubdesk_price_list_item_categories` (**per list**, `sort_order`). Published ⇒ ≥1 item. Item reorder within category. Category reorder via `PUT /price-lists/:id/categories/reorder`; list/view/API item order follows category `sort_order` then `sequence_order` (ready for a future public kiosk).
 5. **Plugin access (main, migration 121)** — Grant `clubdesk`, or `npm run set:tenant-plugins -- --enable=clubdesk`. Runner: `npm run migrate:clubdesk`. After enable: **log out/in**. Migration `121` inserts grant rows for existing tenants/owners when run — use deliberate enable (`--both` / selective) on production release.
@@ -26,14 +26,16 @@
 
 **Public companion:** see [`CLUBDESK_PUBLIC_COMPANION.md`](CLUBDESK_PUBLIC_COMPANION.md) (`public-clubdesk/` + `plugins/public-clubdesk/`).
 
+**Inventory (Epic 1, 2026-09-25):** Third admin domain + public published catalog — full decision in [`CLUBDESK_INVENTORY_EPIC1.md`](CLUBDESK_INVENTORY_EPIC1.md). Same plugin gate; no new grant. Distinct from Garments inventory tables.
+
 **Note:** Instructions category UX was later aligned with this form-owned pattern (separate plugin; documented in Instructions ADR). Tables remain separate.
 
 ## Configuration
 
-| Item    | Value                                                                                |
-| ------- | ------------------------------------------------------------------------------------ |
-| Migrate | `npm run migrate:clubdesk` (tenant: 119, 120, **122**, **123**; main grant: 121)     |
-| Enable  | `npm run set:tenant-plugins -- --enable=clubdesk` (add `--both` on release / parity) |
+| Item    | Value                                                                                                                                                        |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Migrate | `npm run migrate:clubdesk` (tenant: 119, 120, **122**, **123**, **171** inventory; main grant: 121) or `npm run migrate:clubdesk-inventory` for **171** only |
+| Enable  | `npm run set:tenant-plugins -- --enable=clubdesk` (add `--both` on release / parity)                                                                         |
 
 ## Security (residuals)
 
