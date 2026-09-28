@@ -23,8 +23,10 @@ export const VARIANT_EDIT_GRID_CLASS =
   'grid min-w-0 flex-1 grid-cols-2 gap-x-2 gap-y-1.5 sm:grid-cols-[minmax(0,1.25fr)_5.5rem_5.5rem_4rem_3.5rem_auto] sm:items-end';
 
 /**
- * Wide person/inventory matrix — scroll inside card on phone instead of widening the page.
- * Bleeds to card horizontal padding on phone; contained from sm.
+ * Wide person matrix — horizontal scroll inside the card on phone, without trapping
+ * vertical page scroll. overflow-x:auto would otherwise compute overflow-y to auto and,
+ * with touch-action:pan-x, swallow vertical swipes that start on the table.
+ * Bleeds to card horizontal padding on phone; contained from md.
  */
 export const MATRIX_TABLE_SCROLL_CLASS =
-  '-mx-4 min-w-0 max-w-[calc(100%+2rem)] overflow-x-auto overscroll-x-contain touch-pan-x rounded-none border-x-0 border-y border-border md:mx-0 md:max-w-full md:rounded-md md:border';
+  '-mx-4 min-w-0 max-w-[calc(100%+2rem)] overflow-x-auto overflow-y-hidden overscroll-x-contain touch-manipulation rounded-none border-x-0 border-y border-border md:mx-0 md:max-w-full md:rounded-md md:border';

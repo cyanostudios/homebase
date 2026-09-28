@@ -136,7 +136,7 @@ _(UI working language is English; Swedish in `sv.json`. Team is omitted when the
 
 Person create/update (`POST` / `PUT` `/api/garments/lists/:id/persons[/:personId]`) accept optional `teamId` (numeric id or `null`), same validation style as `contactId`. CSRF + garments plugin gate required. List ownership is enforced before write (`user_id` on the parent list).
 
-Each person is a **collapsible** parent row (visible identity columns + person-level checkboxes). Expanding shows **child rows per assigned inventory article** only (`filterMatrixColumns` — legacy Shorts/Shirt/Socks groups and Blankett Fogis are not shown; columns with `hidden: true` are omitted). On phone/pad the matrix scrolls horizontally (`MATRIX_TABLE_SCROLL_CLASS`); the name column is not sticky.
+Each person is a **collapsible** parent row (visible identity columns + person-level checkboxes). Expanding shows **child rows per assigned inventory article** only (`filterMatrixColumns` — legacy Shorts/Shirt/Socks groups and Blankett Fogis are not shown; columns with `hidden: true` are omitted). On phone/pad the matrix scrolls horizontally (`MATRIX_TABLE_SCROLL_CLASS`); a vertical swipe still scrolls the page. The name column is not sticky.
 
 **Person matrix column settings** (`GarmentsListsSettingsView`, gear on `/garments`):
 
