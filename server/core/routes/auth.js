@@ -4,6 +4,10 @@
 const express = require('express');
 const router = express.Router();
 const { ALL_DISCOVERED_PLUGINS } = require('../config/constants');
+const {
+  isPlatformTenantsAdminSession,
+  applyTenantsPluginVisibility,
+} = require('../config/platformTenantsAdmin');
 const AuthService = require('../services/auth/AuthService');
 const PasswordResetService = require('../services/auth/PasswordResetService');
 const ServiceManager = require('../ServiceManager');
@@ -27,6 +31,24 @@ function ensureSettingsInPlugins(plugins) {
     list.push('settings');
   }
   return list;
+}
+
+/**
+ * Apply settings + platform tenants allowlist visibility for session/API responses.
+ * @param {string[]} plugins
+ * @param {import('express').Request} req
+ */
+async function finalizeSessionPlugins(plugins, req) {
+  let db;
+  try {
+    db = ServiceManager.get('database');
+  } catch {
+    db = null;
+  }
+  const allowed = await isPlatformTenantsAdminSession(req, db);
+  // Platform-admin allowlist accounts always get every discovered plugin (cannot be turned off).
+  const base = allowed ? ALL_DISCOVERED_PLUGINS || [] : plugins;
+  return ensureSettingsInPlugins(applyTenantsPluginVisibility(base, allowed));
 }
 
 /**
@@ -109,10 +131,17 @@ router.post(
         return res.status(500).json({ error: 'Login failed: Invalid response from auth service' });
       }
 
-      const sessionPlugins =
+      const basePlugins =
         user.role === 'superuser'
           ? ALL_DISCOVERED_PLUGINS
           : ensureSettingsInPlugins(user.plugins || []);
+
+      const sessionPlugins = await finalizeSessionPlugins(basePlugins, {
+        session: {
+          user: { email: user.email },
+          tenantOwnerUserId: tenantOwnerUserId ?? user.id,
+        },
+      });
 
       const dbHost = tenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
       logger.info('User logged in', {
@@ -128,7 +157,7 @@ router.post(
             id: user.id,
             email: user.email,
             role: user.role,
-            plugins: ensureSettingsInPlugins(sessionPlugins),
+            plugins: sessionPlugins,
           },
           tenantConnectionString,
           tenantId,
@@ -155,7 +184,7 @@ router.post(
               id: user.id,
               email: user.email,
               role: user.role,
-              plugins: ensureSettingsInPlugins(sessionPlugins),
+              plugins: sessionPlugins,
             },
           });
         },
@@ -279,10 +308,17 @@ router.post(
   '/signup',
   (req, res, next) => authLimiter(req, res, next),
   async (req, res) => {
-    const { email, password, plugins } = req.body;
+    const { email, password } = req.body;
 
     try {
-      const { user, tenantDb } = await authService.signup({ email, password, plugins });
+      const { user, tenantDb } = await authService.signup({ email, password });
+
+      const sessionPlugins = await finalizeSessionPlugins(user.plugins || [], {
+        session: {
+          user: { email: user.email },
+          tenantOwnerUserId: user.id,
+        },
+      });
 
       persistAuthenticatedSession(
         req,
@@ -291,7 +327,7 @@ router.post(
             id: user.id,
             email: user.email,
             role: user.role,
-            plugins: ensureSettingsInPlugins(user.plugins || []),
+            plugins: sessionPlugins,
           },
           tenantConnectionString: tenantDb.connectionString,
           tenantId: tenantDb.tenantId ?? null,
@@ -311,7 +347,7 @@ router.post(
           }
 
           res.status(201).json({
-            user: { ...user, plugins: ensureSettingsInPlugins(user.plugins || []) },
+            user: { ...user, plugins: sessionPlugins },
           });
         },
       );
@@ -321,12 +357,6 @@ router.post(
 
       if (error.message.includes('Email already registered')) {
         return res.status(400).json({ error: error.message });
-      }
-      if (error.message.includes('Invalid plugins')) {
-        return res.status(400).json({
-          error: error.message,
-          availablePlugins: error.availablePlugins,
-        });
       }
       if (error.message.includes('Password')) {
         return res.status(400).json({ error: error.message });
@@ -369,6 +399,7 @@ router.get(
 
       // Resolve plugins for current tenant context (owner = currentTenantUserId)
       // Superuser gets every discovered plugin (including DEFAULT_DISABLED_PLUGINS e.g. mail)
+      // except `tenants`, which is injected only via code allowlist in finalizeSessionPlugins.
       let plugins = req.session.user.plugins || [];
       if (req.session.user.role === 'superuser') {
         plugins = ALL_DISCOVERED_PLUGINS || [];
@@ -391,6 +422,8 @@ router.get(
         }
       }
 
+      plugins = await finalizeSessionPlugins(plugins, req);
+
       let organizationName = '';
       let organizationLogoUrl = '';
       if (tenantId != null && organizationService) {
@@ -410,7 +443,7 @@ router.get(
       res.json({
         user: {
           ...req.session.user,
-          plugins: ensureSettingsInPlugins(plugins),
+          plugins,
         },
         currentTenantUserId,
         tenantId,

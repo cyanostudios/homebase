@@ -180,7 +180,8 @@
     "garment": "Klädlista",
     "garments-lists": "Listor",
     "garments-inventory": "Inventarie",
-    "sportadmin": "SportAdmin"
+    "sportadmin": "SportAdmin",
+    "tenants": "Tenants"
   },
   "preferences": {
     "title": "Inställningar",
@@ -3987,7 +3988,15 @@
       "listCount": "Listor",
       "inventoryCount": "Inventarieartiklar",
       "assignedInventory": "Tilldelade till listor",
-      "totalPersons": "Personer totalt"
+      "totalPersons": "Personer totalt",
+      "ordersFromSummaries": "Räknas från varje listas storlekssammanfattning.",
+      "finishedOrders": "Färdiga beställningar",
+      "incompleteOrders": "Beställt men inte komplett",
+      "notOrdered": "Inte beställt",
+      "orderProgress": "{{qty}} av {{needed}}",
+      "ordersEmpty": "Inga",
+      "ordersLoading": "Läser sammanfattningar…",
+      "ordersLoadFailed": "Kunde inte läsa storlekssammanfattningarna."
     },
     "columnsAria": "{{count}} kolumner",
     "noSearchResults": "Inga träffar.",
@@ -4087,7 +4096,7 @@
     "noSizes": "Inga storlekar — lägg till varianter under Inventarie",
     "defaultColumns": "Standardkolumner",
     "defaultColumnsHelp": "Hur många kolumner kort använder som standard (1 = full bredd, 2 = halv, 3 = tredjedel).",
-    "jerseyDuplicateWarning": "Vissa personer har samma tröjnummer. Du kan ändå spara.",
+    "jerseyDuplicateWarning": "Vissa personer i samma lag har samma tröjnummer. Du kan ändå spara.",
     "noPersons": "Inga personer på listan ännu.",
     "addPerson": "Lägg till person",
     "quickAdd": "Snabbperson",
@@ -4308,5 +4317,22 @@
       "resources": "Identifierade resurser",
       "errors": "Fel"
     }
+  },
+  "tenants": {
+    "subtitle": "Plattformsadmin — aktivera eller stäng av plugins per tenant",
+    "listTitle": "Tenants",
+    "searchPlaceholder": "Sök tenants…",
+    "noYet": "Inga tenants ännu",
+    "noEmail": "Ingen e-post",
+    "selectHint": "Välj en tenant för att hantera plugins",
+    "enabledCount": "{{count}} plugins på",
+    "reloginHint": "Efter ändringar måste tenanten logga ut och in igen.",
+    "savedRelogin": "Sparat. Be tenanten logga ut och in igen.",
+    "loadFailed": "Kunde inte ladda tenants",
+    "saveFailed": "Kunde inte spara plugin-åtkomst",
+    "lockedHint": "Plattformsadmin-tenant — alla plugins är på och kan inte stängas av.",
+    "lockedBadge": "alla plugins låsta på",
+    "publicAppHint": "Publik app-backend — ingen plattforms-UI; styrs inte här.",
+    "publicAppLabel": "Publik app"
   }
 }

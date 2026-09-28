@@ -2,6 +2,18 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Platform Tenants + signup + teardown — Security docs sync (2026-09-28)
+
+Efter **QA Godkänt** + **Security Godkänt** (T-S1 session-email-only; residuals **T-S2–T-S5** Low/Info → TPM): operator [`TENANT_USERS_AND_RBAC.md`](../TENANT_USERS_AND_RBAC.md) §3.4b residual-tabell + ALL_DISCOVERED/CSRF; produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) riskrad; [`LOCAL_PROD_PARITY.md`](../LOCAL_PROD_PARITY.md) allowlist note. **Working tree; local-first; ej prod-release.**
+
+## Garments copy lock + jersey-by-team + order statistics — docs after Security (2026-09-28)
+
+Efter **QA Godkänt** + **Security Godkänt** (inga residualer, inget nytt API). Operator: [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md) (duplicate lock på lista och artikel, tröjvarning per lag inklusive personer utan lag, statistik med fet listrubrik och en rad per sammanfattningsrad). Produkt: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-09-28 Garments copy lock. **Working tree; local-first; ej prod-release.**
+
+## Platform Tenants + signup defaults + teardown — docs after QA B1 (2026-09-28)
+
+Produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) §Platform Tenants admin + signup defaults + tenant teardown (allowlist, locked admins, public-\* info-only, Main+files signup, Neon/schema teardown, R2 retained). Åtgärdar QA Underkänt B1. **Working tree; local-first; ej prod-release.**
+
 ## Clubdesk dual price + inventory Duplicate — Security docs sync (2026-09-25)
 
 Efter **QA Godkänt** + **Security Godkänt** (dual price / public COALESCE / inventory Duplicate): ADR [`adr/CLUBDESK_INVENTORY_EPIC2.md`](adr/CLUBDESK_INVENTORY_EPIC2.md) residuals **INV2-S1–S5**; Etapp1 migrate **173**; produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) riskrader; public [`public-clubdesk/README.md`](../../public-clubdesk/README.md) effective price note. **Working tree; local-first; ej prod-release.**

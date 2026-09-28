@@ -35,6 +35,7 @@ export const navPageToPath: Record<NavPage, string> = {
   pulses: '/pulses',
   'ai-providers': '/ai-providers',
   sportadmin: '/sportadmin',
+  tenants: '/tenants',
   settings: '/settings',
 };
 

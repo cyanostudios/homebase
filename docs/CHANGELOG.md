@@ -4,6 +4,40 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-28 – Garments: copy lock, jersey warning by team, order statistics
+
+**Typ:** Enhancement (UI)  
+**Scope:**
+
+- **Duplicate** on a garment list or inventory article keeps the dialog open and locked until the copy finishes (`Kopierar…`). Enter and a second click do not start another copy. Other duplicate dialogs stay unchanged unless `onConfirm` returns a promise.
+- Jersey-number warning is only for the **same team** on a list. The same number on different teams does not warn. Persons with no team still share one group.
+- Garment **statistics** counts size-summary lines as finished (Ordered and qty covers Need), incomplete (Ordered but qty is short, e.g. 1 of 2; a missing qty counts as 0), or not ordered (Ordered unchecked, shown as 0 of Need even if a qty was stored). Each list is a bold heading; each summary line is its own row (article, line, size, `qty av need`). Only lines already in the size summary are counted.
+
+**Risk:** Low. No API or schema change. Local-first.  
+**Docs:** [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) duplicate list, jersey warning, statistics.
+
+**Sammanfattning:** Kopieringsdialogen låses under pågående kopia; tröjnummer varnas per lag; statistiken visar beställningsläge från storlekssammanfattningen.
+
+---
+
+## 2026-09-28 – Platform Tenants admin + signup defaults + tenant teardown
+
+**Typ:** Feature  
+**Scope:**
+
+- New plugin **`tenants`** (`/tenants`, Account): list tenants and toggle plugin access. **Code allowlist only** — `cyanostudios@gmail.com` (all envs); plus `admin@homebase.se` when `NODE_ENV !== 'production'`. Superuser alone is not enough. API under `/api/tenants` with `requirePlatformTenantsAdmin` + CSRF on PUT.
+- Platform-admin owner tenants are **locked** (all plugins on; no disable). `public-*` plugins show as informational rows without switches. Plugin name `tenants` cannot be enabled/disabled for other tenants via this UI.
+- **Signup** always grants Main + Files only (`contacts`, `notes`, `tasks`, `requests`, `files`); client-sent `plugins` ignored. Extra plugins: `npm run set:tenant-plugins` (or Tenants UI for allowlisted admins). Relogin after plugin toggles.
+- Admin delete (user / tenant entry) runs **`teardownTenantInfrastructure`** before main-DB catalog delete: close pool, clear `public_share_routing`, Neon project / local schema delete (404 = ok), clear sessions. **R2 object bytes are not deleted.**
+- **Security T-S1:** Tenants-admin allowlist matches the **logged-in user's email only** (not tenant owner). Invited members of an allowlisted owner do not get `/api/tenants` or `tenants` in session plugins.
+
+**Risk:** Medium (authz allowlist; destructive Neon teardown). **QA Godkänt** + **Security Godkänt** 2026-09-28 (T-S1 fixed; residuals **T-S2–T-S5** Low/Info → TPM acknowledgment). Local-first. Not deployed to production unless explicitly released.  
+**Docs:** [`TENANT_USERS_AND_RBAC.md`](TENANT_USERS_AND_RBAC.md) §3.3–3.4b; [`LOCAL_PROD_PARITY.md`](LOCAL_PROD_PARITY.md) signup defaults note.
+
+**Sammanfattning:** Platform admin UI for tenant plugin access; narrower signup defaults; teardown Neon/schema before catalog remove.
+
+---
+
 ## 2026-09-25 – Clubdesk inventory: Duplicate under Actions
 
 **Typ:** Enhancement  

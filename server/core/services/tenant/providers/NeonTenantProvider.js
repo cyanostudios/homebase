@@ -69,7 +69,6 @@ class NeonTenantProvider extends TenantService {
    */
   async deleteTenant(userId) {
     try {
-      // Get project ID from database
       if (!this.mainPool) {
         throw new Error('mainPool not configured for NeonTenantProvider');
       }
@@ -85,12 +84,24 @@ class NeonTenantProvider extends TenantService {
       }
 
       const projectId = result.rows[0].neon_project_id;
+      if (!projectId) {
+        console.log(`⚠️  Tenant for user ${userId} has no neon_project_id; skip Neon delete`);
+        return;
+      }
 
-      await axios.delete(`${this.baseUrl}/projects/${projectId}`, {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-      });
+      try {
+        await axios.delete(`${this.baseUrl}/projects/${projectId}`, {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+        });
+      } catch (error) {
+        if (error.response?.status === 404) {
+          console.log(`⚠️  Neon project already gone: ${projectId}`);
+          return;
+        }
+        throw error;
+      }
 
       console.log(`✅ Deleted Neon project: ${projectId}`);
     } catch (error) {

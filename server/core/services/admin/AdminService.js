@@ -2,6 +2,7 @@
 const ServiceManager = require('../../ServiceManager');
 const UserService = require('../user/UserService');
 const { USER_ROLES } = require('../../config/constants');
+const { teardownTenantInfrastructure, asRows } = require('../tenant/teardownTenantInfrastructure');
 
 class AdminService {
   constructor() {
@@ -23,7 +24,7 @@ class AdminService {
   }
 
   /**
-   * Delete tenant entry only
+   * Delete tenant infrastructure + catalog row (user account kept)
    * @param {string} adminId
    * @param {string} targetUserId
    */
@@ -35,12 +36,21 @@ class AdminService {
       throw new Error('User not found');
     }
 
-    const result = await db.query(
-      'DELETE FROM tenants WHERE user_id = $1 OR owner_user_id = $1 RETURNING id',
-      [targetUserId, targetUserId],
+    await teardownTenantInfrastructure(targetUserId, {
+      db,
+      tenantService: ServiceManager.get('tenant'),
+      connectionPool: ServiceManager.get('connectionPool'),
+      logger: this.logger,
+    });
+
+    const result = asRows(
+      await db.query('DELETE FROM tenants WHERE user_id = $1 OR owner_user_id = $1 RETURNING id', [
+        targetUserId,
+        targetUserId,
+      ]),
     );
 
-    if (!result.rows.length) {
+    if (!result.length) {
       throw new Error('Tenant entry not found');
     }
 
@@ -62,7 +72,6 @@ class AdminService {
    * @param {string} targetUserId
    */
   async deleteUser(adminId, targetUserId) {
-    // UserService handles the cascading delete logic
     const result = await this.userService.deleteUser(targetUserId);
 
     if (!result) {

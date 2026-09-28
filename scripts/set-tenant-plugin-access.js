@@ -14,6 +14,11 @@
 const path = require('path');
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
+const {
+  applyPluginAccessChanges,
+  detectPluginAccessTables,
+  listPluginAccess,
+} = require('../server/core/services/admin/tenantPluginAccess');
 
 const injected = {
   DATABASE_URL: process.env.DATABASE_URL,
@@ -41,15 +46,6 @@ function parseArg(name) {
   return hit ? hit.slice(prefix.length) : null;
 }
 
-async function hasTable(pool, table) {
-  const r = await pool.query(
-    `SELECT 1 FROM information_schema.tables
-     WHERE table_schema = 'public' AND table_name = $1`,
-    [table],
-  );
-  return r.rows.length > 0;
-}
-
 async function resolveTenant(pool, { email, tenantId }) {
   if (tenantId) {
     const r = await pool.query(
@@ -75,45 +71,6 @@ async function resolveTenant(pool, { email, tenantId }) {
   return r.rows[0];
 }
 
-async function setPluginAccess(pool, tables, { tenantId, ownerUserId, pluginName, enabled }) {
-  if (tables.tenantPlugin) {
-    await pool.query(
-      `INSERT INTO tenant_plugin_access (tenant_id, plugin_name, enabled, granted_by_user_id)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (tenant_id, plugin_name)
-       DO UPDATE SET enabled = EXCLUDED.enabled, granted_at = CURRENT_TIMESTAMP`,
-      [tenantId, pluginName, enabled, ownerUserId],
-    );
-  }
-  if (tables.userPlugin) {
-    await pool.query(
-      `INSERT INTO user_plugin_access (user_id, plugin_name, enabled, granted_by)
-       VALUES ($1, $2, $3, $1)
-       ON CONFLICT (user_id, plugin_name)
-       DO UPDATE SET enabled = EXCLUDED.enabled`,
-      [ownerUserId, pluginName, enabled],
-    );
-  }
-}
-
-async function listEnabled(pool, tables, tenantId, ownerUserId) {
-  if (tables.tenantPlugin) {
-    const r = await pool.query(
-      `SELECT plugin_name, enabled FROM tenant_plugin_access WHERE tenant_id = $1 ORDER BY plugin_name`,
-      [tenantId],
-    );
-    return r.rows;
-  }
-  if (tables.userPlugin) {
-    const r = await pool.query(
-      `SELECT plugin_name, enabled FROM user_plugin_access WHERE user_id = $1 ORDER BY plugin_name`,
-      [ownerUserId],
-    );
-    return r.rows;
-  }
-  return [];
-}
-
 function wantsBoth() {
   return (
     process.argv.includes('--both') ||
@@ -130,10 +87,7 @@ async function applyPluginChanges(dbUrl, label, { email, tenantId, enable, disab
 
   const pool = new Pool({ connectionString: dbUrl });
   try {
-    const tables = {
-      tenantPlugin: await hasTable(pool, 'tenant_plugin_access'),
-      userPlugin: await hasTable(pool, 'user_plugin_access'),
-    };
+    const tables = await detectPluginAccessTables(pool);
     if (!tables.tenantPlugin && !tables.userPlugin) {
       throw new Error(
         'Neither tenant_plugin_access nor user_plugin_access exists — run migrations first',
@@ -147,26 +101,21 @@ async function applyPluginChanges(dbUrl, label, { email, tenantId, enable, disab
       `Tenant id=${tenant.id}, owner_user_id=${ownerUserId}${tenant.email ? `, email=${tenant.email}` : ''}`,
     );
 
+    await applyPluginAccessChanges(pool, {
+      tenantId: tenant.id,
+      ownerUserId,
+      enable,
+      disable,
+    });
+
     for (const name of disable) {
-      await setPluginAccess(pool, tables, {
-        tenantId: tenant.id,
-        ownerUserId,
-        pluginName: name,
-        enabled: false,
-      });
       console.log(`Disabled: ${name}`);
     }
     for (const name of enable) {
-      await setPluginAccess(pool, tables, {
-        tenantId: tenant.id,
-        ownerUserId,
-        pluginName: name,
-        enabled: true,
-      });
       console.log(`Enabled: ${name}`);
     }
 
-    const rows = await listEnabled(pool, tables, tenant.id, ownerUserId);
+    const rows = await listPluginAccess(pool, tables, tenant.id, ownerUserId);
     const active = rows.filter((r) => r.enabled).map((r) => r.plugin_name);
     console.log('Enabled plugins now:', active.length ? active.join(', ') : '(none)');
   } finally {
