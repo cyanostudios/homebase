@@ -1,4 +1,4 @@
-import { Download, Plus, Upload, X } from 'lucide-react';
+import { Download, Eye, Plus, Upload, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -19,6 +19,7 @@ import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
 import { cn } from '@/lib/utils';
 
+import { clubdeskApi } from '../api/clubdeskApi';
 import { useClubdesk } from '../hooks/useClubdesk';
 import { CLUBDESK_INVENTORY_SETTINGS_KEY } from '../utils/clubdeskInventorySettingsKey';
 import {
@@ -27,12 +28,18 @@ import {
 } from '../utils/inventoryImportSchema';
 import { inventoryTagsEqual, normalizeInventoryTags } from '../utils/inventoryTags';
 
-export type ClubdeskInventorySettingsCategory = 'tags' | 'import';
+import { ClubdeskPublicVisibleSwitch } from './ClubdeskPublicVisibleSwitch';
+
+export type ClubdeskInventorySettingsCategory = 'public' | 'tags' | 'import';
 
 interface ClubdeskInventorySettingsViewProps {
   selectedCategory?: ClubdeskInventorySettingsCategory;
   onSelectedCategoryChange?: (category: ClubdeskInventorySettingsCategory) => void;
   onClose?: () => void;
+}
+
+function readCardVisible(meta: Record<string, unknown> | undefined): boolean {
+  return meta?.visible !== false;
 }
 
 export function ClubdeskInventorySettingsView({
@@ -46,13 +53,15 @@ export function ClubdeskInventorySettingsView({
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
   const [internalCategory, setInternalCategory] =
-    useState<ClubdeskInventorySettingsCategory>('tags');
+    useState<ClubdeskInventorySettingsCategory>('public');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
   const [tags, setTags] = useState<string[]>([]);
   const [initialTags, setInitialTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  const [inventoryPublicVisible, setInventoryPublicVisible] = useState(true);
+  const [initialInventoryPublicVisible, setInitialInventoryPublicVisible] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -60,6 +69,12 @@ export function ClubdeskInventorySettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'public',
+        label: t('clubdesk.inventory.settingsCategories.public'),
+        description: t('clubdesk.inventory.settingsCategories.publicDescription'),
+        icon: Eye,
+      },
       {
         id: 'tags',
         label: t('clubdesk.inventory.settingsCategories.tags'),
@@ -78,14 +93,17 @@ export function ClubdeskInventorySettingsView({
 
   useEffect(() => {
     let cancelled = false;
-    getSettings(CLUBDESK_INVENTORY_SETTINGS_KEY)
-      .then((settings) => {
+    Promise.all([getSettings(CLUBDESK_INVENTORY_SETTINGS_KEY), clubdeskApi.getSiteContent()])
+      .then(([settings, siteContent]) => {
         if (cancelled) {
           return;
         }
         const loadedTags = normalizeInventoryTags(settings?.tags);
         setTags(loadedTags);
         setInitialTags(loadedTags);
+        const visible = readCardVisible(siteContent.inventory?.meta);
+        setInventoryPublicVisible(visible);
+        setInitialInventoryPublicVisible(visible);
       })
       .catch(() => {})
       .finally(() => {
@@ -99,24 +117,37 @@ export function ClubdeskInventorySettingsView({
   }, [getSettings, settingsVersion]);
 
   const tagsDirty = !inventoryTagsEqual(tags, initialTags);
-  const isDirty = activeCategory === 'tags' && tagsDirty;
+  const publicDirty = inventoryPublicVisible !== initialInventoryPublicVisible;
+  const isDirty =
+    (activeCategory === 'tags' && tagsDirty) || (activeCategory === 'public' && publicDirty);
 
   const handleSave = useCallback(async () => {
-    if (activeCategory !== 'tags') {
+    if (activeCategory === 'import') {
       return;
     }
     setIsSaving(true);
     try {
-      const next = normalizeInventoryTags(tags);
-      await updateSettings(CLUBDESK_INVENTORY_SETTINGS_KEY, { tags: next });
-      setTags(next);
-      setInitialTags(next);
+      if (activeCategory === 'tags') {
+        const next = normalizeInventoryTags(tags);
+        await updateSettings(CLUBDESK_INVENTORY_SETTINGS_KEY, { tags: next });
+        setTags(next);
+        setInitialTags(next);
+      } else if (activeCategory === 'public') {
+        await clubdeskApi.saveSiteContent([
+          {
+            cardKey: 'inventory',
+            content: '',
+            meta: { visible: inventoryPublicVisible },
+          },
+        ]);
+        setInitialInventoryPublicVisible(inventoryPublicVisible);
+      }
     } catch (error) {
-      console.error('Failed to save clubdesk inventory tags:', error);
+      console.error('Failed to save clubdesk inventory settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [activeCategory, tags, updateSettings]);
+  }, [activeCategory, inventoryPublicVisible, tags, updateSettings]);
 
   const addTag = useCallback(() => {
     const next = newTag.trim();
@@ -162,6 +193,26 @@ export function ClubdeskInventorySettingsView({
           ) : null
         }
       >
+        {activeCategory === 'public' && (
+          <DetailSection
+            title={t('clubdesk.inventory.settingsCategories.public')}
+            icon={Eye}
+            subtleTitle
+            className="pt-0"
+            titleAside={
+              <ClubdeskPublicVisibleSwitch
+                id="clubdesk-inventory-public-visible"
+                checked={inventoryPublicVisible}
+                onCheckedChange={setInventoryPublicVisible}
+              />
+            }
+          >
+            <p className="text-sm text-muted-foreground">
+              {t('clubdesk.inventory.settingsCategories.publicHint')}
+            </p>
+          </DetailSection>
+        )}
+
         {activeCategory === 'tags' && (
           <DetailSection
             title={t('clubdesk.inventory.settingsCategories.tags')}

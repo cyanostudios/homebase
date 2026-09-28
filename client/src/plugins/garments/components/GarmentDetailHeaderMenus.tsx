@@ -110,7 +110,9 @@ export function InventoryDetailHeaderMenus({
 
       <DuplicateDialog
         isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
+        title={t('common.duplicate')}
+        confirmText={t('common.copy')}
+        onConfirm={(newName) =>
           executeDuplicate(item, newName)
             .then(({ closePanel, highlightId }) => {
               closePanel();
@@ -121,8 +123,8 @@ export function InventoryDetailHeaderMenus({
             })
             .catch(() => {
               setShowDuplicateDialog(false);
-            });
-        }}
+            })
+        }
         onCancel={() => setShowDuplicateDialog(false)}
         defaultName={duplicateConfig?.defaultName ?? ''}
         nameLabel={duplicateConfig?.nameLabel ?? t('garments.articleName')}
@@ -272,7 +274,9 @@ export function GarmentListDetailHeaderMenus({
 
       <DuplicateDialog
         isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
+        title={t('common.duplicate')}
+        confirmText={t('common.copy')}
+        onConfirm={(newName) =>
           executeDuplicate(list, newName)
             .then(({ closePanel, highlightId }) => {
               closePanel();
@@ -283,8 +287,8 @@ export function GarmentListDetailHeaderMenus({
             })
             .catch(() => {
               setShowDuplicateDialog(false);
-            });
-        }}
+            })
+        }
         onCancel={() => setShowDuplicateDialog(false)}
         defaultName={duplicateConfig?.defaultName ?? ''}
         nameLabel={duplicateConfig?.nameLabel ?? t('garments.name')}

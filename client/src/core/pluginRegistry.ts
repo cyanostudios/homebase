@@ -16,6 +16,7 @@ import {
   Sparkles,
   Package,
   Link2,
+  Building2,
 } from 'lucide-react';
 import React from 'react';
 
@@ -200,6 +201,8 @@ import { useSchedule } from '@/plugins/schedule/hooks/useSchedule';
 // SportAdmin
 import { SportadminNullProvider } from '@/plugins/sportadmin/context/SportadminContext';
 import { useSportadmin } from '@/plugins/sportadmin/hooks/useSportadmin';
+import { TenantsNullProvider } from '@/plugins/tenants/context/TenantsContext';
+import { useTenants } from '@/plugins/tenants/hooks/useTenants';
 // ─── Lazy UI components: List / Form / View / dashboardWidget ─────────────────
 // These are loaded on-demand: List when navigating to a plugin page,
 // Form/View when opening a panel, dashboardWidget when Dashboard is rendered.
@@ -262,6 +265,9 @@ const SportadminList = React.lazy(() =>
   import('@/plugins/sportadmin/components/SportadminList').then((m) => ({
     default: m.SportadminList,
   })),
+);
+const TenantList = React.lazy(() =>
+  import('@/plugins/tenants/components/TenantList').then((m) => ({ default: m.TenantList })),
 );
 const ScheduleDashboardWidget = React.lazy(() =>
   import('@/plugins/schedule/components/ScheduleDashboardWidget').then((m) => ({
@@ -1112,6 +1118,27 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       label: 'SportAdmin',
       icon: Link2,
       order: 3,
+    },
+    contentFlush: true,
+    contentOwnsScroll: true,
+    noPrimaryAction: true,
+  },
+  {
+    name: 'tenants',
+    Provider: TenantsNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/tenants/context/TenantsProvider').then((m) => m.TenantsProvider),
+    NullProvider: TenantsNullProvider,
+    hook: useTenants,
+    panelKey: 'isTenantPanelOpen',
+    components: {
+      List: TenantList,
+    },
+    navigation: {
+      category: 'Account',
+      label: 'Tenants',
+      icon: Building2,
+      order: 0,
     },
     contentFlush: true,
     contentOwnsScroll: true,

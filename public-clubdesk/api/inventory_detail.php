@@ -47,6 +47,9 @@ try {
     }
 
     $pdo = getPdoFromEnv();
+    if (!publicAppCardVisible($pdo, 'inventory')) {
+        respond(404, ['error' => 'Inventory is not public']);
+    }
     $query = publicAppInventoryBySlugSql($slugOrId);
     $stmt = $pdo->prepare($query['sql']);
     $stmt->execute($query['params']);

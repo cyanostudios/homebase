@@ -249,10 +249,26 @@ describe('PublicClubdeskModel', () => {
     expect(row).not.toHaveProperty('comment');
   });
 
+  test('listPublishedInventory returns empty when inventory card is hidden', async () => {
+    const pool = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce({ rows: [{ meta: { visible: false } }] })
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] }),
+    };
+    const rows = await model.listPublishedInventory(pool, 9);
+    expect(rows).toEqual([]);
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(pool.query.mock.calls[0][0]).toMatch(/card_key = 'inventory'/);
+  });
+
   test('listPublishedInventory filters by owner and published status', async () => {
-    const pool = { query: jest.fn().mockResolvedValue({ rows: [] }) };
+    const pool = {
+      query: jest.fn().mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] }),
+    };
     await model.listPublishedInventory(pool, 5);
-    const [sql, params] = pool.query.mock.calls[0];
+    expect(pool.query).toHaveBeenCalledTimes(2);
+    const [sql, params] = pool.query.mock.calls[1];
     expect(params).toEqual([5]);
     expect(sql).toMatch(/clubdesk_inventory_items/);
     expect(sql).toMatch(/publication_status = 'published'/);
@@ -261,10 +277,14 @@ describe('PublicClubdeskModel', () => {
 
   test('getPublishedInventoryBySlugOrId uses id when numeric', async () => {
     const pool = {
-      query: jest.fn().mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] }),
+      query: jest
+        .fn()
+        .mockResolvedValueOnce({ rows: [] }) // inventory section visible (no row ⇒ true)
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] }),
     };
     await model.getPublishedInventoryBySlugOrId(pool, 3, '42');
-    const [sql, params] = pool.query.mock.calls[0];
+    const [sql, params] = pool.query.mock.calls[1];
     expect(params).toEqual([3, 42]);
     expect(sql).toMatch(/id = \$2/);
     expect(sql).toMatch(/publication_status = 'published'/);
@@ -321,10 +341,11 @@ describe('PublicClubdeskModel', () => {
       info: { contentHtml: '<p>Info</p>', title: 'Om oss', visible: true },
       contacts: { visible: true },
       swish: { visible: true },
+      inventory: { visible: true },
     });
     expect(pool.query.mock.calls[0][1]).toEqual([3]);
     expect(pool.query.mock.calls[0][0]).toMatch(
-      /card_key IN \('home', 'info', 'contacts', 'swish'\)/,
+      /card_key IN \('home', 'info', 'contacts', 'swish', 'inventory'\)/,
     );
   });
 

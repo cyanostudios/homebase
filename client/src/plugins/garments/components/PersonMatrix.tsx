@@ -634,9 +634,14 @@ export function PersonMatrix({
   );
 
   const duplicateJerseys = useMemo(() => {
-    const forDup = personsWithEditingJersey(persons, editingId, editDraft.jerseyNumber);
+    const forDup = personsWithEditingJersey(
+      persons,
+      editingId,
+      editDraft.jerseyNumber,
+      editingId ? (editDraft.teamId ?? null) : undefined,
+    );
     return findDuplicateJerseyNumbers(forDup);
-  }, [persons, editingId, editDraft.jerseyNumber]);
+  }, [persons, editingId, editDraft.jerseyNumber, editDraft.teamId]);
 
   const toggleExpanded = (personId: string) => {
     setExpandedIds((prev) => {

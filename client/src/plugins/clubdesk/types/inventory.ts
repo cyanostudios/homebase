@@ -61,7 +61,7 @@ export interface ClubdeskInventoryImportResult {
   failures: Array<{ index: number; message: string }>;
 }
 
-/** Persisted via AppContext getSettings/updateSettings — key `clubdesk-inventory`. */
+/** Persisted via AppContext getSettings/updateSettings — key `clubdesk` (tags catalog). */
 export interface ClubdeskInventorySettings {
   tags?: string[];
 }

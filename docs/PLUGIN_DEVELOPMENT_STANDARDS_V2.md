@@ -60,7 +60,7 @@ See `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` for the exact integration flow.
    - ✅ AUTOMATED: Plugin name is automatically added to server/core/config/constants.js via filesystem discovery
      - Only directories with plugin.config.js are included (validated)
      - Plugins are sorted alphabetically for consistency
-     - Some plugins (read-only, experimental) are excluded from DEFAULT_USER_PLUGINS
+     - Some plugins are excluded from signup defaults (`DEFAULT_USER_PLUGINS` = Main + files; enable extras with `set-tenant-plugins`)
    - Superadmin (admin@homebase.se) needs the plugin added to their user_plugin_access
    - Provider loading is orchestrated by `client/src/core/app/PluginProviders.tsx` + `useEnabledPlugins()`. Heavy providers must be exposed via `providerLoader`; the eager `Provider` should stay lightweight (`NullProvider`) unless the plugin is always-on.
 

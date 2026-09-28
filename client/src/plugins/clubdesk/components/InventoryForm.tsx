@@ -67,6 +67,8 @@ import {
   VARIANT_WARNING_DOT_PLACEHOLDER_CLASS,
 } from '../utils/variantListStyles';
 
+import { ClubdeskPublicationPropertiesFields } from './ClubdeskPublicationPropertiesFields';
+
 interface InventoryFormProps {
   onCancel?: () => void;
   isSubmitting?: boolean;
@@ -186,7 +188,7 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
       variants: [],
       slug: '',
       featuredImageUrl: null,
-      publicationStatus: 'draft',
+      publicationStatus: 'published',
       featured: false,
     });
     const [pendingDeleteVariantIndex, setPendingDeleteVariantIndex] = useState<number | null>(null);
@@ -213,7 +215,7 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
         tags: [],
         slug: '',
         featuredImageUrl: null,
-        publicationStatus: 'draft',
+        publicationStatus: 'published',
         featured: false,
         variants: [],
       });
@@ -256,7 +258,7 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
           slug: currentInventoryItem.slug ?? '',
           featuredImageUrl: currentInventoryItem.featuredImageUrl,
           publicationStatus:
-            currentInventoryItem.publicationStatus === 'published' ? 'published' : 'draft',
+            currentInventoryItem.publicationStatus === 'draft' ? 'draft' : 'published',
           featured: currentInventoryItem.featured === true,
           variants: (currentInventoryItem.variants || []).map(
             (variant: ClubdeskInventoryVariant) => ({
@@ -332,7 +334,7 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
 
     const updateInventoryField = (
       field: keyof ClubdeskInventoryItemPayload,
-      value: string | number | null | string[] | ClubdeskInventoryVariant[],
+      value: string | number | boolean | null | string[] | ClubdeskInventoryVariant[],
     ) => {
       setInventoryForm((prev) => ({ ...prev, [field]: value }));
       markDirty();
@@ -748,6 +750,18 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
                 ) : null}
               </div>
             </div>
+            <ClubdeskPublicationPropertiesFields
+              values={{
+                publicationStatus:
+                  inventoryForm.publicationStatus === 'draft' ? 'draft' : 'published',
+                featured: inventoryForm.featured === true,
+                slug: inventoryForm.slug,
+              }}
+              onPublicationStatusChange={(status) =>
+                updateInventoryField('publicationStatus', status)
+              }
+              onFeaturedChange={(featured) => updateInventoryField('featured', featured)}
+            />
           </div>
         </DetailSection>
       </Card>

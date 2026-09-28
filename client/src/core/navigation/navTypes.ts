@@ -34,6 +34,7 @@ export type NavPage =
   | 'pulses'
   | 'ai-providers'
   | 'sportadmin'
+  | 'tenants'
   | 'settings';
 
 export type SubmenuNavItem = {

@@ -29,12 +29,12 @@ function createClubdeskRoutes(
       gate,
       csrfProtection,
       body('cards')
-        .isArray({ min: 1, max: 4 })
-        .withMessage('cards must be an array with 1-4 items'),
+        .isArray({ min: 1, max: 5 })
+        .withMessage('cards must be an array with 1-5 items'),
       body('cards.*.cardKey')
         .isString()
-        .isIn(['home', 'info', 'contacts', 'swish'])
-        .withMessage('cardKey must be home, info, contacts, or swish'),
+        .isIn(['home', 'info', 'contacts', 'swish', 'inventory'])
+        .withMessage('cardKey must be home, info, contacts, swish, or inventory'),
       body('cards.*.content')
         .optional({ values: 'null' })
         .isString()

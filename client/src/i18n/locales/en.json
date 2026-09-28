@@ -76,6 +76,7 @@
     "copy": "Copy",
     "copied": "Copied",
     "creating": "Creating…",
+    "copying": "Copying…",
     "import": "Import",
     "settings": "Settings",
     "statistics": "Statistics",
@@ -179,7 +180,8 @@
     "schedules": "Schedules",
     "garments-lists": "Lists",
     "garments-inventory": "Inventory",
-    "sportadmin": "SportAdmin"
+    "sportadmin": "SportAdmin",
+    "tenants": "Tenants"
   },
   "preferences": {
     "title": "Preferences",
@@ -1887,8 +1889,11 @@
       "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
       "deleteConfirmGeneric": "Delete this product? This cannot be undone.",
       "settingsInventory": "Inventory – Settings",
-      "settingsInventorySubtitle": "Manage tags and import products.",
+      "settingsInventorySubtitle": "Public visibility, tags, and import.",
       "settingsCategories": {
+        "public": "Public",
+        "publicDescription": "Show or hide the inventory tab in the public Clubdesk app.",
+        "publicHint": "When off, the inventory tab and all products are hidden from the public site — even published articles. Individual products still use Draft / Published.",
         "tags": "Tags",
         "tagsDescription": "Tags you can assign on inventory products.",
         "tagsHint": "Tags can be assigned when editing a product.",
@@ -3410,7 +3415,11 @@
     "discardAndClose": "Discard changes and close the form?",
     "discardQuickEditMessage": "You have unsaved changes to contacts. Do you want to discard them?",
     "deleteItem": "Delete {{label}}",
-    "item": "Item"
+    "item": "Item",
+    "duplicateTitle": "Duplicate item",
+    "duplicateHint": "Enter a name for the duplicate.",
+    "duplicateConfirmOnly": "A new copy will be created with an auto-generated number.",
+    "duplicating": "Creating the copy. This can take a moment."
   },
   "auth": {
     "loginTitle": "Welcome to Homebase",
@@ -3986,7 +3995,15 @@
       "listCount": "Lists",
       "inventoryCount": "Inventory items",
       "assignedInventory": "Assigned to lists",
-      "totalPersons": "Total persons"
+      "totalPersons": "Total persons",
+      "ordersFromSummaries": "Counted from each list's size summary.",
+      "finishedOrders": "Finished orders",
+      "incompleteOrders": "Ordered, not complete",
+      "notOrdered": "Not ordered",
+      "orderProgress": "{{qty}} of {{needed}}",
+      "ordersEmpty": "None",
+      "ordersLoading": "Loading size summaries…",
+      "ordersLoadFailed": "Could not load size summaries."
     },
     "columnsAria": "{{count}} columns",
     "noSearchResults": "No items match your search.",
@@ -4086,7 +4103,7 @@
     "noSizes": "No sizes defined — add variants in Inventory",
     "defaultColumns": "Default columns",
     "defaultColumnsHelp": "How many columns cards use by default (1 = full width, 2 = half, 3 = one third).",
-    "jerseyDuplicateWarning": "Some persons share the same jersey number. You can still save.",
+    "jerseyDuplicateWarning": "Some persons on the same team share a jersey number. You can still save.",
     "noPersons": "No persons on this list yet.",
     "addPerson": "Add person",
     "quickAdd": "Quick person",
@@ -4306,5 +4323,22 @@
       "resources": "Identified resources",
       "errors": "Errors"
     }
+  },
+  "tenants": {
+    "subtitle": "Platform admin — enable or disable plugins per tenant",
+    "listTitle": "Tenants",
+    "searchPlaceholder": "Search tenants…",
+    "noYet": "No tenants yet",
+    "noEmail": "No email",
+    "selectHint": "Select a tenant to manage plugins",
+    "enabledCount": "{{count}} plugins on",
+    "reloginHint": "After changes, the tenant must log out and log in again.",
+    "savedRelogin": "Saved. Ask the tenant to log out and in again.",
+    "loadFailed": "Could not load tenants",
+    "saveFailed": "Could not save plugin access",
+    "lockedHint": "Platform admin tenant — all plugins are on and cannot be turned off.",
+    "lockedBadge": "all plugins locked on",
+    "publicAppHint": "Public app backend — no platform UI; not toggled here.",
+    "publicAppLabel": "Public app"
   }
 }

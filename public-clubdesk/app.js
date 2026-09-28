@@ -709,6 +709,18 @@ function bindInfoBackButton(container) {
   bindSpaLink(backBtn, () => ({ tab: 'home', filter: 'Alla' }));
 }
 
+function syncInventoryTabVisibility(visible) {
+  document.querySelectorAll('.bottom-bar__tab[data-tab="inventory"]').forEach((tab) => {
+    tab.hidden = !visible;
+    tab.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  });
+  if (!visible && getActiveTab() === 'inventory') {
+    setActiveTab('home');
+    window.__PUBLIC_APP_FILTER__ = 'Alla';
+    syncUrl('home', 'Alla', { replace: true });
+  }
+}
+
 function applyFilter() {
   const tab = getActiveTab();
 
@@ -731,6 +743,13 @@ function applyFilter() {
   }
 
   if (tab === 'inventory') {
+    if (window.__PUBLIC_APP_INVENTORY_VISIBLE__ === false) {
+      setActiveTab('home');
+      window.__PUBLIC_APP_FILTER__ = 'Alla';
+      syncUrl('home', 'Alla', { replace: true });
+      renderHomeHub();
+      return;
+    }
     setStatus('');
     renderInventoryListing();
     return;
@@ -801,20 +820,12 @@ async function loadItems() {
 
     const guidesData = await guidesRes.json();
     const priceData = await priceRes.json();
-    let inventory = [];
-    if (inventoryRes.ok) {
-      try {
-        const inventoryData = await inventoryRes.json();
-        inventory = Array.isArray(inventoryData.inventory) ? inventoryData.inventory : [];
-      } catch {
-        inventory = [];
-      }
-    }
     let siteData = {
       home: { contentHtml: '', title: '' },
       info: { contentHtml: '', title: '', visible: true },
       contacts: { visible: true },
       swish: { visible: true },
+      inventory: { visible: true },
     };
     if (siteRes.ok) {
       try {
@@ -835,10 +846,31 @@ async function loadItems() {
           swish: {
             visible: parsed?.swish?.visible !== false,
           },
+          inventory: {
+            visible: parsed?.inventory?.visible !== false,
+          },
         };
       } catch {
         // keep empty site content
       }
+    }
+
+    let inventoryVisible = siteData.inventory.visible !== false;
+    let inventory = [];
+    if (inventoryRes.ok) {
+      try {
+        const inventoryData = await inventoryRes.json();
+        if (inventoryData?.visible === false) {
+          inventoryVisible = false;
+        }
+        inventory =
+          inventoryVisible && Array.isArray(inventoryData.inventory) ? inventoryData.inventory : [];
+      } catch {
+        inventory = [];
+      }
+    }
+    if (!inventoryVisible) {
+      inventory = [];
     }
 
     let infoContacts = [];
@@ -861,11 +893,13 @@ async function loadItems() {
     window.__PUBLIC_APP_ITEMS__ = items;
     window.__PUBLIC_APP_PRICE_LISTS__ = priceLists;
     window.__PUBLIC_APP_INVENTORY__ = inventory;
+    window.__PUBLIC_APP_INVENTORY_VISIBLE__ = inventoryVisible;
     window.__PUBLIC_APP_SITE_CONTENT__ = siteData;
     window.__PUBLIC_APP_INFO_CONTACTS__ = infoContacts;
     window.__PUBLIC_APP_CATEGORY_ORDER__ = Array.isArray(guidesData.categoryOrder)
       ? guidesData.categoryOrder
       : [];
+    syncInventoryTabVisibility(inventoryVisible);
     applyRouteFromLocation({ replaceUrl: true });
     applyFilter();
   } catch (err) {

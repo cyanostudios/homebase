@@ -1,6 +1,6 @@
 # Tenant Users and RBAC
 
-**Last updated:** July 2026
+**Last updated:** September 2026
 
 This document describes the multi-user-per-tenant architecture: several users (User, Editor, Admin) per tenant with shared plugin access and tenant-scoped roles. It also covers **legacy compatibility**: login and plugin access work even if the new migration has not been run.
 
@@ -93,11 +93,46 @@ See `scripts/db/README.md` for run instructions. Safe to run multiple times (ide
 ### 3.3 Signup flow (new account = tenant owner)
 
 1. Create user, create tenant DB (TenantService), insert into `tenants` (with `owner_user_id` if column exists).
-2. Insert into `tenant_memberships` (owner, role admin), insert into `tenant_plugin_access` from selected plugins.
+2. Insert into `tenant_memberships` (owner, role admin), insert into `tenant_plugin_access` from **`DEFAULT_USER_PLUGINS`** only: `contacts`, `notes`, `tasks`, `requests`, `files` (Main category + Files). Client-sent `plugins` are ignored.
 3. Still insert into `user_plugin_access` for backward compatibility.
 4. Auto-login with session as above; `currentTenantUserId` = new user id (owner).
 
-### 3.4 GET /api/auth/me
+Extra plugins after signup: `npm run set:tenant-plugins` (see §2.3). Superuser still sees all discovered plugins via `/api/auth/me`.
+
+### 3.4 Admin delete (tenant DB + catalog)
+
+Superuser `DELETE /api/admin/users/:userId` and `DELETE /api/admin/tenants/:userId` call `teardownTenantInfrastructure` **before** removing main-DB catalog rows:
+
+1. Close in-process tenant pool (if open).
+2. Delete `public_share_routing` rows for that tenant connection string.
+3. Call `tenantService.deleteTenant` — Neon project via API, or `DROP SCHEMA` for local. Missing `neon_project_id` skips Neon; HTTP 404 is success. Other Neon errors abort so the catalog row remains for retry.
+4. Delete `sessions` for the tenant id / member user ids.
+5. Then delete `user_plugin_access` / `tenants` (and `users` on full user delete).
+
+**Not deleted:** Cloudflare R2 object bytes (file metadata in the tenant DB disappears with the project).
+
+### 3.4b Platform Tenants plugin (UI)
+
+Plugin id **`tenants`** (`/tenants`): list all tenants and toggle plugin access. **Access is code-only** — not via this UI and not via `set-tenant-plugins`:
+
+- Allowlist: `cyanostudios@gmail.com` (all envs); plus `admin@homebase.se` when `NODE_ENV !== 'production'`.
+- Access is based on the **logged-in user's email only** — not the tenant owner's. Invited members of an allowlisted owner do not get Tenants admin.
+- `/api/auth/me` and login inject or strip `tenants` from `user.plugins` via that allowlist (superuser alone is not enough).
+- Allowlisted actors also receive **`ALL_DISCOVERED_PLUGINS`** in the session (same “all on” model as locked platform-admin tenants).
+- API routes use `requirePlatformTenantsAdmin` (403 otherwise). CSRF on `PUT /api/tenants/:tenantId/plugins`.
+- The plugin name `tenants` cannot be enabled/disabled for other tenants in the UI.
+- Platform-admin **owner** tenants (owner email on allowlist) are locked in the UI (all plugins on; no disable). `public-*` plugins are informational only (no switch).
+
+**Security (Grind 5, 2026-09-28):** Godkänt after T-S1 (session-user email only). Residuals for TPM acknowledgment:
+
+| Id       | Severity | Summary                                                                                                           |
+| -------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| **T-S2** | Low/Info | Hardcoded email allowlist (edit in code / PR only).                                                               |
+| **T-S3** | Low/Info | Allowlisted actor gets `ALL_DISCOVERED_PLUGINS` in session.                                                       |
+| **T-S4** | Info     | Admin teardown deletes Neon project / local schema + sessions; **R2 object bytes retained**.                      |
+| **T-S5** | Info     | Local allowlist (`admin@homebase.se`) applies when `NODE_ENV !== 'production'` — keep prod `NODE_ENV=production`. |
+
+### 3.5 GET /api/auth/me
 
 - Returns `user`, `currentTenantUserId`, `tenantId`, `tenantRole`, `tenantOwnerUserId`.
 - Plugins for “current tenant” are resolved via TenantContextService (owner = `currentTenantUserId`).

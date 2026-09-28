@@ -123,6 +123,11 @@ export interface ClubdeskContextType {
   saveInventoryItem: (data: ClubdeskInventoryItemPayload) => Promise<boolean>;
   deleteInventoryItem: (id: string) => Promise<void>;
   deleteInventoryItems: (ids: string[]) => Promise<void>;
+  updateInventoryPublicationStatus: (
+    item: ClubdeskInventoryItem,
+    status: 'draft' | 'published',
+  ) => Promise<void>;
+  updateInventoryFeatured: (item: ClubdeskInventoryItem, featured: boolean) => Promise<void>;
   updateInventoryVariantQuantity: (
     itemId: string,
     variantId: string,
@@ -235,6 +240,8 @@ const EMPTY_CLUBDESK_CONTEXT: ClubdeskContextType = {
   saveInventoryItem: async () => false,
   deleteInventoryItem: async () => {},
   deleteInventoryItems: async () => {},
+  updateInventoryPublicationStatus: async () => {},
+  updateInventoryFeatured: async () => {},
   updateInventoryVariantQuantity: async () => false,
   importInventoryItems: async () => ({ successCount: 0, failureCount: 0 }),
   selectedInventoryIds: [],

@@ -2,6 +2,7 @@
 const bcrypt = require('bcrypt');
 const ServiceManager = require('../../ServiceManager');
 const { USER_ROLES } = require('../../config/constants');
+const { teardownTenantInfrastructure } = require('../tenant/teardownTenantInfrastructure');
 
 class UserService {
   constructor() {
@@ -117,8 +118,18 @@ class UserService {
   async deleteUser(id) {
     const db = this._getPool();
 
-    // Note: Transaction management would be ideal here if we could.
-    // For now keeping it simple as per previous implementation but in a service.
+    const existing = await this.findById(id);
+    if (!existing) {
+      return undefined;
+    }
+
+    // Tear down Neon/local DB + pools/sessions while tenants row still exists
+    await teardownTenantInfrastructure(id, {
+      db,
+      tenantService: ServiceManager.get('tenant'),
+      connectionPool: ServiceManager.get('connectionPool'),
+      logger: this.logger,
+    });
 
     // Delete from user_plugin_access
     await db.query('DELETE FROM user_plugin_access WHERE user_id = $1', [id]);

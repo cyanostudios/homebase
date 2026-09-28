@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const ServiceManager = require('../../ServiceManager');
 const UserService = require('../user/UserService');
 const TenantContextService = require('../tenant/TenantContextService');
-const { DEFAULT_AVAILABLE_PLUGINS, DEFAULT_USER_PLUGINS } = require('../../config/constants');
+const { DEFAULT_USER_PLUGINS } = require('../../config/constants');
 const { upsertTenantRecord, ensureTenantMembership } = require('../../utils/tenantMainDb');
 
 class AuthService {
@@ -146,7 +146,7 @@ class AuthService {
    * Signup new user
    * @param {Object} data
    */
-  async signup({ email, password, plugins }) {
+  async signup({ email, password }) {
     // Validate inputs
     if (!email || !password) throw new Error('Email and password required');
     if (password.length < 8) throw new Error('Password must be at least 8 characters');
@@ -155,22 +155,8 @@ class AuthService {
     const existing = await this.userService.findByEmail(email);
     if (existing) throw new Error('Email already registered');
 
-    // Filter plugins
-    // Check against CONSTANTS instead of hardcoded list
-    // Fallback logic from previous code:
-    // If plugins provided, validate them. If not, use defaults.
-
-    let selectedPlugins = DEFAULT_USER_PLUGINS;
-
-    if (plugins && Array.isArray(plugins) && plugins.length > 0) {
-      const invalidPlugins = plugins.filter((p) => !DEFAULT_AVAILABLE_PLUGINS.includes(p));
-      if (invalidPlugins.length > 0) {
-        const error = new Error(`Invalid plugins: ${invalidPlugins.join(', ')}`);
-        error.availablePlugins = DEFAULT_AVAILABLE_PLUGINS;
-        throw error;
-      }
-      selectedPlugins = plugins;
-    }
+    // Fixed signup grant — ignore any client-sent plugins list
+    const selectedPlugins = [...DEFAULT_USER_PLUGINS];
 
     // Create user
     const user = await this.userService.createUser({ email, password });

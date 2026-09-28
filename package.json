@@ -4,7 +4,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "npm run dev:api",
-    "dev:api": "cross-env NODE_ENV=development tsx watch server/index.ts",
+    "dev:api": "cross-env NODE_ENV=development tsx watch --include ./plugins server/index.ts",
     "dev:ui": "vite --port 3001",
     "dev:all": "concurrently -k -n API,UI -c auto \"npm:dev:api\" \"npm:dev:ui\"",
     "dev:public-booking": "npx serve public-booking -p 3003",
@@ -85,6 +85,7 @@
     "migrate:clubdesk-featured": "node scripts/run-clubdesk-featured-migration.js",
     "migrate:clubdesk-info-contacts": "node scripts/run-clubdesk-info-contacts-migration.js",
     "migrate:clubdesk-site-content-contacts-card": "node scripts/run-clubdesk-site-content-contacts-card-migration.js",
+    "migrate:clubdesk-site-content-inventory-card": "node scripts/run-clubdesk-site-content-inventory-card-migration.js",
     "migrate:clubdesk-inventory": "node scripts/run-clubdesk-inventory-migration.js",
     "migrate:clubdesk-price-list-inventory-link": "node scripts/run-clubdesk-price-list-inventory-link-migration.js",
     "migrate:clubdesk-price-list-price-override": "node scripts/run-clubdesk-price-list-price-override-migration.js",

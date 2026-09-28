@@ -25,4 +25,18 @@ describe('Clubdesk InventoryList table view wiring', () => {
     expect(listSrc).toMatch(/Settings/);
     expect(listSrc).toMatch(/onSettings/);
   });
+
+  test('inventory tags settings key is allowlisted clubdesk category', () => {
+    const keySrc = fs.readFileSync(
+      path.join(__dirname, '../../utils/clubdeskInventorySettingsKey.ts'),
+      'utf8',
+    );
+    const allowlistSrc = fs.readFileSync(
+      path.join(__dirname, '../../../../../../plugins/settings/settingsCategories.js'),
+      'utf8',
+    );
+    expect(keySrc).toMatch(/CLUBDESK_INVENTORY_SETTINGS_KEY = 'clubdesk'/);
+    expect(allowlistSrc).toMatch(/'clubdesk'/);
+    expect(keySrc).not.toMatch(/clubdesk-inventory/);
+  });
 });

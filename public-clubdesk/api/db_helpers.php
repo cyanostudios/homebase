@@ -394,7 +394,7 @@ SELECT DISTINCT ON (card_key)
   content,
   meta
 FROM clubdesk_site_content
-WHERE card_key IN ('home', 'info', 'contacts', 'swish')
+WHERE card_key IN ('home', 'info', 'contacts', 'swish', 'inventory')
 ORDER BY card_key, updated_at DESC NULLS LAST, id DESC
 SQL;
 }
@@ -403,11 +403,11 @@ SQL;
  * Whether a site-content card is public (meta.visible !== false).
  * Missing row / missing key / legacy rows ⇒ visible.
  *
- * @param 'home'|'info'|'contacts'|'swish' $cardKey
+ * @param 'home'|'info'|'contacts'|'swish'|'inventory' $cardKey
  */
 function publicAppCardVisible(PDO $pdo, string $cardKey): bool
 {
-    $allowed = ['home', 'info', 'contacts', 'swish'];
+    $allowed = ['home', 'info', 'contacts', 'swish', 'inventory'];
     if (!in_array($cardKey, $allowed, true)) {
         return true;
     }

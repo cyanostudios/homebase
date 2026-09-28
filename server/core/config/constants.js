@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 // Plugins not auto-granted on signup (enable per tenant: set-tenant-plugins --enable=mail).
-// Superuser still sees them via ALL_DISCOVERED_PLUGINS in /api/auth/me.
-const DEFAULT_DISABLED_PLUGINS = ['mail'];
+// `tenants` is platform-admin only (code allowlist) — never grant via signup or AVAILABLE list.
+const DEFAULT_DISABLED_PLUGINS = ['mail', 'tenants'];
 
 // Dynamically discover available plugins
 // Only includes directories that contain a valid plugin.config.js file
@@ -46,8 +46,8 @@ const AVAILABLE_PLUGINS = ALL_DISCOVERED_PLUGINS.filter(
   (plugin) => !DEFAULT_DISABLED_PLUGINS.includes(plugin),
 );
 
-// Default enabled plugins for new users (excludes plugins in DEFAULT_DISABLED_PLUGINS)
-const DEFAULT_USER_PLUGINS = AVAILABLE_PLUGINS;
+// Signup always grants Main-category plugins + files (Tools). Extra plugins: set-tenant-plugins.
+const DEFAULT_USER_PLUGINS = ['contacts', 'notes', 'tasks', 'requests', 'files'];
 
 module.exports = {
   // User Roles (platform-level)
@@ -70,8 +70,7 @@ module.exports = {
   // Dynamically populated from filesystem (validated: must have plugin.config.js)
   DEFAULT_AVAILABLE_PLUGINS: AVAILABLE_PLUGINS,
 
-  // Default Enabled Plugins for New Users
-  // Excludes plugins in DEFAULT_DISABLED_PLUGINS (e.g., read-only or experimental plugins)
+  // Default enabled plugins for new signups (Main + files). Extra plugins via set-tenant-plugins.
   DEFAULT_USER_PLUGINS: DEFAULT_USER_PLUGINS,
 
   // Database Defaults
@@ -81,3 +80,6 @@ module.exports = {
     CONNECTION_TIMEOUT: 2000,
   },
 };
+
+// Re-export platform tenants admin allowlist helpers for convenience
+Object.assign(module.exports, require('./platformTenantsAdmin'));
