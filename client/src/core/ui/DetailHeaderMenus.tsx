@@ -39,7 +39,8 @@ export type DetailHeaderMenusProps = {
   afterActions?: React.ReactNode;
   /**
    * Optional leading content on the same row as Actions/Export triggers
-   * (e.g. contact name). Submenus always open on the row below.
+   * (e.g. contact name). Submenus open on the row below the triggers only,
+   * so this heading stays put when a menu opens.
    */
   leading?: React.ReactNode;
   actionsLabel?: string;
@@ -167,7 +168,9 @@ function DetailHeaderExtraMenuTrigger({
 
 /**
  * Shared detail-panel header toggle menus (Actions / Export / extras).
- * Trigger cluster + open submenu are right-aligned (same right edge) for every open menu.
+ * The heading and trigger row share grid row 1. An open submenu is row 2 in the
+ * actions column only, so the heading does not re-center when a menu opens.
+ * Both rows are right-aligned to the same edge.
  */
 export function DetailHeaderMenus({
   actions,
@@ -199,67 +202,63 @@ export function DetailHeaderMenus({
 
   return (
     <>
-      <div className={cn('flex w-full min-w-0 flex-col', DETAIL_HEADER_CHIP_GAP_CLASS, className)}>
-        <div className="flex w-full min-w-0 items-center gap-3">
-          {leading ? <div className="min-w-0 flex-1">{leading}</div> : null}
-          {/*
-            Menus column is pinned to the panel’s right edge (ml-auto).
-            items-end keeps trigger row + submenu sharing that right edge when
-            the open submenu is wider than the trigger cluster.
-          */}
-          <div
-            className={cn('ml-auto flex shrink-0 flex-col items-end', DETAIL_HEADER_CHIP_GAP_CLASS)}
-          >
-            <div className={DETAIL_HEADER_TRIGGER_ROW_CLASS}>
-              {beforeActions ? <span className="inline-flex shrink-0">{beforeActions}</span> : null}
-              <span className="inline-flex shrink-0">
-                <RoundIconLabelButton
-                  icon={Zap}
-                  label={resolvedActionsLabel}
-                  variant={actionsOpen ? 'primary' : 'soft'}
-                  alwaysExpanded
-                  onClick={() => toggleMenu('actions')}
-                />
-              </span>
-              {afterActions ? <span className="inline-flex shrink-0">{afterActions}</span> : null}
-              {hasExport ? (
-                <span className="inline-flex shrink-0">
-                  <RoundIconLabelButton
-                    icon={Download}
-                    label={resolvedExportLabel}
-                    variant={exportOpen ? 'primary' : 'soft'}
-                    alwaysExpanded
-                    onClick={() => toggleMenu('export')}
-                  />
-                </span>
-              ) : null}
-              {extraMenus.map((menu) => (
-                <DetailHeaderExtraMenuTrigger
-                  key={menu.id}
-                  menu={menu}
-                  isOpen={openMenu === menu.id}
-                  onToggle={() => toggleMenu(menu.id)}
-                />
-              ))}
-            </div>
-
-            {actionsOpen ? (
-              <div className={DETAIL_HEADER_SUBMENU_CLASS}>
-                <DetailHeaderActionPills actions={actions} />
-              </div>
-            ) : null}
-            {exportOpen ? (
-              <div className={DETAIL_HEADER_SUBMENU_CLASS}>
-                <DetailHeaderActionPills actions={exportActions} />
-              </div>
-            ) : null}
-            {openExtra ? (
-              <div className={cn(DETAIL_HEADER_SUBMENU_CLASS, 'items-stretch')}>
-                {openExtra.content}
-              </div>
-            ) : null}
-          </div>
+      <div
+        className={cn(
+          'grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5',
+          className,
+        )}
+      >
+        {leading ? <div className="col-start-1 row-start-1 min-w-0">{leading}</div> : null}
+        <div className={cn('col-start-2 row-start-1', DETAIL_HEADER_TRIGGER_ROW_CLASS)}>
+          {beforeActions ? <span className="inline-flex shrink-0">{beforeActions}</span> : null}
+          <span className="inline-flex shrink-0">
+            <RoundIconLabelButton
+              icon={Zap}
+              label={resolvedActionsLabel}
+              variant={actionsOpen ? 'primary' : 'soft'}
+              alwaysExpanded
+              onClick={() => toggleMenu('actions')}
+            />
+          </span>
+          {afterActions ? <span className="inline-flex shrink-0">{afterActions}</span> : null}
+          {hasExport ? (
+            <span className="inline-flex shrink-0">
+              <RoundIconLabelButton
+                icon={Download}
+                label={resolvedExportLabel}
+                variant={exportOpen ? 'primary' : 'soft'}
+                alwaysExpanded
+                onClick={() => toggleMenu('export')}
+              />
+            </span>
+          ) : null}
+          {extraMenus.map((menu) => (
+            <DetailHeaderExtraMenuTrigger
+              key={menu.id}
+              menu={menu}
+              isOpen={openMenu === menu.id}
+              onToggle={() => toggleMenu(menu.id)}
+            />
+          ))}
         </div>
+
+        {actionsOpen ? (
+          <div className={cn('col-start-2 row-start-2', DETAIL_HEADER_SUBMENU_CLASS)}>
+            <DetailHeaderActionPills actions={actions} />
+          </div>
+        ) : null}
+        {exportOpen ? (
+          <div className={cn('col-start-2 row-start-2', DETAIL_HEADER_SUBMENU_CLASS)}>
+            <DetailHeaderActionPills actions={exportActions} />
+          </div>
+        ) : null}
+        {openExtra ? (
+          <div
+            className={cn('col-start-2 row-start-2', DETAIL_HEADER_SUBMENU_CLASS, 'items-stretch')}
+          >
+            {openExtra.content}
+          </div>
+        ) : null}
       </div>
       {children}
     </>

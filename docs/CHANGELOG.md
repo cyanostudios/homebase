@@ -4,6 +4,28 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-28 – DetailHeaderMenus: title stays put when Actions opens
+
+**Typ:** Fix (UI)  
+**Scope:** Shared `DetailHeaderMenus` (all plugins with Actions / Export / extras). Title/`leading` and the trigger row share one grid row; open submenu pills render only in the menus column on the row below, so the heading no longer shifts down when a menu opens.  
+**Risk:** Low. Layout-only; same props and action wiring. **QA Godkänt** + **Security Godkänt** 2026-09-28 (inga residualer). Local-first.  
+**Docs:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) § Detail header menus (submenu still below triggers, right-aligned; leading stays on row 1).
+
+**Sammanfattning:** Rubriken i detail-headern hoppar inte längre när Actions/Export öppnas.
+
+---
+
+## 2026-09-28 – Garments list matrix: vertical scroll on phone
+
+**Typ:** Fix (UI)  
+**Scope:** Person matrix scroll shell (`MATRIX_TABLE_SCROLL_CLASS`). Replaces `touch-pan-x` with `touch-manipulation` and sets `overflow-y-hidden` so a vertical swipe on the wide table scrolls the page; horizontal swipe still pans the matrix.  
+**Risk:** Low. CSS-only; no API change. **QA Godkänt** + **Security Godkänt** 2026-09-28 (inga residualer). Local-first.  
+**Docs:** [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) person matrix mobile scroll note.
+
+**Sammanfattning:** På mobil går det att scrolla sidan lodrätt även när fingret börjar på garments-personmatrisen.
+
+---
+
 ## 2026-09-28 – Garments: copy lock, jersey warning by team, order statistics
 
 **Typ:** Enhancement (UI)  

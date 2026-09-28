@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## DetailHeaderMenus heading + garments matrix mobile scroll — Security docs sync (2026-09-28)
+
+Efter **QA Godkänt** + **Security Godkänt** (inga residualer; UI-only layout/CSS). Produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) riskrader synkade; [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) § Detail header menus (leading + triggers rad 1; submenu rad 2 i menykolumnen). Operator [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md) vertikal swipe. **Working tree; local-first; ej prod-release.**
+
+## DetailHeaderMenus heading + garments matrix mobile scroll — docs after QA B1 (2026-09-28)
+
+Produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) §DetailHeaderMenus title stays put + §Garments list matrix vertical scroll on phone. Operator [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md) redan uppdaterad (vertikal swipe). Åtgärdar QA Underkänt B1. **Working tree; local-first; ej prod-release.**
+
 ## Platform Tenants + signup + teardown — Security docs sync (2026-09-28)
 
 Efter **QA Godkänt** + **Security Godkänt** (T-S1 session-email-only; residuals **T-S2–T-S5** Low/Info → TPM): operator [`TENANT_USERS_AND_RBAC.md`](../TENANT_USERS_AND_RBAC.md) §3.4b residual-tabell + ALL_DISCOVERED/CSRF; produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) riskrad; [`LOCAL_PROD_PARITY.md`](../LOCAL_PROD_PARITY.md) allowlist note. **Working tree; local-first; ej prod-release.**
