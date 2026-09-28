@@ -334,7 +334,7 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
 
     const updateInventoryField = (
       field: keyof ClubdeskInventoryItemPayload,
-      value: string | number | null | string[] | ClubdeskInventoryVariant[],
+      value: string | number | boolean | null | string[] | ClubdeskInventoryVariant[],
     ) => {
       setInventoryForm((prev) => ({ ...prev, [field]: value }));
       markDirty();
