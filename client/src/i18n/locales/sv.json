@@ -76,6 +76,7 @@
     "copy": "Kopiera",
     "copied": "Kopierad",
     "creating": "Skapar…",
+    "copying": "Kopierar…",
     "import": "Importera",
     "settings": "Inställningar",
     "statistics": "Statistik",
@@ -3407,7 +3408,11 @@
     "discardAndClose": "Kasta ändringar och stäng formuläret?",
     "discardQuickEditMessage": "Du har osparade ändringar i kontakter. Vill du kasta dem?",
     "deleteItem": "Ta bort {{label}}",
-    "item": "Objekt"
+    "item": "Objekt",
+    "duplicateTitle": "Duplicera",
+    "duplicateHint": "Ange ett namn för kopian.",
+    "duplicateConfirmOnly": "En ny kopia skapas med ett automatiskt nummer.",
+    "duplicating": "Kopian skapas. Det kan ta en stund."
   },
   "auth": {
     "loginTitle": "Välkommen till Homebase",

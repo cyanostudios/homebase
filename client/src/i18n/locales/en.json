@@ -76,6 +76,7 @@
     "copy": "Copy",
     "copied": "Copied",
     "creating": "Creating…",
+    "copying": "Copying…",
     "import": "Import",
     "settings": "Settings",
     "statistics": "Statistics",
@@ -3413,7 +3414,11 @@
     "discardAndClose": "Discard changes and close the form?",
     "discardQuickEditMessage": "You have unsaved changes to contacts. Do you want to discard them?",
     "deleteItem": "Delete {{label}}",
-    "item": "Item"
+    "item": "Item",
+    "duplicateTitle": "Duplicate item",
+    "duplicateHint": "Enter a name for the duplicate.",
+    "duplicateConfirmOnly": "A new copy will be created with an auto-generated number.",
+    "duplicating": "Creating the copy. This can take a moment."
   },
   "auth": {
     "loginTitle": "Welcome to Homebase",
