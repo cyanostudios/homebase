@@ -28,9 +28,9 @@ Sidebar submenu (Clubdesk-style), URL-driven:
 - **Line + color + size:** may repeat. Non-blocking UI warning + red borders when two or more rows share the same triad (migration **`152`** drops the unique index from **`149`**).
 - **Article number (SKU):** may repeat. Non-blocking UI warning + red borders when two or more rows share the same non-empty art.nr (migration **`150`**).
 - **Quantity PATCH** (`PATCH /inventory/:id/variants/:variantId/quantity`) updates quantity only.
-- **Duplicate article:** copies variants’ audience/color/size/qty; **clears all SKUs** on the copy.
+- **Duplicate article:** copies variants’ audience/color/size/qty; **clears all SKUs** on the copy. The duplicate dialog stays open and locked until that copy finishes, so Enter plus a second click cannot start another copy.
 - **Duplicate variant row (form):** copies audience/color/size; **clears SKU and quantity** (qty → 0).
-- **Duplicate list:** copies list team, checkbox columns, assigned inventory articles, persons (including person **teamId**, checkbox values, **ct sizes/audiences**), and fit-summary procurement. Inventory is assigned **before** persons so audience/size columns work on the copy.
+- **Duplicate list:** copies list team, checkbox columns, assigned inventory articles, persons (including person **teamId**, checkbox values, **ct sizes/audiences**), and fit-summary procurement. Inventory is assigned **before** persons so audience/size columns work on the copy. The duplicate dialog stays open and locked until that copy finishes, so Enter plus a second click cannot start another copy.
 - Closing inventory create/edit/view navigates to **`/garments/inventory`**, not `/garments`.
 - Leaving an open **list** via the sidebar (Inventory or another plugin) navigates in **one click**. Panel close does not bounce back to the lists index.
 - **Settings** is surface-scoped (`garmentsContentView: 'settings'` while URL stays on Lists or Inventory). Sidebar switch Lists ↔ Inventory **exits** settings and shows that surface’s list index — it does **not** open the other surface’s settings.
@@ -153,6 +153,8 @@ Below the spreadsheet (admin and public share), a **size summary** (`buildGarmen
 
 **Size summary procurement (admin only):** list-level supplier/batch order progress (`fit_summary_procurement` JSONB on `garment_lists`), independent of person `inv_*_ordered`. Each breakdown row has Ordered + Qty ordered; article header has a master Ordered checkbox. Persist via `PATCH /lists/:id/fit-summary-procurement`. Public share shows counts only (no procurement controls). See ADR [`docs/ai/adr/GARMENTS_FIT_SUMMARY_PROCUREMENT.md`](./ai/adr/GARMENTS_FIT_SUMMARY_PROCUREMENT.md).
 
+**Statistics:** the garment statistics pane groups size-summary rows under a bold list heading, with one row per summary line (article, line, size, and qty of need). A line is finished when Ordered is checked and qty covers Need, incomplete when Ordered is checked but qty is short (a missing qty counts as 0), or not ordered when Ordered is unchecked. An unchecked line is shown as 0 of Need, even if a quantity was stored earlier. Only lines that already exist in the size summary are counted (a person must have a line or size filled).
+
 ### Per-person line and size (assigned inventory)
 
 For child rows whose checkbox group maps to an assigned inventory article (`inv_{itemId}_*` column ids):
@@ -210,7 +212,7 @@ Column labels in the template are English (platform convention for auto-mapping)
 - Contacts detail / quick context **Linked** tiles include garment lists when a person row references that contact
 - Open navigates to the list via Garments provider
 
-Duplicate jersey numbers on the same list still show a non-blocking warning when the jersey **number** column is in use.
+Duplicate jersey numbers on the same team still show a non-blocking warning when the jersey **number** column is in use. The same number on different teams does not warn. Persons with no team share one group. The warning follows the in-progress jersey and team edit before Save.
 
 ## Sharing
 

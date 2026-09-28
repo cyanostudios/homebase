@@ -57,25 +57,43 @@ export function countInventoryItemsWithTag(
   return items.filter((item) => inventoryItemMatchesTagFilter(item, tag)).length;
 }
 
-/** Overlay in-progress jersey edit so duplicate warnings update before Save. */
-export function personsWithEditingJersey(
-  persons: Array<{ id: string; jerseyNumber: string | null }>,
+function jerseyTeamKey(teamId: string | null | undefined): string {
+  if (teamId == null) {
+    return '';
+  }
+  return String(teamId).trim();
+}
+
+/** Overlay in-progress jersey (and team) edit so duplicate warnings update before Save. */
+export function personsWithEditingJersey<
+  T extends { id: string; jerseyNumber: string | null; teamId?: string | null },
+>(
+  persons: T[],
   editingId: string | null,
   editingJersey: string | null | undefined,
-): Array<{ id: string; jerseyNumber: string | null }> {
+  editingTeamId?: string | null,
+): T[] {
   if (!editingId) {
     return persons;
   }
   return persons.map((person) =>
     person.id === editingId
-      ? { id: person.id, jerseyNumber: editingJersey ?? person.jerseyNumber }
+      ? {
+          ...person,
+          jerseyNumber: editingJersey ?? person.jerseyNumber,
+          ...(editingTeamId !== undefined ? { teamId: editingTeamId } : {}),
+        }
       : person,
   );
 }
 
-/** Soft (non-blocking) duplicate jersey detection within a list. */
+/**
+ * Soft (non-blocking) duplicate jersey detection within a list.
+ * The same number on different teams is allowed; the same number on the same team is flagged.
+ * Persons with no team share one group.
+ */
 export function findDuplicateJerseyNumbers(
-  persons: Array<{ id: string; jerseyNumber: string | null }>,
+  persons: Array<{ id: string; jerseyNumber: string | null; teamId?: string | null }>,
 ): Set<string> {
   const counts = new Map<string, string[]>();
   for (const person of persons) {
@@ -83,7 +101,7 @@ export function findDuplicateJerseyNumbers(
     if (!num) {
       continue;
     }
-    const key = num.toLowerCase();
+    const key = `${jerseyTeamKey(person.teamId)}\0${num.toLowerCase()}`;
     const ids = counts.get(key) ?? [];
     ids.push(person.id);
     counts.set(key, ids);

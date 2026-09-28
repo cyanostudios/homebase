@@ -35,6 +35,23 @@ describe('findDuplicateJerseyNumbers', () => {
     expect(dupes.has('3')).toBe(false);
     expect(dupes.has('4')).toBe(false);
   });
+
+  it('flags the same number only within the same team', () => {
+    const dupes = findDuplicateJerseyNumbers([
+      { id: '1', jerseyNumber: '10', teamId: 'a' },
+      { id: '2', jerseyNumber: '10', teamId: 'a' },
+      { id: '3', jerseyNumber: '10', teamId: 'b' },
+      { id: '4', jerseyNumber: '7', teamId: 'b' },
+      { id: '5', jerseyNumber: '7', teamId: null },
+      { id: '6', jerseyNumber: '7', teamId: null },
+    ]);
+    expect(dupes.has('1')).toBe(true);
+    expect(dupes.has('2')).toBe(true);
+    expect(dupes.has('3')).toBe(false);
+    expect(dupes.has('4')).toBe(false);
+    expect(dupes.has('5')).toBe(true);
+    expect(dupes.has('6')).toBe(true);
+  });
 });
 
 describe('personsWithEditingJersey', () => {
@@ -47,6 +64,17 @@ describe('personsWithEditingJersey', () => {
     expect(findDuplicateJerseyNumbers(overlaid).has('1')).toBe(true);
     expect(findDuplicateJerseyNumbers(overlaid).has('2')).toBe(true);
     expect(personsWithEditingJersey(persons, null, '10')[1].jerseyNumber).toBe('7');
+  });
+
+  it('uses the in-progress team so a number on another team is not a duplicate', () => {
+    const persons = [
+      { id: '1', jerseyNumber: '10', teamId: 'a' },
+      { id: '2', jerseyNumber: '10', teamId: 'a' },
+    ];
+    const overlaid = personsWithEditingJersey(persons, '2', '10', 'b');
+    const dupes = findDuplicateJerseyNumbers(overlaid);
+    expect(dupes.has('1')).toBe(false);
+    expect(dupes.has('2')).toBe(false);
   });
 });
 
