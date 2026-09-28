@@ -48,6 +48,7 @@ import {
 } from '../utils/variantListStyles';
 
 import { InventoryDetailHeaderMenus } from './InventoryDetailHeaderMenus';
+import { ClubdeskPublicationPropertiesFields } from './ClubdeskPublicationPropertiesFields';
 
 type InventoryViewTab = 'information' | 'variants' | 'activity';
 
@@ -190,7 +191,13 @@ export function InventoryView({
   headerTrailing?: React.ReactNode;
 }) {
   const { t } = useTranslation();
-  const { currentInventoryItem, updateInventoryVariantQuantity, isSaving } = useClubdesk();
+  const {
+    currentInventoryItem,
+    updateInventoryVariantQuantity,
+    updateInventoryPublicationStatus,
+    updateInventoryFeatured,
+    isSaving,
+  } = useClubdesk();
   const item = itemProp ?? inventoryProp ?? currentInventoryItem;
   const [searchParams, setSearchParams] = useSearchParams();
   const [localTab, setLocalTab] = useState<InventoryViewTab>('information');
@@ -359,6 +366,26 @@ export function InventoryView({
     </Card>
   );
 
+  const handlePublicationStatusChange = useCallback(
+    (status: 'draft' | 'published') => {
+      if (!item || readOnly) {
+        return;
+      }
+      void updateInventoryPublicationStatus(item, status);
+    },
+    [item, readOnly, updateInventoryPublicationStatus],
+  );
+
+  const handleFeaturedChange = useCallback(
+    (featured: boolean) => {
+      if (!item || readOnly) {
+        return;
+      }
+      void updateInventoryFeatured(item, featured);
+    },
+    [item, readOnly, updateInventoryFeatured],
+  );
+
   const propertiesCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
@@ -368,6 +395,16 @@ export function InventoryView({
         className="p-6"
       >
         <div className="space-y-4">
+          <ClubdeskPublicationPropertiesFields
+            values={{
+              publicationStatus: item?.publicationStatus === 'draft' ? 'draft' : 'published',
+              featured: item?.featured === true,
+              slug: item?.slug,
+            }}
+            onPublicationStatusChange={handlePublicationStatusChange}
+            onFeaturedChange={handleFeaturedChange}
+            disabled={readOnly || isSaving}
+          />
           <div className="space-y-0">
             {propertyRows.map((row) => (
               <div key={row.label} className={DETAIL_PROP_ROW_CLASS}>

@@ -151,11 +151,16 @@ describe('public-clubdesk AppShell patterns', () => {
   test('contacts and swish visibility gates SSR, API, and sitemap', () => {
     const helpers = read('api/db_helpers.php');
     const infoContacts = read('api/info_contacts.php');
+    const inventoryApi = read('api/inventory.php');
     const sitemap = read('api/sitemap.php');
     const brandingHelpers = read('api/branding_helpers.php');
     expect(helpers).toMatch(/function publicAppCardVisible/);
+    expect(helpers).toMatch(/'inventory'/);
     expect(infoContacts).toMatch(/publicAppCardVisible\(\$pdo,\s*'contacts'\)/);
     expect(infoContacts).toMatch(/public_clubdesk_info_contacts_v2/);
+    expect(inventoryApi).toMatch(/publicAppCardVisible\(\$pdo,\s*'inventory'\)/);
+    expect(js).toMatch(/syncInventoryTabVisibility/);
+    expect(js).toMatch(/__PUBLIC_APP_INVENTORY_VISIBLE__/);
     expect(sitemap).toMatch(/publicAppCardVisible\(\$pdo,\s*'info'\)/);
     expect(sitemap).toMatch(/publicAppCardVisible\(\$pdo,\s*'swish'\)/);
     expect(sitemap).not.toMatch(

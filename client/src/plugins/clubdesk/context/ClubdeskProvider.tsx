@@ -1554,7 +1554,7 @@ export function ClubdeskProvider({
         comment: full.comment,
         tags: [...(full.tags || [])],
         featuredImageUrl: full.featuredImageUrl,
-        publicationStatus: 'draft',
+        publicationStatus: 'published',
         featured: full.featured === true,
         variants: buildDuplicatedItemVariantPayloads(full.variants || []),
       });
@@ -1755,6 +1755,8 @@ export function ClubdeskProvider({
       saveInventoryItem: inventoryDomain.saveInventoryItem,
       deleteInventoryItem: inventoryDomain.deleteInventoryItem,
       deleteInventoryItems: inventoryDomain.deleteInventoryItems,
+      updateInventoryPublicationStatus: inventoryDomain.updateInventoryPublicationStatus,
+      updateInventoryFeatured: inventoryDomain.updateInventoryFeatured,
       updateInventoryVariantQuantity: inventoryDomain.updateInventoryVariantQuantity,
       importInventoryItems: inventoryDomain.importInventoryItems,
       selectedInventoryIds: inventoryDomain.inventoryBulk.selectedIds,

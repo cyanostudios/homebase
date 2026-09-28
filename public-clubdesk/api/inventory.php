@@ -93,11 +93,19 @@ try {
     }
 
     $pdo = getPdoFromEnv();
+    if (!publicAppCardVisible($pdo, 'inventory')) {
+        $payload = ['inventory' => [], 'visible' => false];
+        if ($cacheEnabled) {
+            apcu_store($cacheKey, $payload, $cacheTtl);
+        }
+        respond(200, $payload);
+    }
+
     $stmt = $pdo->query(publicAppInventorySql($pdo));
     $rows = $stmt->fetchAll();
     $inventory = array_map('transformInventoryListItem', $rows);
 
-    $payload = ['inventory' => $inventory];
+    $payload = ['inventory' => $inventory, 'visible' => true];
 
     if ($cacheEnabled) {
         apcu_store($cacheKey, $payload, $cacheTtl);

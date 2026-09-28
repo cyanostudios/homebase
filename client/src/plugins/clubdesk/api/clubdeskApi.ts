@@ -135,7 +135,7 @@ function normalizeInventoryItem(row: ClubdeskInventoryItem): ClubdeskInventoryIt
     ...row,
     id: String(row.id),
     currency: row.currency || 'SEK',
-    publicationStatus: row.publicationStatus === 'published' ? 'published' : 'draft',
+    publicationStatus: row.publicationStatus === 'draft' ? 'draft' : 'published',
     featured: row.featured === true,
     tags: Array.isArray(row.tags) ? row.tags : [],
     variants: Array.isArray(row.variants) ? row.variants.map(normalizeInventoryVariant) : [],
@@ -474,6 +474,7 @@ function normalizeSiteContentMap(
     info: normalizeSiteCard('info', rows?.info),
     contacts: normalizeSiteCard('contacts', rows?.contacts ?? emptySiteCard('contacts')),
     swish: normalizeSiteCard('swish', rows?.swish ?? emptySiteCard('swish')),
+    inventory: normalizeSiteCard('inventory', rows?.inventory ?? emptySiteCard('inventory')),
   };
 }
 

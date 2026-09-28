@@ -81,7 +81,7 @@ class InventoryModel {
     };
   }
 
-  normalizePublicationStatus(raw, fallback = 'draft') {
+  normalizePublicationStatus(raw, fallback = 'published') {
     if (raw === undefined || raw === null || raw === '') return fallback;
     const status = String(raw);
     if (!PUBLICATION_STATUSES.includes(status)) {
@@ -215,12 +215,15 @@ class InventoryModel {
     if (!partial || data.publicationStatus !== undefined || data.publication_status !== undefined) {
       const raw =
         data.publicationStatus !== undefined ? data.publicationStatus : data.publication_status;
-      out.publicationStatus = this.normalizePublicationStatus(raw, partial ? undefined : 'draft');
+      out.publicationStatus = this.normalizePublicationStatus(
+        raw,
+        partial ? undefined : 'published',
+      );
       if (out.publicationStatus === undefined && existing) {
         out.publicationStatus = existing.publicationStatus;
       }
       if (!partial && out.publicationStatus === undefined) {
-        out.publicationStatus = 'draft';
+        out.publicationStatus = 'published';
       }
     }
 
@@ -343,7 +346,7 @@ class InventoryModel {
       tags: normalizeInventoryTags(parseJsonb(row.tags, [])),
       slug: row.slug ?? '',
       featuredImageUrl: row.featured_image_url ?? null,
-      publicationStatus: row.publication_status ?? 'draft',
+      publicationStatus: row.publication_status ?? 'published',
       featured: row.featured === true || row.featured === 't' || row.featured === 'true',
       sortOrder: row.sort_order != null ? Number(row.sort_order) : 1,
       variants: [],
@@ -590,7 +593,7 @@ class InventoryModel {
             JSON.stringify(fields.tags ?? []),
             fields.slug,
             fields.featuredImageUrl ?? null,
-            fields.publicationStatus ?? 'draft',
+            fields.publicationStatus ?? 'published',
             fields.featured === true,
             sortOrder,
           ],

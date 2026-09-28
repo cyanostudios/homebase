@@ -411,7 +411,41 @@ class PublicClubdeskModel {
    * @param {import('pg').Pool} pool
    * @param {number} ownerUserId
    */
+  /**
+   * Global inventory tab visibility (site_content card inventory.meta.visible).
+   * Missing row ⇒ visible (legacy).
+   * @param {import('pg').Pool} pool
+   * @param {number} ownerUserId
+   */
+  async isInventorySectionVisible(pool, ownerUserId) {
+    const result = await pool.query(
+      `
+        SELECT meta
+        FROM clubdesk_site_content
+        WHERE user_id = $1
+          AND card_key = 'inventory'
+        LIMIT 1
+      `,
+      [ownerUserId],
+    );
+    if (!result.rows.length) {
+      return true;
+    }
+    let meta = result.rows[0].meta;
+    if (typeof meta === 'string') {
+      try {
+        meta = JSON.parse(meta);
+      } catch {
+        meta = {};
+      }
+    }
+    return !(meta && typeof meta === 'object' && !Array.isArray(meta)) || meta.visible !== false;
+  }
+
   async listPublishedInventory(pool, ownerUserId) {
+    if (!(await this.isInventorySectionVisible(pool, ownerUserId))) {
+      return [];
+    }
     const result = await pool.query(
       `
         SELECT
@@ -454,6 +488,9 @@ class PublicClubdeskModel {
    * @param {string} slugOrId
    */
   async getPublishedInventoryBySlugOrId(pool, ownerUserId, slugOrId) {
+    if (!(await this.isInventorySectionVisible(pool, ownerUserId))) {
+      return null;
+    }
     const raw = String(slugOrId ?? '').trim();
     if (!raw) {
       throw new AppError('Invalid slug or id', 400, AppError.CODES.VALIDATION_ERROR);
@@ -561,7 +598,7 @@ class PublicClubdeskModel {
         SELECT card_key, content, meta
         FROM clubdesk_site_content
         WHERE user_id = $1
-          AND card_key IN ('home', 'info', 'contacts', 'swish')
+          AND card_key IN ('home', 'info', 'contacts', 'swish', 'inventory')
       `,
       [ownerUserId],
     );
@@ -571,6 +608,7 @@ class PublicClubdeskModel {
       info: { contentHtml: '', title: '', visible: true },
       contacts: { visible: true },
       swish: { visible: true },
+      inventory: { visible: true },
     };
 
     const readVisible = (meta) =>
@@ -587,7 +625,7 @@ class PublicClubdeskModel {
         }
       }
 
-      if (key === 'contacts' || key === 'swish') {
+      if (key === 'contacts' || key === 'swish' || key === 'inventory') {
         payload[key] = { visible: readVisible(meta) };
         continue;
       }

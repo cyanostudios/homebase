@@ -48,7 +48,7 @@ export function normalizeClubdeskInventoryItemPayload(
       raw.featuredImageUrl != null && String(raw.featuredImageUrl).trim() !== ''
         ? String(raw.featuredImageUrl).trim()
         : null,
-    publicationStatus: raw.publicationStatus === 'published' ? 'published' : 'draft',
+    publicationStatus: raw.publicationStatus === 'draft' ? 'draft' : 'published',
     featured: raw.featured === true,
     variants,
   };

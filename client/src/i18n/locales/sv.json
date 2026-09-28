@@ -1881,8 +1881,11 @@
       "deleteConfirm": "Ta bort \"{{name}}\"? Detta kan inte ångras.",
       "deleteConfirmGeneric": "Ta bort produkten? Detta kan inte ångras.",
       "settingsInventory": "Inventarie – Inställningar",
-      "settingsInventorySubtitle": "Hantera taggar och importera produkter.",
+      "settingsInventorySubtitle": "Publik synlighet, taggar och import.",
       "settingsCategories": {
+        "public": "Publik",
+        "publicDescription": "Visa eller dölj inventarie-fliken i den publika Clubdesk-appen.",
+        "publicHint": "När den är av stängs inventarie-fliken och alla produkter döljs publikt — även publicerade artiklar. Enskilda produkter styrs fortfarande med Utkast / Publicerad.",
         "tags": "Taggar",
         "tagsDescription": "Taggar du kan tilldela produkter i inventariet.",
         "tagsHint": "Taggar kan tilldelas när du redigerar en produkt.",

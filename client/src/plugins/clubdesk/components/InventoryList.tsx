@@ -120,7 +120,7 @@ export const InventoryList: React.FC = () => {
 
   const [contentView, setContentView] = useState<InventoryContentView>('list');
   const [inventorySettingsCategory, setInventorySettingsCategory] =
-    useState<ClubdeskInventorySettingsCategory>('tags');
+    useState<ClubdeskInventorySettingsCategory>('public');
 
   const openInventorySettings = useCallback(() => {
     setContentView('settings');

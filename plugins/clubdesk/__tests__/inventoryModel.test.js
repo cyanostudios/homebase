@@ -79,9 +79,9 @@ describe('InventoryModel', () => {
     });
   });
 
-  test('normalizeItemFields defaults publication to draft and slugifies', () => {
+  test('normalizeItemFields defaults publication to published and slugifies', () => {
     const fields = model.normalizeItemFields({ articleName: 'Training Tee' });
-    expect(fields.publicationStatus).toBe('draft');
+    expect(fields.publicationStatus).toBe('published');
     expect(fields.slug).toBe('training-tee');
     expect(fields.articleName).toBe('Training Tee');
   });

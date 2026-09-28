@@ -303,7 +303,7 @@ export function useClubdeskInventoryDomain(options: {
           raw.slug?.trim() ||
           slugify(raw.articleName.trim()) ||
           `inventory-${Date.now().toString(36)}`,
-        publicationStatus: raw.publicationStatus === 'published' ? 'published' : 'draft',
+        publicationStatus: raw.publicationStatus === 'draft' ? 'draft' : 'published',
         featured: raw.featured === true,
       });
       const errors = validateInventory(payload);
@@ -452,6 +452,80 @@ export function useClubdeskInventoryDomain(options: {
     [t, validateInventory],
   );
 
+  const updateInventoryPublicationStatus = useCallback(
+    async (item: ClubdeskInventoryItem, status: 'draft' | 'published') => {
+      try {
+        const full = await ensureFullInventoryItem(item);
+        const saved = await clubdeskApi.updateInventoryItem(full.id, {
+          ...normalizeClubdeskInventoryItemPayload({
+            articleName: full.articleName,
+            brand: full.brand,
+            description: full.description,
+            material: full.material,
+            purchasePrice: full.purchasePrice,
+            recommendedPrice: full.recommendedPrice,
+            salePrice: full.salePrice,
+            currency: full.currency,
+            comment: full.comment,
+            tags: full.tags,
+            slug: full.slug,
+            featuredImageUrl: full.featuredImageUrl,
+            publicationStatus: status,
+            featured: full.featured === true,
+            variants: full.variants,
+          }),
+        });
+        setInventoryItems((prev) =>
+          prev.map((row) => (String(row.id) === String(saved.id) ? saved : row)),
+        );
+        if (currentInventoryItem && String(currentInventoryItem.id) === String(saved.id)) {
+          setCurrentInventoryItem(saved);
+        }
+        clearValidationErrors();
+      } catch {
+        setValidationErrors([{ field: 'general', message: t('clubdesk.inventory.saveFailed') }]);
+      }
+    },
+    [clearValidationErrors, currentInventoryItem, ensureFullInventoryItem, setValidationErrors, t],
+  );
+
+  const updateInventoryFeatured = useCallback(
+    async (item: ClubdeskInventoryItem, featured: boolean) => {
+      try {
+        const full = await ensureFullInventoryItem(item);
+        const saved = await clubdeskApi.updateInventoryItem(full.id, {
+          ...normalizeClubdeskInventoryItemPayload({
+            articleName: full.articleName,
+            brand: full.brand,
+            description: full.description,
+            material: full.material,
+            purchasePrice: full.purchasePrice,
+            recommendedPrice: full.recommendedPrice,
+            salePrice: full.salePrice,
+            currency: full.currency,
+            comment: full.comment,
+            tags: full.tags,
+            slug: full.slug,
+            featuredImageUrl: full.featuredImageUrl,
+            publicationStatus: full.publicationStatus === 'draft' ? 'draft' : 'published',
+            featured: featured === true,
+            variants: full.variants,
+          }),
+        });
+        setInventoryItems((prev) =>
+          prev.map((row) => (String(row.id) === String(saved.id) ? saved : row)),
+        );
+        if (currentInventoryItem && String(currentInventoryItem.id) === String(saved.id)) {
+          setCurrentInventoryItem(saved);
+        }
+        clearValidationErrors();
+      } catch {
+        setValidationErrors([{ field: 'general', message: t('clubdesk.inventory.saveFailed') }]);
+      }
+    },
+    [clearValidationErrors, currentInventoryItem, ensureFullInventoryItem, setValidationErrors, t],
+  );
+
   const inventoryNav = usePluginNavigation(
     inventoryItems,
     currentInventoryItem,
@@ -478,6 +552,8 @@ export function useClubdeskInventoryDomain(options: {
     saveInventoryItem,
     deleteInventoryItem,
     deleteInventoryItems,
+    updateInventoryPublicationStatus,
+    updateInventoryFeatured,
     updateInventoryVariantQuantity,
     importInventoryItems,
     getInventoryDeleteMessage,

@@ -1,4 +1,4 @@
-export type ClubdeskSiteCardKey = 'home' | 'info' | 'contacts' | 'swish';
+export type ClubdeskSiteCardKey = 'home' | 'info' | 'contacts' | 'swish' | 'inventory';
 
 export interface ClubdeskSiteContentCard {
   cardKey: ClubdeskSiteCardKey;

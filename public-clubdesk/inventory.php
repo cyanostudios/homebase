@@ -148,20 +148,24 @@ if ($slug === null || $slug === '') {
 } else {
     try {
         $pdo = getPdoFromEnv();
-        $q = publicAppInventoryBySlugSql($slug);
-        $stmt = $pdo->prepare($q['sql']);
-        $stmt->execute($q['params']);
-        $row = $stmt->fetch();
-        if ($row) {
-            $item = $row;
-            $variants = parseInventoryVariants($row);
-            $currency = trim((string) ($row['currency'] ?? 'SEK')) ?: 'SEK';
-            $featured = trim((string) ($row['featured_image_url'] ?? ''));
-            if ($featured !== '') {
-                $ogImage = absolutePublicUrl($baseUrl, $featured);
-            }
-        } else {
+        if (!publicAppCardVisible($pdo, 'inventory')) {
             $notFound = true;
+        } else {
+            $q = publicAppInventoryBySlugSql($slug);
+            $stmt = $pdo->prepare($q['sql']);
+            $stmt->execute($q['params']);
+            $row = $stmt->fetch();
+            if ($row) {
+                $item = $row;
+                $variants = parseInventoryVariants($row);
+                $currency = trim((string) ($row['currency'] ?? 'SEK')) ?: 'SEK';
+                $featured = trim((string) ($row['featured_image_url'] ?? ''));
+                if ($featured !== '') {
+                    $ogImage = absolutePublicUrl($baseUrl, $featured);
+                }
+            } else {
+                $notFound = true;
+            }
         }
     } catch (Throwable $e) {
         $notFound = true;

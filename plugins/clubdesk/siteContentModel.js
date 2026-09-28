@@ -3,7 +3,7 @@ const { Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 const PUBLIC_CARD_KEYS = ['home', 'info'];
-const ALL_CARD_KEYS = ['home', 'info', 'contacts', 'swish'];
+const ALL_CARD_KEYS = ['home', 'info', 'contacts', 'swish', 'inventory'];
 const MAX_HTML_LENGTH = 100000;
 
 class SiteContentModel {
@@ -43,15 +43,15 @@ class SiteContentModel {
     const key = String(cardKey ?? '').trim();
     if (!ALL_CARD_KEYS.includes(key)) {
       throw new AppError('Invalid card key', 400, AppError.CODES.VALIDATION_ERROR, [
-        { field: 'cardKey', message: 'cardKey must be home, info, contacts, or swish' },
+        { field: 'cardKey', message: 'cardKey must be home, info, contacts, swish, or inventory' },
       ]);
     }
     return key;
   }
 
   normalizeContentForKey(cardKey, content) {
-    if (cardKey === 'swish' || cardKey === 'contacts') {
-      // Profiles / contact rows live in dedicated tables — cards are visibility shells.
+    if (cardKey === 'swish' || cardKey === 'contacts' || cardKey === 'inventory') {
+      // Profiles / contact rows / inventory catalog live elsewhere — cards are visibility shells.
       return '';
     }
     const html = content == null ? '' : String(content);
@@ -84,7 +84,7 @@ class SiteContentModel {
    * @param {unknown} meta
    */
   normalizeMetaForKey(cardKey, meta) {
-    if (cardKey === 'swish' || cardKey === 'contacts') {
+    if (cardKey === 'swish' || cardKey === 'contacts' || cardKey === 'inventory') {
       return this.normalizeVisibilityMeta(meta);
     }
 
@@ -117,7 +117,7 @@ class SiteContentModel {
   }
 
   /**
-   * @returns {Promise<Record<'home'|'info'|'contacts'|'swish', object>>}
+   * @returns {Promise<Record<'home'|'info'|'contacts'|'swish'|'inventory', object>>}
    */
   async getAll(req) {
     const db = Database.get(req);
@@ -169,7 +169,7 @@ class SiteContentModel {
   }
 
   /**
-   * Batch upsert home / info / contacts / swish cards.
+   * Batch upsert home / info / contacts / swish / inventory cards.
    * @param {Array<{ cardKey: string, content?: string, meta?: object }>} cards
    */
   async upsertMany(req, cards) {

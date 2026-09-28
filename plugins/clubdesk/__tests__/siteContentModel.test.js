@@ -31,6 +31,7 @@ describe('SiteContentModel', () => {
     expect(cards.home).toMatchObject({ cardKey: 'home', content: '' });
     expect(cards.info).toMatchObject({ cardKey: 'info', content: '' });
     expect(cards.swish).toMatchObject({ cardKey: 'swish', content: '' });
+    expect(cards.inventory).toMatchObject({ cardKey: 'inventory', content: '' });
   });
 
   test('assertCardKey rejects unknown keys', () => {
@@ -106,6 +107,27 @@ describe('SiteContentModel', () => {
       query,
     });
     const card = await model.upsert({}, 'contacts', {
+      content: 'ignored',
+      meta: { visible: false },
+    });
+    expect(card.content).toBe('');
+    expect(card.meta).toEqual({ visible: false });
+  });
+
+  test('upsert inventory stores visibility shell', async () => {
+    const query = jest.fn().mockResolvedValue([
+      {
+        card_key: 'inventory',
+        content: '',
+        meta: { visible: false },
+        updated_at: null,
+      },
+    ]);
+    Database.get.mockReturnValue({
+      getUserId: () => 7,
+      query,
+    });
+    const card = await model.upsert({}, 'inventory', {
       content: 'ignored',
       meta: { visible: false },
     });
