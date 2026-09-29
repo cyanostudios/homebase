@@ -265,6 +265,7 @@ export function GarmentsStatisticsView() {
                 title={`${t(section.titleKey)} (${lines.length})`}
                 icon={section.icon}
                 subtleTitle
+                collapsible
               >
                 <OrderLineList lines={lines} emptyLabel={t('garments.statistics.ordersEmpty')} />
               </DetailSection>
