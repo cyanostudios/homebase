@@ -31,7 +31,9 @@ export type ClubdeskPublicationPropertiesValues = {
 type ClubdeskPublicationPropertiesFieldsProps = {
   values: ClubdeskPublicationPropertiesValues;
   onPublicationStatusChange: (status: PublicationStatus) => void;
-  onFeaturedChange: (featured: boolean) => void;
+  onFeaturedChange?: (featured: boolean) => void;
+  /** Inventory has no Hem featured cards. */
+  showFeatured?: boolean;
   /** Guides: show category read-row. */
   showCategory?: boolean;
   /** Price lists: show currency read-row. */
@@ -69,6 +71,7 @@ export function ClubdeskPublicationPropertiesFields({
   values,
   onPublicationStatusChange,
   onFeaturedChange,
+  showFeatured = true,
   showCategory = false,
   showCurrency = false,
   disabled = false,
@@ -107,30 +110,34 @@ export function ClubdeskPublicationPropertiesFields({
         </div>
       </div>
 
-      <div className={DETAIL_PROP_ROW_CLASS}>
-        <span className="text-sm text-slate-500 dark:text-slate-400">{t('clubdesk.featured')}</span>
-        <div className="flex shrink-0 justify-end">
-          <Select
-            value={featured ? 'true' : 'false'}
-            onValueChange={(value) => onFeaturedChange(value === 'true')}
-            disabled={disabled}
-          >
-            <SelectTrigger className={cn(BADGE_SELECT_TRIGGER_CLASS, 'h-9 w-full sm:w-[180px]')}>
-              <SelectValue>
-                <FeaturedBadge featured={featured} />
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
-              <SelectItem value="true" className={BADGE_SELECT_ITEM_CLASS}>
-                <FeaturedBadge featured />
-              </SelectItem>
-              <SelectItem value="false" className={BADGE_SELECT_ITEM_CLASS}>
-                <FeaturedBadge featured={false} />
-              </SelectItem>
-            </SelectContent>
-          </Select>
+      {showFeatured ? (
+        <div className={DETAIL_PROP_ROW_CLASS}>
+          <span className="text-sm text-slate-500 dark:text-slate-400">
+            {t('clubdesk.featured')}
+          </span>
+          <div className="flex shrink-0 justify-end">
+            <Select
+              value={featured ? 'true' : 'false'}
+              onValueChange={(value) => onFeaturedChange?.(value === 'true')}
+              disabled={disabled}
+            >
+              <SelectTrigger className={cn(BADGE_SELECT_TRIGGER_CLASS, 'h-9 w-full sm:w-[180px]')}>
+                <SelectValue>
+                  <FeaturedBadge featured={featured} />
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
+                <SelectItem value="true" className={BADGE_SELECT_ITEM_CLASS}>
+                  <FeaturedBadge featured />
+                </SelectItem>
+                <SelectItem value="false" className={BADGE_SELECT_ITEM_CLASS}>
+                  <FeaturedBadge featured={false} />
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {showCategory ? (
         <div className={DETAIL_PROP_ROW_CLASS}>

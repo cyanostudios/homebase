@@ -165,7 +165,7 @@ class PriceListModel {
   /**
    * Ensure inventory FK targets belong to the price-list owner and variant belongs to item.
    */
-  async assertInventoryLinksOwned(dbOrTx, userId, items) {
+  async assertInventoryLinksOwned(dbOrTx, userId, items, allowedExistingLinkIds = new Set()) {
     if (!items || items.length === 0) {
       return;
     }
@@ -180,7 +180,7 @@ class PriceListModel {
       const rows = await this.queryChild(
         dbOrTx,
         `
-          SELECT id
+          SELECT id, archived_at, publication_status
           FROM clubdesk_inventory_items
           WHERE user_id = $1
             AND id = ANY($2::int[])
@@ -188,11 +188,31 @@ class PriceListModel {
         [userId, itemIds],
       );
       ownedItemIds = new Set(rows.map((r) => Number(r.id)));
+      const archivedIds = new Set(
+        rows.filter((r) => r.archived_at != null).map((r) => Number(r.id)),
+      );
+      const unpublishedIds = new Set(
+        rows.filter((r) => r.publication_status !== 'published').map((r) => Number(r.id)),
+      );
       for (const id of itemIds) {
         if (!ownedItemIds.has(id)) {
           throw new AppError('Inventory item not found', 400, AppError.CODES.VALIDATION_ERROR, [
             { field: 'inventoryItemId', message: 'Inventory item not found' },
           ]);
+        }
+        if (archivedIds.has(id) && !allowedExistingLinkIds.has(id)) {
+          throw new AppError(
+            'Cannot assign an archived inventory item',
+            409,
+            AppError.CODES.CONFLICT,
+          );
+        }
+        if (unpublishedIds.has(id) && !allowedExistingLinkIds.has(id)) {
+          throw new AppError(
+            'Cannot assign an unpublished inventory item',
+            409,
+            AppError.CODES.CONFLICT,
+          );
         }
       }
     }
@@ -456,6 +476,7 @@ class PriceListModel {
         row.inventory_article_name !== undefined && row.inventory_article_name !== null
           ? String(row.inventory_article_name)
           : null,
+      inventoryArchived: row.inventory_archived_at != null,
       inventorySlug:
         row.inventory_slug !== undefined && row.inventory_slug !== null
           ? String(row.inventory_slug)
@@ -881,6 +902,7 @@ class PriceListModel {
           i.*,
           inv.article_name AS inventory_article_name,
           inv.slug AS inventory_slug,
+          inv.archived_at AS inventory_archived_at,
           inv.sale_price AS inventory_sale_price,
           inv.recommended_price AS inventory_recommended_price,
           v.audience AS inventory_variant_audience,
@@ -1155,7 +1177,20 @@ class PriceListModel {
       let itemCount;
       if (replaceItems) {
         itemCount = items.length;
-        await this.assertInventoryLinksOwned(db, userId, items);
+        const existingLinks = await this.queryChild(
+          db,
+          `
+            SELECT DISTINCT inventory_item_id
+            FROM ${this.itemsTable}
+            WHERE price_list_id = $1
+              AND inventory_item_id IS NOT NULL
+          `,
+          [id],
+        );
+        const allowedExistingLinkIds = new Set(
+          existingLinks.map((row) => Number(row.inventory_item_id)),
+        );
+        await this.assertInventoryLinksOwned(db, userId, items, allowedExistingLinkIds);
       } else {
         const existingItems = await this.getItemsForPriceList(db, id);
         itemCount = existingItems.length;

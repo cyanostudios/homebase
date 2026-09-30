@@ -32,6 +32,10 @@ Local first; prod only on explicit release. After migrate: log out/in if Setting
 - **`132-grant-garments-plugin-access.sql`** — **`MAIN_DB_ONLY`**. Grant plugin `garments` in `tenant_plugin_access` / `user_plugin_access`. Alternative: `npm run set:tenant-plugins -- --enable=garments`.
 - **`133-public-share-routing-garment-list.sql`** — **`MAIN_DB_ONLY`**. Widen `public_share_routing.resource_type` CHECK to include `garment_list`.
 - **`175-garment-inventory-archived-at.sql`** — tenant-DB: nullable `archived_at` on `garment_inventory_items`. Unique index `idx_garment_inventory_unique_article` is partial (`WHERE archived_at IS NULL`). ADR: [`docs/ai/adr/GARMENTS_INVENTORY_ARCHIVE.md`](../../docs/ai/adr/GARMENTS_INVENTORY_ARCHIVE.md).
+- **`176-clubdesk-inventory-archived-at.sql`** — tenant-DB: nullable `archived_at` on `clubdesk_inventory_items`. Name+brand and slug unique indexes are partial (`WHERE archived_at IS NULL`). ADR: [`docs/ai/adr/CLUBDESK_INVENTORY_ARCHIVE.md`](../../docs/ai/adr/CLUBDESK_INVENTORY_ARCHIVE.md).
+- **`177-clubdesk-inventory-clear-featured.sql`** — tenant-DB: set `clubdesk_inventory_items.featured` to false. Inventory is not shown as a Hem featured card. Guides and price lists are unchanged.
+- **`178-inventory-variant-gtin.sql`** — tenant-DB: `gtin TEXT NOT NULL DEFAULT ''` on `garment_inventory_variants` and `clubdesk_inventory_variants`. Empty, or 8/12/13/14 digits in the API.
+- **`179-clubdesk-inventory-kiosk-catalog.sql`** — tenant-DB: kiosk master catalog flat columns on `clubdesk_inventory_items` (`catalog_key`, product category, package size/unit, item GTIN, nutrition, provenance, …) plus unique `(user_id, catalog_key)` where key non-empty. ADR: [`docs/ai/adr/CLUBDESK_KIOSK_MASTER_CATALOG.md`](../../docs/ai/adr/CLUBDESK_KIOSK_MASTER_CATALOG.md).
 
 ```bash
 npm run migrate:garments

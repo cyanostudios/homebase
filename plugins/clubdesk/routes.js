@@ -401,6 +401,7 @@ function createClubdeskRoutes(
 
     const variantBody = [
       commonRules.optionalString('sku', 100),
+      commonRules.optionalString('gtin', 40),
       commonRules.optionalString('audience', 100),
       commonRules.optionalString('color', 100),
       commonRules.optionalString('size', 100),
@@ -458,6 +459,28 @@ function createClubdeskRoutes(
       validateRequest,
       (req, res) => {
         inventoryController.delete(req, res);
+      },
+    );
+
+    router.post(
+      '/inventory/:id/archive',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      validateRequest,
+      (req, res) => {
+        inventoryController.archive(req, res);
+      },
+    );
+
+    router.post(
+      '/inventory/:id/restore',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      validateRequest,
+      (req, res) => {
+        inventoryController.restore(req, res);
       },
     );
 

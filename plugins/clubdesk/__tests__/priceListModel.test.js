@@ -153,11 +153,67 @@ describe('PriceListModel', () => {
     ).rejects.toMatchObject({ statusCode: 400 });
   });
 
+  test('assertInventoryLinksOwned rejects a new link to an archived article', async () => {
+    const db = {
+      query: jest.fn().mockResolvedValue([{ id: 9, archived_at: '2026-09-30T00:00:00.000Z' }]),
+    };
+    await expect(
+      model.assertInventoryLinksOwned(db, 1, [
+        { title: 'X', inventoryItemId: 9, inventoryVariantId: null },
+      ]),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Cannot assign an archived inventory item',
+    });
+  });
+
+  test('assertInventoryLinksOwned rejects a new link to an unpublished article', async () => {
+    const db = {
+      query: jest.fn().mockResolvedValue([{ id: 9, publication_status: 'draft' }]),
+    };
+    await expect(
+      model.assertInventoryLinksOwned(db, 1, [
+        { title: 'X', inventoryItemId: 9, inventoryVariantId: null },
+      ]),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Cannot assign an unpublished inventory item',
+    });
+  });
+
+  test('assertInventoryLinksOwned keeps an unpublished article already on the price list', async () => {
+    const db = {
+      query: jest.fn().mockResolvedValue([{ id: 9, publication_status: 'draft' }]),
+    };
+    await expect(
+      model.assertInventoryLinksOwned(
+        db,
+        1,
+        [{ title: 'X', inventoryItemId: 9, inventoryVariantId: null }],
+        new Set([9]),
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  test('assertInventoryLinksOwned keeps an archived article already on the price list', async () => {
+    const db = {
+      query: jest.fn().mockResolvedValue([{ id: 9, archived_at: '2026-09-30T00:00:00.000Z' }]),
+    };
+    await expect(
+      model.assertInventoryLinksOwned(
+        db,
+        1,
+        [{ title: 'X', inventoryItemId: 9, inventoryVariantId: null }],
+        new Set([9]),
+      ),
+    ).resolves.toBeUndefined();
+  });
+
   test('assertInventoryLinksOwned accepts owned item and matching variant', async () => {
     const db = {
       query: jest
         .fn()
-        .mockResolvedValueOnce([{ id: 9 }])
+        .mockResolvedValueOnce([{ id: 9, publication_status: 'published' }])
         .mockResolvedValueOnce([{ id: 3, item_id: 9 }]),
     };
     await expect(

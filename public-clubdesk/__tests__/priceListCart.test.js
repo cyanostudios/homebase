@@ -6,6 +6,7 @@ const {
   setCart,
   total,
   uniqueCount,
+  itemCount,
   formatMoney,
   lineKey,
   groupCartByCategoryOrder,
@@ -81,6 +82,11 @@ describe('ClubdeskPriceListCart', () => {
   test('uniqueCount ignores empty cart', () => {
     expect(uniqueCount([])).toBe(0);
     expect(uniqueCount([{ qty: 2 }, { qty: 1 }])).toBe(2);
+  });
+
+  test('itemCount sums quantities', () => {
+    expect(itemCount([])).toBe(0);
+    expect(itemCount([{ qty: 2 }, { qty: 1 }])).toBe(3);
   });
 
   test('setCart drops zero-qty rows', () => {

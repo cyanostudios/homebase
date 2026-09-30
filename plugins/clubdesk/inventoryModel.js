@@ -2,9 +2,24 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
+const GTIN_DIGITS = /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/;
 const PUBLICATION_STATUSES = ['draft', 'published'];
 const DEFAULT_CURRENCY = 'SEK';
 const MAX_IMPORT_ITEMS = 200;
+
+/** Empty, or 8/12/13/14 digits after spaces are removed. */
+function normalizeGtin(value) {
+  const raw = String(value ?? '').replace(/\s+/g, '');
+  if (!raw) return '';
+  if (!GTIN_DIGITS.test(raw)) {
+    throw new AppError(
+      'GTIN must be 8, 12, 13, or 14 digits',
+      400,
+      AppError.CODES.VALIDATION_ERROR,
+    );
+  }
+  return raw;
+}
 
 function parseJsonb(value, fallback) {
   if (value == null) return fallback;
@@ -70,6 +85,7 @@ class InventoryModel {
   normalizeVariantInput(data, sortOrderFallback = 0) {
     return {
       sku: String(data.sku ?? '').trim(),
+      gtin: normalizeGtin(data.gtin),
       audience: String(data.audience ?? '').trim(),
       color: String(data.color ?? '').trim(),
       size: String(data.size ?? '').trim(),
@@ -102,6 +118,31 @@ class InventoryModel {
 
   normalizeFeatured(raw) {
     return raw === true || raw === 'true' || raw === 1 || raw === '1';
+  }
+
+  normalizeCatalogText(value, { allowNull = false } = {}) {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return allowNull ? null : '';
+    return String(value).trim();
+  }
+
+  normalizeNutritionNumeric(value) {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    const num = typeof value === 'number' ? value : parseFloat(String(value).replace(',', '.'));
+    return Number.isNaN(num) ? null : num;
+  }
+
+  normalizeVerifiedAtDate(value) {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    const raw = String(value).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      throw new AppError('verifiedAt must be YYYY-MM-DD', 400, AppError.CODES.VALIDATION_ERROR, [
+        { field: 'verifiedAt', message: 'verifiedAt must be YYYY-MM-DD' },
+      ]);
+    }
+    return raw;
   }
 
   /**
@@ -228,7 +269,97 @@ class InventoryModel {
     }
 
     if (!partial || data.featured !== undefined) {
-      out.featured = this.normalizeFeatured(data.featured);
+      out.featured = false;
+    }
+
+    if (!partial || data.catalogKey !== undefined || data.catalog_key !== undefined) {
+      const raw = data.catalogKey !== undefined ? data.catalogKey : data.catalog_key;
+      if (raw !== undefined) {
+        const next = String(raw ?? '').trim();
+        const existingKey = String(existing?.catalogKey ?? existing?.catalog_key ?? '').trim();
+        if (partial && existingKey && next && next !== existingKey) {
+          throw new AppError(
+            'catalogKey cannot be changed once set',
+            409,
+            AppError.CODES.CONFLICT,
+            [{ field: 'catalogKey', message: 'catalogKey cannot be changed once set' }],
+          );
+        }
+        out.catalogKey = next;
+      } else if (!partial) {
+        out.catalogKey = '';
+      }
+    }
+
+    const catalogTextFields = [
+      ['category', 'category'],
+      ['packageSize', 'package_size'],
+      ['packageUnit', 'package_unit'],
+      ['articleNumber', 'article_number'],
+      ['netContent', 'net_content'],
+      ['countryOfOrigin', 'country_of_origin'],
+      ['countryOfManufacture', 'country_of_manufacture'],
+      ['supplier', 'supplier'],
+      ['dataStatus', 'data_status'],
+    ];
+    for (const [camel, snake] of catalogTextFields) {
+      if (!partial || data[camel] !== undefined || data[snake] !== undefined) {
+        const raw = data[camel] !== undefined ? data[camel] : data[snake];
+        if (raw !== undefined) {
+          out[camel] = this.normalizeCatalogText(raw);
+        } else if (!partial) {
+          out[camel] = '';
+        }
+      }
+    }
+
+    if (!partial || data.source !== undefined || data.catalog_source !== undefined) {
+      const raw = data.source !== undefined ? data.source : data.catalog_source;
+      if (raw !== undefined) {
+        out.source = this.normalizeCatalogText(raw);
+      } else if (!partial) {
+        out.source = '';
+      }
+    }
+
+    if (!partial || data.ingredients !== undefined) {
+      out.ingredients = this.normalizeCatalogText(data.ingredients, { allowNull: true });
+    }
+    if (!partial || data.allergens !== undefined) {
+      out.allergens = this.normalizeCatalogText(data.allergens, { allowNull: true });
+    }
+
+    if (!partial || data.gtin !== undefined) {
+      out.gtin = normalizeGtin(data.gtin ?? '');
+    }
+
+    const nutritionMap = [
+      ['energyKcal100g', 'energy_kcal_100g'],
+      ['fatG100g', 'fat_g_100g'],
+      ['saturatedFatG100g', 'saturated_fat_g_100g'],
+      ['carbohydrateG100g', 'carbohydrate_g_100g'],
+      ['sugarG100g', 'sugar_g_100g'],
+      ['proteinG100g', 'protein_g_100g'],
+      ['saltG100g', 'salt_g_100g'],
+    ];
+    for (const [camel, snake] of nutritionMap) {
+      if (!partial || data[camel] !== undefined || data[snake] !== undefined) {
+        const raw = data[camel] !== undefined ? data[camel] : data[snake];
+        if (raw !== undefined) {
+          out[camel] = this.normalizeNutritionNumeric(raw);
+        } else if (!partial) {
+          out[camel] = null;
+        }
+      }
+    }
+
+    if (!partial || data.verifiedAt !== undefined || data.verified_at !== undefined) {
+      const raw = data.verifiedAt !== undefined ? data.verifiedAt : data.verified_at;
+      if (raw !== undefined) {
+        out.verifiedAt = this.normalizeVerifiedAtDate(raw);
+      } else if (!partial) {
+        out.verifiedAt = null;
+      }
     }
 
     return out;
@@ -305,6 +436,7 @@ class InventoryModel {
       id: String(row.id),
       itemId: String(row.item_id),
       sku: row.sku ?? '',
+      gtin: row.gtin ?? '',
       audience: row.audience ?? '',
       color: row.color ?? '',
       size: row.size ?? '',
@@ -332,6 +464,11 @@ class InventoryModel {
       const num = typeof raw === 'number' ? raw : parseFloat(String(raw));
       return Number.isNaN(num) ? null : num;
     };
+    const parseNutrition = (raw) => {
+      if (raw === undefined || raw === null || raw === '') return null;
+      const num = typeof raw === 'number' ? raw : parseFloat(String(raw));
+      return Number.isNaN(num) ? null : num;
+    };
     return {
       id: String(row.id),
       articleName: row.article_name ?? '',
@@ -346,8 +483,31 @@ class InventoryModel {
       tags: normalizeInventoryTags(parseJsonb(row.tags, [])),
       slug: row.slug ?? '',
       featuredImageUrl: row.featured_image_url ?? null,
+      catalogKey: row.catalog_key ?? '',
+      category: row.category ?? '',
+      packageSize: row.package_size ?? '',
+      packageUnit: row.package_unit ?? '',
+      gtin: row.gtin ?? '',
+      articleNumber: row.article_number ?? '',
+      ingredients: row.ingredients ?? null,
+      allergens: row.allergens ?? null,
+      energyKcal100g: parseNutrition(row.energy_kcal_100g),
+      fatG100g: parseNutrition(row.fat_g_100g),
+      saturatedFatG100g: parseNutrition(row.saturated_fat_g_100g),
+      carbohydrateG100g: parseNutrition(row.carbohydrate_g_100g),
+      sugarG100g: parseNutrition(row.sugar_g_100g),
+      proteinG100g: parseNutrition(row.protein_g_100g),
+      saltG100g: parseNutrition(row.salt_g_100g),
+      netContent: row.net_content ?? '',
+      countryOfOrigin: row.country_of_origin ?? '',
+      countryOfManufacture: row.country_of_manufacture ?? '',
+      supplier: row.supplier ?? '',
+      source: row.catalog_source ?? '',
+      verifiedAt: row.verified_at ?? null,
+      dataStatus: row.data_status ?? '',
       publicationStatus: row.publication_status ?? 'published',
       featured: row.featured === true || row.featured === 't' || row.featured === 'true',
+      archivedAt: row.archived_at ?? null,
       sortOrder: row.sort_order != null ? Number(row.sort_order) : 1,
       variants: [],
       totalQuantity: 0,
@@ -404,17 +564,19 @@ class InventoryModel {
           `
           UPDATE ${this.variantsTable} SET
             sku = $1,
-            audience = $2,
-            color = $3,
-            size = $4,
-            quantity = $5,
-            sort_order = $6,
+            gtin = $2,
+            audience = $3,
+            color = $4,
+            size = $5,
+            quantity = $6,
+            sort_order = $7,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $7 AND item_id = $8
+          WHERE id = $8 AND item_id = $9
           RETURNING id
           `,
           [
             variant.sku,
+            variant.gtin,
             variant.audience,
             variant.color,
             variant.size,
@@ -429,12 +591,13 @@ class InventoryModel {
             dbOrTx,
             `
             INSERT INTO ${this.variantsTable}
-              (item_id, sku, audience, color, size, quantity, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+              (item_id, sku, gtin, audience, color, size, quantity, sort_order)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             `,
             [
               itemId,
               variant.sku,
+              variant.gtin,
               variant.audience,
               variant.color,
               variant.size,
@@ -448,10 +611,19 @@ class InventoryModel {
           dbOrTx,
           `
           INSERT INTO ${this.variantsTable}
-            (item_id, sku, audience, color, size, quantity, sort_order)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+            (item_id, sku, gtin, audience, color, size, quantity, sort_order)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           `,
-          [itemId, variant.sku, variant.audience, variant.color, variant.size, variant.quantity, i],
+          [
+            itemId,
+            variant.sku,
+            variant.gtin,
+            variant.audience,
+            variant.color,
+            variant.size,
+            variant.quantity,
+            i,
+          ],
         );
       }
     }
@@ -571,11 +743,36 @@ class InventoryModel {
               featured_image_url,
               publication_status,
               featured,
-              sort_order
+              sort_order,
+              catalog_key,
+              category,
+              package_size,
+              package_unit,
+              gtin,
+              article_number,
+              ingredients,
+              allergens,
+              energy_kcal_100g,
+              fat_g_100g,
+              saturated_fat_g_100g,
+              carbohydrate_g_100g,
+              sugar_g_100g,
+              protein_g_100g,
+              salt_g_100g,
+              net_content,
+              country_of_origin,
+              country_of_manufacture,
+              supplier,
+              catalog_source,
+              verified_at,
+              data_status
             )
             VALUES (
               $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb,
-              $12, $13, $14, $15, $16
+              $12, $13, $14, $15, $16,
+              $17, $18, $19, $20, $21, $22, $23, $24,
+              $25, $26, $27, $28, $29, $30, $31,
+              $32, $33, $34, $35, $36, $37, $38
             )
             RETURNING *
           `,
@@ -596,6 +793,28 @@ class InventoryModel {
             fields.publicationStatus ?? 'published',
             fields.featured === true,
             sortOrder,
+            fields.catalogKey ?? '',
+            fields.category ?? '',
+            fields.packageSize ?? '',
+            fields.packageUnit ?? '',
+            fields.gtin ?? '',
+            fields.articleNumber ?? '',
+            fields.ingredients ?? null,
+            fields.allergens ?? null,
+            fields.energyKcal100g ?? null,
+            fields.fatG100g ?? null,
+            fields.saturatedFatG100g ?? null,
+            fields.carbohydrateG100g ?? null,
+            fields.sugarG100g ?? null,
+            fields.proteinG100g ?? null,
+            fields.saltG100g ?? null,
+            fields.netContent ?? '',
+            fields.countryOfOrigin ?? '',
+            fields.countryOfManufacture ?? '',
+            fields.supplier ?? '',
+            fields.source ?? '',
+            fields.verifiedAt ?? null,
+            fields.dataStatus ?? '',
           ],
         );
         const parent = parentRows[0];
@@ -659,6 +878,49 @@ class InventoryModel {
           : existing.publicationStatus;
       const nextFeatured =
         fields.featured !== undefined ? fields.featured : existing.featured === true;
+      const nextCatalogKey =
+        fields.catalogKey !== undefined ? fields.catalogKey : existing.catalogKey;
+      const nextCategory = fields.category !== undefined ? fields.category : existing.category;
+      const nextPackageSize =
+        fields.packageSize !== undefined ? fields.packageSize : existing.packageSize;
+      const nextPackageUnit =
+        fields.packageUnit !== undefined ? fields.packageUnit : existing.packageUnit;
+      const nextGtin = fields.gtin !== undefined ? fields.gtin : existing.gtin;
+      const nextArticleNumber =
+        fields.articleNumber !== undefined ? fields.articleNumber : existing.articleNumber;
+      const nextIngredients =
+        fields.ingredients !== undefined ? fields.ingredients : existing.ingredients;
+      const nextAllergens = fields.allergens !== undefined ? fields.allergens : existing.allergens;
+      const nextEnergyKcal100g =
+        fields.energyKcal100g !== undefined ? fields.energyKcal100g : existing.energyKcal100g;
+      const nextFatG100g = fields.fatG100g !== undefined ? fields.fatG100g : existing.fatG100g;
+      const nextSaturatedFatG100g =
+        fields.saturatedFatG100g !== undefined
+          ? fields.saturatedFatG100g
+          : existing.saturatedFatG100g;
+      const nextCarbohydrateG100g =
+        fields.carbohydrateG100g !== undefined
+          ? fields.carbohydrateG100g
+          : existing.carbohydrateG100g;
+      const nextSugarG100g =
+        fields.sugarG100g !== undefined ? fields.sugarG100g : existing.sugarG100g;
+      const nextProteinG100g =
+        fields.proteinG100g !== undefined ? fields.proteinG100g : existing.proteinG100g;
+      const nextSaltG100g = fields.saltG100g !== undefined ? fields.saltG100g : existing.saltG100g;
+      const nextNetContent =
+        fields.netContent !== undefined ? fields.netContent : existing.netContent;
+      const nextCountryOfOrigin =
+        fields.countryOfOrigin !== undefined ? fields.countryOfOrigin : existing.countryOfOrigin;
+      const nextCountryOfManufacture =
+        fields.countryOfManufacture !== undefined
+          ? fields.countryOfManufacture
+          : existing.countryOfManufacture;
+      const nextSupplier = fields.supplier !== undefined ? fields.supplier : existing.supplier;
+      const nextSource = fields.source !== undefined ? fields.source : existing.source;
+      const nextVerifiedAt =
+        fields.verifiedAt !== undefined ? fields.verifiedAt : existing.verifiedAt;
+      const nextDataStatus =
+        fields.dataStatus !== undefined ? fields.dataStatus : existing.dataStatus;
 
       await db.query(
         `
@@ -677,8 +939,30 @@ class InventoryModel {
             featured_image_url = $12,
             publication_status = $13,
             featured = $14,
+            catalog_key = $15,
+            category = $16,
+            package_size = $17,
+            package_unit = $18,
+            gtin = $19,
+            article_number = $20,
+            ingredients = $21,
+            allergens = $22,
+            energy_kcal_100g = $23,
+            fat_g_100g = $24,
+            saturated_fat_g_100g = $25,
+            carbohydrate_g_100g = $26,
+            sugar_g_100g = $27,
+            protein_g_100g = $28,
+            salt_g_100g = $29,
+            net_content = $30,
+            country_of_origin = $31,
+            country_of_manufacture = $32,
+            supplier = $33,
+            catalog_source = $34,
+            verified_at = $35,
+            data_status = $36,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $15 AND user_id = $16
+          WHERE id = $37 AND user_id = $38
         `,
         [
           nextArticleName,
@@ -695,6 +979,28 @@ class InventoryModel {
           nextFeaturedImageUrl,
           nextPublicationStatus,
           nextFeatured === true,
+          nextCatalogKey ?? '',
+          nextCategory ?? '',
+          nextPackageSize ?? '',
+          nextPackageUnit ?? '',
+          nextGtin ?? '',
+          nextArticleNumber ?? '',
+          nextIngredients ?? null,
+          nextAllergens ?? null,
+          nextEnergyKcal100g ?? null,
+          nextFatG100g ?? null,
+          nextSaturatedFatG100g ?? null,
+          nextCarbohydrateG100g ?? null,
+          nextSugarG100g ?? null,
+          nextProteinG100g ?? null,
+          nextSaltG100g ?? null,
+          nextNetContent ?? '',
+          nextCountryOfOrigin ?? '',
+          nextCountryOfManufacture ?? '',
+          nextSupplier ?? '',
+          nextSource ?? '',
+          nextVerifiedAt ?? null,
+          nextDataStatus ?? '',
           id,
           userId,
         ],
@@ -713,6 +1019,21 @@ class InventoryModel {
     }
   }
 
+  async isInventoryItemLinkedToPriceList(db, itemId, userId) {
+    const rows = await db.query(
+      `
+        SELECT 1
+        FROM clubdesk_price_list_items pli
+        INNER JOIN clubdesk_price_lists pl ON pl.id = pli.price_list_id
+        WHERE pli.inventory_item_id = $1
+          AND pl.user_id = $2
+        LIMIT 1
+      `,
+      [itemId, userId],
+    );
+    return rows.length > 0;
+  }
+
   async delete(req, itemId) {
     try {
       const db = Database.get(req);
@@ -723,6 +1044,24 @@ class InventoryModel {
       const id = parseInt(String(itemId), 10);
       if (Number.isNaN(id)) {
         throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const existing = await this.getById(req, id);
+      if (!existing) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      if (!existing.archivedAt) {
+        throw new AppError(
+          'Cannot delete an inventory item that is not archived',
+          409,
+          AppError.CODES.CONFLICT,
+        );
+      }
+      if (await this.isInventoryItemLinkedToPriceList(db, id, userId)) {
+        throw new AppError(
+          'Cannot delete inventory item while it is linked to a price list',
+          409,
+          AppError.CODES.CONFLICT,
+        );
       }
       const rows = await db.query(
         `DELETE FROM ${this.table} WHERE id = $1 AND user_id = $2 RETURNING id`,
@@ -736,6 +1075,67 @@ class InventoryModel {
       if (error instanceof AppError) throw error;
       Logger.error('Failed to delete clubdesk inventory item', error, { itemId });
       throw new AppError('Failed to delete inventory item', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async archive(req, itemId) {
+    try {
+      const db = Database.get(req);
+      const id = parseInt(String(itemId), 10);
+      const existing = await this.getById(req, id);
+      if (!existing) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      if (existing.archivedAt) {
+        return existing;
+      }
+      await db.query(
+        `
+          UPDATE ${this.table}
+          SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+        `,
+        [id],
+      );
+      return this.getById(req, id);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to archive clubdesk inventory item', error, { itemId });
+      throw new AppError('Failed to archive inventory item', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async restore(req, itemId) {
+    try {
+      const db = Database.get(req);
+      const id = parseInt(String(itemId), 10);
+      const existing = await this.getById(req, id);
+      if (!existing) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      if (!existing.archivedAt) {
+        return existing;
+      }
+      await db.query(
+        `
+          UPDATE ${this.table}
+          SET archived_at = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+        `,
+        [id],
+      );
+      return this.getById(req, id);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      if (error?.code === '23505') {
+        throw new AppError(
+          'An active inventory item already uses this name, brand, or slug',
+          409,
+          AppError.CODES.CONFLICT,
+        );
+      }
+      Logger.error('Failed to restore clubdesk inventory item', error, { itemId });
+      throw new AppError('Failed to restore inventory item', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -757,13 +1157,14 @@ class InventoryModel {
         db,
         `
           INSERT INTO ${this.variantsTable}
-            (item_id, sku, audience, color, size, quantity, sort_order)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+            (item_id, sku, gtin, audience, color, size, quantity, sort_order)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING *
         `,
         [
           id,
           variant.sku,
+          variant.gtin,
           variant.audience,
           variant.color,
           variant.size,
@@ -800,6 +1201,7 @@ class InventoryModel {
       }
       const existing = existingRows[0];
       const nextSku = data.sku !== undefined ? String(data.sku ?? '').trim() : (existing.sku ?? '');
+      const nextGtin = data.gtin !== undefined ? normalizeGtin(data.gtin) : (existing.gtin ?? '');
       const nextAudience =
         data.audience !== undefined
           ? String(data.audience ?? '').trim()
@@ -822,16 +1224,17 @@ class InventoryModel {
         `
           UPDATE ${this.variantsTable} SET
             sku = $1,
-            audience = $2,
-            color = $3,
-            size = $4,
-            quantity = $5,
-            sort_order = $6,
+            gtin = $2,
+            audience = $3,
+            color = $4,
+            size = $5,
+            quantity = $6,
+            sort_order = $7,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $7 AND item_id = $8
+          WHERE id = $8 AND item_id = $9
           RETURNING *
         `,
-        [nextSku, nextAudience, nextColor, nextSize, nextQuantity, nextSort, vid, lid],
+        [nextSku, nextGtin, nextAudience, nextColor, nextSize, nextQuantity, nextSort, vid, lid],
       );
       await db.query(`UPDATE ${this.table} SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [
         lid,
@@ -957,6 +1360,7 @@ class InventoryModel {
 }
 
 module.exports = InventoryModel;
+module.exports.normalizeGtin = normalizeGtin;
 module.exports.normalizeInventoryTags = normalizeInventoryTags;
 module.exports.slugifyBase = slugifyBase;
 module.exports.MAX_IMPORT_ITEMS = MAX_IMPORT_ITEMS;

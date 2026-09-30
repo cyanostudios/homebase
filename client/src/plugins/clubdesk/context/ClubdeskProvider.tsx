@@ -909,10 +909,15 @@ export function ClubdeskProvider({
       } catch (err) {
         const error = err as { errors?: ValidationError[]; message?: string; error?: string };
         console.error('Failed to save price list:', err);
-        const mapMsg = (message: string) =>
-          /duplicate sequenceorder/i.test(message)
-            ? t('clubdesk.priceList.duplicateItemOrder')
-            : message;
+        const mapMsg = (message: string) => {
+          if (/duplicate sequenceorder/i.test(message)) {
+            return t('clubdesk.priceList.duplicateItemOrder');
+          }
+          if (/unpublished inventory item/i.test(message)) {
+            return t('clubdesk.priceList.unpublishedInventory');
+          }
+          return message;
+        };
         if (Array.isArray(error.errors) && error.errors.length > 0) {
           setValidationErrors(
             error.errors.map((e) => ({
@@ -1755,8 +1760,10 @@ export function ClubdeskProvider({
       saveInventoryItem: inventoryDomain.saveInventoryItem,
       deleteInventoryItem: inventoryDomain.deleteInventoryItem,
       deleteInventoryItems: inventoryDomain.deleteInventoryItems,
+      archiveInventoryItem: inventoryDomain.archiveInventoryItem,
+      restoreInventoryItem: inventoryDomain.restoreInventoryItem,
       updateInventoryPublicationStatus: inventoryDomain.updateInventoryPublicationStatus,
-      updateInventoryFeatured: inventoryDomain.updateInventoryFeatured,
+      setInventoryItemsPublicationStatus: inventoryDomain.setInventoryItemsPublicationStatus,
       updateInventoryVariantQuantity: inventoryDomain.updateInventoryVariantQuantity,
       importInventoryItems: inventoryDomain.importInventoryItems,
       selectedInventoryIds: inventoryDomain.inventoryBulk.selectedIds,

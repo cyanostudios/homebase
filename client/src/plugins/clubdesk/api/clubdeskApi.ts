@@ -109,6 +109,7 @@ function normalizePriceList(row: ClubdeskPriceList): ClubdeskPriceList {
               ? String(item.inventoryVariantId)
               : null,
           inventoryArticleName: item.inventoryArticleName ?? null,
+          inventoryArchived: item.inventoryArchived === true,
           inventorySlug: item.inventorySlug ?? null,
           inventoryVariantLabel: item.inventoryVariantLabel ?? null,
         }))
@@ -122,6 +123,7 @@ function normalizeInventoryVariant(row: ClubdeskInventoryVariant): ClubdeskInven
     id: row.id != null ? String(row.id) : undefined,
     itemId: row.itemId != null ? String(row.itemId) : undefined,
     sku: row.sku ?? '',
+    gtin: row.gtin ?? '',
     audience: row.audience ?? '',
     color: row.color ?? '',
     size: row.size ?? '',
@@ -130,13 +132,44 @@ function normalizeInventoryVariant(row: ClubdeskInventoryVariant): ClubdeskInven
   };
 }
 
+function parseOptionalNutrition(raw: unknown): number | null {
+  if (raw === undefined || raw === null || raw === '') {
+    return null;
+  }
+  const num = typeof raw === 'number' ? raw : parseFloat(String(raw));
+  return Number.isNaN(num) ? null : num;
+}
+
 function normalizeInventoryItem(row: ClubdeskInventoryItem): ClubdeskInventoryItem {
   return {
     ...row,
     id: String(row.id),
     currency: row.currency || 'SEK',
+    catalogKey: row.catalogKey ?? '',
+    category: row.category ?? '',
+    packageSize: row.packageSize ?? '',
+    packageUnit: row.packageUnit ?? '',
+    gtin: row.gtin ?? '',
+    articleNumber: row.articleNumber ?? '',
+    ingredients: row.ingredients ?? null,
+    allergens: row.allergens ?? null,
+    energyKcal100g: parseOptionalNutrition(row.energyKcal100g),
+    fatG100g: parseOptionalNutrition(row.fatG100g),
+    saturatedFatG100g: parseOptionalNutrition(row.saturatedFatG100g),
+    carbohydrateG100g: parseOptionalNutrition(row.carbohydrateG100g),
+    sugarG100g: parseOptionalNutrition(row.sugarG100g),
+    proteinG100g: parseOptionalNutrition(row.proteinG100g),
+    saltG100g: parseOptionalNutrition(row.saltG100g),
+    netContent: row.netContent ?? '',
+    countryOfOrigin: row.countryOfOrigin ?? '',
+    countryOfManufacture: row.countryOfManufacture ?? '',
+    supplier: row.supplier ?? '',
+    source: row.source ?? '',
+    verifiedAt: row.verifiedAt ?? null,
+    dataStatus: row.dataStatus ?? '',
     publicationStatus: row.publicationStatus === 'draft' ? 'draft' : 'published',
     featured: row.featured === true,
+    archivedAt: row.archivedAt ?? null,
     tags: Array.isArray(row.tags) ? row.tags : [],
     variants: Array.isArray(row.variants) ? row.variants.map(normalizeInventoryVariant) : [],
     totalQuantity: row.totalQuantity ?? 0,
@@ -430,6 +463,18 @@ class ClubdeskApi {
 
   deleteInventoryItem(id: string) {
     return apiRequest<{ deleted: boolean }>(`/inventory/${id}`, { method: 'DELETE' });
+  }
+
+  archiveInventoryItem(id: string) {
+    return apiRequest<ClubdeskInventoryItem>(`/inventory/${id}/archive`, {
+      method: 'POST',
+    }).then(normalizeInventoryItem);
+  }
+
+  restoreInventoryItem(id: string) {
+    return apiRequest<ClubdeskInventoryItem>(`/inventory/${id}/restore`, {
+      method: 'POST',
+    }).then(normalizeInventoryItem);
   }
 
   importInventoryItems(items: ClubdeskInventoryItemPayload[]) {

@@ -30,7 +30,8 @@ function mapValidationDetails(err: ApiError): ApiError {
     const isDeleteAssigned =
       typeof err.message === 'string' &&
       (err.message.includes('checked on lists') ||
-        err.message.includes('assigned to garment lists'));
+        err.message.includes('assigned to garment lists') ||
+        err.message.includes('not archived'));
     err.errors = [
       {
         field: isDeleteAssigned ? 'general' : 'articleName',

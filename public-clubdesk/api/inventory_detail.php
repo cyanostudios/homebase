@@ -50,7 +50,7 @@ try {
     if (!publicAppCardVisible($pdo, 'inventory')) {
         respond(404, ['error' => 'Inventory is not public']);
     }
-    $query = publicAppInventoryBySlugSql($slugOrId);
+    $query = publicAppInventoryBySlugSql($pdo, $slugOrId);
     $stmt = $pdo->prepare($query['sql']);
     $stmt->execute($query['params']);
     $row = $stmt->fetch();
@@ -94,11 +94,7 @@ try {
         'currency' => trim((string) ($row['currency'] ?? 'SEK')) ?: 'SEK',
         'tags' => $tags,
         'featuredImageUrl' => $row['featured_image_url'] ?? null,
-        'featured' => $row['featured'] === true
-            || $row['featured'] === 't'
-            || $row['featured'] === 'true'
-            || $row['featured'] === 1
-            || $row['featured'] === '1',
+        'featured' => false,
         'variantCount' => count($variants),
         'variants' => $variants,
         'updatedAt' => $row['updated_at'] ?? null,

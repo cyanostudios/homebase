@@ -509,6 +509,11 @@ export function PriceListView({
                                     .join(' · ') || item.title,
                               })}
                             </span>
+                            {item.inventoryArchived ? (
+                              <span className="font-extrabold text-muted-foreground">
+                                {t('clubdesk.inventory.archived')}
+                              </span>
+                            ) : null}
                             <button
                               type="button"
                               className={cn(

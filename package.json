@@ -82,6 +82,7 @@
     "migrate:instructions": "node scripts/run-instructions-migration.js",
     "migrate:garments": "node scripts/run-garments-migration.js",
     "migrate:clubdesk": "node scripts/run-clubdesk-migration.js",
+    "seed:clubdesk-kiosk-catalog": "node scripts/seed-clubdesk-kiosk-catalog.js",
     "migrate:clubdesk-featured": "node scripts/run-clubdesk-featured-migration.js",
     "migrate:clubdesk-info-contacts": "node scripts/run-clubdesk-info-contacts-migration.js",
     "migrate:clubdesk-site-content-contacts-card": "node scripts/run-clubdesk-site-content-contacts-card-migration.js",

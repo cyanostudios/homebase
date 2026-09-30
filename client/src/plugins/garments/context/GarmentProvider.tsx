@@ -435,6 +435,7 @@ export function GarmentProvider({
         recommendedPriceInvalid: t('garments.recommendedPriceInvalid'),
         salePriceInvalid: t('garments.salePriceInvalid'),
         quantityInvalid: t('garments.quantityInvalid'),
+        gtinInvalid: t('garments.gtinInvalid'),
       }),
     [t],
   );
@@ -571,6 +572,7 @@ export function GarmentProvider({
         ? raw.variants.map((variant, index) => ({
             id: variant.id,
             sku: (variant.sku ?? '').trim(),
+            gtin: String(variant.gtin ?? '').replace(/\s+/g, ''),
             audience: (variant.audience ?? '').trim(),
             color: (variant.color ?? '').trim(),
             size: (variant.size ?? '').trim(),
@@ -789,9 +791,14 @@ export function GarmentProvider({
         return null;
       } catch (err: any) {
         console.error('Failed to delete inventory item:', err);
-        const message =
-          err?.status === 409
-            ? err?.message || t('garments.deleteInventoryBlockedActive')
+        const notArchived =
+          err?.status === 409 &&
+          typeof err?.message === 'string' &&
+          err.message.includes('not archived');
+        const message = notArchived
+          ? t('garments.deleteInventoryNotArchived')
+          : err?.status === 409
+            ? t('garments.deleteInventoryBlockedArchived')
             : t('garments.deleteInventoryFailed');
         if (!options?.silent) {
           setValidationErrors([{ field: 'general', message }]);

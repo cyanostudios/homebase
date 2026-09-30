@@ -121,13 +121,20 @@ export interface ClubdeskContextType {
   openInventoryForEdit: (item: ClubdeskInventoryItem) => void;
   openInventoryForView: (item: ClubdeskInventoryItem) => void;
   saveInventoryItem: (data: ClubdeskInventoryItemPayload) => Promise<boolean>;
-  deleteInventoryItem: (id: string) => Promise<void>;
-  deleteInventoryItems: (ids: string[]) => Promise<void>;
+  deleteInventoryItem: (id: string) => Promise<string | null>;
+  deleteInventoryItems: (ids: string[]) => Promise<{ deleted: number; blockedIds: string[] }>;
+  archiveInventoryItem: (id: string) => Promise<string | null>;
+  restoreInventoryItem: (id: string) => Promise<string | null>;
   updateInventoryPublicationStatus: (
     item: ClubdeskInventoryItem,
     status: 'draft' | 'published',
-  ) => Promise<void>;
-  updateInventoryFeatured: (item: ClubdeskInventoryItem, featured: boolean) => Promise<void>;
+    options?: { silent?: boolean },
+  ) => Promise<boolean>;
+  setInventoryItemsPublicationStatus: (
+    ids: string[],
+    status: 'draft' | 'published',
+    onProgress?: (done: number) => void,
+  ) => Promise<{ changed: number; skipped: number; failed: number }>;
   updateInventoryVariantQuantity: (
     itemId: string,
     variantId: string,
@@ -238,10 +245,12 @@ const EMPTY_CLUBDESK_CONTEXT: ClubdeskContextType = {
   openInventoryForEdit: () => {},
   openInventoryForView: () => {},
   saveInventoryItem: async () => false,
-  deleteInventoryItem: async () => {},
-  deleteInventoryItems: async () => {},
-  updateInventoryPublicationStatus: async () => {},
-  updateInventoryFeatured: async () => {},
+  deleteInventoryItem: async () => null,
+  deleteInventoryItems: async () => ({ deleted: 0, blockedIds: [] }),
+  archiveInventoryItem: async () => null,
+  restoreInventoryItem: async () => null,
+  updateInventoryPublicationStatus: async () => false,
+  setInventoryItemsPublicationStatus: async () => ({ changed: 0, skipped: 0, failed: 0 }),
   updateInventoryVariantQuantity: async () => false,
   importInventoryItems: async () => ({ successCount: 0, failureCount: 0 }),
   selectedInventoryIds: [],

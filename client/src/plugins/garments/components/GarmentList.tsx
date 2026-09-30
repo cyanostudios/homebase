@@ -710,16 +710,18 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
         onClick: () => setShowBulkListsDialog(true),
       });
     }
-    actions.push({
-      key: 'delete',
-      label: t('common.delete'),
-      icon: Trash2,
-      disabled,
-      tone: 'destructive',
-      onClick: () => setShowBulkDeleteModal(true),
-    });
+    if (!isInventoryEffective || showArchivedOnly) {
+      actions.push({
+        key: 'delete',
+        label: t('common.delete'),
+        icon: Trash2,
+        disabled,
+        tone: 'destructive',
+        onClick: () => setShowBulkDeleteModal(true),
+      });
+    }
     return actions;
-  }, [isInventoryEffective, selectedCount, t]);
+  }, [isInventoryEffective, selectedCount, showArchivedOnly, t]);
 
   const totalCount = isInventoryEffective ? inventoryItems.length : garmentLists.length;
   const filteredCount = isInventoryEffective ? filteredInventory.length : filteredLists.length;

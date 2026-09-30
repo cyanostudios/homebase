@@ -272,6 +272,7 @@ describe('PublicClubdeskModel', () => {
     expect(params).toEqual([5]);
     expect(sql).toMatch(/clubdesk_inventory_items/);
     expect(sql).toMatch(/publication_status = 'published'/);
+    expect(sql).toMatch(/archived_at IS NULL/);
     expect(sql).toMatch(/i\.user_id = \$1/);
   });
 

@@ -25,7 +25,7 @@ Epic 1 delivered a Clubdesk inventory catalog. Price lists remained free-text ro
    - **List price** — optional free override (`price_override`). Empty/null → public and admin effective price follows inventory catalog. Column `price` stores the resolved effective value on save for free-text rows and as fallback.
      Linking clears `price_override` and seeds catalog into `price`. Unlink clears FKs / catalog display and **keeps** title/description/list values.
 
-4. **Ownership validation** — On create/update with `items`, `PriceListModel.assertInventoryLinksOwned` ensures inventory item `user_id` matches the price-list owner and that any variant belongs to the linked item. Invalid FK → 400.
+4. **Ownership validation** — On create/update with `items`, `PriceListModel.assertInventoryLinksOwned` ensures inventory item `user_id` matches the price-list owner and that any variant belongs to the linked item. Invalid FK → 400. A new link to an archived or unpublished article returns **409**. An article already on that price list can stay.
 
 5. **Admin API** — Existing price-list create/update payloads accept optional `inventoryItemId` / `inventoryVariantId` / `priceOverride` per item. Detail DTO also returns joined `inventoryArticleName`, `inventorySlug`, `inventoryVariantLabel`, `inventoryCatalogPrice` for editor/view. No new routes; picker uses `GET /api/clubdesk/inventory`.
 

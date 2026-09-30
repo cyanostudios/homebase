@@ -75,8 +75,23 @@ describe('garments inventory archive', () => {
     expect(item.archivedAt).toBeNull();
   });
 
-  it('refuses delete and does not unassign when the article is in use', async () => {
+  it('refuses delete of an active article before checking use', async () => {
     jest.spyOn(model, 'getInventoryById').mockResolvedValue(activeItem());
+
+    await expect(model.deleteInventoryItem(req(), 5)).rejects.toMatchObject({
+      statusCode: 409,
+      code: AppError.CODES.CONFLICT,
+      message: 'Cannot delete an inventory item that is not archived',
+    });
+
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+
+  it('refuses delete and does not unassign when the archived article is in use', async () => {
+    jest
+      .spyOn(model, 'getInventoryById')
+      .mockResolvedValue(activeItem({ archivedAt: '2026-09-29T12:00:00.000Z' }));
     const unassign = jest.spyOn(model, 'unassignInventoryItemFromList');
     pool.query.mockResolvedValueOnce({ rows: [{ in_use: 1 }] });
 
@@ -95,8 +110,10 @@ describe('garments inventory archive', () => {
     expect(unassign).not.toHaveBeenCalled();
   });
 
-  it('deletes an unused article without force-unassign', async () => {
-    jest.spyOn(model, 'getInventoryById').mockResolvedValue(activeItem());
+  it('deletes an unused archived article without force-unassign', async () => {
+    jest
+      .spyOn(model, 'getInventoryById')
+      .mockResolvedValue(activeItem({ archivedAt: '2026-09-29T12:00:00.000Z' }));
     const unassign = jest.spyOn(model, 'unassignInventoryItemFromList');
     pool.query.mockResolvedValueOnce({ rows: [] });
     dbQuery.mockResolvedValueOnce([{ id: 5 }]);

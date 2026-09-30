@@ -98,6 +98,7 @@ export interface InventoryVariant {
   id: string;
   itemId: string;
   sku: string;
+  gtin?: string;
   audience: string;
   color: string;
   size: string;
@@ -110,6 +111,7 @@ export interface InventoryVariant {
 export interface InventoryVariantPayload {
   id?: string;
   sku?: string;
+  gtin?: string;
   audience?: string;
   color?: string;
   size?: string;

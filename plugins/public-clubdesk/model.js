@@ -54,7 +54,9 @@ class PublicClubdeskModel {
 
   transformPriceListItem(row) {
     const slug =
-      row.inventory_publication_status === 'published' && row.inventory_slug
+      row.inventory_publication_status === 'published' &&
+      row.inventory_archived_at == null &&
+      row.inventory_slug
         ? String(row.inventory_slug)
         : null;
     let priceOverride = null;
@@ -326,6 +328,7 @@ class PublicClubdeskModel {
           i.sequence_order,
           inv.slug AS inventory_slug,
           inv.publication_status AS inventory_publication_status,
+          inv.archived_at AS inventory_archived_at,
           inv.sale_price AS inventory_sale_price,
           inv.recommended_price AS inventory_recommended_price
         FROM clubdesk_price_list_items i
@@ -377,7 +380,7 @@ class PublicClubdeskModel {
             })()
           : [],
       featuredImageUrl: row.featured_image_url ?? null,
-      featured: row.featured === true || row.featured === 't' || row.featured === 'true',
+      featured: false,
       variantCount:
         row.variant_count !== null && row.variant_count !== undefined
           ? Number(row.variant_count)
@@ -389,6 +392,7 @@ class PublicClubdeskModel {
   transformPublicInventoryVariant(row) {
     return {
       sku: row.sku ?? '',
+      gtin: row.gtin ?? '',
       audience: row.audience ?? '',
       color: row.color ?? '',
       size: row.size ?? '',
@@ -472,6 +476,7 @@ class PublicClubdeskModel {
         ) v ON v.item_id = i.id
         WHERE i.user_id = $1
           AND i.publication_status = 'published'
+          AND i.archived_at IS NULL
         ORDER BY
           i.sort_order ASC NULLS LAST,
           lower(i.article_name) ASC,
@@ -508,6 +513,7 @@ class PublicClubdeskModel {
           WHERE id = $2
             AND user_id = $1
             AND publication_status = 'published'
+            AND archived_at IS NULL
           LIMIT 1
         `,
         [ownerUserId, asId],
@@ -520,6 +526,7 @@ class PublicClubdeskModel {
           WHERE lower(slug) = lower($2)
             AND user_id = $1
             AND publication_status = 'published'
+            AND archived_at IS NULL
           LIMIT 1
         `,
         [ownerUserId, raw],
@@ -533,7 +540,7 @@ class PublicClubdeskModel {
     const parent = parentResult.rows[0];
     const variantsResult = await pool.query(
       `
-        SELECT sku, audience, color, size, quantity, sort_order
+        SELECT sku, gtin, audience, color, size, quantity, sort_order
         FROM clubdesk_inventory_variants
         WHERE item_id = $1
         ORDER BY sort_order ASC, id ASC

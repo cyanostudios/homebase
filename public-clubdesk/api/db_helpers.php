@@ -231,7 +231,7 @@ SELECT
           'category', COALESCE(i.category, ''),
           'sequenceOrder', i.sequence_order,
           'inventorySlug', CASE
-            WHEN inv.publication_status = 'published' THEN inv.slug
+            WHEN inv.publication_status = 'published' AND inv.archived_at IS NULL THEN inv.slug
             ELSE NULL
           END
         )
@@ -285,7 +285,7 @@ SELECT
           'category', COALESCE(i.category, ''),
           'sequenceOrder', i.sequence_order,
           'inventorySlug', CASE
-            WHEN inv.publication_status = 'published' THEN inv.slug
+            WHEN inv.publication_status = 'published' AND inv.archived_at IS NULL THEN inv.slug
             ELSE NULL
           END
         )
@@ -475,6 +475,7 @@ SELECT
   ) AS variant_count
 FROM clubdesk_inventory_items i
 WHERE i.publication_status = 'published'
+  AND i.archived_at IS NULL
 ORDER BY
   i.sort_order ASC NULLS LAST,
   lower(i.article_name) ASC,
@@ -483,16 +484,59 @@ SQL;
 }
 
 /**
+ * Product facts for the public article. Omits purchase price, comment, and catalog provenance.
+ *
+ * @return string SQL fragment starting with a comma, or empty when columns are absent
+ */
+function publicAppInventoryCatalogSelect(PDO $pdo): string
+{
+    $columns = [
+        'category',
+        'package_size',
+        'package_unit',
+        'gtin',
+        'article_number',
+        'ingredients',
+        'allergens',
+        'energy_kcal_100g',
+        'fat_g_100g',
+        'saturated_fat_g_100g',
+        'carbohydrate_g_100g',
+        'sugar_g_100g',
+        'protein_g_100g',
+        'salt_g_100g',
+        'net_content',
+        'country_of_origin',
+        'country_of_manufacture',
+        'supplier',
+    ];
+    $present = [];
+    foreach ($columns as $column) {
+        if (publicAppTableHasColumn($pdo, 'clubdesk_inventory_items', $column)) {
+            $present[] = 'i.' . $column;
+        }
+    }
+    if ($present === []) {
+        return '';
+    }
+
+    return ",\n  " . implode(",\n  ", $present);
+}
+
+/**
  * @return array{sql: string, params: array<int, mixed>}
  */
-function publicAppInventoryBySlugSql(string $slugOrId): array
+function publicAppInventoryBySlugSql(PDO $pdo, string $slugOrId): array
 {
+    $catalogSelect = publicAppInventoryCatalogSelect($pdo);
     $variantsAgg = <<<'SQL'
 COALESCE(
   (
     SELECT json_agg(
       json_build_object(
+        'id', v.id,
         'sku', COALESCE(v.sku, ''),
+        'gtin', COALESCE(v.gtin, ''),
         'audience', COALESCE(v.audience, ''),
         'color', COALESCE(v.color, ''),
         'size', COALESCE(v.size, ''),
@@ -524,11 +568,12 @@ SELECT
   i.tags,
   i.featured_image_url,
   i.featured,
-  i.updated_at,
+  i.updated_at{$catalogSelect},
   {$variantsAgg}
 FROM clubdesk_inventory_items i
 WHERE i.id = ?
   AND i.publication_status = 'published'
+  AND i.archived_at IS NULL
 LIMIT 1
 SQL,
             'params' => [(int) $slugOrId],
@@ -550,11 +595,12 @@ SELECT
   i.tags,
   i.featured_image_url,
   i.featured,
-  i.updated_at,
+  i.updated_at{$catalogSelect},
   {$variantsAgg}
 FROM clubdesk_inventory_items i
 WHERE lower(i.slug) = lower(?)
   AND i.publication_status = 'published'
+  AND i.archived_at IS NULL
 LIMIT 1
 SQL,
         'params' => [$slugOrId],

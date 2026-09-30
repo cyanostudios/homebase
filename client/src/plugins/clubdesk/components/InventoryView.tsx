@@ -1,4 +1,8 @@
 import {
+  Apple,
+  Archive,
+  CheckCircle2,
+  FilePenLine,
   Hash,
   History,
   Info,
@@ -19,7 +23,9 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { DetailHeaderMetaRow } from '@/core/ui/DetailHeaderMenus';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
@@ -40,6 +46,7 @@ import { cn } from '@/lib/utils';
 
 import { useClubdesk } from '../hooks/useClubdesk';
 import type { ClubdeskInventoryItem, ClubdeskInventoryVariant } from '../types/inventory';
+import { formatInventoryPackageSize, formatNutritionValue } from '../utils/inventoryKioskDisplay';
 import { findDuplicateVariantIndices } from '../utils/inventoryValidation';
 import {
   VARIANT_LIST_ROW_CLASS,
@@ -50,9 +57,22 @@ import {
 import { InventoryDetailHeaderMenus } from './InventoryDetailHeaderMenus';
 import { ClubdeskPublicationPropertiesFields } from './ClubdeskPublicationPropertiesFields';
 
-type InventoryViewTab = 'information' | 'variants' | 'activity';
+type InventoryViewTab =
+  | 'information'
+  | 'details'
+  | 'productPack'
+  | 'ingredients'
+  | 'variants'
+  | 'activity';
 
-const INVENTORY_VIEW_TABS: InventoryViewTab[] = ['information', 'variants', 'activity'];
+const INVENTORY_VIEW_TABS: InventoryViewTab[] = [
+  'information',
+  'details',
+  'productPack',
+  'ingredients',
+  'variants',
+  'activity',
+];
 
 function parseInventoryViewTab(value: string | null): InventoryViewTab {
   if (value === 'properties') {
@@ -75,6 +95,29 @@ function variantLabel(variant: ClubdeskInventoryVariant): string {
     return variant.sku.trim();
   }
   return '—';
+}
+
+function trimDisplay(value: string | null | undefined): string {
+  return (value ?? '').trim();
+}
+
+function formatVerifiedAt(value: string | null | undefined): string | null {
+  const raw = trimDisplay(value);
+  if (!raw) {
+    return null;
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) {
+    return raw;
+  }
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date);
+  } catch {
+    return date.toLocaleString();
+  }
 }
 
 function formatPurchasePrice(price: number | null | undefined, currency: string): string {
@@ -195,7 +238,6 @@ export function InventoryView({
     currentInventoryItem,
     updateInventoryVariantQuantity,
     updateInventoryPublicationStatus,
-    updateInventoryFeatured,
     isSaving,
   } = useClubdesk();
   const item = itemProp ?? inventoryProp ?? currentInventoryItem;
@@ -249,6 +291,21 @@ export function InventoryView({
   const tabs = useMemo(
     () => [
       { id: 'information' as const, label: t('clubdesk.inventory.tabs.information'), icon: Info },
+      {
+        id: 'details' as const,
+        label: t('clubdesk.inventory.tabs.details'),
+        icon: SlidersHorizontal,
+      },
+      {
+        id: 'productPack' as const,
+        label: t('clubdesk.inventory.tabs.productAndPack'),
+        icon: ShoppingBag,
+      },
+      {
+        id: 'ingredients' as const,
+        label: t('clubdesk.inventory.tabs.ingredients'),
+        icon: Apple,
+      },
       {
         id: 'variants' as const,
         label: t('clubdesk.inventory.tabs.variants'),
@@ -305,6 +362,109 @@ export function InventoryView({
     </div>
   );
 
+  const productFactRows: { label: string; value: string; muted?: boolean }[] = [];
+  const category = trimDisplay(item?.category);
+  if (category) {
+    productFactRows.push({ label: t('clubdesk.inventory.productCategory'), value: category });
+  }
+  const packageSize = formatInventoryPackageSize(item?.packageSize, item?.packageUnit);
+  if (packageSize) {
+    productFactRows.push({ label: t('clubdesk.inventory.packageSize'), value: packageSize });
+  }
+  const itemGtin = trimDisplay(item?.gtin);
+  if (itemGtin) {
+    productFactRows.push({ label: t('clubdesk.inventory.itemGtin'), value: itemGtin });
+  }
+  const articleNumber = trimDisplay(item?.articleNumber);
+  if (articleNumber) {
+    productFactRows.push({ label: t('clubdesk.inventory.articleNumber'), value: articleNumber });
+  }
+  const netContent = trimDisplay(item?.netContent);
+  if (netContent) {
+    productFactRows.push({ label: t('clubdesk.inventory.netContent'), value: netContent });
+  }
+  const countryOfOrigin = trimDisplay(item?.countryOfOrigin);
+  if (countryOfOrigin) {
+    productFactRows.push({
+      label: t('clubdesk.inventory.countryOfOrigin'),
+      value: countryOfOrigin,
+    });
+  }
+  const countryOfManufacture = trimDisplay(item?.countryOfManufacture);
+  if (countryOfManufacture) {
+    productFactRows.push({
+      label: t('clubdesk.inventory.countryOfManufacture'),
+      value: countryOfManufacture,
+    });
+  }
+  const supplier = trimDisplay(item?.supplier);
+  if (supplier) {
+    productFactRows.push({ label: t('clubdesk.inventory.supplier'), value: supplier });
+  }
+  const catalogKey = trimDisplay(item?.catalogKey);
+  if (catalogKey) {
+    productFactRows.push({
+      label: t('clubdesk.inventory.catalogKey'),
+      value: catalogKey,
+      muted: true,
+    });
+  }
+
+  const ingredientsText = trimDisplay(item?.ingredients);
+  const allergensText = trimDisplay(item?.allergens);
+  const nutritionRows: { label: string; value: string }[] = [];
+  const energy = formatNutritionValue(item?.energyKcal100g, 'kcal');
+  if (energy) {
+    nutritionRows.push({ label: t('clubdesk.inventory.nutrition.energy'), value: energy });
+  }
+  const fat = formatNutritionValue(item?.fatG100g, 'g');
+  if (fat) {
+    nutritionRows.push({ label: t('clubdesk.inventory.nutrition.fat'), value: fat });
+  }
+  const saturatedFat = formatNutritionValue(item?.saturatedFatG100g, 'g');
+  if (saturatedFat) {
+    nutritionRows.push({
+      label: t('clubdesk.inventory.nutrition.saturatedFat'),
+      value: saturatedFat,
+    });
+  }
+  const carbohydrate = formatNutritionValue(item?.carbohydrateG100g, 'g');
+  if (carbohydrate) {
+    nutritionRows.push({
+      label: t('clubdesk.inventory.nutrition.carbohydrate'),
+      value: carbohydrate,
+    });
+  }
+  const sugar = formatNutritionValue(item?.sugarG100g, 'g');
+  if (sugar) {
+    nutritionRows.push({ label: t('clubdesk.inventory.nutrition.sugar'), value: sugar });
+  }
+  const protein = formatNutritionValue(item?.proteinG100g, 'g');
+  if (protein) {
+    nutritionRows.push({ label: t('clubdesk.inventory.nutrition.protein'), value: protein });
+  }
+  const salt = formatNutritionValue(item?.saltG100g, 'g');
+  if (salt) {
+    nutritionRows.push({ label: t('clubdesk.inventory.nutrition.salt'), value: salt });
+  }
+
+  const hasIngredientsGroup =
+    Boolean(ingredientsText) || Boolean(allergensText) || nutritionRows.length > 0;
+
+  const provenanceParts: { label: string; value: string }[] = [];
+  const source = trimDisplay(item?.source);
+  if (source) {
+    provenanceParts.push({ label: t('clubdesk.inventory.source'), value: source });
+  }
+  const verifiedAt = formatVerifiedAt(item?.verifiedAt);
+  if (verifiedAt) {
+    provenanceParts.push({ label: t('clubdesk.inventory.verifiedAt'), value: verifiedAt });
+  }
+  const dataStatus = trimDisplay(item?.dataStatus);
+  if (dataStatus) {
+    provenanceParts.push({ label: t('clubdesk.inventory.dataStatus'), value: dataStatus });
+  }
+
   const propertyRows: { label: string; value: string }[] = [
     { label: t('clubdesk.inventory.brand'), value: item?.brand?.trim() || '—' },
     {
@@ -341,6 +501,15 @@ export function InventoryView({
         className="p-6"
       >
         <div className="space-y-4">
+          {item?.featuredImageUrl?.trim() ? (
+            <div>
+              <img
+                src={item.featuredImageUrl.trim()}
+                alt=""
+                className="max-h-48 w-auto rounded-md object-cover"
+              />
+            </div>
+          ) : null}
           <div>
             <div className={DETAIL_FIELD_LABEL_CLASS}>{t('clubdesk.inventory.description')}</div>
             {description ? (
@@ -376,16 +545,6 @@ export function InventoryView({
     [item, readOnly, updateInventoryPublicationStatus],
   );
 
-  const handleFeaturedChange = useCallback(
-    (featured: boolean) => {
-      if (!item || readOnly) {
-        return;
-      }
-      void updateInventoryFeatured(item, featured);
-    },
-    [item, readOnly, updateInventoryFeatured],
-  );
-
   const propertiesCard = (
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
@@ -398,11 +557,11 @@ export function InventoryView({
           <ClubdeskPublicationPropertiesFields
             values={{
               publicationStatus: item?.publicationStatus === 'draft' ? 'draft' : 'published',
-              featured: item?.featured === true,
+              featured: false,
               slug: item?.slug,
             }}
             onPublicationStatusChange={handlePublicationStatusChange}
-            onFeaturedChange={handleFeaturedChange}
+            showFeatured={false}
             disabled={readOnly || isSaving}
           />
           <div className="space-y-0">
@@ -436,6 +595,106 @@ export function InventoryView({
     </Card>
   );
 
+  const productPackCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('clubdesk.inventory.productAndPack')}
+        icon={ShoppingBag}
+        subtleTitle
+        className="p-6"
+      >
+        {productFactRows.length === 0 && provenanceParts.length === 0 ? (
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('clubdesk.inventory.productAndPackEmpty')}</p>
+        ) : (
+          <div className="space-y-4">
+            {productFactRows.length > 0 ? (
+              <div className="space-y-0">
+                {productFactRows.map((row) => (
+                  <div key={row.label} className={DETAIL_PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">{row.label}</span>
+                    <span
+                      className={cn(
+                        DETAIL_FIELD_VALUE_CLASS,
+                        'sm:text-right',
+                        row.muted && 'text-muted-foreground',
+                      )}
+                    >
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {provenanceParts.length > 0 ? (
+              <div className="space-y-1 text-xs text-muted-foreground">
+                {provenanceParts.map((row) => (
+                  <p key={row.label}>
+                    <span className="font-medium">{row.label}:</span> {row.value}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        )}
+      </DetailSection>
+    </Card>
+  );
+
+  const ingredientsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('clubdesk.inventory.ingredientsAndNutrition')}
+        icon={Apple}
+        subtleTitle
+        className="p-6"
+      >
+        {!hasIngredientsGroup ? (
+          <p className={DETAIL_EMPTY_STATE_CLASS}>{t('clubdesk.inventory.ingredientsEmpty')}</p>
+        ) : (
+          <div className="space-y-4">
+            {ingredientsText ? (
+              <div>
+                <div className={DETAIL_FIELD_LABEL_CLASS}>
+                  {t('clubdesk.inventory.ingredients')}
+                </div>
+                <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">
+                  {ingredientsText}
+                </p>
+              </div>
+            ) : null}
+            {allergensText ? (
+              <div>
+                <div className={DETAIL_FIELD_LABEL_CLASS}>{t('clubdesk.inventory.allergens')}</div>
+                <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">
+                  {allergensText}
+                </p>
+              </div>
+            ) : null}
+            {nutritionRows.length > 0 ? (
+              <div>
+                <div className={DETAIL_FIELD_LABEL_CLASS}>
+                  {t('clubdesk.inventory.nutritionPer100g')}
+                </div>
+                <div className="mt-1 space-y-0">
+                  {nutritionRows.map((row) => (
+                    <div key={row.label} className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {row.label}
+                      </span>
+                      <span className={cn(DETAIL_FIELD_VALUE_CLASS, 'sm:text-right tabular-nums')}>
+                        {row.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </DetailSection>
+    </Card>
+  );
+
   const quantityChangeHandler = readOnly ? undefined : onQty;
 
   const variantsCard = (
@@ -463,6 +722,7 @@ export function InventoryView({
             {variants.map((row, index) => {
               const rowDup = duplicateVariantIndices.any.has(index);
               const sku = row.sku?.trim() || '';
+              const gtin = row.gtin?.trim() || '';
               return (
                 <div key={row.id} className={VARIANT_LIST_ROW_CLASS}>
                   <span
@@ -486,6 +746,12 @@ export function InventoryView({
                         >
                           {' · '}
                           {sku}
+                        </span>
+                      ) : null}
+                      {gtin ? (
+                        <span className="text-muted-foreground">
+                          {' · '}
+                          {gtin}
                         </span>
                       ) : null}
                     </div>
@@ -521,6 +787,18 @@ export function InventoryView({
             <InventoryDetailHeaderMenus item={item} leading={titleLeading} />
           )}
           <DetailHeaderMetaRow>
+            <StatusOutlineBadge
+              icon={item.publicationStatus === 'published' ? CheckCircle2 : FilePenLine}
+              className={
+                item.publicationStatus === 'published'
+                  ? QC_STATUS_BADGE_COLORS.success
+                  : QC_STATUS_BADGE_COLORS.muted
+              }
+            >
+              {item.publicationStatus === 'published'
+                ? t('clubdesk.status.published')
+                : t('clubdesk.status.draft')}
+            </StatusOutlineBadge>
             {item.brand?.trim() ? (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                 <Tag className="h-3 w-3" aria-hidden />
@@ -537,14 +815,20 @@ export function InventoryView({
                 {formatPurchasePrice(item.recommendedPrice, item.currency || 'SEK')}
               </span>
             ) : null}
+            {item.archivedAt ? (
+              <StatusOutlineBadge icon={Archive} className={QC_STATUS_BADGE_COLORS.muted}>
+                {t('clubdesk.inventory.archived')}
+              </StatusOutlineBadge>
+            ) : null}
           </DetailHeaderMetaRow>
           <div className="mt-4">{tabChips}</div>
         </div>
       </Card>
 
       {activeTab === 'information' ? informationCard : null}
-
-      {activeTab === 'information' ? propertiesCard : null}
+      {activeTab === 'details' ? propertiesCard : null}
+      {activeTab === 'productPack' ? productPackCard : null}
+      {activeTab === 'ingredients' ? ingredientsCard : null}
       {activeTab === 'variants' ? variantsCard : null}
       {activeTab === 'activity' ? (
         <DetailActivityLog

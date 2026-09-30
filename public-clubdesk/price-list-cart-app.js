@@ -82,10 +82,20 @@
     toggleBtn.disabled = disabled;
     toggleBtn.classList.toggle('is-disabled', disabled);
     toggleBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
-    toggleBtn.setAttribute('aria-label', showingCart ? 'Visa lista' : 'Visa varukorg');
+    const count = Cart.itemCount(cart);
+    const cartLabel =
+      count > 0 ? `Visa varukorg, ${count} ${count === 1 ? 'vara' : 'varor'}` : 'Visa varukorg';
+    toggleBtn.setAttribute('aria-label', showingCart ? 'Visa lista' : cartLabel);
     toggleBtn.classList.toggle('step-nav__btn--next', !showingCart);
     toggleBtn.classList.toggle('step-nav__btn--prev', showingCart);
     toggleBtn.innerHTML = showingCart ? ICON_LIST : ICON_CART;
+    if (!showingCart && count > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'cart-toggle-btn__count';
+      badge.setAttribute('aria-hidden', 'true');
+      badge.textContent = count > 99 ? '99+' : String(count);
+      toggleBtn.appendChild(badge);
+    }
   }
 
   function hideCartSwish() {

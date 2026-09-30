@@ -1794,6 +1794,25 @@ button {
   height: 1.25rem;
 }
 
+.cart-toggle-btn__count {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.15rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--brand);
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1.15rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.22);
+  pointer-events: none;
+}
+
 .step-subheader .cart-toggle-btn.is-disabled,
 .step-subheader .cart-toggle-btn:disabled {
   opacity: 0.35;

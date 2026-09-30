@@ -20,7 +20,7 @@ Uniqueness today is `(user_id, lower(article_name), lower(brand))` on all rows, 
 
 3. **Active uniqueness only.** Replace the item unique index with a partial unique index on `(user_id, lower(article_name), lower(brand)) WHERE archived_at IS NULL`. Several archived rows may share the same name and brand.
 
-4. **Hard delete does not cascade history.** `DELETE` no longer force-unassigns. If the article is in use, return 409 and leave all rows. In use means any of: a `garment_list_inventory_items` row; a person `ct_sizes` or `ct_audiences` key for that item id; a person `checkbox_values` key `inv_{itemId}_*`; a `fit_summary_procurement` key for that item id. Otherwise delete the item (variants still cascade).
+4. **Hard delete does not cascade history, and only an archived article can be deleted.** `DELETE` no longer force-unassigns. If `archived_at` is null, return 409 and leave all rows. If the article is archived and in use, return 409 and leave all rows. In use means any of: a `garment_list_inventory_items` row; a person `ct_sizes` or `ct_audiences` key for that item id; a person `checkbox_values` key `inv_{itemId}_*`; a `fit_summary_procurement` key for that item id. An archived article that is not in use is deleted (variants still cascade). The catalog shows Delete only on archived articles, including bulk delete on the Archived chip.
 
 5. **No new assignment of archived articles.** `POST` assign returns 409 when `archived_at` is set. Existing joins stay. Duplicating a list copies existing joins, including archived articles. That copy is not a new assignment.
 

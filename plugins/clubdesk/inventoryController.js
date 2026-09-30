@@ -150,6 +150,38 @@ class InventoryController {
     }
   }
 
+  async archive(req, res) {
+    try {
+      const item = await this.model.archive(req, req.params.id);
+      res.json(item);
+    } catch (error) {
+      Logger.error('Archive clubdesk inventory item failed', error, {
+        itemId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) {
+        return this.sendAppError(res, error);
+      }
+      res.status(500).json({ error: 'Failed to archive inventory item' });
+    }
+  }
+
+  async restore(req, res) {
+    try {
+      const item = await this.model.restore(req, req.params.id);
+      res.json(item);
+    } catch (error) {
+      Logger.error('Restore clubdesk inventory item failed', error, {
+        itemId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) {
+        return this.sendAppError(res, error);
+      }
+      res.status(500).json({ error: 'Failed to restore inventory item' });
+    }
+  }
+
   async importItems(req, res) {
     try {
       const result = await this.model.importItems(req, req.body?.items);

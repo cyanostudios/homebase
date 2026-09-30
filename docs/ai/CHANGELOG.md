@@ -2,6 +2,34 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Clubdesk inventory status under the title (2026-09-30)
+
+Inventory article header shows draft or published under the product title. Garments unchanged.
+
+## Public Clubdesk cart count (2026-09-30)
+
+Price-list cart icon shows the sum of quantities. Hidden at zero and while the button is the list icon.
+
+## Clubdesk kiosk master catalog (2026-09-30)
+
+355-row kiosk master catalog seed into Clubdesk inventory (migration **179**): match on `catalog_key`, fill-empty merge, no variants, import cap unchanged; enable hook plus `npm run seed:clubdesk-kiosk-catalog`. Admin list meta, view omit-empty, form groups, price-list picker; drafts hidden on public catalog. Garments unchanged. ADR [`adr/CLUBDESK_KIOSK_MASTER_CATALOG.md`](adr/CLUBDESK_KIOSK_MASTER_CATALOG.md). Applicerad på lokalt `public`. Neon-tenanten är inte migrerad. **Local-first; ej prod-release.**
+
+## Clubdesk drafts off new price-list links (2026-09-30)
+
+Price-list picker lists published articles. A new link to a draft is **409**. An existing link on that price list stays. **Local-first; ej prod-release.**
+
+## Clubdesk inventory bulk status (2026-09-30)
+
+Selection mode on Clubdesk inventory can set publication status (draft or published) on the selected articles. Garments has no publication status. **Local-first; ej prod-release.**
+
+## Inventory variant GTIN (2026-09-30)
+
+Optional `gtin` on `garment_inventory_variants` and `clubdesk_inventory_variants` (migration **178**). Empty, or 8/12/13/14 digits. Shown on the public Clubdesk article next to Art.nr. Duplicate clears it. Applied on local `public`. Neon tenant is not migrated. **Local-first; ej prod-release.**
+
+## Clubdesk inventory archive (2026-09-30)
+
+Samma katalogregel som plagg-inventariet: `archived_at` (migration **176**), arkivera/återställ, ta bort bara från arkiverat och inte medan produkten sitter på en prislista, nya prislistekopplingar till arkiverat är **409**, befintliga kopplingar och den publika prisraden finns kvar, publik katalog döljer arkiverat. ADR [`adr/CLUBDESK_INVENTORY_ARCHIVE.md`](adr/CLUBDESK_INVENTORY_ARCHIVE.md). Applicerad på lokalt `public`. Neon-tenanten är inte migrerad. **Local-first; ej prod-release.**
+
 ## Garments inventory archive — docs after Security (2026-09-29)
 
 Efter **QA Godkänt** + **Security Godkänt** (inga accepterade risker). Operator [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md): archive/restore, delete 409 utan force-unassign, `GET` inventory inkluderar arkiverade, katalog döljer dem tills Arkiverad-chip eller sökträff, listdubblett `POST /lists/:id/duplicate`, statistiksektioner hopfällbara (default stängda) och Archived på orderrad i admin. ADR [`adr/GARMENTS_INVENTORY_ARCHIVE.md`](adr/GARMENTS_INVENTORY_ARCHIVE.md). Migration **175** är applicerad på lokalt `public`-schema. Den delade Neon-tenanten är inte migrerad. **Local-first; ej prod-release.**

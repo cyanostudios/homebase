@@ -55,6 +55,12 @@ export function getClubdeskInventoryImportSchema(): ImportSchema {
         aliases: ['Artikelnr', 'Artikel nr', 'Art.nr', 'Art nr', 'SKU'],
       },
       {
+        key: 'gtin',
+        label: 'GTIN',
+        required: false,
+        aliases: ['EAN', 'EAN-13', 'UPC', 'Barcode', 'Streckkod', 'GTIN-13', 'GTIN-14'],
+      },
+      {
         key: 'audience',
         label: 'Category',
         required: false,
@@ -117,6 +123,7 @@ export const CLUBDESK_INVENTORY_IMPORT_EXAMPLE_ROWS: Record<string, string>[] = 
   {
     ...SHARED_ITEM_FIELDS,
     sku: 'ARLA-MILK-1L',
+    gtin: '07312345678901',
     audience: 'Dairy',
     color: 'Natural',
     size: '1 L',

@@ -63,11 +63,7 @@ function transformInventoryListItem(array $row): array
         'currency' => trim((string) ($row['currency'] ?? 'SEK')) ?: 'SEK',
         'tags' => $tags,
         'featuredImageUrl' => $row['featured_image_url'] ?? null,
-        'featured' => $row['featured'] === true
-            || $row['featured'] === 't'
-            || $row['featured'] === 'true'
-            || $row['featured'] === 1
-            || $row['featured'] === '1',
+        'featured' => false,
         'variantCount' => $variantCount,
         'meta' => $variantCount === 1 ? '1 variant' : ($variantCount > 0 ? $variantCount . ' varianter' : null),
         'updated_at' => $row['updated_at'] ?? null,

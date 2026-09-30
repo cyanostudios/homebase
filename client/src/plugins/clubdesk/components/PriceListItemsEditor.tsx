@@ -28,7 +28,12 @@ import { clubdeskApi } from '../api/clubdeskApi';
 import { useClubdeskContext } from '../context/ClubdeskContext';
 import type { ClubdeskInventoryItem, ClubdeskInventoryVariant } from '../types/inventory';
 import type { ClubdeskPriceListItemPayload } from '../types/priceList';
+import { isInventoryItemLinkable } from '../utils/inventoryListFilter';
 import { canReorderItemWithinCategory } from '../utils/priceListItemOps';
+import {
+  formatInventoryPickerSecondaryMeta,
+  inventoryMatchesPickerSearch,
+} from '../utils/inventoryKioskDisplay';
 import {
   buildInventoryLinkPatch,
   clearInventoryLinkPatch,
@@ -153,14 +158,9 @@ function InventoryLinkRow({
     .join(' · ');
 
   const suggestions = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const rows = inventoryItems;
-    const filtered = !q
-      ? rows
-      : rows.filter((row) => {
-          const hay = `${row.articleName} ${row.brand}`.toLowerCase();
-          return hay.includes(q);
-        });
+    const q = search.trim();
+    const rows = inventoryItems.filter((row) => isInventoryItemLinkable(row));
+    const filtered = !q ? rows : rows.filter((row) => inventoryMatchesPickerSearch(row, q));
     return filtered.slice(0, 40);
   }, [inventoryItems, search]);
 
@@ -211,7 +211,12 @@ function InventoryLinkRow({
 
   return (
     <div className="contents">
-      <div className="shrink-0 self-end">
+      <div className="flex shrink-0 flex-col items-end gap-1 self-end">
+        {linked && item.inventoryArchived ? (
+          <span className="text-[10px] font-extrabold text-muted-foreground">
+            {t('clubdesk.inventory.archived')}
+          </span>
+        ) : null}
         {linked ? (
           <RoundIconLabelButton
             type="button"
@@ -323,36 +328,32 @@ function InventoryLinkRow({
                       </p>
                     ) : (
                       <div className="max-h-52 overflow-y-auto">
-                        {suggestions.map((row) => (
-                          <button
-                            key={row.id}
-                            type="button"
-                            className={cn(
-                              'flex w-full items-start rounded-lg px-2.5 py-2 text-left',
-                              DETAIL_LIST_ITEM_HOVER_CLASS,
-                            )}
-                            disabled={loadingDetail}
-                            onClick={() => void selectArticle(row)}
-                          >
-                            <span className="min-w-0">
-                              <span className="block truncate text-xs font-extrabold">
-                                {row.articleName}
+                        {suggestions.map((row) => {
+                          const pickerMeta = formatInventoryPickerSecondaryMeta(row);
+                          return (
+                            <button
+                              key={row.id}
+                              type="button"
+                              className={cn(
+                                'flex w-full items-start rounded-lg px-2.5 py-2 text-left',
+                                DETAIL_LIST_ITEM_HOVER_CLASS,
+                              )}
+                              disabled={loadingDetail}
+                              onClick={() => void selectArticle(row)}
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate text-xs font-extrabold">
+                                  {row.articleName}
+                                </span>
+                                {pickerMeta ? (
+                                  <span className="block truncate text-[11px] text-muted-foreground">
+                                    {pickerMeta}
+                                  </span>
+                                ) : null}
                               </span>
-                              <span className="block truncate text-[11px] text-muted-foreground">
-                                {[
-                                  row.brand,
-                                  row.variantCount > 0
-                                    ? t('clubdesk.priceList.variantCount', {
-                                        count: row.variantCount,
-                                      })
-                                    : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(' · ')}
-                              </span>
-                            </span>
-                          </button>
-                        ))}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </>

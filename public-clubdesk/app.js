@@ -508,9 +508,6 @@ function renderHomeHub() {
   const priceLists = Array.isArray(window.__PUBLIC_APP_PRICE_LISTS__)
     ? window.__PUBLIC_APP_PRICE_LISTS__
     : [];
-  const inventory = Array.isArray(window.__PUBLIC_APP_INVENTORY__)
-    ? window.__PUBLIC_APP_INVENTORY__
-    : [];
   const site = window.__PUBLIC_APP_SITE_CONTENT__ || {};
   const homeHtml = String(site.home?.contentHtml || '').trim();
   const homeTitle = String(site.home?.title || '').trim();
@@ -523,7 +520,6 @@ function renderHomeHub() {
   const featuredCards = [
     ...guides.filter(isFeaturedItem).map((item) => renderHomeSquareCard(item, 'guide')),
     ...priceLists.filter(isFeaturedItem).map((item) => renderHomeSquareCard(item, 'price-list')),
-    ...inventory.filter(isFeaturedItem).map((item) => renderHomeSquareCard(item, 'inventory')),
   ];
 
   const infoContacts = Array.isArray(window.__PUBLIC_APP_INFO_CONTACTS__)

@@ -96,15 +96,18 @@ export function InventoryDetailHeaderMenus({
             variant: 'secondary',
             onClick: () => openConfirm('archive'),
           },
-      {
+    ];
+
+    if (archived) {
+      buttons.push({
         id: 'delete',
         icon: Trash2,
         label: t('common.delete'),
         variant: 'secondary',
         contentClassName: 'text-red-600 dark:text-red-400',
         onClick: () => openConfirm(onLists ? 'deleteBlocked' : 'delete'),
-      },
-    ];
+      });
+    }
 
     if (canDuplicate) {
       buttons.push({

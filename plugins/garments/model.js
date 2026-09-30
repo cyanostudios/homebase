@@ -12,6 +12,22 @@ const {
   resolveTenantConnectionStringForShare,
 } = require('../../server/core/utils/shareRoutingHelper');
 
+const GTIN_DIGITS = /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/;
+
+/** Empty, or 8/12/13/14 digits after spaces are removed. */
+function normalizeGtin(value) {
+  const raw = String(value ?? '').replace(/\s+/g, '');
+  if (!raw) return '';
+  if (!GTIN_DIGITS.test(raw)) {
+    throw new AppError(
+      'GTIN must be 8, 12, 13, or 14 digits',
+      400,
+      AppError.CODES.VALIDATION_ERROR,
+    );
+  }
+  return raw;
+}
+
 function parseJsonb(value, fallback) {
   if (value == null) return fallback;
   if (typeof value === 'object') return value;
@@ -1149,6 +1165,7 @@ class GarmentsModel {
   normalizeVariantInput(data, sortOrderFallback = 0) {
     return {
       sku: String(data.sku ?? '').trim(),
+      gtin: normalizeGtin(data.gtin),
       audience: String(data.audience ?? '').trim(),
       color: String(data.color ?? '').trim(),
       size: String(data.size ?? '').trim(),
@@ -1312,17 +1329,19 @@ class GarmentsModel {
           `
           UPDATE garment_inventory_variants SET
             sku = $1,
-            audience = $2,
-            color = $3,
-            size = $4,
-            quantity = $5,
-            sort_order = $6,
+            gtin = $2,
+            audience = $3,
+            color = $4,
+            size = $5,
+            quantity = $6,
+            sort_order = $7,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $7 AND item_id = $8
+          WHERE id = $8 AND item_id = $9
           RETURNING id
           `,
           [
             variant.sku,
+            variant.gtin,
             variant.audience,
             variant.color,
             variant.size,
@@ -1335,19 +1354,37 @@ class GarmentsModel {
         if (!rows.rows.length) {
           await pool.query(
             `
-            INSERT INTO garment_inventory_variants (item_id, sku, audience, color, size, quantity, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO garment_inventory_variants (item_id, sku, gtin, audience, color, size, quantity, sort_order)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             `,
-            [id, variant.sku, variant.audience, variant.color, variant.size, variant.quantity, i],
+            [
+              id,
+              variant.sku,
+              variant.gtin,
+              variant.audience,
+              variant.color,
+              variant.size,
+              variant.quantity,
+              i,
+            ],
           );
         }
       } else {
         await pool.query(
           `
-          INSERT INTO garment_inventory_variants (item_id, sku, audience, color, size, quantity, sort_order)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          INSERT INTO garment_inventory_variants (item_id, sku, gtin, audience, color, size, quantity, sort_order)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           `,
-          [id, variant.sku, variant.audience, variant.color, variant.size, variant.quantity, i],
+          [
+            id,
+            variant.sku,
+            variant.gtin,
+            variant.audience,
+            variant.color,
+            variant.size,
+            variant.quantity,
+            i,
+          ],
         );
       }
     }
@@ -1373,13 +1410,14 @@ class GarmentsModel {
       const variant = this.normalizeVariantInput(data, (maxOrder.rows[0]?.m ?? -1) + 1);
       const result = await pool.query(
         `
-        INSERT INTO garment_inventory_variants (item_id, sku, audience, color, size, quantity, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO garment_inventory_variants (item_id, sku, gtin, audience, color, size, quantity, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
         `,
         [
           id,
           variant.sku,
+          variant.gtin,
           variant.audience,
           variant.color,
           variant.size,
@@ -1418,6 +1456,7 @@ class GarmentsModel {
       }
       const existing = existingResult.rows[0];
       const nextSku = data.sku !== undefined ? String(data.sku ?? '').trim() : (existing.sku ?? '');
+      const nextGtin = data.gtin !== undefined ? normalizeGtin(data.gtin) : (existing.gtin ?? '');
       const nextAudience =
         data.audience !== undefined
           ? String(data.audience ?? '').trim()
@@ -1439,16 +1478,17 @@ class GarmentsModel {
         `
         UPDATE garment_inventory_variants SET
           sku = $1,
-          audience = $2,
-          color = $3,
-          size = $4,
-          quantity = $5,
-          sort_order = $6,
+          gtin = $2,
+          audience = $3,
+          color = $4,
+          size = $5,
+          quantity = $6,
+          sort_order = $7,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $7 AND item_id = $8
+        WHERE id = $8 AND item_id = $9
         RETURNING *
         `,
-        [nextSku, nextAudience, nextColor, nextSize, nextQuantity, nextSort, vid, lid],
+        [nextSku, nextGtin, nextAudience, nextColor, nextSize, nextQuantity, nextSort, vid, lid],
       );
       await pool.query(
         `UPDATE garment_inventory_items SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
@@ -1570,6 +1610,14 @@ class GarmentsModel {
       const existing = await this.getInventoryById(req, id);
       if (!existing) {
         throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      if (!existing.archivedAt) {
+        throw new AppError(
+          'Cannot delete an inventory item that is not archived',
+          409,
+          AppError.CODES.CONFLICT,
+        );
       }
 
       if (await this.isInventoryItemInUse(pool, id)) {
@@ -2118,6 +2166,7 @@ class GarmentsModel {
       id: String(row.id),
       itemId: String(row.item_id),
       sku: row.sku ?? '',
+      gtin: row.gtin ?? '',
       audience: row.audience ?? '',
       color: row.color ?? '',
       size: row.size ?? '',
@@ -2169,5 +2218,6 @@ class GarmentsModel {
 }
 
 module.exports = GarmentsModel;
+module.exports.normalizeGtin = normalizeGtin;
 module.exports.normalizeFitSummaryProcurement = normalizeFitSummaryProcurement;
 module.exports.mergeFitSummaryProcurementPatch = mergeFitSummaryProcurementPatch;

@@ -45,6 +45,12 @@ export function getGarmentInventoryImportSchema(): ImportSchema {
         aliases: ['Artikelnr', 'Artikel nr', 'Art.nr', 'Art nr', 'SKU'],
       },
       {
+        key: 'gtin',
+        label: 'GTIN',
+        required: false,
+        aliases: ['EAN', 'EAN-13', 'UPC', 'Barcode', 'Streckkod', 'GTIN-13', 'GTIN-14'],
+      },
+      {
         key: 'audience',
         label: 'Line',
         required: false,
@@ -74,6 +80,7 @@ export const GARMENT_INVENTORY_IMPORT_EXAMPLE_ROWS: Record<string, string>[] = [
   {
     ...SHARED_ITEM_FIELDS,
     sku: 'NJ-RED-M',
+    gtin: '07312345678901',
     audience: 'Men',
     color: 'Red',
     size: 'M',

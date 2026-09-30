@@ -21,6 +21,10 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/172-clubdesk-price-list-inventory-link.sql'),
   path.join(__dirname, '../server/migrations/173-clubdesk-price-list-price-override.sql'),
   path.join(__dirname, '../server/migrations/174-clubdesk-site-content-inventory-card.sql'),
+  path.join(__dirname, '../server/migrations/176-clubdesk-inventory-archived-at.sql'),
+  path.join(__dirname, '../server/migrations/177-clubdesk-inventory-clear-featured.sql'),
+  path.join(__dirname, '../server/migrations/178-inventory-variant-gtin.sql'),
+  path.join(__dirname, '../server/migrations/179-clubdesk-inventory-kiosk-catalog.sql'),
 ];
 const MAIN_MIGRATION = path.join(
   __dirname,

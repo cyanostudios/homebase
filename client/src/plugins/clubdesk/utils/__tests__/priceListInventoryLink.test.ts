@@ -172,6 +172,7 @@ describe('priceListInventoryLink', () => {
       inventoryItemId: null,
       inventoryVariantId: null,
       inventoryArticleName: null,
+      inventoryArchived: false,
       inventorySlug: null,
       inventoryVariantLabel: null,
       inventoryCatalogPrice: null,

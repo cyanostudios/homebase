@@ -131,6 +131,7 @@ function createGarmentsRoutes(controller, context) {
 
   const variantBody = [
     commonRules.optionalString('sku', 100),
+    commonRules.optionalString('gtin', 40),
     commonRules.optionalString('audience', 100),
     commonRules.optionalString('color', 100),
     commonRules.optionalString('size', 100),

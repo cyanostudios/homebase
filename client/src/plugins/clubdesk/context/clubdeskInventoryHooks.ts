@@ -10,6 +10,7 @@ import { shouldKeepPendingInventoryItemPath } from '@/core/routing/clubdeskRoute
 import { buildSlug, resolveSlug, slugify } from '@/core/utils/slugUtils';
 
 import { clubdeskApi } from '../api/clubdeskApi';
+import { inventoryIdsForPublicationStatus } from '../utils/inventoryBulkStatus';
 import type { ValidationError } from '../types/clubdesk';
 import type { ClubdeskInventoryItem, ClubdeskInventoryItemPayload } from '../types/inventory';
 import { groupInventoryImportRows } from '../utils/groupInventoryImportRows';
@@ -290,6 +291,7 @@ export function useClubdeskInventoryDomain(options: {
         recommendedPriceInvalid: t('clubdesk.inventory.recommendedPriceInvalid'),
         salePriceInvalid: t('clubdesk.inventory.salePriceInvalid'),
         quantityInvalid: t('clubdesk.inventory.quantityInvalid'),
+        gtinInvalid: t('clubdesk.inventory.gtinInvalid'),
       });
     },
     [t],
@@ -352,25 +354,89 @@ export function useClubdeskInventoryDomain(options: {
     ],
   );
 
+  const applyInventoryItemUpdate = useCallback((saved: ClubdeskInventoryItem) => {
+    setInventoryItems((prev) =>
+      prev.map((row) => (String(row.id) === String(saved.id) ? saved : row)),
+    );
+    setCurrentInventoryItem((current) =>
+      current && String(current.id) === String(saved.id) ? saved : current,
+    );
+  }, []);
+
   const deleteInventoryItem = useCallback(
-    async (id: string) => {
-      await clubdeskApi.deleteInventoryItem(id);
-      setInventoryItems((prev) => prev.filter((row) => String(row.id) !== String(id)));
-      if (currentInventoryItem && String(currentInventoryItem.id) === String(id)) {
-        setCurrentInventoryItem(null);
+    async (id: string, options?: { silent?: boolean }): Promise<string | null> => {
+      try {
+        await clubdeskApi.deleteInventoryItem(id);
+        setInventoryItems((prev) => prev.filter((row) => String(row.id) !== String(id)));
+        if (currentInventoryItem && String(currentInventoryItem.id) === String(id)) {
+          setCurrentInventoryItem(null);
+        }
+        return null;
+      } catch (err: unknown) {
+        const status = (err as { status?: number; message?: string })?.status;
+        const raw = (err as { message?: string })?.message ?? '';
+        const message =
+          status === 409 && raw.includes('not archived')
+            ? t('clubdesk.inventory.deleteNotArchived')
+            : status === 409
+              ? t('clubdesk.inventory.deleteBlockedLinked')
+              : t('clubdesk.inventory.deleteFailed');
+        if (!options?.silent) {
+          setValidationErrors([{ field: 'general', message }]);
+        }
+        return message;
       }
     },
-    [currentInventoryItem],
+    [currentInventoryItem, setValidationErrors, t],
   );
 
   const deleteInventoryItems = useCallback(
     async (ids: string[]) => {
+      const blockedIds: string[] = [];
+      let deleted = 0;
       for (const id of ids) {
-        await deleteInventoryItem(id);
+        const message = await deleteInventoryItem(id, { silent: true });
+        if (message) {
+          blockedIds.push(id);
+        } else {
+          deleted += 1;
+        }
       }
-      bulk.clearSelection();
+      if (blockedIds.length === 0) {
+        bulk.clearSelection();
+      }
+      return { deleted, blockedIds };
     },
     [bulk, deleteInventoryItem],
+  );
+
+  const archiveInventoryItem = useCallback(
+    async (id: string): Promise<string | null> => {
+      try {
+        const saved = await clubdeskApi.archiveInventoryItem(id);
+        applyInventoryItemUpdate(saved);
+        return null;
+      } catch {
+        return t('clubdesk.inventory.archiveFailed');
+      }
+    },
+    [applyInventoryItemUpdate, t],
+  );
+
+  const restoreInventoryItem = useCallback(
+    async (id: string): Promise<string | null> => {
+      try {
+        const saved = await clubdeskApi.restoreInventoryItem(id);
+        applyInventoryItemUpdate(saved);
+        return null;
+      } catch (err: unknown) {
+        const status = (err as { status?: number })?.status;
+        return status === 409
+          ? t('clubdesk.inventory.restoreNameConflict')
+          : t('clubdesk.inventory.restoreFailed');
+      }
+    },
+    [applyInventoryItemUpdate, t],
   );
 
   const updateInventoryVariantQuantity = useCallback(
@@ -453,7 +519,11 @@ export function useClubdeskInventoryDomain(options: {
   );
 
   const updateInventoryPublicationStatus = useCallback(
-    async (item: ClubdeskInventoryItem, status: 'draft' | 'published') => {
+    async (
+      item: ClubdeskInventoryItem,
+      status: 'draft' | 'published',
+      options?: { silent?: boolean },
+    ): Promise<boolean> => {
       try {
         const full = await ensureFullInventoryItem(item);
         const saved = await clubdeskApi.updateInventoryItem(full.id, {
@@ -481,49 +551,66 @@ export function useClubdeskInventoryDomain(options: {
         if (currentInventoryItem && String(currentInventoryItem.id) === String(saved.id)) {
           setCurrentInventoryItem(saved);
         }
-        clearValidationErrors();
+        if (!options?.silent) {
+          clearValidationErrors();
+        }
+        return true;
       } catch {
-        setValidationErrors([{ field: 'general', message: t('clubdesk.inventory.saveFailed') }]);
+        if (!options?.silent) {
+          setValidationErrors([{ field: 'general', message: t('clubdesk.inventory.saveFailed') }]);
+        }
+        return false;
       }
     },
     [clearValidationErrors, currentInventoryItem, ensureFullInventoryItem, setValidationErrors, t],
   );
 
-  const updateInventoryFeatured = useCallback(
-    async (item: ClubdeskInventoryItem, featured: boolean) => {
-      try {
-        const full = await ensureFullInventoryItem(item);
-        const saved = await clubdeskApi.updateInventoryItem(full.id, {
-          ...normalizeClubdeskInventoryItemPayload({
-            articleName: full.articleName,
-            brand: full.brand,
-            description: full.description,
-            material: full.material,
-            purchasePrice: full.purchasePrice,
-            recommendedPrice: full.recommendedPrice,
-            salePrice: full.salePrice,
-            currency: full.currency,
-            comment: full.comment,
-            tags: full.tags,
-            slug: full.slug,
-            featuredImageUrl: full.featuredImageUrl,
-            publicationStatus: full.publicationStatus === 'draft' ? 'draft' : 'published',
-            featured: featured === true,
-            variants: full.variants,
-          }),
-        });
-        setInventoryItems((prev) =>
-          prev.map((row) => (String(row.id) === String(saved.id) ? saved : row)),
-        );
-        if (currentInventoryItem && String(currentInventoryItem.id) === String(saved.id)) {
-          setCurrentInventoryItem(saved);
+  const setInventoryItemsPublicationStatus = useCallback(
+    async (
+      ids: string[],
+      status: 'draft' | 'published',
+      onProgress?: (done: number) => void,
+    ): Promise<{ changed: number; skipped: number; failed: number }> => {
+      const pending = new Set(inventoryIdsForPublicationStatus(inventoryItems, ids, status));
+      let changed = 0;
+      let failed = 0;
+      let done = 0;
+      for (const id of ids) {
+        if (!pending.has(String(id))) {
+          done += 1;
+          onProgress?.(done);
+          continue;
         }
-        clearValidationErrors();
-      } catch {
-        setValidationErrors([{ field: 'general', message: t('clubdesk.inventory.saveFailed') }]);
+        const item = inventoryItems.find((row) => String(row.id) === String(id));
+        const ok = item
+          ? await updateInventoryPublicationStatus(item, status, { silent: true })
+          : false;
+        if (ok) {
+          changed += 1;
+        } else {
+          failed += 1;
+        }
+        done += 1;
+        onProgress?.(done);
       }
+      if (failed === 0) {
+        bulk.clearSelection();
+      }
+      if (failed > 0) {
+        setValidationErrors([{ field: 'general', message: t('clubdesk.inventory.saveFailed') }]);
+      } else {
+        clearValidationErrors();
+      }
+      return { changed, skipped: ids.length - pending.size, failed };
     },
-    [clearValidationErrors, currentInventoryItem, ensureFullInventoryItem, setValidationErrors, t],
+    [
+      bulk,
+      clearValidationErrors,
+      inventoryItems,
+      setValidationErrors,
+      t,
+      updateInventoryPublicationStatus,
+    ],
   );
 
   const inventoryNav = usePluginNavigation(
@@ -552,8 +639,10 @@ export function useClubdeskInventoryDomain(options: {
     saveInventoryItem,
     deleteInventoryItem,
     deleteInventoryItems,
+    archiveInventoryItem,
+    restoreInventoryItem,
     updateInventoryPublicationStatus,
-    updateInventoryFeatured,
+    setInventoryItemsPublicationStatus,
     updateInventoryVariantQuantity,
     importInventoryItems,
     getInventoryDeleteMessage,

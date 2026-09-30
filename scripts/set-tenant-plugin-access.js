@@ -19,6 +19,9 @@ const {
   detectPluginAccessTables,
   listPluginAccess,
 } = require('../server/core/services/admin/tenantPluginAccess');
+const {
+  runKioskCatalogSeedForOwnerBestEffort,
+} = require('../plugins/clubdesk/services/kioskCatalogSeedRunner');
 
 const injected = {
   DATABASE_URL: process.env.DATABASE_URL,
@@ -107,6 +110,13 @@ async function applyPluginChanges(dbUrl, label, { email, tenantId, enable, disab
       enable,
       disable,
     });
+
+    if (enable.includes('clubdesk')) {
+      await runKioskCatalogSeedForOwnerBestEffort(pool, {
+        ownerUserId,
+        tenantId: tenant.id,
+      });
+    }
 
     for (const name of disable) {
       console.log(`Disabled: ${name}`);

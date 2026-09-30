@@ -2,7 +2,9 @@ import { ShoppingBag } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
+import { cn } from '@/lib/utils';
 import {
   SortableListTable,
   type SortableListTableColumn,
@@ -10,6 +12,7 @@ import {
 } from '@/core/ui/SortableListTable';
 
 import type { ClubdeskInventoryItem } from '../types/inventory';
+import { formatInventoryPackageSize } from '../utils/inventoryKioskDisplay';
 import type { InventorySortField, InventorySortOrder } from '../utils/inventoryListSort';
 
 export type InventoryListTableProps = {
@@ -57,6 +60,14 @@ function inventoryIdentityMeta(
   if (brand) {
     parts.push(brand);
   }
+  const category = item.category?.trim();
+  if (category) {
+    parts.push(category);
+  }
+  const packageLabel = formatInventoryPackageSize(item.packageSize, item.packageUnit);
+  if (packageLabel) {
+    parts.push(packageLabel);
+  }
   parts.push(t('clubdesk.inventory.qty', { count: item.totalQuantity ?? 0 }));
   const rec = formatInventoryListPrice(item.recommendedPrice, item.currency || 'SEK');
   if (rec) {
@@ -92,6 +103,7 @@ export function InventoryListTable({
         header: t('clubdesk.inventory.articleName'),
         cell: (item) => {
           const label = item.articleName?.trim() || '—';
+          const isPublished = item.publicationStatus === 'published';
           const identityMeta = inventoryIdentityMeta(item, t);
           return (
             <div className="flex min-w-0 flex-col gap-0.5">
@@ -109,9 +121,29 @@ export function InventoryListTable({
                   {label}
                 </span>
               </div>
-              <span className="min-w-0 truncate pl-7 text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
-                {identityMeta}
-              </span>
+              <div className="flex min-w-0 items-center gap-1.5 pl-7">
+                <span
+                  className={cn(
+                    'shrink-0 text-[10px] font-extrabold leading-tight',
+                    isPublished ? QC_STATUS_BADGE_COLORS.success : QC_STATUS_BADGE_COLORS.muted,
+                  )}
+                >
+                  {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
+                </span>
+                {item.archivedAt ? (
+                  <span
+                    className={cn(
+                      'shrink-0 text-[10px] font-extrabold leading-tight',
+                      QC_STATUS_BADGE_COLORS.muted,
+                    )}
+                  >
+                    {t('clubdesk.inventory.archived')}
+                  </span>
+                ) : null}
+                <span className="min-w-0 truncate text-[10px] font-normal leading-tight tabular-nums text-slate-400 dark:text-slate-500">
+                  {identityMeta}
+                </span>
+              </div>
             </div>
           );
         },

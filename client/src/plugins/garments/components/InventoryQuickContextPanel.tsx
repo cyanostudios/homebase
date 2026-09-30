@@ -409,6 +409,7 @@ export function InventoryQuickContextPanel({
             {variants.map((row, index) => {
               const rowDup = duplicateVariantIndices.any.has(index);
               const sku = row.sku?.trim() || '';
+              const gtin = row.gtin?.trim() || '';
               return (
                 <div key={row.id} className={VARIANT_LIST_ROW_CLASS}>
                   <span
@@ -430,6 +431,12 @@ export function InventoryQuickContextPanel({
                         >
                           {' · '}
                           {sku}
+                        </span>
+                      ) : null}
+                      {gtin ? (
+                        <span className="text-muted-foreground">
+                          {' · '}
+                          {gtin}
                         </span>
                       ) : null}
                     </div>

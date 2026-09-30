@@ -110,6 +110,12 @@
     return (Array.isArray(items) ? items : []).filter((item) => (item.qty || 0) > 0).length;
   }
 
+  function itemCount(items) {
+    return (Array.isArray(items) ? items : []).reduce((sum, item) => {
+      return sum + Math.max(0, Math.trunc(Number(item.qty) || 0));
+    }, 0);
+  }
+
   /**
    * Group cart lines by category, ordered like the price list (not add order).
    * @param {Array} cart
@@ -186,6 +192,7 @@
     clearCart,
     total,
     uniqueCount,
+    itemCount,
     groupCartByCategoryOrder,
     formatMoney,
   };

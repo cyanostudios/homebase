@@ -4,14 +4,106 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-30 – Clubdesk inventory status under the title
+
+**Typ:** UI  
+**Scope:** Clubdesk inventory article. Publication status (draft or published) sits under the product title, same as guides and price lists. Garments has no publication status.  
+**Risk:** None.
+
+**Sammanfattning:** Status syns under produktrubriken.
+
+---
+
+## 2026-09-30 – Public Clubdesk cart count
+
+**Typ:** UI  
+**Scope:** Public Clubdesk price list. The cart button shows how many items are in the cart (sum of quantities). The badge is hidden when the cart is empty and when the button shows the list icon.  
+**Risk:** None.
+
+**Sammanfattning:** Varukorgsikonen visar antalet varor.
+
+---
+
+## 2026-09-30 – Clubdesk inventory article tabs
+
+**Typ:** UI  
+**Scope:** Clubdesk inventory view and form. Information, Details, Product & pack, and Ingredients & nutrition are separate tabs. Variants and Activity stay. Garments is unchanged.  
+**Risk:** None.
+
+**Sammanfattning:** Katalogkorten ligger i egna flikar i stället för att staplas under Information.
+
+---
+
+## 2026-09-30 – Clubdesk inventory: drafts stay off new price-list links
+
+**Typ:** Feature  
+**Scope:** Clubdesk only. A price-list picker offers published articles. A new link to a draft returns **409**. An article already on that price list stays. Unlink is unchanged. Garments has no publication status.  
+**Risk:** Seeded kiosk drafts cannot be added to a price list until they are published.
+
+**Sammanfattning:** Bara publicerade artiklar kan läggas till på en prislista.
+
+---
+
+## 2026-09-30 – Clubdesk kiosk master catalog
+
+**Typ:** Feature  
+**Scope:** Clubdesk only. Garments unchanged. A versioned kiosk master catalog (355 rows) merges into Clubdesk inventory as **drafts** via a dedicated seed service, not the user import API. Migration **179** adds flat catalog columns on `clubdesk_inventory_items` and unique `(user_id, catalog_key)`. Matching is by `catalog_key`; merge is fill-empty only (no overwrite, no delete of missing keys). Seed inserts **no variants** so price-list linking stays direct. The 200-item import cap is **not** raised. Seed runs best-effort when Clubdesk is enabled and again with `npm run seed:clubdesk-kiosk-catalog`. Admin: inventory list shows catalog meta; view omits empty enrichment fields; form uses grouped sections; price-list picker shows name, brand, category, and package size. The public catalog still lists only published, non-archived articles — seeded drafts stay hidden there.  
+**Risk:** Migration **179** must exist on the tenant before enable/seed merge. Applied on the local `public` schema. The shared Neon tenant is not migrated. Local-first; not a production release.  
+**Docs:** ADR [`ai/adr/CLUBDESK_KIOSK_MASTER_CATALOG.md`](ai/adr/CLUBDESK_KIOSK_MASTER_CATALOG.md).
+
+**Sammanfattning:** 355 kioskprodukter kan seedas in i Clubdesk-inventariet som utkast, matchas på katalognyckel och fyllas i utan varianter eller höjd importgräns; utkast syns inte i den publika katalogen.
+
+---
+
+## 2026-09-30 – Clubdesk inventory: bulk publication status
+
+**Typ:** Feature  
+**Scope:** Clubdesk inventory only. In selection mode the bulk bar has **Status**. Chosen articles can be set to draft or published together. Articles that already have that status are left unchanged. Delete stays on the Archived chip. Garments has no publication status.  
+**Risk:** Each article is saved with the existing inventory update. A failed row stays selected.
+
+**Sammanfattning:** Flera Clubdesk-artiklar kan få Utkast eller Publicerad samtidigt.
+
+---
+
+## 2026-09-30 – Inventory variant GTIN
+
+**Typ:** Feature  
+**Scope:** Garments and Clubdesk inventory. Each variant has an optional `gtin` (migration **178**). Empty is allowed. A filled value must be 8, 12, 13, or 14 digits. The field sits next to article number in the variant form, on the variant row, in CSV import, and on the public Clubdesk article (next to Art.nr). Duplicating a variant or an article clears GTIN.  
+**Risk:** Migration **178** must exist before save and before the public article query. Applied on the local `public` schema. The shared Neon tenant is not migrated.
+
+**Sammanfattning:** Varje variant kan ha en GTIN-streckkod.
+
+---
+
+## 2026-09-30 – Clubdesk inventory: not featured on Hem
+
+**Typ:** Fix (UI)  
+**Scope:** Clubdesk inventory only. Inventory articles are not Hem square cards. The admin featured control is removed from inventory. Saves store `featured = false`. Guides and price lists keep featured. Migration **177** clears existing inventory flags.  
+**Risk:** Local `public` schema updated. Shared Neon tenant is not migrated.
+
+**Sammanfattning:** Ingen inventarieprodukt visas som utvald på Clubdesk Hem.
+
+---
+
+## 2026-09-30 – Clubdesk inventory: archive like garments
+
+**Typ:** Feature  
+**Scope:** Clubdesk inventory. Nullable `archived_at` (migration **176**). `POST /api/clubdesk/inventory/:id/archive` and `POST .../restore`. Hard delete only on an archived article, and **409** when it is still linked to a price list. A new price-list link to an archived article is **409**; an existing link stays. Public catalog and product links omit archived articles. Active name, brand, and slug stay unique.  
+**Risk:** Migration **176** must exist on the tenant before archive works. Applied on the local `public` schema. The shared Neon tenant is not migrated. Local-first; not a production release.  
+**Docs:** ADR [`ai/adr/CLUBDESK_INVENTORY_ARCHIVE.md`](ai/adr/CLUBDESK_INVENTORY_ARCHIVE.md).
+
+**Sammanfattning:** En Clubdesk-produkt arkiveras i stället för att försvinna från prislistor. Ta bort finns bara på arkiverade produkter som inte längre sitter på en prislista.
+
+---
+
 ## 2026-09-29 – Garments inventory: archive instead of force-delete
 
 **Typ:** Feature  
-**Scope:** Garments inventory. Nullable `archived_at` (migration **175**). `POST /api/garments/inventory/:id/archive` and `POST .../restore`. Hard delete returns **409** when the article is on a list or still has person or order data, and no longer force-unassigns. New assignment of an archived article returns **409**. Product create/update ignore `archivedAt`. Active uniqueness is partial (`archived_at IS NULL`). List duplicate is `POST /api/garments/lists/:id/duplicate` (one transaction; archived joins included; shares are not copied).  
+**Scope:** Garments inventory. Nullable `archived_at` (migration **175**). `POST /api/garments/inventory/:id/archive` and `POST .../restore`. Hard delete is only allowed on an archived article, and returns **409** when the article is still active or when an archived article is on a list or still has person or order data. Delete does not force-unassign. New assignment of an archived article returns **409**. Product create/update ignore `archivedAt`. Active uniqueness is partial (`archived_at IS NULL`). List duplicate is `POST /api/garments/lists/:id/duplicate` (one transaction; archived joins included; shares are not copied).  
 **Risk:** Migration **175** is applied on the local `public` schema (the schema the local dev server uses). The shared Neon tenant is not migrated. Local-first; not a production release. **QA Godkänt** + **Security Godkänt** 2026-09-29 (no accepted risks). Assign of an archived article stays **409**.  
 **Docs:** [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md), ADR [`ai/adr/GARMENTS_INVENTORY_ARCHIVE.md`](ai/adr/GARMENTS_INVENTORY_ARCHIVE.md).
 
-**Sammanfattning:** En använd artikel arkiveras i stället för att raderas med historiken. Oanvända artiklar kan fortfarande tas bort. En listdubblett kopierar befintliga kopplingar, även arkiverade, i ett anrop.
+**Sammanfattning:** En använd artikel arkiveras i stället för att raderas med historiken. Ta bort finns bara på arkiverade artiklar, och bara när de inte längre sitter på listor eller i sparad person- eller orderdata. En listdubblett kopierar befintliga kopplingar, även arkiverade, i ett anrop.
 
 ---
 

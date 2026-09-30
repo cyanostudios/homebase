@@ -83,6 +83,7 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(js).toMatch(/home-sheet/);
     expect(js).toMatch(/isFeaturedItem/);
     expect(js).toMatch(/renderHomeSquareCard/);
+    expect(js).not.toMatch(/renderHomeSquareCard\(item, 'inventory'\)/);
     expect(js).toMatch(/home-square-grid/);
     expect(js).toMatch(/renderGuideOptionCard/);
     expect(js).toMatch(/renderPriceListCard/);
@@ -271,6 +272,9 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(cartApp).toMatch(/cart-clear-btn/);
     expect(cartApp).toMatch(/Cart\.clearCart\(slug\)/);
     expect(cartApp).toMatch(/cartClearBtn\.hidden\s*=\s*Cart\.uniqueCount\(cart\)\s*===\s*0/);
+    expect(cartApp).toMatch(/Cart\.itemCount\(cart\)/);
+    expect(cartApp).toMatch(/cart-toggle-btn__count/);
+    expect(css).toMatch(/\.cart-toggle-btn__count/);
     expect(cartApp).toMatch(/setView\('list'\)/);
     expect(cartApp).toMatch(/backBtn\.hidden\s*=\s*view\s*===\s*'cart'/);
   });

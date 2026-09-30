@@ -14,6 +14,9 @@ const {
   listPluginAccess,
   applyPluginAccessChanges,
 } = require('../../server/core/services/admin/tenantPluginAccess');
+const {
+  runKioskCatalogSeedForOwnerBestEffort,
+} = require('../clubdesk/services/kioskCatalogSeedRunner');
 
 function asRows(result) {
   if (Array.isArray(result)) return result;
@@ -206,6 +209,13 @@ class TenantsModel {
       disable,
       grantedByUserId: body.grantedByUserId,
     });
+
+    if (enable.includes('clubdesk')) {
+      await runKioskCatalogSeedForOwnerBestEffort(this.pool, {
+        ownerUserId: detail.ownerUserId,
+        tenantId: detail.id,
+      });
+    }
 
     return this.getTenant(tenantId);
   }
