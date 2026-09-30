@@ -53,6 +53,7 @@ export function InventoryBulkListsDialog({
   const [phase, setPhase] = useState<Phase>('idle');
   const [updatedCount, setUpdatedCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
 
   useEffect(() => {
     if (!isOpen) {
@@ -63,6 +64,7 @@ export function InventoryBulkListsDialog({
     setPhase('idle');
     setUpdatedCount(0);
     setFailedCount(0);
+    setSkippedCount(0);
   }, [isOpen, sortedLists]);
 
   const handleApply = useCallback(async () => {
@@ -73,10 +75,17 @@ export function InventoryBulkListsDialog({
     setPhase('applying');
     setUpdatedCount(0);
     setFailedCount(0);
+    setSkippedCount(0);
 
     let updated = 0;
     let failed = 0;
+    let skipped = 0;
     for (const item of selectedItems) {
+      if (action === 'assign' && item.archivedAt) {
+        skipped += 1;
+        setSkippedCount(skipped);
+        continue;
+      }
       try {
         const ok =
           action === 'assign'
@@ -101,6 +110,7 @@ export function InventoryBulkListsDialog({
     setPhase('idle');
     setUpdatedCount(0);
     setFailedCount(0);
+    setSkippedCount(0);
     onClose();
   }, [onClose]);
 
@@ -183,7 +193,7 @@ export function InventoryBulkListsDialog({
             {phase === 'applying' ? (
               <p className="text-sm text-muted-foreground">
                 {t('garments.bulkListsApplying', {
-                  current: updatedCount + failedCount,
+                  current: updatedCount + failedCount + skippedCount,
                   total: count,
                 })}
               </p>
@@ -206,6 +216,11 @@ export function InventoryBulkListsDialog({
                     failed: failedCount,
                   })}
                 </p>
+                {skippedCount > 0 ? (
+                  <p className="text-muted-foreground">
+                    {t('garments.bulkListsArchivedSkipped', { count: skippedCount })}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>

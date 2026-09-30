@@ -31,6 +31,7 @@ Local first; prod only on explicit release. After migrate: log out/in if Setting
 - **`143-garment-list-persons-contact-id.sql`** — tenant-DB: optional `contact_id` FK on `garment_list_persons` (Contacts link).
 - **`132-grant-garments-plugin-access.sql`** — **`MAIN_DB_ONLY`**. Grant plugin `garments` in `tenant_plugin_access` / `user_plugin_access`. Alternative: `npm run set:tenant-plugins -- --enable=garments`.
 - **`133-public-share-routing-garment-list.sql`** — **`MAIN_DB_ONLY`**. Widen `public_share_routing.resource_type` CHECK to include `garment_list`.
+- **`175-garment-inventory-archived-at.sql`** — tenant-DB: nullable `archived_at` on `garment_inventory_items`. Unique index `idx_garment_inventory_unique_article` is partial (`WHERE archived_at IS NULL`). ADR: [`docs/ai/adr/GARMENTS_INVENTORY_ARCHIVE.md`](../../docs/ai/adr/GARMENTS_INVENTORY_ARCHIVE.md).
 
 ```bash
 npm run migrate:garments

@@ -2,6 +2,8 @@ import { ShoppingBag } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
+import { cn } from '@/lib/utils';
 import { SectionCategoryIcon } from '@/core/ui/DetailSection';
 import {
   SortableListTable,
@@ -107,6 +109,12 @@ export function InventoryListTable({
                 </span>
               </div>
               <span className="min-w-0 truncate pl-7 text-[10px] font-normal leading-tight text-slate-400 dark:text-slate-500">
+                {item.archivedAt ? (
+                  <span className={cn('font-extrabold', QC_STATUS_BADGE_COLORS.muted)}>
+                    {t('garments.archived')}
+                  </span>
+                ) : null}
+                {item.archivedAt && identityMeta ? ' · ' : null}
                 {identityMeta}
               </span>
             </div>

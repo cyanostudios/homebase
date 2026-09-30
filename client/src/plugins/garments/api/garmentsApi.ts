@@ -97,6 +97,13 @@ class GarmentsApi {
     });
   }
 
+  duplicateList(id: string, name: string) {
+    return apiRequest<GarmentList>(`/lists/${id}/duplicate`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  }
+
   updateList(id: string, payload: GarmentListPayload) {
     return apiRequest<GarmentList>(`/lists/${id}`, {
       method: 'PUT',
@@ -228,6 +235,14 @@ class GarmentsApi {
 
   deleteInventoryItem(id: string) {
     return apiRequest<{ deleted: boolean }>(`/inventory/${id}`, { method: 'DELETE' });
+  }
+
+  archiveInventoryItem(id: string) {
+    return apiRequest<InventoryItem>(`/inventory/${id}/archive`, { method: 'POST' });
+  }
+
+  restoreInventoryItem(id: string) {
+    return apiRequest<InventoryItem>(`/inventory/${id}/restore`, { method: 'POST' });
   }
 
   updateInventoryVariantQuantity(itemId: string, variantId: string, quantity: number) {

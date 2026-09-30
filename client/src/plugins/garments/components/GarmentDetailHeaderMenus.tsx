@@ -1,4 +1,13 @@
-import { Copy, Columns3, Edit, Share2, Trash2, Upload } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  Copy,
+  Columns3,
+  Edit,
+  Share2,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +33,8 @@ export function InventoryDetailHeaderMenus({
   const {
     openInventoryForEdit,
     deleteInventoryItem,
+    archiveInventoryItem,
+    restoreInventoryItem,
     getDeleteMessage,
     getDuplicateConfig,
     executeDuplicate,
@@ -31,12 +42,35 @@ export function InventoryDetailHeaderMenus({
     clearValidationErrors,
   } = useGarments();
 
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<'archive' | 'restore' | 'delete' | 'deleteBlocked' | null>(
+    null,
+  );
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
   const duplicateConfig = getDuplicateConfig(item);
   const canDuplicate = Boolean(duplicateConfig);
+  const archived = Boolean(item.archivedAt);
+  const onLists = (item.assignedListIds?.length ?? 0) > 0;
+  const articleName = item.articleName?.trim() || t('garments.inventoryItem');
+
+  const openConfirm = useCallback(
+    (next: 'archive' | 'restore' | 'delete' | 'deleteBlocked') => {
+      setConfirmError(null);
+      clearValidationErrors();
+      setConfirm(next);
+    },
+    [clearValidationErrors],
+  );
+
+  const closeConfirm = () => {
+    if (confirmBusy) {
+      return;
+    }
+    setConfirm(null);
+    setConfirmError(null);
+  };
 
   const actions = useMemo((): DetailHeaderMenuAction[] => {
     const buttons: DetailHeaderMenuAction[] = [
@@ -47,17 +81,28 @@ export function InventoryDetailHeaderMenus({
         variant: 'soft',
         onClick: () => openInventoryForEdit(item),
       },
+      archived
+        ? {
+            id: 'restore',
+            icon: ArchiveRestore,
+            label: t('garments.restore'),
+            variant: 'secondary',
+            onClick: () => openConfirm('restore'),
+          }
+        : {
+            id: 'archive',
+            icon: Archive,
+            label: t('garments.archive'),
+            variant: 'secondary',
+            onClick: () => openConfirm('archive'),
+          },
       {
         id: 'delete',
         icon: Trash2,
         label: t('common.delete'),
         variant: 'secondary',
         contentClassName: 'text-red-600 dark:text-red-400',
-        onClick: () => {
-          setDeleteError(null);
-          clearValidationErrors();
-          setShowDeleteConfirm(true);
-        },
+        onClick: () => openConfirm(onLists ? 'deleteBlocked' : 'delete'),
       },
     ];
 
@@ -73,9 +118,51 @@ export function InventoryDetailHeaderMenus({
     }
 
     return buttons;
-  }, [canDuplicate, clearValidationErrors, item, openInventoryForEdit, t]);
+  }, [archived, canDuplicate, item, onLists, openConfirm, openInventoryForEdit, t]);
 
-  const confirmMessage = deleteError || getDeleteMessage(item);
+  const runConfirm = (action: () => Promise<string | null>) => {
+    void (async () => {
+      setConfirmBusy(true);
+      setConfirmError(null);
+      const errorMessage = await action();
+      setConfirmBusy(false);
+      if (!errorMessage) {
+        setConfirm(null);
+        return;
+      }
+      setConfirmError(errorMessage);
+    })();
+  };
+
+  const blockedAndArchived = confirm === 'deleteBlocked' && archived;
+  const confirmTitle =
+    confirm === 'archive'
+      ? t('garments.archiveTitle', { name: articleName })
+      : confirm === 'restore'
+        ? t('garments.restoreTitle', { name: articleName })
+        : confirm === 'deleteBlocked'
+          ? t('garments.deleteInventoryBlockedTitle')
+          : t('dialog.deleteItem', { label: t('garments.inventoryItem') });
+  const confirmMessage =
+    confirmError ||
+    (confirm === 'archive'
+      ? t('garments.archiveMessage')
+      : confirm === 'restore'
+        ? t('garments.restoreMessage')
+        : confirm === 'deleteBlocked'
+          ? t(
+              archived
+                ? 'garments.deleteInventoryBlockedArchived'
+                : 'garments.deleteInventoryBlockedActive',
+            )
+          : getDeleteMessage(item));
+  const confirmText = blockedAndArchived
+    ? t('common.close')
+    : confirm === 'archive' || (confirm === 'deleteBlocked' && !archived)
+      ? t('garments.archive')
+      : confirm === 'restore'
+        ? t('garments.restore')
+        : t('common.delete');
 
   return (
     <DetailHeaderMenus
@@ -85,27 +172,29 @@ export function InventoryDetailHeaderMenus({
       exportLabel={t('common.headerExport')}
     >
       <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title={t('dialog.deleteItem', { label: t('garments.inventoryItem') })}
+        isOpen={confirm != null}
+        title={confirmTitle}
         message={confirmMessage}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
+        confirmText={confirmText}
+        cancelText={blockedAndArchived ? undefined : t('common.cancel')}
+        confirmDisabled={confirmBusy}
         onConfirm={() => {
-          void (async () => {
-            setDeleteError(null);
-            const errorMessage = await deleteInventoryItem(item.id);
-            if (!errorMessage) {
-              setShowDeleteConfirm(false);
-              return;
-            }
-            setDeleteError(errorMessage);
-          })();
+          if (blockedAndArchived) {
+            closeConfirm();
+            return;
+          }
+          if (confirm === 'archive' || confirm === 'deleteBlocked') {
+            runConfirm(() => archiveInventoryItem(item.id));
+            return;
+          }
+          if (confirm === 'restore') {
+            runConfirm(() => restoreInventoryItem(item.id));
+            return;
+          }
+          runConfirm(() => deleteInventoryItem(item.id));
         }}
-        onCancel={() => {
-          setShowDeleteConfirm(false);
-          setDeleteError(null);
-        }}
-        variant="danger"
+        onCancel={closeConfirm}
+        variant={confirm === 'delete' ? 'danger' : 'warning'}
       />
 
       <DuplicateDialog

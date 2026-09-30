@@ -4,6 +4,28 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-29 – Garments inventory: archive instead of force-delete
+
+**Typ:** Feature  
+**Scope:** Garments inventory. Nullable `archived_at` (migration **175**). `POST /api/garments/inventory/:id/archive` and `POST .../restore`. Hard delete returns **409** when the article is on a list or still has person or order data, and no longer force-unassigns. New assignment of an archived article returns **409**. Product create/update ignore `archivedAt`. Active uniqueness is partial (`archived_at IS NULL`). List duplicate is `POST /api/garments/lists/:id/duplicate` (one transaction; archived joins included; shares are not copied).  
+**Risk:** Migration **175** is applied on the local `public` schema (the schema the local dev server uses). The shared Neon tenant is not migrated. Local-first; not a production release. **QA Godkänt** + **Security Godkänt** 2026-09-29 (no accepted risks). Assign of an archived article stays **409**.  
+**Docs:** [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md), ADR [`ai/adr/GARMENTS_INVENTORY_ARCHIVE.md`](ai/adr/GARMENTS_INVENTORY_ARCHIVE.md).
+
+**Sammanfattning:** En använd artikel arkiveras i stället för att raderas med historiken. Oanvända artiklar kan fortfarande tas bort. En listdubblett kopierar befintliga kopplingar, även arkiverade, i ett anrop.
+
+---
+
+## 2026-09-29 – Garments statistics: order sections collapsible
+
+**Typ:** Fix (UI)  
+**Scope:** Garments statistics. The finished, incomplete, and not-ordered blocks are `DetailSection` with `collapsible` (default collapsed). Titles already include the line count.  
+**Risk:** Low. Layout only. Commit `6f9620f6`. Local-first.  
+**Docs:** [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md) Statistics.
+
+**Sammanfattning:** Beställningskategorierna i plaggstatistik är hopfällbara och stängda från start.
+
+---
+
 ## 2026-09-28 – DetailHeaderMenus: title stays put when Actions opens
 
 **Typ:** Fix (UI)  

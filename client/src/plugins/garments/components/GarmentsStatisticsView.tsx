@@ -2,6 +2,7 @@ import { Circle, CircleCheck, CircleDashed, LayoutGrid } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { StatKpiTile } from '@/core/ui/charts/StatCharts';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
@@ -9,10 +10,11 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { cn } from '@/lib/utils';
 
 import { garmentsApi } from '../api/garmentsApi';
 import { useGarments } from '../hooks/useGarments';
-import type { GarmentPerson } from '../types/garments';
+import type { GarmentPerson, InventoryItem } from '../types/garments';
 import {
   collectFitSummaryOrderLines,
   type FitSummaryOrderLine,
@@ -47,9 +49,11 @@ const ORDER_SECTIONS: Array<{
 
 function OrderLineList({
   lines,
+  inventoryItems,
   emptyLabel,
 }: {
   lines: FitSummaryOrderLine[];
+  inventoryItems: InventoryItem[];
   emptyLabel: string;
 }) {
   const { t } = useTranslation();
@@ -67,6 +71,15 @@ function OrderLineList({
     }
     return next;
   }, [lines]);
+  const archivedItemIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const item of inventoryItems) {
+      if (item.archivedAt) {
+        ids.add(String(item.id));
+      }
+    }
+    return ids;
+  }, [inventoryItems]);
 
   if (groups.length === 0) {
     return <p className="mt-3 text-sm text-muted-foreground">{emptyLabel}</p>;
@@ -87,6 +100,16 @@ function OrderLineList({
                 >
                   <span className="min-w-0 text-foreground">
                     {line.articleName}
+                    {archivedItemIds.has(line.itemId) ? (
+                      <span
+                        className={cn(
+                          'ml-1.5 text-[10px] font-extrabold',
+                          QC_STATUS_BADGE_COLORS.muted,
+                        )}
+                      >
+                        {t('garments.archived')}
+                      </span>
+                    ) : null}
                     {fit ? <span className="text-muted-foreground"> · {fit}</span> : null}
                   </span>
                   <span className="shrink-0 tabular-nums text-muted-foreground">
@@ -267,7 +290,11 @@ export function GarmentsStatisticsView() {
                 subtleTitle
                 collapsible
               >
-                <OrderLineList lines={lines} emptyLabel={t('garments.statistics.ordersEmpty')} />
+                <OrderLineList
+                  lines={lines}
+                  inventoryItems={inventoryItems}
+                  emptyLabel={t('garments.statistics.ordersEmpty')}
+                />
               </DetailSection>
             );
           })

@@ -1,4 +1,5 @@
 import {
+  Archive,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -83,6 +84,8 @@ import {
   garmentListMatchesSearch,
   inventoryItemMatchesSearch,
   inventoryItemMatchesTagFilter,
+  inventoryItemVisibleInCatalog,
+  isInventoryItemArchived,
 } from '../utils/garmentListFilter';
 import { normalizeInventoryTags } from '../utils/inventoryTags';
 import {
@@ -234,6 +237,8 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
 
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [inventoryTagFilter, setInventoryTagFilter] = useState<string | null>(null);
+  const [showArchivedOnly, setShowArchivedOnly] = useState(false);
+  const [bulkDeleteWarning, setBulkDeleteWarning] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkListsDialog, setShowBulkListsDialog] = useState(false);
@@ -465,19 +470,29 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
   const filteredInventory = useMemo(() => {
     const filtered = inventoryItems.filter(
       (item) =>
+        inventoryItemVisibleInCatalog(item, { archivedOnly: showArchivedOnly, searchTerm }) &&
         inventoryItemMatchesTagFilter(item, inventoryTagFilter) &&
         inventoryItemMatchesSearch(item, searchTerm),
     );
     return [...filtered].sort((a, b) => compareInventoryByField(a, b, inventorySort, sortOrder));
-  }, [inventoryItems, inventorySort, inventoryTagFilter, searchTerm, sortOrder]);
+  }, [inventoryItems, inventorySort, inventoryTagFilter, searchTerm, showArchivedOnly, sortOrder]);
+
+  const activeInventoryCount = useMemo(
+    () => inventoryItems.filter((item) => !isInventoryItemArchived(item)).length,
+    [inventoryItems],
+  );
+  const archivedInventoryCount = inventoryItems.length - activeInventoryCount;
 
   const inventoryTagCounts = useMemo(() => {
+    const slice = inventoryItems.filter((item) =>
+      showArchivedOnly ? isInventoryItemArchived(item) : !isInventoryItemArchived(item),
+    );
     const counts: Record<string, number> = {};
     for (const tag of availableTags) {
-      counts[tag] = countInventoryItemsWithTag(inventoryItems, tag);
+      counts[tag] = countInventoryItemsWithTag(slice, tag);
     }
     return counts;
-  }, [availableTags, inventoryItems]);
+  }, [availableTags, inventoryItems, showArchivedOnly]);
 
   const visibleIds = useMemo(
     () => (isInventoryEffective ? filteredInventory : filteredLists).map((item) => String(item.id)),
@@ -532,13 +547,25 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
       return;
     }
     setDeleting(true);
+    setBulkDeleteWarning(null);
     try {
       if (isInventoryEffective) {
-        await deleteInventoryItems(selectedIds);
+        const result = await deleteInventoryItems(selectedIds);
+        if (result.blockedIds.length > 0) {
+          setSelectedIds(result.blockedIds);
+          setBulkDeleteWarning(
+            t('garments.bulkDeleteInventoryBlocked', {
+              deleted: result.deleted,
+              blocked: result.blockedIds.length,
+            }),
+          );
+          return;
+        }
       } else {
         await deleteGarments(selectedIds);
       }
       clearSelection();
+      setBulkDeleteWarning(null);
       setShowBulkDeleteModal(false);
     } catch (err) {
       console.error('Bulk delete failed:', err);
@@ -843,16 +870,38 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => setInventoryTagFilter(null)}
+          onClick={() => {
+            setInventoryTagFilter(null);
+            setShowArchivedOnly(false);
+          }}
           className={cn(
-            inventoryTagFilter == null ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            inventoryTagFilter == null && !showArchivedOnly
+              ? LIST_FILTER_CHIP_ACTIVE_CLASS
+              : LIST_FILTER_CHIP_CLASS,
             isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
           )}
         >
           <LayoutGrid className="h-3.5 w-3.5" />
           <span>
             {t('garments.filterAll', { defaultValue: 'All' })}{' '}
-            <span className="tabular-nums font-semibold">({inventoryItems.length})</span>
+            <span className="tabular-nums font-semibold">({activeInventoryCount})</span>
+          </span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-pressed={showArchivedOnly}
+          onClick={() => setShowArchivedOnly((current) => !current)}
+          className={cn(
+            showArchivedOnly ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
+          )}
+        >
+          <Archive className="h-3.5 w-3.5" />
+          <span>
+            {t('garments.filterArchived')}{' '}
+            <span className="tabular-nums font-semibold">({archivedInventoryCount})</span>
           </span>
         </Button>
         {availableTags.map((tag) => {
@@ -1098,11 +1147,15 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
 
           <BulkDeleteModal
             isOpen={showBulkDeleteModal}
-            onClose={() => setShowBulkDeleteModal(false)}
+            onClose={() => {
+              setShowBulkDeleteModal(false);
+              setBulkDeleteWarning(null);
+            }}
             onConfirm={handleBulkDelete}
             itemCount={selectedCount}
             itemLabel={isInventoryEffective ? t('garments.inventoryItems') : t('garments.lists')}
             isLoading={deleting}
+            warningMessage={bulkDeleteWarning ?? undefined}
           />
 
           {isInventoryEffective ? (

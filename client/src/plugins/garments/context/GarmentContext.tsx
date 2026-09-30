@@ -74,7 +74,9 @@ export interface GarmentContextType {
   /** Remove all tags from an inventory item. */
   clearTagsFromInventoryItem: (item: InventoryItem) => Promise<boolean>;
   deleteInventoryItem: (id: string) => Promise<string | null>;
-  deleteInventoryItems: (ids: string[]) => Promise<void>;
+  deleteInventoryItems: (ids: string[]) => Promise<{ deleted: number; blockedIds: string[] }>;
+  archiveInventoryItem: (id: string) => Promise<string | null>;
+  restoreInventoryItem: (id: string) => Promise<string | null>;
 
   getDuplicateConfig: (
     item: GarmentList | InventoryItem | null,
@@ -174,7 +176,9 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   applyTagToInventoryItem: async () => false,
   clearTagsFromInventoryItem: async () => false,
   deleteInventoryItem: async () => null,
-  deleteInventoryItems: async () => {},
+  deleteInventoryItems: async () => ({ deleted: 0, blockedIds: [] }),
+  archiveInventoryItem: async () => null,
+  restoreInventoryItem: async () => null,
   getDuplicateConfig: () => null,
   executeDuplicate: async () => ({ closePanel: () => {} }),
   recentlyDuplicatedInventoryId: null,

@@ -118,7 +118,29 @@ export function resolveMatrixColumns(
     maxSort += built.length - 1;
   }
 
-  return filtered.sort((a, b) => a.sortOrder - b.sortOrder);
+  const withLiveNames = filtered.map((col) => {
+    const itemId = inventoryItemIdFromColumnId(col.id);
+    if (!itemId) {
+      return col;
+    }
+    const item = inventoryItems.find((entry) => String(entry.id) === itemId);
+    const articleName = item?.articleName?.trim();
+    if (!articleName || col.group === articleName) {
+      return col;
+    }
+    return { ...col, group: articleName };
+  });
+
+  return withLiveNames.sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+/** Keep a stored size or audience visible when it is no longer in the variant catalog. */
+export function selectOptionsWithStoredValue(options: string[], stored: string): string[] {
+  const value = stored.trim();
+  if (!value || options.includes(value)) {
+    return options;
+  }
+  return [value, ...options];
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   Minus,
   Package,
   Plus,
+  Archive,
   ShoppingBag,
   SlidersHorizontal,
   Tag,
@@ -20,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailHeaderMetaRow } from '@/core/ui/DetailHeaderMenus';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -37,6 +39,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { FORM_COMPACT_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
@@ -481,6 +484,11 @@ export function InventoryQuickContextPanel({
                 <ShoppingBag className="h-3 w-3" aria-hidden />
                 {formatPurchasePrice(item.recommendedPrice, item.currency || 'SEK')}
               </span>
+            ) : null}
+            {item.archivedAt ? (
+              <StatusOutlineBadge icon={Archive} className={QC_STATUS_BADGE_COLORS.muted}>
+                {t('garments.archived')}
+              </StatusOutlineBadge>
             ) : null}
           </DetailHeaderMetaRow>
           <div className="mt-4">{tabChips}</div>

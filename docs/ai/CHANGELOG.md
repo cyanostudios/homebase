@@ -2,6 +2,10 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Garments inventory archive — docs after Security (2026-09-29)
+
+Efter **QA Godkänt** + **Security Godkänt** (inga accepterade risker). Operator [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md): archive/restore, delete 409 utan force-unassign, `GET` inventory inkluderar arkiverade, katalog döljer dem tills Arkiverad-chip eller sökträff, listdubblett `POST /lists/:id/duplicate`, statistiksektioner hopfällbara (default stängda) och Archived på orderrad i admin. ADR [`adr/GARMENTS_INVENTORY_ARCHIVE.md`](adr/GARMENTS_INVENTORY_ARCHIVE.md). Migration **175** är applicerad på lokalt `public`-schema. Den delade Neon-tenanten är inte migrerad. **Local-first; ej prod-release.**
+
 ## DetailHeaderMenus heading + garments matrix mobile scroll — Security docs sync (2026-09-28)
 
 Efter **QA Godkänt** + **Security Godkänt** (inga residualer; UI-only layout/CSS). Produkt [`docs/CHANGELOG.md`](../CHANGELOG.md) riskrader synkade; [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](../PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) § Detail header menus (leading + triggers rad 1; submenu rad 2 i menykolumnen). Operator [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md) vertikal swipe. **Working tree; local-first; ej prod-release.**

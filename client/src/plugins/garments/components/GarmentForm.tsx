@@ -596,6 +596,9 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 {getFieldError('articleName')?.message}
               </p>
             ) : null}
+            {currentInventoryItem?.archivedAt ? (
+              <p className="mt-1 text-xs text-muted-foreground">{t('garments.archivedFormNote')}</p>
+            ) : null}
           </div>
           {headerTrailing ? (
             <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>

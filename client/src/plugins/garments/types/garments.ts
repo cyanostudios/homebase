@@ -134,6 +134,8 @@ export interface InventoryItem {
   variantCount: number;
   /** Garment lists this item is assigned to. */
   assignedListIds?: string[];
+  /** Set when the article is out of the active catalog. Null or omitted means active. */
+  archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

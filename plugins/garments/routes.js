@@ -171,6 +171,24 @@ function createGarmentsRoutes(controller, context) {
   );
 
   router.post(
+    '/inventory/:id/archive',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res, next) => controller.archiveInventoryItem(req, res, next),
+  );
+
+  router.post(
+    '/inventory/:id/restore',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res, next) => controller.restoreInventoryItem(req, res, next),
+  );
+
+  router.post(
     '/inventory/:id/variants',
     gate,
     csrfProtection,
@@ -232,6 +250,16 @@ function createGarmentsRoutes(controller, context) {
     checkboxColumnsBody(),
     validateRequest,
     (req, res, next) => controller.createList(req, res, next),
+  );
+
+  router.post(
+    '/lists/:id/duplicate',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.plainString('name', 1, 255),
+    validateRequest,
+    (req, res, next) => controller.duplicateList(req, res, next),
   );
 
   router.get('/lists/:id', gate, commonRules.id('id'), validateRequest, (req, res, next) =>
