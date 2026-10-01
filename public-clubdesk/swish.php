@@ -24,10 +24,12 @@ $swishPayee = '';
 $swishMessage = '';
 $loadError = false;
 $swishVisible = true;
+$inventoryTabVisible = true;
 
 try {
     $pdo = getPdoFromEnv();
     $swishVisible = publicAppCardVisible($pdo, 'swish');
+    $inventoryTabVisible = publicAppCardVisible($pdo, 'inventory');
     if ($swishVisible) {
         $q = publicAppPrimarySwishProfileSql();
         $stmt = $pdo->prepare($q['sql']);
@@ -146,6 +148,16 @@ $jsonLd = [
             <span class="bottom-bar__label">Price list</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
+          <?php if ($inventoryTabVisible): ?>
+          <a class="bottom-bar__tab" href="/inventory/" data-tab="inventory">
+            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <path d="M3.3 7 12 12l8.7-5M12 22V12" />
+            </svg>
+            <span class="bottom-bar__label">Inventory</span>
+            <span class="bottom-bar__dot" aria-hidden="true"></span>
+          </a>
+          <?php endif; ?>
         </div>
       </nav>
     </div>

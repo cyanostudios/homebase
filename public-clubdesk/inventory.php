@@ -191,24 +191,20 @@ if ($slug === null || $slug === '') {
 } else {
     try {
         $pdo = getPdoFromEnv();
-        if (!publicAppCardVisible($pdo, 'inventory')) {
-            $notFound = true;
-        } else {
-            $q = publicAppInventoryBySlugSql($pdo, $slug);
-            $stmt = $pdo->prepare($q['sql']);
-            $stmt->execute($q['params']);
-            $row = $stmt->fetch();
-            if ($row) {
-                $item = $row;
-                $variants = parseInventoryVariants($row);
-                $currency = trim((string) ($row['currency'] ?? 'SEK')) ?: 'SEK';
-                $featured = trim((string) ($row['featured_image_url'] ?? ''));
-                if ($featured !== '') {
-                    $ogImage = absolutePublicUrl($baseUrl, $featured);
-                }
-            } else {
-                $notFound = true;
+        $q = publicAppInventoryBySlugSql($pdo, $slug);
+        $stmt = $pdo->prepare($q['sql']);
+        $stmt->execute($q['params']);
+        $row = $stmt->fetch();
+        if ($row) {
+            $item = $row;
+            $variants = parseInventoryVariants($row);
+            $currency = trim((string) ($row['currency'] ?? 'SEK')) ?: 'SEK';
+            $featured = trim((string) ($row['featured_image_url'] ?? ''));
+            if ($featured !== '') {
+                $ogImage = absolutePublicUrl($baseUrl, $featured);
             }
+        } else {
+            $notFound = true;
         }
     } catch (Throwable $e) {
         $notFound = true;
@@ -292,15 +288,12 @@ $jsonLd = [
 <?php
     $articleTitle = (string) ($item['article_name'] ?? 'Artikel');
     $brandLine = trim((string) ($item['brand'] ?? ''));
-    $headerDesc = trim((string) ($item['description'] ?? ''));
 ?>
       <header class="guide-header">
         <div class="guide-header__copy">
           <h1 class="guide-header__title"><?= h($articleTitle) ?></h1>
 <?php if ($brandLine !== ''): ?>
           <p class="home-header__text guide-header__text"><?= h($brandLine) ?></p>
-<?php elseif ($headerDesc !== ''): ?>
-          <p class="home-header__text guide-header__text"><?= h(truncateMetaDescription($headerDesc, 120)) ?></p>
 <?php endif; ?>
         </div>
         <a class="guide-back-btn" href="/inventory/" id="detail-back-btn" aria-label="Tillbaka">
@@ -325,6 +318,8 @@ $jsonLd = [
 <?php endif; ?>
 <?php
     $bodyDesc = cellText($item, 'description');
+    // Internal note stays off the public page until staff gate returns.
+    $internalNote = '';
     $packageSize = cellText($item, 'package_size');
     $packageUnit = cellText($item, 'package_unit');
     $packageLabel = trim($packageSize . ($packageSize !== '' && $packageUnit !== '' ? ' ' : '') . $packageUnit);
@@ -395,33 +390,9 @@ $jsonLd = [
         $stockTotal += (int) ($stockRow['quantity'] ?? 0);
     }
 ?>
-<?php if ($bodyDesc !== '' || $factRows !== []): ?>
-          <section class="home-section">
-<?php if ($bodyDesc !== ''): ?>
-            <p class="option-card__desc price-list-row__desc"><?= nl2br(h($bodyDesc), false) ?></p>
-<?php endif; ?>
-<?php renderFactList($factRows); ?>
-          </section>
-<?php endif; ?>
-<?php if ($ingredients !== '' || $allergens !== '' || $nutritionRows !== []): ?>
-          <section class="home-section">
-            <h2 class="home-section__title">Ingredienser &amp; näringsvärde</h2>
-<?php if ($ingredients !== ''): ?>
-            <p class="option-card__desc price-list-row__desc"><?= nl2br(h($ingredients), false) ?></p>
-<?php endif; ?>
-<?php if ($allergens !== ''): ?>
-            <p class="inventory-facts__label" style="margin-top:0.75rem;">Allergener</p>
-            <p class="option-card__desc price-list-row__desc"><?= nl2br(h($allergens), false) ?></p>
-<?php endif; ?>
-<?php if ($nutritionRows !== []): ?>
-            <p class="inventory-facts__label" style="margin-top:0.75rem;">Näringsvärde per 100 g</p>
-<?php renderFactList($nutritionRows); ?>
-<?php endif; ?>
-          </section>
-<?php endif; ?>
           <section class="home-section home-section--rows price-list-section">
             <div class="home-section__head">
-              <h2 class="home-section__title price-list-section__title"><?= $variants !== [] ? 'Lager' : 'Lager' ?></h2>
+              <h2 class="home-section__title"><?= $variants !== [] ? 'Varianter' : 'Lager' ?></h2>
               <p class="inventory-stock-total">Totalt <span id="inventory-stock-total"><?= h((string) $stockTotal) ?></span> st</p>
             </div>
             <p id="inventory-stock-error" class="inventory-stock-error" hidden>Kunde inte spara lagersaldot.</p>
@@ -468,7 +439,46 @@ $jsonLd = [
               </li>
 <?php endforeach; ?>
             </ul>
+<?php if ($bodyDesc !== '' || $internalNote !== ''): ?>
+            <div class="inventory-copy-block">
+<?php if ($bodyDesc !== ''): ?>
+              <div>
+                <h2 class="home-section__title">Beskrivning</h2>
+                <p class="inventory-copy"><?= nl2br(h($bodyDesc), false) ?></p>
+              </div>
+<?php endif; ?>
+<?php if ($internalNote !== ''): ?>
+              <p class="inventory-copy">
+                <span class="inventory-copy__label">Intern anteckning</span>
+                <?= nl2br(h($internalNote), false) ?>
+              </p>
+<?php endif; ?>
+            </div>
+<?php endif; ?>
           </section>
+<?php if ($factRows !== []): ?>
+          <section class="home-section">
+<?php renderFactList($factRows); ?>
+          </section>
+<?php endif; ?>
+<?php if ($ingredients !== '' || $allergens !== '' || $nutritionRows !== []): ?>
+          <section class="home-section">
+            <h2 class="home-section__title">Ingredienser &amp; näringsvärde</h2>
+<?php if ($ingredients !== ''): ?>
+            <p class="inventory-copy"><?= nl2br(h($ingredients), false) ?></p>
+<?php endif; ?>
+<?php if ($allergens !== ''): ?>
+            <p class="inventory-copy">
+              <span class="inventory-copy__label">Allergener</span>
+              <?= nl2br(h($allergens), false) ?>
+            </p>
+<?php endif; ?>
+<?php if ($nutritionRows !== []): ?>
+            <p class="inventory-copy__label">Näringsvärde per 100 g</p>
+<?php renderFactList($nutritionRows); ?>
+<?php endif; ?>
+          </section>
+<?php endif; ?>
         </div>
 <?php endif; ?>
       </main>
@@ -526,5 +536,6 @@ $jsonLd = [
         bindBackNav(document.getElementById('detail-back-not-found'));
       })();
     </script>
+    <script src="/inventory-stock-app.js" defer></script>
   </body>
 </html>

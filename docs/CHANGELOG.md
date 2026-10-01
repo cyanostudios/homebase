@@ -4,6 +4,176 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-09-30 – Public price list uses compact category and row type
+
+**Typ:** UI  
+**Scope:** Public Clubdesk price list and cart. Category and row titles use `--fs-sm`; tighter row padding and section gaps. Category stays bold vs regular row weight. Inventory type scale unchanged. Garments unchanged.  
+**Risk:** Low.
+
+**Sammanfattning:** Publik prislista är tätare igen — mindre typsnitt och höjd för kategori och rad.
+
+---
+
+## 2026-09-30 – Public price list category headings above row titles
+
+**Typ:** UI  
+**Scope:** Public Clubdesk price list (and cart view using the same markup). Category H2s use section display scale (`--fs-xl`); row names stay at list title scale (`--fs-base`). Spacing between category sections is ~2.125rem. Inventory list/article title sharing is unchanged. Garments unchanged.  
+**Risk:** Low.
+
+**Sammanfattning:** Kategorirubriker på publik prislista skiljer sig tydligt från radtitlar; inventory påverkas inte.
+
+---
+
+## 2026-09-30 – Kiosk staff gate paused for local stock UX
+
+**Typ:** UX / tillfällig säkerhetsavvikelse  
+**Scope:** Public Clubdesk inventory article. Stock +/- and `POST /api/inventory_quantity.php` are open again (same-origin only). “Personal” unlock UI removed. Internal note stays off the page. Gate helpers kept for later. Garments unchanged.  
+**Risk:** Medium on a public host — do not release this pause. See `docs/ai/adr/CLUBDESK_KIOSK_STAFF_GATE.md`.
+
+**Sammanfattning:** Under lokal utveckling kan lagersaldo ändras utan personalupplåsning; behörighet återkommer senare.
+
+---
+
+## 2026-09-30 – Clubdesk variant identity may repeat
+
+**Typ:** Bugfix  
+**Scope:** Clubdesk inventory variants. Saving no longer fails when two variants share the same category/flavour/pack size (including empty). Matches garments (migration 152). Migration **182** drops `idx_clubdesk_inventory_variants_identity`. UI still warns.  
+**Risk:** Low. Article name+brand and slug uniqueness are unchanged.
+
+**Sammanfattning:** Dubbletter av variantidentitet blockerar inte längre sparning i Clubdesk-inventory.
+
+---
+
+## 2026-09-30 – Kiosk stock and internal note require a staff cookie
+
+**Typ:** Säkerhet  
+**Scope:** Public Clubdesk inventory article. Anonymous visitors still see the catalog and quantities. Stock changes and the internal note require `PUBLIC_CLUBDESK_KIOSK_SECRET` and cookie `clubdesk_kiosk`. Garments is unchanged.  
+**Risk:** Low. The write endpoint returns 401 without the cookie. If the secret is unset, the gate stays closed. Shared secret and no unlock rate limit are Security residuals **KG-1** / **KG-2** (TPM acceptance at release) — see `docs/ai/adr/CLUBDESK_KIOSK_STAFF_GATE.md`.
+
+**Sammanfattning:** Lagerändring och intern anteckning på artikelsidan kräver en personalcookie. Katalogen är kvar öppen.
+
+---
+
+## 2026-09-30 – Kiosk inventory and price-list rows share one text scale
+
+**Typ:** UI  
+**Scope:** Public Clubdesk inventory list, inventory article, and price-list rows. Headings, names, prices, and stock counts use one title size. Descriptions and facts use one body size. The article description sits under the variants. The internal note appears under the variants only when the staff cookie is valid. Purchase price stays hidden. Garments is unchanged.  
+**Risk:** Low. JSON list and detail still omit `comment`.
+
+**Sammanfattning:** Inventory och prislistans rader använder samma rubrik och brödtext. Beskrivning, med rubriken Beskrivning, ligger under varianterna. Intern anteckning syns bara efter personalcookie.
+
+---
+
+## 2026-09-30 – Inventory quantity sits beside the title
+
+**Typ:** UI  
+**Scope:** Public Clubdesk inventory. The list shows the stock count in bold beside the article name. On the article page, variants are the first block under the title.  
+**Risk:** None.
+
+**Sammanfattning:** Antalet står bredvid rubriken, och varianterna syns direkt på artikelsidan. “Totalt X st” där är större och fet.
+
+---
+
+## 2026-09-30 – Public inventory list shows variants, description, and meta
+
+**Typ:** UI  
+**Scope:** Public Clubdesk inventory list. A row shows its description, product meta (brand, category, package, material, article number), and each variant when those exist.  
+**Risk:** None.
+
+**Sammanfattning:** Inventarielistan visar varianter, beskrivning och meta när de finns.
+
+---
+
+## 2026-09-30 – A price-list category can be turned off
+
+**Typ:** UI  
+**Scope:** Clubdesk price lists. Each category has its own switch. Off hides that category’s items on the public price list. The items stay in admin. Garments lists are unchanged.  
+**Risk:** Low. Local column `clubdesk_price_list_item_categories.enabled` (migration 181). Neon is not migrated.
+
+**Sammanfattning:** En kategori kan stängas av utan att raderas. På fliken Artiklar i admin märks artiklar i en avstängd kategori med en större röd Off. Den publika listan visar dem inte.
+
+---
+
+## 2026-09-30 – Cart heading shows the item count
+
+**Typ:** UI  
+**Scope:** Public Clubdesk price-list cart. The line above the sum reads “Varukorgen - X produkter”, where X is the sum of quantities.  
+**Risk:** None.
+
+**Sammanfattning:** Varukorgen visar “Varukorgen - X produkter” ovanför totalsumman.
+
+---
+
+## 2026-09-30 – Price list categories have their own tab
+
+**Typ:** UI  
+**Scope:** Clubdesk price lists. Categories live on a Categories tab: turn category headings on or off, add a category, and delete one. Off shows items as one list in admin and on the public price list. Garments lists are unchanged.  
+**Risk:** Low. Local migration `180-clubdesk-price-list-categories-enabled.sql` adds `categories_enabled` (default on).
+
+**Sammanfattning:** Prislistans kategorier hanteras i en egen flik.
+
+---
+
+## 2026-09-30 – Public inventory tab is a searchable list
+
+**Typ:** UI  
+**Scope:** Public Clubdesk Inventory tab. Published articles are one list with a search field (name, brand, category, article number, package, tags). Draft and archived articles stay off the public list. Garments is unchanged.  
+**Risk:** None.
+
+**Sammanfattning:** Inventariefliken listar publicerade artiklar och går att söka i.
+
+---
+
+## 2026-09-30 – Public Clubdesk inventory tab is visible again
+
+**Typ:** UI  
+**Scope:** Public Clubdesk bottom bar. Inventory is a tab on Hem, guides, price lists, Swish, Kontakt, and the article page. The public catalog listing follows the inventory visibility switch, which is on locally. Hiding the tab for non-admins is not in this change. Garments is unchanged.  
+**Risk:** None.
+
+**Sammanfattning:** Inventariefliken syns igen i den publika bottenmenyn.
+
+---
+
+## 2026-09-30 – Price list product link is an info icon
+
+**Typ:** UI  
+**Scope:** Public Clubdesk price list. The product link is a gray info icon before the name. The accessible name stays “Visa produkt”.  
+**Risk:** None.
+
+**Sammanfattning:** Produktlänken är en infoikon före namnet.
+
+---
+
+## 2026-09-30 – Featured price lists only as home cards
+
+**Typ:** UI  
+**Scope:** Public Clubdesk home. A featured price list stays in the card row and is left out of the list under it. The Price list tab still lists every published list. Guides are unchanged.  
+**Risk:** None.
+
+**Sammanfattning:** Utvald prislista syns bara som kort på Hem.
+
+---
+
+## 2026-09-30 – Price list category field on the list
+
+**Typ:** UI  
+**Scope:** Clubdesk price lists. Add a category from the list itself (Information and Articles), without opening edit mode first. An empty category still shows as its own section. Garments lists are unchanged.  
+**Risk:** None.
+
+**Sammanfattning:** Ny kategori läggs till direkt på prislistan.
+
+---
+
+## 2026-09-30 – Public Clubdesk product page stock and facts
+
+**Typ:** Feature  
+**Scope:** Public Clubdesk article page. Shows product facts (not purchase price or catalog provenance) and can set variant stock. The quantity is the same `clubdesk_inventory_variants.quantity` column Clubdesk admin reads. Draft and archived articles stay off the page. Garments is unchanged.  
+**Risk:** Low. Stock write and SSR `comment` later require the staff cookie (`CLUBDESK_KIOSK_STAFF_GATE`); this entry is the product-facts/stock surface.
+
+**Sammanfattning:** Publik produktsida visar produktinfo och kan spara lagersaldo till admin (staff-cookie efter 2026-09-30).
+
+---
+
 ## 2026-09-30 – Clubdesk inventory status under the title
 
 **Typ:** UI  

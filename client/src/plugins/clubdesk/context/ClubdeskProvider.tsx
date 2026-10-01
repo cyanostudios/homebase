@@ -89,6 +89,7 @@ function toPriceListPayload(
     featuredImageUrl: priceList.featuredImageUrl,
     publicationStatus: priceList.publicationStatus,
     featured: priceList.featured === true,
+    categoriesEnabled: priceList.categoriesEnabled !== false,
     currency: priceList.currency || 'SEK',
     items: (priceList.items || []).map((item, index) => ({
       title: item.title,
@@ -653,10 +654,21 @@ export function ClubdeskProvider({
 
   const isInventoryUi =
     activeDomain === 'inventory' || location.pathname.startsWith('/clubdesk/inventory');
+  const isPriceListUi =
+    activeDomain === 'priceLists' || location.pathname.startsWith('/clubdesk/price-list');
+
+  /** Inventory keeps its own validation/saving state in the domain hook — expose it on inventory routes. */
+  const panelValidationErrors = isInventoryUi
+    ? inventoryDomain.inventoryValidationErrors
+    : validationErrors;
+  const panelClearValidationErrors = isInventoryUi
+    ? inventoryDomain.clearInventoryValidationErrors
+    : clearValidationErrors;
+  const panelIsSaving = isInventoryUi ? inventoryDomain.isSaving : isSaving;
 
   const nav = isInventoryUi
     ? inventoryDomain.inventoryNav
-    : activeDomain === 'priceLists' || location.pathname.startsWith('/clubdesk/price-list')
+    : isPriceListUi
       ? priceListNav
       : guideNav;
 
@@ -813,7 +825,7 @@ export function ClubdeskProvider({
   const savePriceList = useCallback(
     async (
       raw: ClubdeskPriceListPayload,
-      options?: { categoryNames?: string[] },
+      options?: { categoryNames?: string[]; categoryEnabled?: Record<string, boolean> },
     ): Promise<boolean> => {
       const slug =
         raw.slug?.trim() || slugify(raw.title.trim()) || `price-list-${Date.now().toString(36)}`;
@@ -824,6 +836,7 @@ export function ClubdeskProvider({
         featuredImageUrl: null,
         publicationStatus: raw.publicationStatus === 'published' ? 'published' : 'draft',
         featured: raw.featured === true,
+        categoriesEnabled: raw.categoriesEnabled !== false,
         currency: (raw.currency || 'SEK').trim() || 'SEK',
         items: renumberWithinCategories(
           (raw.items || []).map((item, index) => {
@@ -893,7 +906,10 @@ export function ClubdeskProvider({
           const names = Array.from(new Set(orderedNames));
           for (const name of names) {
             try {
-              await clubdeskApi.createPriceListCategory(saved.id, name);
+              const created = await clubdeskApi.createPriceListCategory(saved.id, name);
+              if (options?.categoryEnabled?.[name.toLowerCase()] === false) {
+                await clubdeskApi.setPriceListCategoryEnabled(saved.id, created.id, false);
+              }
             } catch {
               /* ignore duplicates */
             }
@@ -1178,6 +1194,38 @@ export function ClubdeskProvider({
     [clearValidationErrors, currentClubdesk, ensureFullClubdesk, setValidationErrors, t],
   );
 
+  const updatePriceListCategoriesEnabled = useCallback(
+    async (priceList: ClubdeskPriceList, categoriesEnabled: boolean) => {
+      try {
+        const full = await ensureFullPriceList(priceList);
+        const saved = await clubdeskApi.updatePriceList(
+          full.id,
+          toPriceListPayload(full, { categoriesEnabled: categoriesEnabled === true }),
+        );
+        setPriceLists((prev) =>
+          prev.map((row) =>
+            String(row.id) === String(saved.id)
+              ? { ...row, ...saved, itemCount: saved.items?.length ?? saved.itemCount }
+              : row,
+          ),
+        );
+        if (currentPriceList && String(currentPriceList.id) === String(saved.id)) {
+          setCurrentPriceList(saved);
+        }
+        clearValidationErrors();
+      } catch (error: unknown) {
+        const err = error as { message?: string; error?: string };
+        setValidationErrors([
+          {
+            field: 'general',
+            message: err?.message || err?.error || t('clubdesk.priceList.saveFailed'),
+          },
+        ]);
+      }
+    },
+    [clearValidationErrors, currentPriceList, ensureFullPriceList, setValidationErrors, t],
+  );
+
   const updatePriceListFeatured = useCallback(
     async (priceList: ClubdeskPriceList, featured: boolean) => {
       try {
@@ -1403,6 +1451,32 @@ export function ClubdeskProvider({
     [clearValidationErrors, currentPriceList, setValidationErrors, t],
   );
 
+  const setPriceListCategoryEnabled = useCallback(
+    async (priceListId: string, categoryId: string, enabled: boolean) => {
+      setPriceListCategories((prev) =>
+        prev.map((row) => (String(row.id) === String(categoryId) ? { ...row, enabled } : row)),
+      );
+      try {
+        const updated = await clubdeskApi.setPriceListCategoryEnabled(
+          priceListId,
+          categoryId,
+          enabled,
+        );
+        setPriceListCategories((prev) =>
+          prev.map((row) => (String(row.id) === String(updated.id) ? updated : row)),
+        );
+      } catch (error) {
+        try {
+          await refreshPriceListCategories(priceListId);
+        } catch {
+          /* keep the optimistic row if refresh also fails */
+        }
+        throw error;
+      }
+    },
+    [refreshPriceListCategories],
+  );
+
   const createPriceListCategory = useCallback(async (priceListId: string, name: string) => {
     const created = await clubdeskApi.createPriceListCategory(priceListId, name);
     setPriceListCategories((prev) => {
@@ -1450,10 +1524,37 @@ export function ClubdeskProvider({
       categoryId: string,
       options?: { moveToCategory: string | null },
     ) => {
+      const removed = priceListCategories.find((row) => String(row.id) === String(categoryId));
       await clubdeskApi.deletePriceListCategory(priceListId, categoryId, options);
       setPriceListCategories((prev) => prev.filter((c) => String(c.id) !== String(categoryId)));
+      if (!removed) {
+        return;
+      }
+      const removedKey = removed.name.trim().toLowerCase();
+      const moveTo =
+        options && Object.prototype.hasOwnProperty.call(options, 'moveToCategory')
+          ? options.moveToCategory
+          : null;
+      const patchItems = (items: ClubdeskPriceList['items']) =>
+        (items || []).map((item) =>
+          (item.category || '').trim().toLowerCase() === removedKey
+            ? { ...item, category: moveTo }
+            : item,
+        );
+      setPriceLists((prev) =>
+        prev.map((row) =>
+          String(row.id) === String(priceListId) && row.items
+            ? { ...row, items: patchItems(row.items) }
+            : row,
+        ),
+      );
+      setCurrentPriceList((prev) =>
+        prev && String(prev.id) === String(priceListId)
+          ? { ...prev, items: patchItems(prev.items) }
+          : prev,
+      );
     },
-    [],
+    [priceListCategories],
   );
 
   const createClubdeskDuplicate = useCallback(
@@ -1505,6 +1606,7 @@ export function ClubdeskProvider({
         featuredImageUrl: full.featuredImageUrl,
         publicationStatus: 'draft',
         featured: full.featured === true,
+        categoriesEnabled: full.categoriesEnabled !== false,
         currency: full.currency || 'SEK',
         items: (full.items || []).map((row, index) => ({
           title: row.title,
@@ -1583,9 +1685,6 @@ export function ClubdeskProvider({
     closePanel: closeClubdeskPanel,
   });
 
-  const isPriceListUi =
-    activeDomain === 'priceLists' || location.pathname.startsWith('/clubdesk/price-list');
-
   function inventoryAsClubdeskProxy(item: ClubdeskInventoryItem | null): Clubdesk | null {
     if (!item) {
       return null;
@@ -1658,7 +1757,7 @@ export function ClubdeskProvider({
           : currentClubdesk) as Clubdesk | null,
       panelMode,
       activeDomain,
-      validationErrors,
+      validationErrors: panelValidationErrors,
       clubdesk,
       categories,
       refreshCategories,
@@ -1669,7 +1768,7 @@ export function ClubdeskProvider({
       currentPriceList,
       priceListCategories,
       refreshPriceListCategories,
-      isSaving,
+      isSaving: panelIsSaving,
       openClubdeskPanel: isInventoryUi
         ? (inventoryDomain.openInventoryPanel as unknown as typeof openClubdeskPanel)
         : isPriceListUi
@@ -1706,9 +1805,11 @@ export function ClubdeskProvider({
       deletePriceLists,
       updatePriceListPublicationStatus,
       updatePriceListFeatured,
+      updatePriceListCategoriesEnabled,
       reorderPriceLists: reorderPriceListsFn,
       reorderPriceListItems,
       createPriceListCategory,
+      setPriceListCategoryEnabled,
       reorderPriceListCategories,
       deletePriceListCategory: deletePriceListCategoryFn,
       getDuplicateConfig: isInventoryUi
@@ -1725,7 +1826,7 @@ export function ClubdeskProvider({
       executePriceListDuplicate,
       getInventoryDuplicateConfig,
       executeInventoryDuplicate,
-      clearValidationErrors,
+      clearValidationErrors: panelClearValidationErrors,
       selectedClubdeskIds,
       toggleClubdeskSelected: toggleClubdeskSelectedCore,
       selectAllClubdesks: selectAllClubdesksCore,
@@ -1786,7 +1887,9 @@ export function ClubdeskProvider({
       currentClubdesk,
       panelMode,
       activeDomain,
-      validationErrors,
+      panelValidationErrors,
+      panelClearValidationErrors,
+      panelIsSaving,
       clubdesk,
       categories,
       refreshCategories,
@@ -1797,7 +1900,6 @@ export function ClubdeskProvider({
       currentPriceList,
       priceListCategories,
       refreshPriceListCategories,
-      isSaving,
       openClubdeskPanel,
       openClubdeskForEdit,
       openClubdeskForView,
@@ -1818,9 +1920,11 @@ export function ClubdeskProvider({
       deletePriceLists,
       updatePriceListPublicationStatus,
       updatePriceListFeatured,
+      updatePriceListCategoriesEnabled,
       reorderPriceListsFn,
       reorderPriceListItems,
       createPriceListCategory,
+      setPriceListCategoryEnabled,
       reorderPriceListCategories,
       deletePriceListCategoryFn,
       getDuplicateConfig,
@@ -1829,7 +1933,7 @@ export function ClubdeskProvider({
       executePriceListDuplicate,
       getInventoryDuplicateConfig,
       executeInventoryDuplicate,
-      clearValidationErrors,
+      panelClearValidationErrors,
       selectedClubdeskIds,
       toggleClubdeskSelectedCore,
       selectAllClubdesksCore,

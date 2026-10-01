@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS } from '@/core/ui/BulkActionRoundBar';
 import { listReorderRowStyle } from '@/core/ui/listReorderTransition';
 import {
@@ -57,6 +58,8 @@ import {
 export type PriceListItemsEditorProps = {
   items: ClubdeskPriceListItemPayload[];
   categoryOptions: string[];
+  categoriesEnabled?: boolean;
+  isCategoryOff?: (category: string | null | undefined) => boolean;
   duplicatedIndexes: Set<number>;
   getTitleError?: (index: number) => string | undefined;
   onUpdate: (index: number, patch: Partial<ClubdeskPriceListItemPayload>) => void;
@@ -379,6 +382,8 @@ function InventoryLinkRow({
 export function PriceListItemsEditor({
   items,
   categoryOptions,
+  categoriesEnabled = true,
+  isCategoryOff,
   duplicatedIndexes,
   getTitleError,
   onUpdate,
@@ -416,6 +421,7 @@ export function PriceListItemsEditor({
           <div className={PRICE_LIST_ITEM_EDIT_TRACK_CLASS}>
             {items.map((item, index) => {
               const titleError = getTitleError?.(index);
+              const categoryOff = isCategoryOff?.(item.category) === true;
               const isDuplicated = duplicatedIndexes.has(index);
               const inventoryCatalog =
                 item.inventoryCatalogPrice != null &&
@@ -446,8 +452,15 @@ export function PriceListItemsEditor({
                     <div className={PRICE_LIST_ITEM_STACK_CLASS}>
                       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1">
                         <div className={LINE_ITEM_FIELD_CLASS}>
-                          <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
+                          <Label
+                            className={cn(LINE_ITEM_COMPACT_LABEL_CLASS, 'flex items-center gap-2')}
+                          >
                             {t('clubdesk.priceList.title')}
+                            {categoryOff ? (
+                              <StatusOutlineBadge className="text-sm text-red-600 dark:text-red-500">
+                                {t('clubdesk.priceList.categoryOff')}
+                              </StatusOutlineBadge>
+                            ) : null}
                           </Label>
                           <Input
                             value={item.title}
@@ -553,36 +566,38 @@ export function PriceListItemsEditor({
                             />
                           </div>
                         )}
-                        <div className={LINE_ITEM_FIELD_CLASS}>
-                          <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
-                            {t('clubdesk.priceList.category')}
-                          </Label>
-                          <Select
-                            value={item.category?.trim() ? item.category : '__none__'}
-                            onValueChange={(value) =>
-                              onUpdate(
-                                index,
-                                value === '__none__' ? { category: null } : { category: value },
-                              )
-                            }
-                          >
-                            <SelectTrigger className={LINE_ITEM_COMPACT_SELECT_CLASS}>
-                              <SelectValue
-                                placeholder={t('clubdesk.priceList.categoryPlaceholder')}
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">
-                                {t('clubdesk.priceList.categoryNone')}
-                              </SelectItem>
-                              {categoryOptions.map((cat) => (
-                                <SelectItem key={cat} value={cat}>
-                                  {cat}
+                        {categoriesEnabled ? (
+                          <div className={LINE_ITEM_FIELD_CLASS}>
+                            <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
+                              {t('clubdesk.priceList.category')}
+                            </Label>
+                            <Select
+                              value={item.category?.trim() ? item.category : '__none__'}
+                              onValueChange={(value) =>
+                                onUpdate(
+                                  index,
+                                  value === '__none__' ? { category: null } : { category: value },
+                                )
+                              }
+                            >
+                              <SelectTrigger className={LINE_ITEM_COMPACT_SELECT_CLASS}>
+                                <SelectValue
+                                  placeholder={t('clubdesk.priceList.categoryPlaceholder')}
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">
+                                  {t('clubdesk.priceList.categoryNone')}
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                                {categoryOptions.map((cat) => (
+                                  <SelectItem key={cat} value={cat}>
+                                    {cat}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     <div className={cn(LINE_ITEM_FIELD_CLASS, 'h-full')}>

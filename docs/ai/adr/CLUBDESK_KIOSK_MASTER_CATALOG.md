@@ -23,7 +23,7 @@ Clubs need a shared kiosk product list (355 rows, 14 categories) inside Clubdesk
 
 6. **Dedicated seed service + CLI**, not `importItems` / not raising `MAX_IMPORT_ITEMS`. Run after Clubdesk enable (best-effort) and re-runnable for existing tenants. Local first.
 
-7. **Surfaces:** picker shows name, brand, category, package size; full product facts on inventory article; seed `source` → `catalog_source`, plus `verified_at` / `data_status` quiet admin only. Public catalog remains published + non-archived only; public inventory DTO is **not** expanded with kiosk catalog columns.
+7. **Surfaces:** picker shows name, brand, category, package size; full product facts on inventory article; seed `source` → `catalog_source`, plus `verified_at` / `data_status` quiet admin only. Public catalog remains published + non-archived only. The public article page lists product facts (category, pack, GTIN, ingredients, nutrition, prices). Variant stock writes and the internal note (`comment`) require the staff cookie — see [`CLUBDESK_KIOSK_STAFF_GATE.md`](CLUBDESK_KIOSK_STAFF_GATE.md). Purchase price and catalog provenance stay off the page. List and detail JSON still omit `comment`.
 
 8. **Inventory `category` ≠ price-list category.**
 

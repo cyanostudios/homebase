@@ -22,16 +22,19 @@ describe('PriceListView detail tab chips', () => {
     expect(viewSrc).not.toMatch(/stacked \?/);
   });
 
-  test('tabs are information, items, and activity', () => {
+  test('tabs are information, categories, items, and activity', () => {
     expect(viewSrc).toMatch(/useSearchParams/);
     expect(viewSrc).toMatch(/parsePriceListViewTab/);
     expect(viewSrc).toMatch(/'information'/);
     expect(viewSrc).toMatch(/value === 'properties'/); // legacy ?tab=properties → information
     expect(viewSrc).toMatch(/'items'/);
     expect(viewSrc).toMatch(/'activity'/);
-    expect(viewSrc).toMatch(
-      /PRICE_LIST_VIEW_TABS: PriceListViewTab\[] = \['information', 'items', 'activity'\]/,
-    );
+    expect(viewSrc).toMatch(/'categories'/);
+    expect(viewSrc).toMatch(/updatePriceListCategoriesEnabled/);
+    expect(viewSrc).toMatch(/setPriceListCategoryEnabled/);
+    expect(viewSrc).toMatch(/categoryOff/);
+    expect(viewSrc).toMatch(/itemCategoryOff/);
+    expect(viewSrc).toMatch(/PriceListCategoriesPanel/);
     expect(viewSrc).not.toMatch(/id: 'currency'/);
     expect(viewSrc).not.toMatch(/currencyCard/);
     expect(viewSrc).not.toMatch(/activeTab === 'currency'/);

@@ -117,6 +117,32 @@ describe('PublicClubdeskModel', () => {
     ]);
   });
 
+  test('transformPriceListDetail omits items in a disabled category', () => {
+    const detail = model.transformPriceListDetail(
+      { id: 3, title: 'Bar', slug: 'bar', currency: 'SEK' },
+      [
+        {
+          title: 'Beer',
+          description: null,
+          price: 45,
+          category: 'Drinks',
+          sequence_order: 1,
+          category_enabled: true,
+        },
+        {
+          title: 'Cake',
+          description: null,
+          price: 20,
+          category: 'Bakery',
+          sequence_order: 1,
+          category_enabled: false,
+        },
+      ],
+    );
+
+    expect(detail.items.map((item) => item.title)).toEqual(['Beer']);
+  });
+
   test('transformPriceListItem exposes inventorySlug only when inventory published', () => {
     expect(
       model.transformPriceListItem({
@@ -274,6 +300,26 @@ describe('PublicClubdeskModel', () => {
     expect(sql).toMatch(/publication_status = 'published'/);
     expect(sql).toMatch(/archived_at IS NULL/);
     expect(sql).toMatch(/i\.user_id = \$1/);
+  });
+
+  test('transformInventoryDetail keeps product facts and variant id, not purchase price', () => {
+    const detail = model.transformInventoryDetail(
+      {
+        id: 1,
+        article_name: 'Cola',
+        category: 'Dricka',
+        ingredients: 'vatten',
+        purchase_price: 9,
+        comment: 'intern',
+      },
+      [{ id: 4, sku: 'A', quantity: 2, sort_order: 0 }],
+    );
+    expect(detail.category).toBe('Dricka');
+    expect(detail.ingredients).toBe('vatten');
+    expect(detail.purchasePrice).toBeUndefined();
+    expect(detail.comment).toBeUndefined();
+    expect(detail.variants[0].id).toBe('4');
+    expect(detail.variants[0].quantity).toBe(2);
   });
 
   test('getPublishedInventoryBySlugOrId uses id when numeric', async () => {

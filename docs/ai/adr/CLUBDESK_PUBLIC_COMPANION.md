@@ -21,7 +21,7 @@
 8. **Info contacts** — `clubdesk_info_contacts` (migration **128**). Admin API `/api/clubdesk/info-contacts`. Soft max 50; unique `(user_id, contact_id)`.
 9. **Installable PWA (2026-09-17)** — Web App Manifest (`/manifest.webmanifest`): `name`/`short_name` Clubdesk, `start_url: "/"`, `display: standalone`, `theme_color` `#7c3bed` (CSS `--brand`), icons 192/512 + apple-touch 180. Linked from listing (`index.html`) and all SSR surfaces via `api/pwa_head.php`. **No service worker** / no offline cache of guides, price lists, or Swish. Favicon: `/favicon.svg` with `/favicon.ico` → 301. Docker Caddyfile routes Clubdesk SSR (`/guide/`, `/price-list/`, `/swish/`, `/kontakt/`) — not template `/instruction/*`.
 10. **Card visibility + branding (2026-09-18)** — Site-content shells `info` / `contacts` / `swish` support `meta.visible` (default true). Admin toggles under Clubdesk → Info. Public Hem hides rows when false; SSR `/swish/` + `/kontakt/` and `info_contacts` API enforce the same gate (no payee/PII leak). Sitemap omits `/info/` and `/swish/` when hidden. Org brand header: Account Profile via PHP `branding.php` / Node `/branding` (`APP_HOMEBASE_API_URL` on public PHP service in prod). Price-list cart Swish remains profile-linked and is **not** gated by `swish.visible`. Tenant CHECK on `clubdesk_site_content.card_key` must include `contacts` (migration **161**; without it admin batch-save fails).
-11. **Inventory (2026-09-25)** — Bottom tab **Inventory**; SPA listing `/inventory/`; SSR detail `/inventory/:slug` (`inventory.php`; Caddy `@inventoryDetail`). PHP `inventory.php` / `inventory_detail.php`; Node `GET /inventory`, `GET /inventory/:slugOrId`. **Published only**; public DTO omits `purchase_price` / `comment`. Inventory is not a Hem featured card (guides and price lists still are). Admin source: Clubdesk → Inventory. Full schema/API: [`CLUBDESK_INVENTORY_EPIC1.md`](CLUBDESK_INVENTORY_EPIC1.md).
+11. **Inventory (2026-09-25 + staff gate 2026-09-30, pause same day)** — Bottom tab **Inventory**; SPA listing `/inventory/`; SSR detail `/inventory/:slug` (`inventory.php`; Caddy `@inventoryDetail`). PHP `inventory.php` / `inventory_detail.php`; Node `GET /inventory`, `GET /inventory/:slugOrId`. **Published only**; public DTO omits `purchase_price` / `comment`. Stock +/- is open again for local UX (same-origin write); SSR `comment` stays off. Staff cookie gate paused — [`CLUBDESK_KIOSK_STAFF_GATE.md`](CLUBDESK_KIOSK_STAFF_GATE.md). Inventory is not a Hem featured card (guides and price lists still are). Admin source: Clubdesk → Inventory. Full schema/API: [`CLUBDESK_INVENTORY_EPIC1.md`](CLUBDESK_INVENTORY_EPIC1.md).
 
 ## Configuration
 
@@ -32,6 +32,7 @@
 | PHP → Homebase branding | `APP_HOMEBASE_API_URL` (prod); optional `APP_MAIN_DATABASE_URL` / local `DATABASE_URL` |
 | Node owner              | `PUBLIC_CLUBDESK_USER_ID` or `PUBLIC_CLUBDESK_USER_EMAIL`                              |
 | CORS                    | `PUBLIC_CLUBDESK_URL`                                                                  |
+| Staff gate              | `PUBLIC_CLUBDESK_KIOSK_SECRET` (≥32 chars) — stock write + SSR `comment`               |
 | PWA                     | Manifest + icons only; HTTPS required outside localhost                                |
 
 ## Consequences

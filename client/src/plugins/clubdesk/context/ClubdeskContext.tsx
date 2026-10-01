@@ -56,7 +56,7 @@ export interface ClubdeskContextType {
   openPriceListForView: (priceList: ClubdeskPriceList) => void;
   savePriceList: (
     data: ClubdeskPriceListPayload,
-    options?: { categoryNames?: string[] },
+    options?: { categoryNames?: string[]; categoryEnabled?: Record<string, boolean> },
   ) => Promise<boolean>;
   deletePriceList: (id: string) => Promise<void>;
   deletePriceLists: (ids: string[]) => Promise<void>;
@@ -65,6 +65,10 @@ export interface ClubdeskContextType {
     status: PublicationStatus,
   ) => Promise<void>;
   updatePriceListFeatured: (priceList: ClubdeskPriceList, featured: boolean) => Promise<void>;
+  updatePriceListCategoriesEnabled: (
+    priceList: ClubdeskPriceList,
+    categoriesEnabled: boolean,
+  ) => Promise<void>;
   reorderPriceLists: (orderedIds: string[]) => Promise<void>;
   reorderPriceListItems: (
     priceList: ClubdeskPriceList,
@@ -73,6 +77,11 @@ export interface ClubdeskContextType {
     direction: -1 | 1,
   ) => Promise<void>;
   createPriceListCategory: (priceListId: string, name: string) => Promise<void>;
+  setPriceListCategoryEnabled: (
+    priceListId: string,
+    categoryId: string,
+    enabled: boolean,
+  ) => Promise<void>;
   reorderPriceListCategories: (priceListId: string, orderedIds: string[]) => Promise<void>;
   deletePriceListCategory: (
     priceListId: string,
@@ -213,9 +222,11 @@ const EMPTY_CLUBDESK_CONTEXT: ClubdeskContextType = {
   deletePriceLists: async () => {},
   updatePriceListPublicationStatus: async () => {},
   updatePriceListFeatured: async () => {},
+  updatePriceListCategoriesEnabled: async () => {},
   reorderPriceLists: async () => {},
   reorderPriceListItems: async () => {},
   createPriceListCategory: async () => {},
+  setPriceListCategoryEnabled: async () => {},
   reorderPriceListCategories: async () => {},
   deletePriceListCategory: async () => {},
   getDuplicateConfig: () => null,

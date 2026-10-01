@@ -156,16 +156,43 @@ function itemMeta(item) {
   return '';
 }
 
-function inventoryMeta(item) {
-  const qty = Number(item.totalQuantity ?? item.total_quantity ?? 0);
-  if (qty > 0) {
-    return qty === 1 ? '1 st' : `${qty} st`;
+function inventoryVariantLine(variant) {
+  const audience = String(variant?.audience || '').trim();
+  const color = String(variant?.color || '').trim();
+  const size = String(variant?.size || '').trim();
+  const sku = String(variant?.sku || '').trim();
+  const gtin = String(variant?.gtin || '').replace(/\s+/g, '');
+  const label = [audience, color, size].filter(Boolean).join(' · ') || sku;
+  const bits = [];
+  if (sku && label !== sku) bits.push(`Art.nr ${sku}`);
+  if (gtin) bits.push(`GTIN ${gtin}`);
+  if (!label && bits.length === 0) return '';
+  if (!label) return bits.join(' · ');
+  return bits.length ? `${label} · ${bits.join(' · ')}` : label;
+}
+
+function inventoryQuantityLabel(item) {
+  const variants = Array.isArray(item.variants) ? item.variants : [];
+  if (variants.length === 0) return '';
+  const qty = variants.reduce((sum, variant) => {
+    const count = Number(variant?.quantity);
+    return sum + (Number.isFinite(count) ? count : 0);
+  }, 0);
+  return qty === 1 ? '1 st' : `${qty} st`;
+}
+
+function inventoryCardLines(item) {
+  const lines = [];
+  const meta = String(item.meta || '').trim();
+  if (meta) lines.push(meta);
+  const variants = Array.isArray(item.variants) ? item.variants : [];
+  for (const variant of variants) {
+    const line = inventoryVariantLine(variant);
+    if (line) lines.push(line);
   }
-  const variants = Number(item.variantCount ?? item.variant_count ?? 0);
-  if (variants > 0) {
-    return variants === 1 ? '1 variant' : `${variants} varianter`;
-  }
-  return '';
+  const desc = truncateText(item.description || '', 140);
+  if (desc) lines.push(desc);
+  return lines;
 }
 
 function priceListMeta(item) {
@@ -229,7 +256,16 @@ function syncUrl(tab, filter, { replace = false } = {}) {
   }
 }
 
-function renderOptionCard({ href, title, description, kind, spaTab }) {
+function renderOptionCard({
+  href,
+  title,
+  titleSuffix = '',
+  description,
+  lines,
+  kind,
+  spaTab,
+  className = '',
+}) {
   const icon =
     kind === 'price-list'
       ? ICON_PRICE
@@ -255,11 +291,14 @@ function renderOptionCard({ href, title, description, kind, spaTab }) {
               ? 'kontakt'
               : 'guide';
   const spaAttr = spaTab ? ` data-home-spa="${escapeHtml(spaTab)}"` : '';
-  return `<a class="option-card" href="${escapeHtml(href)}"${spaAttr}>
+  const extraClass = className ? ` ${className}` : '';
+  return `<a class="option-card${extraClass}" href="${escapeHtml(href)}"${spaAttr}>
     <span class="option-card__icon option-card__icon--${kindClass}">${icon}</span>
     <span class="option-card__text">
-      <span class="option-card__title">${escapeHtml(title)}</span>
-      ${description ? `<span class="option-card__desc">${escapeHtml(description)}</span>` : ''}
+      <span class="option-card__title">${escapeHtml(title)}${titleSuffix}</span>
+      ${(Array.isArray(lines) && lines.length > 0 ? lines : description ? [description] : [])
+        .map((line) => `<span class="option-card__desc">${escapeHtml(line)}</span>`)
+        .join('')}
     </span>
     <span class="option-card__chevron" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="m9 18 6-6-6-6"/></svg>
@@ -285,25 +324,71 @@ function renderPriceListCard(item) {
   });
 }
 
-function inventoryDescription(item) {
-  const name = String(item.articleName || item.article_name || item.name || '').trim() || 'Artikel';
-  const desc = truncateText(item.description || '');
-  if (desc) return desc;
-  const meta = inventoryMeta(item);
-  const brand = String(item.brand || '').trim();
-  if (meta && brand) return `${brand} · ${meta}`;
-  return meta || brand || name;
-}
-
 function renderInventoryCard(item) {
   const title =
     String(item.articleName || item.article_name || item.name || '').trim() || 'Artikel';
+  const qty = inventoryQuantityLabel(item);
   return renderOptionCard({
     href: inventoryHref(item),
     title,
-    description: inventoryDescription(item),
+    titleSuffix: qty ? ` <span class="inventory-card__qty">${escapeHtml(qty)}</span>` : '',
+    lines: inventoryCardLines(item),
     kind: 'inventory',
+    className: 'option-card--inventory',
   });
+}
+
+function inventorySearchHaystack(item) {
+  const tags = Array.isArray(item.tags) ? item.tags.join(' ') : String(item.tags || '');
+  return [
+    item.articleName,
+    item.article_name,
+    item.name,
+    item.title,
+    item.brand,
+    item.description,
+    item.material,
+    item.category,
+    item.articleNumber,
+    item.article_number,
+    item.packageSize,
+    item.package_size,
+    item.slug,
+    tags,
+    ...(Array.isArray(item.variants)
+      ? item.variants.flatMap((variant) => [
+          variant?.sku,
+          variant?.gtin,
+          variant?.audience,
+          variant?.color,
+          variant?.size,
+        ])
+      : []),
+  ]
+    .map((part) => String(part || '').toLowerCase())
+    .join(' ');
+}
+
+function filterInventoryItems(items, query) {
+  const tokens = String(query || '')
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return items;
+  return items.filter((item) => {
+    const haystack = inventorySearchHaystack(item);
+    return tokens.every((token) => haystack.includes(token));
+  });
+}
+
+function renderInventoryRows(items) {
+  if (items.length === 0) {
+    return `<div class="empty-state empty-state--inset">Inga artiklar matchar sökningen</div>`;
+  }
+  return `<section class="home-section home-section--rows">
+    <div class="option-list item-grid">${items.map(renderInventoryCard).join('')}</div>
+  </section>`;
 }
 
 function renderInfoRow() {
@@ -528,7 +613,7 @@ function renderHomeHub() {
 
   const rowCards = [
     ...guides.map(renderGuideOptionCard),
-    ...priceLists.map(renderPriceListCard),
+    ...priceLists.filter((item) => !isFeaturedItem(item)).map(renderPriceListCard),
     ...(isPublicSwishVisible(site) ? [renderSwishRow()] : []),
     ...(isPublicContactsVisible(site) && infoContacts.length > 0 ? [renderKontaktRow()] : []),
     ...(isPublicInfoVisible(site) ? [renderInfoRow()] : []),
@@ -634,23 +719,43 @@ function renderPriceListListing() {
   });
 }
 
+function bindInventorySearch(container, items) {
+  const input = container.querySelector('#inventory-search');
+  const results = container.querySelector('#inventory-results');
+  if (!input || !results) return;
+  const form = input.closest('form');
+  if (form) {
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+    });
+  }
+  input.addEventListener('input', () => {
+    window.__PUBLIC_APP_INVENTORY_QUERY__ = input.value;
+    results.innerHTML = renderInventoryRows(filterInventoryItems(items, input.value));
+  });
+}
+
 function renderInventoryListing() {
   const container = document.getElementById('rows-container');
   if (!container) return;
   const items = Array.isArray(window.__PUBLIC_APP_INVENTORY__)
     ? window.__PUBLIC_APP_INVENTORY__
     : [];
+  const query = String(window.__PUBLIC_APP_INVENTORY_QUERY__ || '');
   const bodyHtml =
     items.length === 0
       ? `<div class="empty-state empty-state--inset">Inget inventarie just nu</div>`
-      : `<section class="home-section home-section--rows">
-          <div class="option-list item-grid">${items.map(renderInventoryCard).join('')}</div>
-        </section>`;
+      : `<form class="inventory-search" role="search">
+          <label class="inventory-search__label" for="inventory-search">Sök artikel</label>
+          <input id="inventory-search" class="inventory-search__input" type="search" name="q" placeholder="Sök artikel" value="${escapeHtml(query)}" autocomplete="off" enterkeyhint="search" />
+        </form>
+        <div id="inventory-results">${renderInventoryRows(filterInventoryItems(items, query))}</div>`;
   container.innerHTML = renderPageChrome({
     title: 'Inventory',
-    subtitleHtml: plainSubtitle('Publicerade artiklar och varianter.'),
+    subtitleHtml: plainSubtitle('Publicerade artiklar.'),
     bodyHtml,
   });
+  bindInventorySearch(container, items);
 }
 
 function renderInfoListing() {

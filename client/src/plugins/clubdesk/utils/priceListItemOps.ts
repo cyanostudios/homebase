@@ -135,10 +135,14 @@ export function groupItemsByCategory<T extends PriceListItemLike>(
   }
 
   const catalogKeys = catalogOrder.map((name) => categoryKey(name)).filter(Boolean);
-  const sortedKeys = [
-    ...catalogKeys.filter((key) => groups.has(key)),
-    ...orderKeys.filter((key) => !catalogKeys.includes(key)),
-  ];
+  catalogOrder.forEach((name) => {
+    const key = categoryKey(name);
+    if (!key || groups.has(key)) {
+      return;
+    }
+    groups.set(key, { category: name.trim(), items: [] });
+  });
+  const sortedKeys = [...catalogKeys, ...orderKeys.filter((key) => !catalogKeys.includes(key))];
 
   return sortedKeys.map((key) => groups.get(key)!);
 }

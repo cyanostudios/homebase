@@ -285,6 +285,10 @@ function createClubdeskRoutes(
       .withMessage('description must not exceed 50000 characters'),
     commonRules.optionalEnum('publicationStatus', ['draft', 'published']),
     body('featured').optional().isBoolean().withMessage('featured must be a boolean'),
+    body('categoriesEnabled')
+      .optional()
+      .isBoolean()
+      .withMessage('categoriesEnabled must be a boolean'),
     body('currency')
       .optional({ values: 'falsy' })
       .isString()
@@ -608,6 +612,19 @@ function createClubdeskRoutes(
       validateRequest,
       (req, res) => {
         priceListController.reorderCategories(req, res);
+      },
+    );
+
+    router.patch(
+      '/price-lists/:id/categories/:categoryId',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      commonRules.id('categoryId'),
+      body('enabled').isBoolean().withMessage('enabled must be a boolean'),
+      validateRequest,
+      (req, res) => {
+        priceListController.setCategoryEnabled(req, res);
       },
     );
 

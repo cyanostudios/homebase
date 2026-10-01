@@ -82,6 +82,7 @@ function normalizePriceList(row: ClubdeskPriceList): ClubdeskPriceList {
     ...row,
     id: String(row.id),
     currency: row.currency || 'SEK',
+    categoriesEnabled: row.categoriesEnabled !== false,
     items: Array.isArray(row.items)
       ? row.items.map((item, index) => ({
           ...item,
@@ -185,6 +186,7 @@ function normalizePriceListCategory(
     id: String(row.id),
     name: row.name ?? '',
     sortOrder: row.sortOrder ?? 1,
+    enabled: row.enabled !== false,
   };
 }
 
@@ -320,6 +322,16 @@ class ClubdeskApi {
       method: 'POST',
       body: JSON.stringify({ name }),
     }).then(normalizePriceListCategory);
+  }
+
+  setPriceListCategoryEnabled(priceListId: string, categoryId: string, enabled: boolean) {
+    return apiRequest<ClubdeskPriceListItemCategory>(
+      `/price-lists/${priceListId}/categories/${categoryId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+      },
+    ).then(normalizePriceListCategory);
   }
 
   reorderPriceListCategories(priceListId: string, orderedIds: string[]) {

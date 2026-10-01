@@ -161,4 +161,13 @@ describe('groupItemsByCategory', () => {
     expect(groups.map((g) => g.category)).toEqual(['Food', 'Drinks']);
     expect(groups[1].items.map((i) => i.title)).toEqual(['Coffee', 'Tea']);
   });
+
+  it('keeps catalog categories that have no items yet', () => {
+    const groups = groupItemsByCategory(
+      [{ title: 'Soup', description: null, price: 2, category: 'Food', sequenceOrder: 1 }],
+      ['Food', 'Drinks'],
+    );
+    expect(groups.map((g) => g.category)).toEqual(['Food', 'Drinks']);
+    expect(groups[1].items).toEqual([]);
+  });
 });

@@ -87,6 +87,9 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(js).toMatch(/home-square-grid/);
     expect(js).toMatch(/renderGuideOptionCard/);
     expect(js).toMatch(/renderPriceListCard/);
+    expect(js).toMatch(
+      /priceLists\.filter\(\(item\) => !isFeaturedItem\(item\)\)\.map\(renderPriceListCard\)/,
+    );
     expect(js).toMatch(/renderSwishRow/);
     expect(js).toMatch(/renderInfoRow/);
     expect(js).toMatch(/href: '\/swish\/'/);
@@ -179,14 +182,21 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(read('kontakt.php')).toMatch(/class="bottom-bar"/);
   });
 
-  test('bottom tabs are Hem | Guides | Price list', () => {
+  test('bottom tabs are Hem | Guides | Price list | Inventory', () => {
     expect(html).toMatch(/data-tab="home"/);
     expect(html).toMatch(/data-tab="guides"/);
     expect(html).toMatch(/data-tab="price-lists"/);
+    expect(html).toMatch(/data-tab="inventory"/);
+    expect(guide).toMatch(/data-tab="inventory"/);
+    expect(priceList).toMatch(/data-tab="inventory"/);
+    expect(inventoryDetail).toMatch(/data-tab="inventory"/);
+    expect(read('swish.php')).toMatch(/data-tab="inventory"/);
+    expect(read('kontakt.php')).toMatch(/data-tab="inventory"/);
     expect(html).not.toMatch(/data-tab="info"/);
     expect(html).not.toMatch(/data-tab="all"/);
     expect(html).toMatch(/>Guides</);
     expect(html).toMatch(/>Price list</);
+    expect(html).toMatch(/>Inventory</);
     expect(html).not.toMatch(/bottom-bar__label">Info</);
   });
 
@@ -217,6 +227,10 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(priceList).toMatch(/home-sheet/);
     expect(priceList).toMatch(/option-card price-list-row/);
     expect(priceList).toMatch(/home-section--rows/);
+    expect(priceList).toMatch(/categories_enabled/);
+    expect(priceList).toMatch(/categoryEnabled/);
+    expect(read('api/db_helpers.php')).toMatch(/categoryEnabled/);
+    expect(priceList).toMatch(/__flat__/);
     expect(priceList).toMatch(/class="step-subheader"/);
     expect(priceList).toMatch(/step-subheader__guide/);
     expect(priceList).toMatch(/step-subheader__step/);
@@ -232,7 +246,8 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(priceList).toMatch(/id="cart-view"/);
     expect(priceList).toMatch(/id="cart-clear-btn"/);
     expect(priceList).toMatch(/aria-label="Nollställ varukorg"/);
-    expect(priceList).toMatch(/Att betala/);
+    expect(priceList).toMatch(/id="cart-count-label"/);
+    expect(priceList).toMatch(/Varukorgen - 0 produkter/);
     expect(priceList).toMatch(/cart-pay__row/);
     expect(priceList).toMatch(/id="cart-total"/);
     expect(priceList).toMatch(/id="cart-swish"/);
@@ -247,7 +262,9 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(router).toMatch(/\/price-list/);
     expect(priceList).toMatch(/price-list-row__desc/);
     expect(priceList).toMatch(/inventorySlug/);
-    expect(priceList).toMatch(/Visa produkt/);
+    expect(priceList).toMatch(/aria-label="Visa produkt"/);
+    expect(priceList).toMatch(/price-list-row__info/);
+    expect(css).toMatch(/\.price-list-row__info/);
     expect(priceList).toMatch(/\/inventory\//);
     expect(priceList).toMatch(/option-card__title/);
     expect(css).toMatch(/\.price-list-row__desc\s*\{[\s\S]*?white-space:\s*pre-line/);
@@ -264,6 +281,27 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(js).toMatch(/function renderPriceListCard/);
   });
 
+  test('price list uses compact category and row type', () => {
+    expect(css).toMatch(
+      /#price-list-app \.price-list-section__title\s*\{[\s\S]*?font-size:\s*var\(--fs-sm\)[\s\S]*?color:\s*var\(--text-muted\)/,
+    );
+    expect(css).toMatch(
+      /#price-list-app \.option-card__title\s*\{[\s\S]*?font-size:\s*var\(--fs-sm\)/,
+    );
+    expect(css).toMatch(
+      /\.home-sheet > \.price-list-section \+ \.price-list-section\s*\{[\s\S]*?margin-top:\s*1\.25rem/,
+    );
+    expect(css).toMatch(
+      /#price-list-app \.price-list-row\.option-card\s*\{[\s\S]*?padding-top:\s*0\.55rem/,
+    );
+    expect(css).toMatch(
+      /Inventory list and article share one title[\s\S]*?#inventory-app \.home-section__title,/,
+    );
+    expect(css).not.toMatch(
+      /Inventory list and article share one title[\s\S]*?#price-list-app \.option-card__title/,
+    );
+  });
+
   test('cart app wires clearCart in subheader mini cart', () => {
     const cartApp = read('price-list-cart-app.js');
     const cartLib = read('lib/priceListCart.js');
@@ -273,6 +311,7 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(cartApp).toMatch(/Cart\.clearCart\(slug\)/);
     expect(cartApp).toMatch(/cartClearBtn\.hidden\s*=\s*Cart\.uniqueCount\(cart\)\s*===\s*0/);
     expect(cartApp).toMatch(/Cart\.itemCount\(cart\)/);
+    expect(cartApp).toMatch(/count === 1 \? 'produkt' : 'produkter'/);
     expect(cartApp).toMatch(/cart-toggle-btn__count/);
     expect(css).toMatch(/\.cart-toggle-btn__count/);
     expect(cartApp).toMatch(/setView\('list'\)/);
@@ -290,12 +329,34 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(js).toMatch(/\/price-list\//);
     expect(js).toMatch(/\/inventory\//);
     expect(js).toMatch(/\/api\/inventory\.php/);
+    expect(js).toMatch(/id="inventory-search"/);
+    expect(js).toMatch(/function filterInventoryItems/);
+    expect(js).toMatch(/function inventoryCardLines/);
+    expect(js).toMatch(/function inventoryQuantityLabel/);
+    expect(css).toMatch(/\.inventory-card__qty/);
+    expect(inventoryDetail).toMatch(/Varianter/);
+    expect(inventoryDetail).toMatch(/Beskrivning/);
+    expect(inventoryDetail).toMatch(/Intern anteckning/);
+    expect(inventoryDetail).toMatch(/inventory-copy/);
+    expect(css).toMatch(/\.inventory-stock-total\s*\{[^}]*font-weight:\s*600/);
+    expect(read('api/db_helpers.php')).toMatch(/i\.comment/);
+    expect(js).toMatch(/option-card--inventory/);
+    expect(js).toMatch(/function inventoryVariantLine/);
+    expect(read('api/inventory.php')).toMatch(/function inventoryListMeta/);
+    expect(read('api/db_helpers.php')).toMatch(/function publicAppInventoryVariantsAggSql/);
+    expect(css).toMatch(/\.inventory-search__input/);
   });
 
   test('inventory article detail SSR mirrors price-list routing', () => {
     expect(router).toMatch(/inventory\.php/);
     expect(router).toMatch(/\/inventory\/\(\[a-z0-9-\]\+\)/);
     expect(inventoryDetail).toMatch(/publicAppInventoryBySlugSql/);
+    expect(inventoryDetail).toMatch(/data-stock-delta/);
+    expect(inventoryDetail).toMatch(/inventory-stock-app\.js/);
+    expect(inventoryDetail).toMatch(/Ingredienser/);
+    expect(read('api/inventory_quantity.php')).toMatch(/clubdesk_inventory_variants/);
+    expect(read('api/inventory_quantity.php')).toMatch(/publication_status = 'published'/);
+    expect(read('api/db_helpers.php')).toMatch(/'id', v\.id/);
     expect(inventoryDetail).toMatch(/parseInventoryPath/);
     expect(inventoryDetail).toMatch(/href="\/inventory\/"/);
     expect(caddy).toMatch(/inventory\.php/);

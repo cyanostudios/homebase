@@ -45,6 +45,7 @@ describe('PriceListModel', () => {
       featuredImageUrl: null,
       publicationStatus: 'published',
       featured: true,
+      categoriesEnabled: true,
       currency: 'SEK',
       sortOrder: 2,
       itemCount: 3,
@@ -64,6 +65,7 @@ describe('PriceListModel', () => {
     expect(query).toHaveBeenCalled();
     const sql = String(query.mock.calls[0][0]);
     expect(sql).toMatch(/i\.featured\b/);
+    expect(sql).toMatch(/i\.categories_enabled\b/);
   });
 
   test('normalizeItems assigns sequenceOrder per category and coerces price', () => {

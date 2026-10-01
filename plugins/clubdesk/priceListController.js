@@ -200,6 +200,28 @@ class PriceListController {
     }
   }
 
+  async setCategoryEnabled(req, res) {
+    try {
+      const item = await this.model.setCategoryEnabled(
+        req,
+        req.params.id,
+        req.params.categoryId,
+        req.body?.enabled,
+      );
+      res.json(item);
+    } catch (error) {
+      Logger.error('Update price list category failed', error, {
+        priceListId: req.params.id,
+        categoryId: req.params.categoryId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) {
+        return this.sendAppError(res, error);
+      }
+      res.status(500).json({ error: 'Failed to update category' });
+    }
+  }
+
   async deleteCategory(req, res) {
     try {
       const body = req.body && typeof req.body === 'object' ? req.body : {};

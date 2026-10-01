@@ -2,6 +2,78 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Public price list compact type (2026-09-30)
+
+Public price list/cart: category H2 and row titles at `--fs-sm` (category weight 700); tighter section gap (~1.25rem) and row padding. Inventory shared title scale unchanged. Supersedes the larger `--fs-xl` category heading pass earlier the same day.
+
+## Public price list category hierarchy (2026-09-30)
+
+Superseded same day by compact type: category H2 no longer uses `--fs-xl` on the public price list.
+
+## Design system audit (2026-09-30)
+
+Analys only: Wint-referensfärger (pipetterade) + inventering av Homebase tokens, UI-primitives (`components/ui` 24), core UI (97), plugin-komponenter (315), ikoner/typografi/radie, och gap mot `UI_AND_UX_STANDARDS_V3.md`. Öppna designfrågor listade — ingen kodändring. Dokument: `docs/ai/design/DESIGN_SYSTEM_AUDIT.md` (länkad från `docs/README.md`).
+
+## Kiosk staff gate paused (2026-09-30)
+
+Public stock +/- open again for local UX; Personal unlock UI removed; `comment` stays off. Cookie helpers + `kiosk_session.php` kept. ADR status: temporarily paused — `docs/ai/adr/CLUBDESK_KIOSK_STAFF_GATE.md`.
+
+## Clubdesk variant identity non-unique (2026-09-30)
+
+Clubdesk inventory variants may share `(audience, color, size)` on the same item; UI warns only. Migration **182** drops `idx_clubdesk_inventory_variants_identity` (parity with garments **152**). ADR: `docs/ai/adr/CLUBDESK_INVENTORY_EPIC1.md`.
+
+## Kiosk staff gate (2026-09-30)
+
+`POST /api/inventory_quantity.php` requires a valid `clubdesk_kiosk` cookie before it writes. The article page renders stock buttons and `comment` only for that cookie. Unlock is `POST /api/kiosk_session.php` with the server secret. List and detail JSON still omit `comment`. Security residuals **KG-1** / **KG-2** await TPM acceptance at release. See `docs/ai/adr/CLUBDESK_KIOSK_STAFF_GATE.md`.
+
+## Kiosk inventory type scale (2026-09-30)
+
+Inventory list cards, the inventory article, and price-list rows use one title size (`--fs-base`, weight 600) and one body size (`--fs-sm`). Article description, under the heading Beskrivning, renders under the variants. The internal note (`comment`) appears there only with a valid staff cookie. Purchase price stays off the page. JSON inventory APIs still omit `comment`.
+
+## Public inventory quantity and variants (2026-09-30)
+
+List cards show the summed variant quantity in bold beside the article title. The article page leads with a Varianter block (stock controls included) so variants are visible before product facts. “Totalt X st” in that block is larger and bold.
+
+## Public inventory list lines (2026-09-30)
+
+The public inventory list row shows description, meta (brand, category, package size, material, article number), and variant lines (audience, color, size, SKU, GTIN, quantity) when each is present. List SQL includes the variant aggregate.
+
+## Price list category can be turned off (2026-09-30)
+
+Each Clubdesk price-list category has an enabled switch. Off hides that category’s items on the public price list (`categoryEnabled` in the public item JSON). Items remain in admin and are marked with a larger red Off on the Items tab. Column: `clubdesk_price_list_item_categories.enabled` (migration 181, local only until release).
+
+## Cart count above the total (2026-09-30)
+
+Public price-list cart header above the sum reads “Varukorgen - X produkter”. X is the sum of line quantities.
+
+## Price list categories tab (2026-09-30)
+
+Clubdesk price lists manage categories on their own tab: enable or disable headings, add, and delete. `categories_enabled` defaults on. Garments lists unchanged.
+
+## Public inventory list search (2026-09-30)
+
+The public Inventory tab lists published articles and filters them as you type. Draft and archived articles stay off that list.
+
+## Public Clubdesk inventory tab visible (2026-09-30)
+
+The public bottom bar includes Inventory on every shell page. Local site content has the inventory card visible. Role-based hiding is not implemented.
+
+## Price list info icon (2026-09-30)
+
+Public price-list rows use a gray info icon before the name instead of the text “Visa produkt”.
+
+## Featured price lists only as home cards (2026-09-30)
+
+Public Clubdesk home omits featured price lists from the row list. They stay as square cards. The Price list tab still includes them.
+
+## Price list add category on the list (2026-09-30)
+
+Clubdesk price list view has **Artikelkategorier** on Information and Articles. Empty categories stay visible. Garments lists unchanged.
+
+## Public Clubdesk product stock and facts (2026-09-30)
+
+Public article page lists product facts and can write variant quantity into the admin stock column. Purchase price and catalog provenance stay off the public page. JSON still omits `comment`. Stock write and SSR `comment` later require the staff cookie — see staff-gate ADR. Draft and archived articles stay hidden.
+
 ## Clubdesk inventory status under the title (2026-09-30)
 
 Inventory article header shows draft or published under the product title. Garments unchanged.

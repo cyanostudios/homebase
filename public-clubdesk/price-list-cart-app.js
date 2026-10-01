@@ -23,6 +23,7 @@
   const cartView = document.getElementById('cart-view');
   const cartBody = document.getElementById('cart-body');
   const cartTotalEl = document.getElementById('cart-total');
+  const cartCountLabelEl = document.getElementById('cart-count-label');
   const cartSwishEl = document.getElementById('cart-swish');
   const cartSwishQrEl = document.getElementById('cart-swish-qr');
   const cartSwishNumberEl = document.getElementById('cart-swish-number');
@@ -150,6 +151,11 @@
 
   function syncHeader(cart) {
     const sum = Cart.total(cart);
+    const count = Cart.itemCount(cart);
+    if (cartCountLabelEl) {
+      const productWord = count === 1 ? 'produkt' : 'produkter';
+      cartCountLabelEl.textContent = `Varukorgen - ${count} ${productWord}`;
+    }
     if (subTotalEl) {
       subTotalEl.textContent = money(sum);
       subTotalEl.classList.add('step-subheader__total');

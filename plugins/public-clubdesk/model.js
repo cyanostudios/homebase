@@ -103,6 +103,12 @@ class PublicClubdeskModel {
     };
   }
 
+  categoryRowEnabled(row) {
+    const value = row?.category_enabled;
+    if (value === undefined || value === null) return true;
+    return !(value === false || value === 0 || value === '0' || value === 'f' || value === 'false');
+  }
+
   transformPriceListDetail(row, items = []) {
     return {
       id: String(row.id),
@@ -111,7 +117,9 @@ class PublicClubdeskModel {
       description: row.description ?? null,
       currency: row.currency ?? 'SEK',
       updatedAt: row.updated_at ?? null,
-      items: items.map((i) => this.transformPriceListItem(i)),
+      items: items
+        .filter((i) => this.categoryRowEnabled(i))
+        .map((i) => this.transformPriceListItem(i)),
     };
   }
 
@@ -325,6 +333,7 @@ class PublicClubdeskModel {
           i.price,
           i.price_override,
           i.category,
+          COALESCE(c.enabled, TRUE) AS category_enabled,
           i.sequence_order,
           inv.slug AS inventory_slug,
           inv.publication_status AS inventory_publication_status,
@@ -390,7 +399,7 @@ class PublicClubdeskModel {
   }
 
   transformPublicInventoryVariant(row) {
-    return {
+    const variant = {
       sku: row.sku ?? '',
       gtin: row.gtin ?? '',
       audience: row.audience ?? '',
@@ -399,14 +408,45 @@ class PublicClubdeskModel {
       quantity: row.quantity != null ? Number(row.quantity) : 0,
       sortOrder: row.sort_order != null ? Number(row.sort_order) : 0,
     };
+    if (row.id != null && row.id !== '') {
+      variant.id = String(row.id);
+    }
+    return variant;
   }
 
   transformInventoryDetail(row, variants = []) {
+    const text = (value) => {
+      if (value == null) return '';
+      return String(value).trim();
+    };
+    const nutrition = (value) => {
+      if (value == null || value === '') return null;
+      const num = Number(value);
+      return Number.isFinite(num) ? num : null;
+    };
     return {
       ...this.transformInventoryListRow({
         ...row,
         variant_count: variants.length,
       }),
+      category: text(row.category),
+      packageSize: text(row.package_size),
+      packageUnit: text(row.package_unit),
+      gtin: text(row.gtin),
+      articleNumber: text(row.article_number),
+      ingredients: row.ingredients ?? null,
+      allergens: row.allergens ?? null,
+      energyKcal100g: nutrition(row.energy_kcal_100g),
+      fatG100g: nutrition(row.fat_g_100g),
+      saturatedFatG100g: nutrition(row.saturated_fat_g_100g),
+      carbohydrateG100g: nutrition(row.carbohydrate_g_100g),
+      sugarG100g: nutrition(row.sugar_g_100g),
+      proteinG100g: nutrition(row.protein_g_100g),
+      saltG100g: nutrition(row.salt_g_100g),
+      netContent: text(row.net_content),
+      countryOfOrigin: text(row.country_of_origin),
+      countryOfManufacture: text(row.country_of_manufacture),
+      supplier: text(row.supplier),
       variants: variants.map((v) => this.transformPublicInventoryVariant(v)),
     };
   }
@@ -540,7 +580,7 @@ class PublicClubdeskModel {
     const parent = parentResult.rows[0];
     const variantsResult = await pool.query(
       `
-        SELECT sku, gtin, audience, color, size, quantity, sort_order
+        SELECT id, sku, gtin, audience, color, size, quantity, sort_order
         FROM clubdesk_inventory_variants
         WHERE item_id = $1
         ORDER BY sort_order ASC, id ASC

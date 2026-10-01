@@ -36,6 +36,7 @@ Local first; prod only on explicit release. After migrate: log out/in if Setting
 - **`177-clubdesk-inventory-clear-featured.sql`** — tenant-DB: set `clubdesk_inventory_items.featured` to false. Inventory is not shown as a Hem featured card. Guides and price lists are unchanged.
 - **`178-inventory-variant-gtin.sql`** — tenant-DB: `gtin TEXT NOT NULL DEFAULT ''` on `garment_inventory_variants` and `clubdesk_inventory_variants`. Empty, or 8/12/13/14 digits in the API.
 - **`179-clubdesk-inventory-kiosk-catalog.sql`** — tenant-DB: kiosk master catalog flat columns on `clubdesk_inventory_items` (`catalog_key`, product category, package size/unit, item GTIN, nutrition, provenance, …) plus unique `(user_id, catalog_key)` where key non-empty. ADR: [`docs/ai/adr/CLUBDESK_KIOSK_MASTER_CATALOG.md`](../../docs/ai/adr/CLUBDESK_KIOSK_MASTER_CATALOG.md).
+- **`182-clubdesk-inventory-variant-identity-nonunique.sql`** — tenant-DB: drop unique index on clubdesk variant `(audience, color, size)` so identity may repeat (UI warns only; parity with garments **152**).
 
 ```bash
 npm run migrate:garments
