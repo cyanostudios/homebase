@@ -42,15 +42,19 @@ export function StatKpiTile({
   className,
   labelClassName,
   valueClassName,
+  onClick,
+  pressed = false,
 }: {
   label: string;
   value: number;
   className?: string;
   labelClassName?: string;
   valueClassName?: string;
+  onClick?: () => void;
+  pressed?: boolean;
 }) {
-  return (
-    <div className={cn(CHART_SHELL, className)}>
+  const content = (
+    <>
       <p
         className={cn(
           'text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400',
@@ -67,8 +71,28 @@ export function StatKpiTile({
       >
         {value}
       </p>
-    </div>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={pressed}
+        className={cn(
+          CHART_SHELL,
+          'w-full cursor-pointer text-left transition-[box-shadow,transform] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400',
+          pressed && 'ring-2 ring-sky-400',
+          className,
+        )}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={cn(CHART_SHELL, className)}>{content}</div>;
 }
 
 /** Inline KPI numbers — dashboard invoices density (label + count in a tight grid). */

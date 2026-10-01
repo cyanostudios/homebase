@@ -12,8 +12,15 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
+
 import { useNotes } from '../hooks/useNotes';
-import { noteHasContent, noteHasMentions, noteIsRecentlyUpdated } from '../utils/noteListFilter';
+import {
+  noteHasContent,
+  noteHasMentions,
+  noteIsRecentlyUpdated,
+  type NoteListFilterSelection,
+} from '../utils/noteListFilter';
 
 const MENTIONS_CHART_COLORS = {
   withMentions: '#0ea5e9',
@@ -24,11 +31,19 @@ const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
 const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
+export type NotesStatisticsFilter = 'total' | 'withMentions' | 'withContent' | 'recentlyUpdated';
+
 interface NotesStatisticsViewProps {
   onClose?: () => void;
+  activeFilters?: NoteListFilterSelection;
+  onSelectFilter?: (filter: NotesStatisticsFilter) => void;
 }
 
-export function NotesStatisticsView({ onClose }: NotesStatisticsViewProps = {}) {
+export function NotesStatisticsView({
+  onClose,
+  activeFilters = [],
+  onSelectFilter,
+}: NotesStatisticsViewProps = {}) {
   const { t } = useTranslation();
   const { notes } = useNotes();
 
@@ -61,6 +76,18 @@ export function NotesStatisticsView({ onClose }: NotesStatisticsViewProps = {}) 
       },
     ].filter((segment) => segment.value > 0);
   }, [stats.total, stats.withMentions, t]);
+
+  const tile = (filter: NotesStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
+  );
 
   return (
     <div className="space-y-6">
@@ -96,34 +123,10 @@ export function NotesStatisticsView({ onClose }: NotesStatisticsViewProps = {}) 
         subtleTitle
       >
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4">
-          <StatKpiTile
-            label={t('notes.stats.total')}
-            value={stats.total}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('notes.stats.withMentions')}
-            value={stats.withMentions}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('notes.stats.withContent')}
-            value={stats.withContent}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('notes.stats.recentlyUpdated')}
-            value={stats.recentlyUpdated}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
+          {tile('total', t('notes.stats.total'), stats.total)}
+          {tile('withMentions', t('notes.stats.withMentions'), stats.withMentions)}
+          {tile('withContent', t('notes.stats.withContent'), stats.withContent)}
+          {tile('recentlyUpdated', t('notes.stats.recentlyUpdated'), stats.recentlyUpdated)}
         </div>
       </DetailSection>
 

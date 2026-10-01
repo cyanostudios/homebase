@@ -36,6 +36,7 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
@@ -51,11 +52,11 @@ import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
-import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
-import type { PanelFormHandle } from '@/core/types/panelFormHandle';
+import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
+import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
+import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -87,10 +88,10 @@ import {
   type MatchTableColumnId,
 } from '../utils/matchTableColumns';
 
+import { MatchesStatisticsView } from './MatchesStatisticsView';
 import { MatchForm } from './MatchForm';
 import { MatchListTable } from './MatchListTable';
 import { MatchSettingsView, type MatchSettingsCategory } from './MatchSettingsView';
-import { MatchesStatisticsView } from './MatchesStatisticsView';
 import { MatchView } from './MatchView';
 
 type SortField = MatchSortField;
@@ -930,7 +931,12 @@ export function MatchList() {
                   <MatchView match={detailMatch} stacked />
                 ) : (
                   <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
-                    <MatchesStatisticsView />
+                    <MatchesStatisticsView
+                      activeFilters={activeFilters}
+                      onSelectFilter={(filter) =>
+                        handleStatKpiListFilterSelect(filter, setFiltersVisible, setActiveFilters)
+                      }
+                    />
                   </Card>
                 )}
               </aside>

@@ -22,6 +22,9 @@ describe('Cups statistics content view wiring', () => {
     expect(contextSrc).toMatch(/closeCupStatisticsView/);
 
     expect(providerSrc).toMatch(/setCupsContentView\('statistics'\)/);
+    expect(listSrc).toMatch(/onSelectFilter/);
+    expect(listSrc).toMatch(/handleStatKpiListFilterSelect/);
+    expect(statsSrc).toMatch(/onSelectFilter/);
     expect(statsSrc).toMatch(/cups\.statistics\.title/);
     expect(statsSrc).toMatch(/periodDays/);
     expect(statsSrc).toMatch(/PERIOD_OPTIONS/);

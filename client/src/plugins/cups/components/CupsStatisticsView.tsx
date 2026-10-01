@@ -20,8 +20,10 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
 
 import { useCups } from '../hooks/useCups';
+import type { CupListFilterSelection } from '../utils/cupListFilter';
 
 import { CupPageviewStats } from './stats/CupPageviewStats';
 
@@ -31,11 +33,19 @@ const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
 const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
+export type CupsStatisticsFilter = 'total' | 'visible' | 'featured' | 'upcoming';
+
 interface CupsStatisticsViewProps {
   onClose?: () => void;
+  activeFilters?: CupListFilterSelection;
+  onSelectFilter?: (filter: CupsStatisticsFilter) => void;
 }
 
-export function CupsStatisticsView({ onClose }: CupsStatisticsViewProps = {}) {
+export function CupsStatisticsView({
+  onClose,
+  activeFilters = [],
+  onSelectFilter,
+}: CupsStatisticsViewProps = {}) {
   const { t } = useTranslation();
   const { cups, openCupStatistics } = useCups();
   const [days, setDays] = useState<number>(30);
@@ -62,6 +72,18 @@ export function CupsStatisticsView({ onClose }: CupsStatisticsViewProps = {}) {
     };
   }, [cups]);
 
+  const tile = (filter: CupsStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
+  );
+
   const overviewSection = (
     <DetailSection
       title={t('cups.statistics.overview', { defaultValue: 'Overview' })}
@@ -69,34 +91,10 @@ export function CupsStatisticsView({ onClose }: CupsStatisticsViewProps = {}) {
       subtleTitle
     >
       <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4">
-        <StatKpiTile
-          label={t('cups.stats.total')}
-          value={stats.total}
-          className={STAT_KPI_SOFT_CLASS}
-          labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-          valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-        />
-        <StatKpiTile
-          label={t('cups.stats.visible')}
-          value={stats.visible}
-          className={STAT_KPI_SOFT_CLASS}
-          labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-          valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-        />
-        <StatKpiTile
-          label={t('cups.stats.featured')}
-          value={stats.featured}
-          className={STAT_KPI_SOFT_CLASS}
-          labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-          valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-        />
-        <StatKpiTile
-          label={t('cups.stats.upcoming')}
-          value={stats.upcoming}
-          className={STAT_KPI_SOFT_CLASS}
-          labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-          valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-        />
+        {tile('total', t('cups.stats.total'), stats.total)}
+        {tile('visible', t('cups.stats.visible'), stats.visible)}
+        {tile('featured', t('cups.stats.featured'), stats.featured)}
+        {tile('upcoming', t('cups.stats.upcoming'), stats.upcoming)}
       </div>
     </DetailSection>
   );

@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Statistics KPI → list filter links (2026-10-01)
+
+Cross-plugin pattern (Clubdesk inventory reference): `activeFilters` + `onSelectFilter` on statistics views; lists call `handleStatKpiListFilterSelect` from `client/src/core/ui/statKpiListFilterLink.ts`. KPI click sets `[filter]` or clears on total; `setFiltersVisible(true)` when lists use persisted filter chips. Tiles without matching chips remain non-clickable (e.g. Requests unlinked/external, Ingest inactive/types).
+
+## Clubdesk inventory statistics aside (2026-10-01)
+
+Desktop inventory list empty aside: `ClubdeskInventoryStatisticsView` with soft-sky KPI tiles (total active, published, draft, archived) computed client-side from `inventoryItems`. i18n under `clubdesk.inventory.statistics`. Garments statistics unchanged.
+
 ## Public price list compact type (2026-09-30)
 
 Public price list/cart: category H2 and row titles at `--fs-sm` (category weight 700); tighter section gap (~1.25rem) and row padding. Inventory shared title scale unchanged. Supersedes the larger `--fs-xl` category heading pass earlier the same day.

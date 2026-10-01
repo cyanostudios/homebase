@@ -1,7 +1,7 @@
 import { LayoutGrid } from 'lucide-react';
+import { X } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { StatKpiTile } from '@/core/ui/charts/StatCharts';
@@ -17,10 +17,11 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
 import { cn } from '@/lib/utils';
 
 import { useMatches } from '../hooks/useMatches';
-import { matchMatchesListFilter } from '../utils/matchListFilter';
+import { matchMatchesListFilter, type MatchListFilterSelection } from '../utils/matchListFilter';
 
 import { MatchSeriesStats } from './stats/MatchSeriesStats';
 import { MatchStats } from './stats/MatchStats';
@@ -29,13 +30,21 @@ const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
 const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
+export type MatchesStatisticsFilter = 'total' | 'upcoming' | 'upcoming7' | 'upcoming14';
+
 interface MatchesStatisticsViewProps {
   onClose?: () => void;
+  activeFilters?: MatchListFilterSelection;
+  onSelectFilter?: (filter: MatchesStatisticsFilter) => void;
 }
 
 type StatsTab = 'results' | 'series';
 
-export function MatchesStatisticsView({ onClose }: MatchesStatisticsViewProps = {}) {
+export function MatchesStatisticsView({
+  onClose,
+  activeFilters = [],
+  onSelectFilter,
+}: MatchesStatisticsViewProps = {}) {
   const { t } = useTranslation();
   const { matches } = useMatches();
   const [tab, setTab] = useState<StatsTab>('results');
@@ -53,6 +62,18 @@ export function MatchesStatisticsView({ onClose }: MatchesStatisticsViewProps = 
     };
   }, [matches]);
 
+  const tile = (filter: MatchesStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
+  );
+
   const overviewSection = (
     <DetailSection
       title={t('matches.statistics.overview', { defaultValue: 'Overview' })}
@@ -60,34 +81,10 @@ export function MatchesStatisticsView({ onClose }: MatchesStatisticsViewProps = 
       subtleTitle
     >
       <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4">
-        <StatKpiTile
-          label={t('matches.filterAll')}
-          value={stats.total}
-          className={STAT_KPI_SOFT_CLASS}
-          labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-          valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-        />
-        <StatKpiTile
-          label={t('matches.filterUpcoming')}
-          value={stats.upcoming}
-          className={STAT_KPI_SOFT_CLASS}
-          labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-          valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-        />
-        <StatKpiTile
-          label={t('matches.filterUpcoming7')}
-          value={stats.upcoming7}
-          className={STAT_KPI_SOFT_CLASS}
-          labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-          valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-        />
-        <StatKpiTile
-          label={t('matches.filterUpcoming14')}
-          value={stats.upcoming14}
-          className={STAT_KPI_SOFT_CLASS}
-          labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-          valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-        />
+        {tile('total', t('matches.filterAll'), stats.total)}
+        {tile('upcoming', t('matches.filterUpcoming'), stats.upcoming)}
+        {tile('upcoming7', t('matches.filterUpcoming7'), stats.upcoming7)}
+        {tile('upcoming14', t('matches.filterUpcoming14'), stats.upcoming14)}
       </div>
     </DetailSection>
   );

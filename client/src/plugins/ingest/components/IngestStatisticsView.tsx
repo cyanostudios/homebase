@@ -10,8 +10,10 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
 
 import { useIngest } from '../hooks/useIngest';
+import type { IngestListFilterSelection } from '../utils/ingestListFilter';
 
 const ACTIVE_CHART_COLORS = {
   active: '#22c55e',
@@ -24,11 +26,19 @@ const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
 const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
+export type IngestStatisticsFilter = 'total' | 'active';
+
 interface IngestStatisticsViewProps {
   onClose?: () => void;
+  activeFilters?: IngestListFilterSelection;
+  onSelectFilter?: (filter: IngestStatisticsFilter) => void;
 }
 
-export function IngestStatisticsView({ onClose }: IngestStatisticsViewProps = {}) {
+export function IngestStatisticsView({
+  onClose,
+  activeFilters = [],
+  onSelectFilter,
+}: IngestStatisticsViewProps = {}) {
   const { t } = useTranslation();
   const { ingest } = useIngest();
 
@@ -81,6 +91,18 @@ export function IngestStatisticsView({ onClose }: IngestStatisticsViewProps = {}
     [stats.byType],
   );
 
+  const tile = (filter: IngestStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
+  );
+
   return (
     <div className="space-y-6">
       <div className={PLUGIN_PAGE_HEADER_CLASS}>
@@ -103,20 +125,8 @@ export function IngestStatisticsView({ onClose }: IngestStatisticsViewProps = {}
         subtleTitle
       >
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4">
-          <StatKpiTile
-            label={t('ingest.stats.total', { defaultValue: 'Total' })}
-            value={stats.total}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('ingest.active')}
-            value={stats.active}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
+          {tile('total', t('ingest.stats.total', { defaultValue: 'Total' }), stats.total)}
+          {tile('active', t('ingest.active'), stats.active)}
           <StatKpiTile
             label={t('ingest.inactive')}
             value={stats.inactive}

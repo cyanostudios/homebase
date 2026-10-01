@@ -275,17 +275,19 @@ export function ClubdeskProvider({
 
   const reorderClubdeskCategories = useCallback(
     async (orderedIds: string[]) => {
-      setCategories((prev) => {
-        const byId = new Map(prev.map((c) => [String(c.id), c]));
-        const next = orderedIds
-          .map((id, index) => {
-            const row = byId.get(String(id));
-            return row ? { ...row, sortOrder: index + 1 } : null;
-          })
-          .filter((row): row is NonNullable<typeof row> => Boolean(row));
-        const used = new Set(next.map((c) => String(c.id)));
-        const leftovers = prev.filter((c) => !used.has(String(c.id)));
-        return [...next, ...leftovers];
+      runListReorderTransition(() => {
+        setCategories((prev) => {
+          const byId = new Map(prev.map((c) => [String(c.id), c]));
+          const next = orderedIds
+            .map((id, index) => {
+              const row = byId.get(String(id));
+              return row ? { ...row, sortOrder: index + 1 } : null;
+            })
+            .filter((row): row is NonNullable<typeof row> => Boolean(row));
+          const used = new Set(next.map((c) => String(c.id)));
+          const leftovers = prev.filter((c) => !used.has(String(c.id)));
+          return [...next, ...leftovers];
+        });
       });
       try {
         const rows = await clubdeskApi.reorderCategories(orderedIds);
@@ -1491,17 +1493,19 @@ export function ClubdeskProvider({
 
   const reorderPriceListCategories = useCallback(
     async (priceListId: string, orderedIds: string[]) => {
-      setPriceListCategories((prev) => {
-        const byId = new Map(prev.map((c) => [String(c.id), c]));
-        const next = orderedIds
-          .map((id, index) => {
-            const row = byId.get(String(id));
-            return row ? { ...row, sortOrder: index + 1 } : null;
-          })
-          .filter((row): row is NonNullable<typeof row> => Boolean(row));
-        const used = new Set(next.map((c) => String(c.id)));
-        const leftovers = prev.filter((c) => !used.has(String(c.id)));
-        return [...next, ...leftovers];
+      runListReorderTransition(() => {
+        setPriceListCategories((prev) => {
+          const byId = new Map(prev.map((c) => [String(c.id), c]));
+          const next = orderedIds
+            .map((id, index) => {
+              const row = byId.get(String(id));
+              return row ? { ...row, sortOrder: index + 1 } : null;
+            })
+            .filter((row): row is NonNullable<typeof row> => Boolean(row));
+          const used = new Set(next.map((c) => String(c.id)));
+          const leftovers = prev.filter((c) => !used.has(String(c.id)));
+          return [...next, ...leftovers];
+        });
       });
       try {
         const rows = await clubdeskApi.reorderPriceListCategories(priceListId, orderedIds);

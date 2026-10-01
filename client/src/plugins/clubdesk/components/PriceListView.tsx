@@ -620,6 +620,9 @@ export function PriceListView({
               key={group.category ?? '__uncategorized__'}
               padding="none"
               className={DETAIL_VIEW_CARD_CLASS}
+              style={
+                catalogRow?.id ? listReorderRowStyle(`price-list-cat-${catalogRow.id}`) : undefined
+              }
             >
               <DetailSection
                 title={categoryLabel}

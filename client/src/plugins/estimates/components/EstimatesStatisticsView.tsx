@@ -9,14 +9,24 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
 
 import { useEstimates } from '../hooks/useEstimates';
+import type { EstimateListFilterSelection } from '../utils/estimateListFilter';
 
 const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
 const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
-export function EstimatesStatisticsView() {
+export type EstimatesStatisticsFilter = 'total' | 'draft' | 'sent' | 'accepted' | 'invoiced';
+
+export function EstimatesStatisticsView({
+  activeFilters = [],
+  onSelectFilter,
+}: {
+  activeFilters?: EstimateListFilterSelection;
+  onSelectFilter?: (filter: EstimatesStatisticsFilter) => void;
+} = {}) {
   const { t } = useTranslation();
   const { estimates } = useEstimates();
 
@@ -29,6 +39,18 @@ export function EstimatesStatisticsView() {
       invoiced: estimates.filter((estimate) => estimate.status === 'invoiced').length,
     }),
     [estimates],
+  );
+
+  const tile = (filter: EstimatesStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
   );
 
   return (
@@ -53,41 +75,19 @@ export function EstimatesStatisticsView() {
         subtleTitle
       >
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4">
-          <StatKpiTile
-            label={t('estimates.statistics.total', { defaultValue: 'Total' })}
-            value={stats.total}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('estimates.statistics.draft', { defaultValue: 'Draft' })}
-            value={stats.draft}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('estimates.statistics.sent', { defaultValue: 'Sent' })}
-            value={stats.sent}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('estimates.statistics.accepted', { defaultValue: 'Accepted' })}
-            value={stats.accepted}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('estimates.statistics.invoiced', { defaultValue: 'Invoiced' })}
-            value={stats.invoiced}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
+          {tile('total', t('estimates.statistics.total', { defaultValue: 'Total' }), stats.total)}
+          {tile('draft', t('estimates.statistics.draft', { defaultValue: 'Draft' }), stats.draft)}
+          {tile('sent', t('estimates.statistics.sent', { defaultValue: 'Sent' }), stats.sent)}
+          {tile(
+            'accepted',
+            t('estimates.statistics.accepted', { defaultValue: 'Accepted' }),
+            stats.accepted,
+          )}
+          {tile(
+            'invoiced',
+            t('estimates.statistics.invoiced', { defaultValue: 'Invoiced' }),
+            stats.invoiced,
+          )}
         </div>
       </DetailSection>
     </div>

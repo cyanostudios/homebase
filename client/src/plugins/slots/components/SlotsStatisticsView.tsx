@@ -9,15 +9,29 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
 
 import { useSlotsContext as useSlots } from '../context/SlotsContext';
-import { slotHasCategory, slotIsUpcoming, slotIsVisible } from '../utils/slotListFilter';
+import {
+  slotHasCategory,
+  slotIsUpcoming,
+  slotIsVisible,
+  type SlotListFilterSelection,
+} from '../utils/slotListFilter';
 
 const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
 const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
-export function SlotsStatisticsView() {
+export type SlotsStatisticsFilter = 'total' | 'visible' | 'upcoming' | 'withCategory';
+
+export function SlotsStatisticsView({
+  activeFilters = [],
+  onSelectFilter,
+}: {
+  activeFilters?: SlotListFilterSelection;
+  onSelectFilter?: (filter: SlotsStatisticsFilter) => void;
+} = {}) {
   const { t } = useTranslation();
   const { slots } = useSlots();
 
@@ -29,6 +43,18 @@ export function SlotsStatisticsView() {
       withCategory: slots.filter((s) => slotHasCategory(s)).length,
     }),
     [slots],
+  );
+
+  const tile = (filter: SlotsStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
   );
 
   return (
@@ -51,34 +77,18 @@ export function SlotsStatisticsView() {
         subtleTitle
       >
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4">
-          <StatKpiTile
-            label={t('slots.stats.total', { defaultValue: 'Total' })}
-            value={stats.total}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('slots.stats.visible', { defaultValue: 'Visible' })}
-            value={stats.visible}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('slots.stats.upcoming', { defaultValue: 'Upcoming' })}
-            value={stats.upcoming}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('slots.stats.withCategory', { defaultValue: 'With category' })}
-            value={stats.withCategory}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
+          {tile('total', t('slots.stats.total', { defaultValue: 'Total' }), stats.total)}
+          {tile('visible', t('slots.stats.visible', { defaultValue: 'Visible' }), stats.visible)}
+          {tile(
+            'upcoming',
+            t('slots.stats.upcoming', { defaultValue: 'Upcoming' }),
+            stats.upcoming,
+          )}
+          {tile(
+            'withCategory',
+            t('slots.stats.withCategory', { defaultValue: 'With category' }),
+            stats.withCategory,
+          )}
         </div>
       </DetailSection>
     </div>

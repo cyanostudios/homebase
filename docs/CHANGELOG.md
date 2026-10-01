@@ -4,6 +4,26 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-10-01 – Statistics KPI tiles link to list filters (cross-plugin)
+
+**Typ:** UI  
+**Scope:** Contacts, Notes, Tasks, Requests, Estimates, Matches, Cups, Slots, Files, Mail providers, Pulse providers, AI providers, and Ingest list desktop statistics asides. Soft-sky KPI tiles set the matching list filter chip (not toggle), show pressed when active, open filter chips when persisted, and clear on Total/All. Requests unlinked/external and Ingest inactive/types KPIs stay display-only. Clubdesk inventory reference unchanged. Garments, Invoices, Teams, Sportadmin out of scope.  
+**Risk:** Low.
+
+**Sammanfattning:** KPI-rutor i statistikpanelen styr samma filter som chip-raden i listan.
+
+---
+
+## 2026-10-01 – Clubdesk inventory desktop statistics aside
+
+**Typ:** UI  
+**Scope:** Clubdesk inventory list desktop split pane. When no row is selected, the aside shows KPI overview (active, published, draft, archived) from loaded `inventoryItems`. Garments unchanged.  
+**Risk:** Low.
+
+**Sammanfattning:** Tom högerpanel ersatt med lagerstatistik i samma mönster som Garments/Contacts.
+
+---
+
 ## 2026-09-30 – Public price list uses compact category and row type
 
 **Typ:** UI  

@@ -1982,6 +1982,15 @@
         "decreaseQuantity": "Minska antal",
         "increaseQuantity": "Öka antal"
       },
+      "statistics": {
+        "title": "Lagerstatistik",
+        "description": "Översikt av aktiva, publicerade, utkast och arkiverade produkter.",
+        "overview": "Översikt",
+        "total": "Aktiva produkter",
+        "published": "Publicerade",
+        "draft": "Utkast",
+        "archived": "Arkiverade"
+      },
       "searchPlaceholder": "Sök bland {{count}} produkter…",
       "noMatch": "Inga träffar",
       "noYet": "Inga produkter ännu",

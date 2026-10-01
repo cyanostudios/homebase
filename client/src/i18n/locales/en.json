@@ -1988,6 +1988,15 @@
         "decreaseQuantity": "Decrease quantity",
         "increaseQuantity": "Increase quantity"
       },
+      "statistics": {
+        "title": "Inventory statistics",
+        "description": "Overview of active, published, draft, and archived products.",
+        "overview": "Overview",
+        "total": "Active products",
+        "published": "Published",
+        "draft": "Draft",
+        "archived": "Archived"
+      },
       "searchPlaceholder": "Search {{count}} products...",
       "noMatch": "No matches",
       "noYet": "No products yet",

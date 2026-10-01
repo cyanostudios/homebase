@@ -42,6 +42,7 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
+import { listReorderRowStyle, runListReorderTransition } from '@/core/ui/listReorderTransition';
 import {
   DETAIL_EMPTY_STATE_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -546,7 +547,9 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
       next[index] = next[nextIndex];
       next[nextIndex] = tmp;
 
-      setCategoryOrderNames(next.map((entry) => entry.name));
+      runListReorderTransition(() => {
+        setCategoryOrderNames(next.map((entry) => entry.name));
+      });
 
       const orderedIds = next.filter((entry) => entry.id).map((entry) => String(entry.id));
       if (orderedIds.length > 0) {
@@ -818,11 +821,12 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                             <div
                               key={`${entry.id ?? 'orphan'}-${entry.name}`}
                               className={cn(
-                                'flex items-center gap-2 rounded-md border px-2 py-1.5',
+                                'line-item-reorder-row flex items-center gap-2 rounded-md border px-2 py-1.5',
                                 isSelected
                                   ? 'border-primary/40 bg-primary/5'
                                   : 'border-border/50 bg-muted/20',
                               )}
+                              style={listReorderRowStyle(`${entry.id ?? 'orphan'}-${entry.name}`)}
                             >
                               <button
                                 type="button"

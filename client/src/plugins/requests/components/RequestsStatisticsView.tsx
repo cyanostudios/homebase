@@ -12,9 +12,11 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
 
 import { useRequests } from '../hooks/useRequests';
 import { isOpenRequestStatus } from '../types/requests';
+import type { RequestListFilterSelection } from '../utils/requestListFilter';
 
 const STATUS_CHART_COLORS = {
   active: '#60a5fa',
@@ -27,11 +29,19 @@ const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
 const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
+export type RequestsStatisticsFilter = 'total' | 'active' | 'completed' | 'cancelled';
+
 interface RequestsStatisticsViewProps {
   onClose?: () => void;
+  activeFilters?: RequestListFilterSelection;
+  onSelectFilter?: (filter: RequestsStatisticsFilter) => void;
 }
 
-export function RequestsStatisticsView({ onClose }: RequestsStatisticsViewProps = {}) {
+export function RequestsStatisticsView({
+  onClose,
+  activeFilters = [],
+  onSelectFilter,
+}: RequestsStatisticsViewProps = {}) {
   const { t } = useTranslation();
   const { requests } = useRequests();
 
@@ -78,6 +88,18 @@ export function RequestsStatisticsView({ onClose }: RequestsStatisticsViewProps 
     [stats.active, stats.completed, stats.cancelled, t],
   );
 
+  const tile = (filter: RequestsStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
+  );
+
   return (
     <div className="space-y-6">
       <div className={PLUGIN_PAGE_HEADER_CLASS}>
@@ -112,34 +134,10 @@ export function RequestsStatisticsView({ onClose }: RequestsStatisticsViewProps 
         subtleTitle
       >
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-          <StatKpiTile
-            label={t('requests.filterAll')}
-            value={stats.total}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('requests.statActive')}
-            value={stats.active}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('requests.statCompleted')}
-            value={stats.completed}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('requests.status.cancelled')}
-            value={stats.cancelled}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
+          {tile('total', t('requests.filterAll'), stats.total)}
+          {tile('active', t('requests.statActive'), stats.active)}
+          {tile('completed', t('requests.statCompleted'), stats.completed)}
+          {tile('cancelled', t('requests.status.cancelled'), stats.cancelled)}
           <StatKpiTile
             label={t('requests.statNotRelated')}
             value={stats.unlinked}

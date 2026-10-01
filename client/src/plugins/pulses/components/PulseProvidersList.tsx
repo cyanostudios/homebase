@@ -30,6 +30,7 @@ import {
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import {
   DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_AND_SORT_ROW_CLASS,
@@ -45,10 +46,10 @@ import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
-import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
@@ -68,10 +69,10 @@ import {
   type PulseProvidersListFilterSelection,
 } from '../utils/pulseProvidersListFilter';
 
-import { PulseProviderView } from './PulseProviderView';
 import { PulseProvidersListTable } from './PulseProvidersListTable';
 import { PulseProvidersRouting } from './PulseProvidersRouting';
 import { PulseProvidersStatisticsView } from './PulseProvidersStatisticsView';
+import { PulseProviderView } from './PulseProviderView';
 import { PulseSettingsForm } from './PulseSettingsForm';
 
 const PULSES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.pulses.toolbar.filtersVisible';
@@ -707,7 +708,12 @@ export const PulseProvidersList: React.FC = () => {
                   <PulseProviderView pulse={detailProvider} />
                 ) : (
                   <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
-                    <PulseProvidersStatisticsView />
+                    <PulseProvidersStatisticsView
+                      activeFilters={activeFilters}
+                      onSelectFilter={(filter) =>
+                        handleStatKpiListFilterSelect(filter, setFiltersVisible, setActiveFilters)
+                      }
+                    />
                   </Card>
                 )}
               </aside>
