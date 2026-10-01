@@ -169,8 +169,10 @@ describe('WorkerService park/wake', () => {
     worker.stop();
   });
 
-  test('start is a no-op in test env without GUIDES_PRODUCTION_WORKER_ENABLED', async () => {
-    delete process.env.GUIDES_PRODUCTION_WORKER_ENABLED;
+  test('start is a no-op when GUIDES_PRODUCTION_WORKER_ENABLED is false', async () => {
+    process.env.GUIDES_PRODUCTION_WORKER_ENABLED = 'false';
+    listGuidesEnabledTenants.mockClear();
+    Logger.info.mockClear();
     const worker = new WorkerService(orchestration, settingsModel);
     worker.start();
     await waitForIdle(worker);
