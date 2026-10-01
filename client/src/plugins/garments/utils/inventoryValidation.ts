@@ -10,6 +10,7 @@ export type InventoryValidationMessages = {
   recommendedPriceInvalid: string;
   salePriceInvalid: string;
   quantityInvalid: string;
+  gtinInvalid: string;
 };
 
 /** Client-side inventory validation. Variant identity may repeat (UI warns only). */
@@ -44,6 +45,13 @@ export function validateInventoryPayload(
       errors.push({
         field: `variants.${i}.quantity`,
         message: messages.quantityInvalid,
+      });
+    }
+    const gtin = String(variant.gtin ?? '').replace(/\s+/g, '');
+    if (gtin && !/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(gtin)) {
+      errors.push({
+        field: `variants.${i}.gtin`,
+        message: messages.gtinInvalid,
       });
     }
   }
@@ -109,7 +117,7 @@ export function findDuplicateVariantIndices(variants: InventoryVariantPayload[])
 }
 
 /**
- * Copy a variant row for the form repeater: new row (no id), empty art.nr and
+ * Copy a variant row for the form repeater: new row (no id), empty art.nr, empty GTIN, and
  * quantity 0. Keeps audience, color, and size.
  */
 export function buildDuplicatedVariantPayload(
@@ -117,6 +125,7 @@ export function buildDuplicatedVariantPayload(
 ): InventoryVariantPayload {
   return {
     sku: '',
+    gtin: '',
     audience: source.audience ?? '',
     color: source.color ?? '',
     size: source.size ?? '',
@@ -125,12 +134,13 @@ export function buildDuplicatedVariantPayload(
   };
 }
 
-/** Variants for a duplicated inventory item: keep audience/color/size/qty, clear art.nr. */
+/** Variants for a duplicated inventory item: keep audience/color/size/qty, clear art.nr and GTIN. */
 export function buildDuplicatedItemVariantPayloads(
   variants: InventoryVariantPayload[],
 ): InventoryVariantPayload[] {
   return (variants || []).map((variant, index) => ({
     sku: '',
+    gtin: '',
     audience: variant.audience ?? '',
     color: variant.color ?? '',
     size: variant.size ?? '',

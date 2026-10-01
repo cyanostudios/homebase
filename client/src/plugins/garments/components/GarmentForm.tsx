@@ -95,7 +95,7 @@ interface GarmentFormProps {
 }
 
 function emptyVariant(): InventoryVariantPayload {
-  return { sku: '', audience: '', color: '', size: '', quantity: 0 };
+  return { sku: '', gtin: '', audience: '', color: '', size: '', quantity: 0 };
 }
 
 type InventoryFormTab = 'information' | 'variants' | 'lists' | 'activity';
@@ -279,6 +279,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
           variants: (currentInventoryItem.variants || []).map((variant) => ({
             id: variant.id,
             sku: variant.sku ?? '',
+            gtin: variant.gtin ?? '',
             audience: variant.audience ?? '',
             color: variant.color ?? '',
             size: variant.size ?? '',
@@ -596,6 +597,9 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 {getFieldError('articleName')?.message}
               </p>
             ) : null}
+            {currentInventoryItem?.archivedAt ? (
+              <p className="mt-1 text-xs text-muted-foreground">{t('garments.archivedFormNote')}</p>
+            ) : null}
           </div>
           {headerTrailing ? (
             <div className="flex shrink-0 items-center gap-1">{headerTrailing}</div>
@@ -899,6 +903,23 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                         placeholder={t('garments.skuPlaceholder')}
                         className={VARIANT_COMPACT_INPUT_CLASS}
                       />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className={VARIANT_COMPACT_LABEL_CLASS}>{t('garments.gtin')}</Label>
+                      <Input
+                        value={variant.gtin ?? ''}
+                        onChange={(e) => updateVariant(index, { gtin: e.target.value })}
+                        placeholder={t('garments.gtinPlaceholder')}
+                        inputMode="numeric"
+                        autoComplete="off"
+                        maxLength={40}
+                        className={VARIANT_COMPACT_INPUT_CLASS}
+                      />
+                      {getFieldError(`variants.${index}.gtin`) ? (
+                        <p className="mt-0.5 text-[10px] leading-tight text-destructive">
+                          {getFieldError(`variants.${index}.gtin`)?.message}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="min-w-0">
                       <Label className={VARIANT_COMPACT_LABEL_CLASS}>

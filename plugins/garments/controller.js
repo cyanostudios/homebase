@@ -52,6 +52,15 @@ class GarmentsController {
     }
   }
 
+  async duplicateList(req, res, next) {
+    try {
+      const list = await this.model.duplicateList(req, req.params.id, req.body);
+      res.json(list);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async updateList(req, res, next) {
     try {
       const list = await this.model.updateList(req, req.params.id, req.body);
@@ -255,6 +264,24 @@ class GarmentsController {
     try {
       await this.model.deleteInventoryItem(req, req.params.id);
       res.json({ deleted: true });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async archiveInventoryItem(req, res, next) {
+    try {
+      const item = await this.model.archiveInventoryItem(req, req.params.id);
+      res.json(item);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async restoreInventoryItem(req, res, next) {
+    try {
+      const item = await this.model.restoreInventoryItem(req, req.params.id);
+      res.json(item);
     } catch (error) {
       next(error);
     }

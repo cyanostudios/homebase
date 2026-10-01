@@ -1,4 +1,5 @@
 import {
+  Apple,
   Copy,
   History,
   Info,
@@ -77,24 +78,71 @@ interface InventoryFormProps {
 }
 
 function emptyVariant(): ClubdeskInventoryVariant {
-  return { sku: '', audience: '', color: '', size: '', quantity: 0 };
+  return { sku: '', gtin: '', audience: '', color: '', size: '', quantity: 0 };
 }
 
-type InventoryFormTab = 'information' | 'variants' | 'activity';
+function emptyInventoryPayload(): ClubdeskInventoryItemPayload {
+  return {
+    articleName: '',
+    brand: '',
+    description: null,
+    material: '',
+    purchasePrice: null,
+    recommendedPrice: null,
+    salePrice: null,
+    currency: 'SEK',
+    comment: null,
+    tags: [],
+    variants: [],
+    slug: '',
+    featuredImageUrl: null,
+    category: '',
+    packageSize: '',
+    packageUnit: '',
+    gtin: '',
+    articleNumber: '',
+    ingredients: null,
+    allergens: null,
+    energyKcal100g: null,
+    fatG100g: null,
+    saturatedFatG100g: null,
+    carbohydrateG100g: null,
+    sugarG100g: null,
+    proteinG100g: null,
+    saltG100g: null,
+    netContent: '',
+    countryOfOrigin: '',
+    countryOfManufacture: '',
+    supplier: '',
+    publicationStatus: 'published',
+    featured: false,
+  };
+}
 
-const INVENTORY_FORM_TABS: InventoryFormTab[] = ['information', 'variants', 'activity'];
+type InventoryFormTab =
+  | 'information'
+  | 'details'
+  | 'productPack'
+  | 'ingredients'
+  | 'variants'
+  | 'activity';
+
+const INVENTORY_FORM_TABS: InventoryFormTab[] = [
+  'information',
+  'details',
+  'productPack',
+  'ingredients',
+  'variants',
+  'activity',
+];
 
 const INVENTORY_FORM_EDIT_DISABLED_TABS: ReadonlySet<InventoryFormTab> = new Set(['activity']);
 
 const INVENTORY_TAB_ERROR_FIELDS: Record<InventoryFormTab, string[]> = {
-  information: [
-    'description',
-    'comment',
-    'articleName',
-    'purchasePrice',
-    'recommendedPrice',
-    'salePrice',
-  ],
+  information: ['description', 'comment', 'articleName'],
+  details: ['purchasePrice', 'recommendedPrice', 'salePrice'],
+  productPack: ['gtin'],
+  ingredients: [],
   variants: ['variants'],
   activity: [],
 };
@@ -174,23 +222,8 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [availableTags, setAvailableTags] = useState<string[]>([]);
     const [tagToAdd, setTagToAdd] = useState('');
-    const [inventoryForm, setInventoryForm] = useState<ClubdeskInventoryItemPayload>({
-      articleName: '',
-      brand: '',
-      description: null,
-      material: '',
-      purchasePrice: null,
-      recommendedPrice: null,
-      salePrice: null,
-      currency: 'SEK',
-      comment: null,
-      tags: [],
-      variants: [],
-      slug: '',
-      featuredImageUrl: null,
-      publicationStatus: 'published',
-      featured: false,
-    });
+    const [inventoryForm, setInventoryForm] =
+      useState<ClubdeskInventoryItemPayload>(emptyInventoryPayload());
     const [pendingDeleteVariantIndex, setPendingDeleteVariantIndex] = useState<number | null>(null);
 
     const isCurrentlySubmitting = externalIsSubmitting || isSaving || isSubmitting;
@@ -202,23 +235,7 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
     }, [formKey, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
     const resetForm = useCallback(() => {
-      setInventoryForm({
-        articleName: '',
-        brand: '',
-        description: null,
-        material: '',
-        purchasePrice: null,
-        recommendedPrice: null,
-        salePrice: null,
-        currency: 'SEK',
-        comment: null,
-        tags: [],
-        slug: '',
-        featuredImageUrl: null,
-        publicationStatus: 'published',
-        featured: false,
-        variants: [],
-      });
+      setInventoryForm(emptyInventoryPayload());
       setTagToAdd('');
       markClean();
     }, [markClean]);
@@ -260,10 +277,29 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
           publicationStatus:
             currentInventoryItem.publicationStatus === 'draft' ? 'draft' : 'published',
           featured: currentInventoryItem.featured === true,
+          category: currentInventoryItem.category ?? '',
+          packageSize: currentInventoryItem.packageSize ?? '',
+          packageUnit: currentInventoryItem.packageUnit ?? '',
+          gtin: currentInventoryItem.gtin ?? '',
+          articleNumber: currentInventoryItem.articleNumber ?? '',
+          ingredients: currentInventoryItem.ingredients ?? null,
+          allergens: currentInventoryItem.allergens ?? null,
+          energyKcal100g: currentInventoryItem.energyKcal100g ?? null,
+          fatG100g: currentInventoryItem.fatG100g ?? null,
+          saturatedFatG100g: currentInventoryItem.saturatedFatG100g ?? null,
+          carbohydrateG100g: currentInventoryItem.carbohydrateG100g ?? null,
+          sugarG100g: currentInventoryItem.sugarG100g ?? null,
+          proteinG100g: currentInventoryItem.proteinG100g ?? null,
+          saltG100g: currentInventoryItem.saltG100g ?? null,
+          netContent: currentInventoryItem.netContent ?? '',
+          countryOfOrigin: currentInventoryItem.countryOfOrigin ?? '',
+          countryOfManufacture: currentInventoryItem.countryOfManufacture ?? '',
+          supplier: currentInventoryItem.supplier ?? '',
           variants: (currentInventoryItem.variants || []).map(
             (variant: ClubdeskInventoryVariant) => ({
               id: variant.id,
               sku: variant.sku ?? '',
+              gtin: variant.gtin ?? '',
               audience: variant.audience ?? '',
               color: variant.color ?? '',
               size: variant.size ?? '',
@@ -340,6 +376,25 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
       markDirty();
       clearValidationErrors();
     };
+
+    const updateOptionalNumberField = (
+      field:
+        | 'energyKcal100g'
+        | 'fatG100g'
+        | 'saturatedFatG100g'
+        | 'carbohydrateG100g'
+        | 'sugarG100g'
+        | 'proteinG100g'
+        | 'saltG100g',
+      raw: string,
+    ) => {
+      updateInventoryField(field, raw === '' ? null : Number(raw));
+    };
+
+    const catalogKeyDisplay = (currentInventoryItem?.catalogKey ?? '').trim();
+    const provenanceSource = (currentInventoryItem?.source ?? '').trim();
+    const provenanceDataStatus = (currentInventoryItem?.dataStatus ?? '').trim();
+    const provenanceVerified = currentInventoryItem?.verifiedAt?.trim() || '';
 
     const formTags = Array.isArray(inventoryForm.tags) ? inventoryForm.tags : [];
     const addableTags = useMemo(
@@ -431,6 +486,21 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
     const inventoryTabs = useMemo(
       () => [
         { id: 'information' as const, label: t('clubdesk.inventory.tabs.information'), icon: Info },
+        {
+          id: 'details' as const,
+          label: t('clubdesk.inventory.tabs.details'),
+          icon: SlidersHorizontal,
+        },
+        {
+          id: 'productPack' as const,
+          label: t('clubdesk.inventory.tabs.productAndPack'),
+          icon: ShoppingBag,
+        },
+        {
+          id: 'ingredients' as const,
+          label: t('clubdesk.inventory.tabs.ingredients'),
+          icon: Apple,
+        },
         {
           id: 'variants' as const,
           label: t('clubdesk.inventory.tabs.variants'),
@@ -558,6 +628,23 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
                 rows={3}
                 className={FORM_GHOST_TEXTAREA_CLASS}
               />
+            </div>
+            <div>
+              <Label htmlFor="clubdesk-inv-featured">{t('clubdesk.featuredImageUrl')}</Label>
+              <Input
+                id="clubdesk-inv-featured"
+                value={inventoryForm.featuredImageUrl ?? ''}
+                onChange={(e) => updateInventoryField('featuredImageUrl', e.target.value)}
+                placeholder="https://"
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+              {inventoryForm.featuredImageUrl?.trim() ? (
+                <img
+                  src={inventoryForm.featuredImageUrl.trim()}
+                  alt=""
+                  className="mt-2 h-20 w-auto rounded-md object-cover"
+                />
+              ) : null}
             </div>
           </div>
         </DetailSection>
@@ -750,18 +837,238 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
                 ) : null}
               </div>
             </div>
+            {currentInventoryItem?.archivedAt ? (
+              <p className="text-sm text-muted-foreground">
+                {t('clubdesk.inventory.archivedFormNote')}
+              </p>
+            ) : null}
             <ClubdeskPublicationPropertiesFields
               values={{
                 publicationStatus:
                   inventoryForm.publicationStatus === 'draft' ? 'draft' : 'published',
-                featured: inventoryForm.featured === true,
+                featured: false,
                 slug: inventoryForm.slug,
               }}
               onPublicationStatusChange={(status) =>
                 updateInventoryField('publicationStatus', status)
               }
-              onFeaturedChange={(featured) => updateInventoryField('featured', featured)}
+              showFeatured={false}
             />
+          </div>
+        </DetailSection>
+      </Card>
+    );
+
+    const productAndPackCard = (
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('clubdesk.inventory.productAndPack')}
+          icon={ShoppingBag}
+          subtleTitle
+          className="p-6"
+        >
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="inv-product-category">
+                {t('clubdesk.inventory.productCategory')}
+              </Label>
+              <Input
+                id="inv-product-category"
+                value={inventoryForm.category ?? ''}
+                onChange={(e) => updateInventoryField('category', e.target.value)}
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="inv-package-size">{t('clubdesk.inventory.packageSize')}</Label>
+                <Input
+                  id="inv-package-size"
+                  value={inventoryForm.packageSize ?? ''}
+                  onChange={(e) => updateInventoryField('packageSize', e.target.value)}
+                  className={FORM_GHOST_INPUT_CLASS}
+                />
+              </div>
+              <div>
+                <Label htmlFor="inv-package-unit">{t('clubdesk.inventory.packageUnit')}</Label>
+                <Input
+                  id="inv-package-unit"
+                  value={inventoryForm.packageUnit ?? ''}
+                  onChange={(e) => updateInventoryField('packageUnit', e.target.value)}
+                  className={FORM_GHOST_INPUT_CLASS}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="inv-item-gtin">{t('clubdesk.inventory.itemGtin')}</Label>
+                <Input
+                  id="inv-item-gtin"
+                  value={inventoryForm.gtin ?? ''}
+                  onChange={(e) => updateInventoryField('gtin', e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={40}
+                  className={cn(
+                    FORM_GHOST_INPUT_CLASS,
+                    getFieldError('gtin') && FORM_INPUT_ERROR_CLASS,
+                  )}
+                />
+                {getFieldError('gtin') ? (
+                  <p className="mt-1 text-sm text-destructive">{getFieldError('gtin')?.message}</p>
+                ) : null}
+              </div>
+              <div>
+                <Label htmlFor="inv-article-number">{t('clubdesk.inventory.articleNumber')}</Label>
+                <Input
+                  id="inv-article-number"
+                  value={inventoryForm.articleNumber ?? ''}
+                  onChange={(e) => updateInventoryField('articleNumber', e.target.value)}
+                  className={FORM_GHOST_INPUT_CLASS}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="inv-net-content">{t('clubdesk.inventory.netContent')}</Label>
+              <Input
+                id="inv-net-content"
+                value={inventoryForm.netContent ?? ''}
+                onChange={(e) => updateInventoryField('netContent', e.target.value)}
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="inv-origin">{t('clubdesk.inventory.countryOfOrigin')}</Label>
+                <Input
+                  id="inv-origin"
+                  value={inventoryForm.countryOfOrigin ?? ''}
+                  onChange={(e) => updateInventoryField('countryOfOrigin', e.target.value)}
+                  className={FORM_GHOST_INPUT_CLASS}
+                />
+              </div>
+              <div>
+                <Label htmlFor="inv-manufacture">
+                  {t('clubdesk.inventory.countryOfManufacture')}
+                </Label>
+                <Input
+                  id="inv-manufacture"
+                  value={inventoryForm.countryOfManufacture ?? ''}
+                  onChange={(e) => updateInventoryField('countryOfManufacture', e.target.value)}
+                  className={FORM_GHOST_INPUT_CLASS}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="inv-supplier">{t('clubdesk.inventory.supplier')}</Label>
+              <Input
+                id="inv-supplier"
+                value={inventoryForm.supplier ?? ''}
+                onChange={(e) => updateInventoryField('supplier', e.target.value)}
+                className={FORM_GHOST_INPUT_CLASS}
+              />
+            </div>
+            {catalogKeyDisplay ? (
+              <div>
+                <Label>{t('clubdesk.inventory.catalogKey')}</Label>
+                <p className="mt-1 text-sm text-muted-foreground">{catalogKeyDisplay}</p>
+              </div>
+            ) : null}
+            {provenanceSource || provenanceDataStatus || provenanceVerified ? (
+              <div className="space-y-1 border-t border-border/40 pt-3 text-xs text-muted-foreground">
+                {provenanceSource ? (
+                  <p>
+                    <span className="font-medium">{t('clubdesk.inventory.source')}:</span>{' '}
+                    {provenanceSource}
+                  </p>
+                ) : null}
+                {provenanceVerified ? (
+                  <p>
+                    <span className="font-medium">{t('clubdesk.inventory.verifiedAt')}:</span>{' '}
+                    {provenanceVerified}
+                  </p>
+                ) : null}
+                {provenanceDataStatus ? (
+                  <p>
+                    <span className="font-medium">{t('clubdesk.inventory.dataStatus')}:</span>{' '}
+                    {provenanceDataStatus}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </DetailSection>
+      </Card>
+    );
+
+    const ingredientsAndNutritionCard = (
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('clubdesk.inventory.ingredientsAndNutrition')}
+          icon={Tag}
+          subtleTitle
+          className="p-6"
+        >
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="inv-ingredients">{t('clubdesk.inventory.ingredients')}</Label>
+              <Textarea
+                id="inv-ingredients"
+                value={inventoryForm.ingredients ?? ''}
+                onChange={(e) =>
+                  updateInventoryField('ingredients', e.target.value.trim() ? e.target.value : null)
+                }
+                rows={3}
+                className={FORM_GHOST_TEXTAREA_CLASS}
+              />
+            </div>
+            <div>
+              <Label htmlFor="inv-allergens">{t('clubdesk.inventory.allergens')}</Label>
+              <Textarea
+                id="inv-allergens"
+                value={inventoryForm.allergens ?? ''}
+                onChange={(e) =>
+                  updateInventoryField('allergens', e.target.value.trim() ? e.target.value : null)
+                }
+                rows={2}
+                className={FORM_GHOST_TEXTAREA_CLASS}
+              />
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium text-foreground">
+                {t('clubdesk.inventory.nutritionPer100g')}
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {(
+                  [
+                    ['energyKcal100g', 'clubdesk.inventory.nutrition.energy'],
+                    ['fatG100g', 'clubdesk.inventory.nutrition.fat'],
+                    ['saturatedFatG100g', 'clubdesk.inventory.nutrition.saturatedFat'],
+                    ['carbohydrateG100g', 'clubdesk.inventory.nutrition.carbohydrate'],
+                    ['sugarG100g', 'clubdesk.inventory.nutrition.sugar'],
+                    ['proteinG100g', 'clubdesk.inventory.nutrition.protein'],
+                    ['saltG100g', 'clubdesk.inventory.nutrition.salt'],
+                  ] as const
+                ).map(([field, labelKey]) => (
+                  <div key={field}>
+                    <Label htmlFor={`inv-nutrition-${field}`}>{t(labelKey)}</Label>
+                    <Input
+                      id={`inv-nutrition-${field}`}
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={
+                        inventoryForm[field] != null && !Number.isNaN(Number(inventoryForm[field]))
+                          ? String(inventoryForm[field])
+                          : ''
+                      }
+                      onChange={(e) => updateOptionalNumberField(field, e.target.value)}
+                      className={FORM_GHOST_INPUT_CLASS}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </DetailSection>
       </Card>
@@ -817,6 +1124,25 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
                           placeholder={t('clubdesk.inventory.skuPlaceholder')}
                           className={VARIANT_COMPACT_INPUT_CLASS}
                         />
+                      </div>
+                      <div className="min-w-0">
+                        <Label className={VARIANT_COMPACT_LABEL_CLASS}>
+                          {t('clubdesk.inventory.variantGtin')}
+                        </Label>
+                        <Input
+                          value={variant.gtin ?? ''}
+                          onChange={(e) => updateVariant(index, { gtin: e.target.value })}
+                          placeholder={t('clubdesk.inventory.gtinPlaceholder')}
+                          inputMode="numeric"
+                          autoComplete="off"
+                          maxLength={40}
+                          className={VARIANT_COMPACT_INPUT_CLASS}
+                        />
+                        {getFieldError(`variants.${index}.gtin`) ? (
+                          <p className="mt-0.5 text-[10px] leading-tight text-destructive">
+                            {getFieldError(`variants.${index}.gtin`)?.message}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="min-w-0">
                         <Label className={VARIANT_COMPACT_LABEL_CLASS}>
@@ -935,7 +1261,9 @@ export const InventoryForm = React.forwardRef<PanelFormHandle, InventoryFormProp
 
               {inventoryFormHeader}
               {activeTab === 'information' ? inventoryInformationCard : null}
-              {activeTab === 'information' ? inventoryPropertiesCard : null}
+              {activeTab === 'details' ? inventoryPropertiesCard : null}
+              {activeTab === 'productPack' ? productAndPackCard : null}
+              {activeTab === 'ingredients' ? ingredientsAndNutritionCard : null}
               {activeTab === 'variants' ? variantsCard : null}
             </form>
           </DetailLayout>

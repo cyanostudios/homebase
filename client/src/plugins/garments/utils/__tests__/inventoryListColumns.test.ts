@@ -12,6 +12,7 @@ import {
   personHasFilledInventoryItem,
   personHasInventoryFitData,
   resolveMatrixColumns,
+  selectOptionsWithStoredValue,
 } from '@/plugins/garments/utils/inventoryListColumns';
 import type {
   GarmentCheckboxColumn,
@@ -287,6 +288,29 @@ describe('inventoryListColumns', () => {
       'inv_7_delivered',
       'inv_7_handed_out',
     ]);
+  });
+
+  it('overlays a stale checkbox group with the live article name', () => {
+    const list: GarmentList = {
+      id: '1',
+      name: 'F16',
+      teamId: null,
+      checkboxColumns: [{ id: 'inv_7_ordered', label: 'Ordered', group: 'Old name', sortOrder: 0 }],
+      assignedInventoryItemIds: ['7'],
+      createdAt: '',
+      updatedAt: '',
+    };
+    const inventory: InventoryItem[] = [
+      { ...sampleItem, id: '7', articleName: 'New name', archivedAt: '2026-01-01' },
+    ];
+    const resolved = resolveMatrixColumns(list, inventory);
+    expect(resolved.find((col) => col.id === 'inv_7_ordered')?.group).toBe('New name');
+  });
+
+  it('keeps a stored size that is no longer in the catalog', () => {
+    expect(selectOptionsWithStoredValue(['S', 'M'], 'YL')).toEqual(['YL', 'S', 'M']);
+    expect(selectOptionsWithStoredValue(['S', 'M'], 'M')).toEqual(['S', 'M']);
+    expect(selectOptionsWithStoredValue([], 'YL')).toEqual(['YL']);
   });
 
   it('detects filled inventory data per person (size, audience, or status checkbox)', () => {

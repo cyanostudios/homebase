@@ -1,15 +1,4 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  Check,
-  History,
-  Info,
-  Plus,
-  Tags,
-  Trash2,
-  Unlink,
-  X,
-} from 'lucide-react';
+import { Check, Folders, History, Info, Plus, Tags, Trash2, Unlink, X } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -41,7 +30,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS } from '@/core/ui/BulkActionRoundBar';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, SectionCategoryIcon } from '@/core/ui/DetailSection';
-import { listReorderRowStyle, runListReorderTransition } from '@/core/ui/listReorderTransition';
+import { runListReorderTransition } from '@/core/ui/listReorderTransition';
 import {
   DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_CHIP_ACTIVE_CLASS,
@@ -77,6 +66,7 @@ import {
 } from '../utils/priceListInventoryLink';
 import { PRICE_LIST_UNLINK_CONTENT_CLASS } from '../utils/priceListItemStyles';
 
+import { PriceListCategoriesPanel } from './PriceListCategoriesPanel';
 import { PriceListItemsEditor } from './PriceListItemsEditor';
 
 function emptyItem(order: number): ClubdeskPriceListItemPayload {
@@ -105,6 +95,7 @@ function emptyPriceListFormData(): ClubdeskPriceListPayload {
     featuredImageUrl: null,
     publicationStatus: 'draft',
     featured: false,
+    categoriesEnabled: true,
     currency: 'SEK',
     items: [],
   };
@@ -121,6 +112,7 @@ function formDataFromPriceList(priceList: ClubdeskPriceList | null): ClubdeskPri
     featuredImageUrl: priceList.featuredImageUrl,
     publicationStatus: priceList.publicationStatus || 'draft',
     featured: priceList.featured === true,
+    categoriesEnabled: priceList.categoriesEnabled !== false,
     currency: priceList.currency || 'SEK',
     items: (priceList.items || []).map((item, index) => ({
       title: item.title || '',
@@ -146,9 +138,9 @@ function formDataFromPriceList(priceList: ClubdeskPriceList | null): ClubdeskPri
   };
 }
 
-type PriceListFormTab = 'information' | 'items' | 'activity';
+type PriceListFormTab = 'information' | 'categories' | 'items' | 'activity';
 
-const PRICE_LIST_FORM_TABS: PriceListFormTab[] = ['information', 'items', 'activity'];
+const PRICE_LIST_FORM_TABS: PriceListFormTab[] = ['information', 'categories', 'items', 'activity'];
 
 const PRICE_LIST_FORM_EDIT_DISABLED_TABS: ReadonlySet<PriceListFormTab> = new Set(['activity']);
 
@@ -214,6 +206,7 @@ export const PriceListForm = React.forwardRef<
     savePriceList,
     closeClubdeskPanel,
     createPriceListCategory,
+    setPriceListCategoryEnabled,
     reorderPriceListCategories,
     deletePriceListCategory,
     inventoryItems,
@@ -228,6 +221,7 @@ export const PriceListForm = React.forwardRef<
   const [slugTouched, setSlugTouched] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [localCategories, setLocalCategories] = useState<string[]>([]);
+  const [localCategoryEnabled, setLocalCategoryEnabled] = useState<Record<string, boolean>>({});
   /** Preserves mixed local/server category order after drag via arrows. */
   const [categoryOrderNames, setCategoryOrderNames] = useState<string[] | null>(null);
   const [categoryPendingDelete, setCategoryPendingDelete] = useState<string | null>(null);
@@ -256,17 +250,24 @@ export const PriceListForm = React.forwardRef<
       (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name, 'sv'),
     );
     const seen = new Set(serverSorted.map((c) => c.name.trim().toLowerCase()));
-    const entries: Array<{ name: string; id: string | null }> = serverSorted.map((c) => ({
-      name: c.name,
-      id: c.id,
-    }));
+    const entries: Array<{ name: string; id: string | null; enabled: boolean }> = serverSorted.map(
+      (c) => ({
+        name: c.name,
+        id: c.id,
+        enabled: c.enabled !== false,
+      }),
+    );
     for (const name of localCategories) {
       const key = name.trim().toLowerCase();
       if (!key || seen.has(key)) {
         continue;
       }
       seen.add(key);
-      entries.push({ name: name.trim(), id: null });
+      entries.push({
+        name: name.trim(),
+        id: null,
+        enabled: localCategoryEnabled[key] !== false,
+      });
     }
     for (const item of formData.items) {
       const name = (item.category || '').trim();
@@ -275,7 +276,7 @@ export const PriceListForm = React.forwardRef<
         continue;
       }
       seen.add(key);
-      entries.push({ name, id: null });
+      entries.push({ name, id: null, enabled: localCategoryEnabled[key] !== false });
     }
 
     if (!categoryOrderNames || categoryOrderNames.length === 0) {
@@ -283,7 +284,7 @@ export const PriceListForm = React.forwardRef<
     }
 
     const byKey = new Map(entries.map((entry) => [entry.name.trim().toLowerCase(), entry]));
-    const ordered: Array<{ name: string; id: string | null }> = [];
+    const ordered: Array<{ name: string; id: string | null; enabled: boolean }> = [];
     for (const name of categoryOrderNames) {
       const key = name.trim().toLowerCase();
       const entry = byKey.get(key);
@@ -297,7 +298,13 @@ export const PriceListForm = React.forwardRef<
       ordered.push(entry);
     }
     return ordered;
-  }, [priceListCategories, localCategories, formData.items, categoryOrderNames]);
+  }, [
+    priceListCategories,
+    localCategories,
+    localCategoryEnabled,
+    formData.items,
+    categoryOrderNames,
+  ]);
 
   const categoryOptions = useMemo(
     () => orderedCategoryEntries.map((entry) => entry.name),
@@ -314,6 +321,7 @@ export const PriceListForm = React.forwardRef<
     setFormData(emptyPriceListFormData());
     setSlugTouched(false);
     setLocalCategories([]);
+    setLocalCategoryEnabled({});
     setCategoryOrderNames(null);
     setNewCategoryName('');
     markClean();
@@ -348,8 +356,13 @@ export const PriceListForm = React.forwardRef<
     }
     setIsSubmitting(true);
     try {
+      const categoryEnabled: Record<string, boolean> = {};
+      for (const entry of orderedCategoryEntries) {
+        categoryEnabled[entry.name.trim().toLowerCase()] = entry.enabled !== false;
+      }
       const ok = await savePriceList(formData, {
         categoryNames: orderedCategoryEntries.map((entry) => entry.name),
+        categoryEnabled,
       });
       if (ok) {
         markClean();
@@ -655,6 +668,11 @@ export const PriceListForm = React.forwardRef<
         icon: Info,
       },
       {
+        id: 'categories' as const,
+        label: t('clubdesk.priceList.tabs.categories'),
+        icon: Folders,
+      },
+      {
         id: 'items' as const,
         label: t('clubdesk.priceList.tabs.items'),
         icon: Tags,
@@ -884,106 +902,43 @@ export const PriceListForm = React.forwardRef<
               </Card>
             ) : null}
 
-            {activeTab === 'information' ? (
+            {activeTab === 'categories' ? (
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection
-                  title={t('clubdesk.priceList.categoriesCard')}
-                  icon={Tags}
+                  title={t('clubdesk.priceList.tabs.categories')}
+                  icon={Folders}
                   iconPlugin="clubdesk"
                   className="p-6"
                 >
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    {t('clubdesk.priceList.categoriesOrderHint')}
-                  </p>
-                  {categoryDeleteError && !categoryPendingDelete ? (
-                    <p className="mb-3 text-xs text-destructive" role="alert">
-                      {categoryDeleteError}
-                    </p>
-                  ) : null}
-                  <div className="mb-3 space-y-2">
-                    {orderedCategoryEntries.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        {t('clubdesk.priceList.noCategories')}
-                      </p>
-                    ) : (
-                      orderedCategoryEntries.map((entry, index) => (
-                        <div
-                          key={`${entry.id ?? 'local'}-${entry.name}`}
-                          className="line-item-reorder-row flex items-center gap-2 rounded-md border border-border/50 bg-muted/20 px-2 py-1.5"
-                          style={listReorderRowStyle(`${entry.id ?? 'local'}-${entry.name}`)}
-                        >
-                          <span className="min-w-0 flex-1 truncate text-xs font-medium">
-                            {entry.name}
-                          </span>
-                          <div className="flex flex-shrink-0 items-center gap-0.5">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              icon={ArrowUp}
-                              className="h-7 w-7 px-0"
-                              disabled={reorderingCategory || deletingCategory || index === 0}
-                              aria-label={t('clubdesk.priceList.moveCategoryUp', {
-                                name: entry.name,
-                              })}
-                              onClick={() => void handleMoveCategory(index, -1)}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              icon={ArrowDown}
-                              className="h-7 w-7 px-0"
-                              disabled={
-                                reorderingCategory ||
-                                deletingCategory ||
-                                index === orderedCategoryEntries.length - 1
-                              }
-                              aria-label={t('clubdesk.priceList.moveCategoryDown', {
-                                name: entry.name,
-                              })}
-                              onClick={() => void handleMoveCategory(index, 1)}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              icon={Trash2}
-                              className="h-7 w-7 px-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                              aria-label={t('clubdesk.priceList.removeCategory', {
-                                name: entry.name,
-                              })}
-                              onClick={() => handleRequestDeleteCategory(entry.name)}
-                              disabled={deletingCategory || reorderingCategory}
-                            />
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder={t('clubdesk.priceList.addCategoryPlaceholder')}
-                      className={FORM_GHOST_INPUT_CLASS}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          void handleAddCategory();
-                        }
-                      }}
-                    />
-                    <RoundIconLabelButton
-                      type="button"
-                      icon={Plus}
-                      label={t('clubdesk.priceList.addCategory')}
-                      variant="soft"
-                      size="xs"
-                      alwaysExpanded
-                      onClick={() => void handleAddCategory()}
-                    />
-                  </div>
+                  <PriceListCategoriesPanel
+                    enabled={formData.categoriesEnabled !== false}
+                    onEnabledChange={(next) => updateField('categoriesEnabled', next)}
+                    entries={orderedCategoryEntries}
+                    newCategoryName={newCategoryName}
+                    onNewCategoryNameChange={setNewCategoryName}
+                    onAdd={() => void handleAddCategory()}
+                    onDelete={handleRequestDeleteCategory}
+                    onMove={(index, direction) => void handleMoveCategory(index, direction)}
+                    onEntryEnabledChange={(entry, enabled) => {
+                      if (entry.id && priceList?.id) {
+                        void setPriceListCategoryEnabled(priceList.id, entry.id, enabled).catch(
+                          () => {
+                            setCategoryDeleteError(t('clubdesk.priceList.categoryEnabledFailed'));
+                          },
+                        );
+                        return;
+                      }
+                      const key = entry.name.trim().toLowerCase();
+                      if (!key) {
+                        return;
+                      }
+                      setLocalCategoryEnabled((prev) => ({ ...prev, [key]: enabled }));
+                    }}
+                    busy={reorderingCategory || deletingCategory}
+                    error={
+                      categoryDeleteError && !categoryPendingDelete ? categoryDeleteError : null
+                    }
+                  />
                 </DetailSection>
               </Card>
             ) : null}
@@ -1043,6 +998,20 @@ export const PriceListForm = React.forwardRef<
                   <PriceListItemsEditor
                     items={formData.items}
                     categoryOptions={categoryOptions}
+                    categoriesEnabled={formData.categoriesEnabled !== false}
+                    isCategoryOff={(category) => {
+                      const key = (category || '').trim().toLowerCase();
+                      if (!key) {
+                        return false;
+                      }
+                      const row = priceListCategories.find(
+                        (entry) => entry.name.trim().toLowerCase() === key,
+                      );
+                      if (row) {
+                        return row.enabled === false;
+                      }
+                      return localCategoryEnabled[key] === false;
+                    }}
                     duplicatedIndexes={duplicatedItemIndexes}
                     getTitleError={(index) => getFieldError(`items.${index}.title`)?.message}
                     onUpdate={updateItem}

@@ -13,6 +13,13 @@ class PriceListModel {
     this.categoriesTable = 'clubdesk_price_list_item_categories';
   }
 
+  categoriesEnabledFrom(value) {
+    if (value === false || value === 'false' || value === 0 || value === '0' || value === 'f') {
+      return false;
+    }
+    return true;
+  }
+
   categoryKey(category) {
     const normalized = this.normalizeCategoryValue(category);
     return normalized === null ? '' : normalized.toLowerCase();
@@ -165,7 +172,7 @@ class PriceListModel {
   /**
    * Ensure inventory FK targets belong to the price-list owner and variant belongs to item.
    */
-  async assertInventoryLinksOwned(dbOrTx, userId, items) {
+  async assertInventoryLinksOwned(dbOrTx, userId, items, allowedExistingLinkIds = new Set()) {
     if (!items || items.length === 0) {
       return;
     }
@@ -180,7 +187,7 @@ class PriceListModel {
       const rows = await this.queryChild(
         dbOrTx,
         `
-          SELECT id
+          SELECT id, archived_at, publication_status
           FROM clubdesk_inventory_items
           WHERE user_id = $1
             AND id = ANY($2::int[])
@@ -188,11 +195,31 @@ class PriceListModel {
         [userId, itemIds],
       );
       ownedItemIds = new Set(rows.map((r) => Number(r.id)));
+      const archivedIds = new Set(
+        rows.filter((r) => r.archived_at != null).map((r) => Number(r.id)),
+      );
+      const unpublishedIds = new Set(
+        rows.filter((r) => r.publication_status !== 'published').map((r) => Number(r.id)),
+      );
       for (const id of itemIds) {
         if (!ownedItemIds.has(id)) {
           throw new AppError('Inventory item not found', 400, AppError.CODES.VALIDATION_ERROR, [
             { field: 'inventoryItemId', message: 'Inventory item not found' },
           ]);
+        }
+        if (archivedIds.has(id) && !allowedExistingLinkIds.has(id)) {
+          throw new AppError(
+            'Cannot assign an archived inventory item',
+            409,
+            AppError.CODES.CONFLICT,
+          );
+        }
+        if (unpublishedIds.has(id) && !allowedExistingLinkIds.has(id)) {
+          throw new AppError(
+            'Cannot assign an unpublished inventory item',
+            409,
+            AppError.CODES.CONFLICT,
+          );
         }
       }
     }
@@ -375,6 +402,12 @@ class PriceListModel {
         data.featured === '1';
     }
 
+    if (!partial || data.categoriesEnabled !== undefined || data.categories_enabled !== undefined) {
+      const raw =
+        data.categoriesEnabled !== undefined ? data.categoriesEnabled : data.categories_enabled;
+      out.categoriesEnabled = this.categoriesEnabledFrom(raw);
+    }
+
     if (!partial || data.currency !== undefined) {
       const currencyRaw =
         data.currency === undefined || data.currency === null || data.currency === ''
@@ -456,6 +489,7 @@ class PriceListModel {
         row.inventory_article_name !== undefined && row.inventory_article_name !== null
           ? String(row.inventory_article_name)
           : null,
+      inventoryArchived: row.inventory_archived_at != null,
       inventorySlug:
         row.inventory_slug !== undefined && row.inventory_slug !== null
           ? String(row.inventory_slug)
@@ -475,6 +509,7 @@ class PriceListModel {
       featuredImageUrl: null,
       publicationStatus: row.publication_status ?? 'draft',
       featured: row.featured === true || row.featured === 't' || row.featured === 'true',
+      categoriesEnabled: this.categoriesEnabledFrom(row.categories_enabled),
       currency: row.currency ?? DEFAULT_CURRENCY,
       sortOrder:
         row.sort_order !== null && row.sort_order !== undefined ? Number(row.sort_order) : 1,
@@ -491,6 +526,7 @@ class PriceListModel {
       name: row.name ?? '',
       sortOrder:
         row.sort_order !== null && row.sort_order !== undefined ? Number(row.sort_order) : 1,
+      enabled: this.categoriesEnabledFrom(row.enabled),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -580,7 +616,7 @@ class PriceListModel {
       const rows = await this.queryChild(
         db,
         `
-          SELECT id, name, sort_order, created_at, updated_at
+          SELECT id, name, sort_order, enabled, created_at, updated_at
           FROM ${this.categoriesTable}
           WHERE price_list_id = $1
           ORDER BY sort_order ASC NULLS LAST, lower(name) ASC, id ASC
@@ -631,7 +667,7 @@ class PriceListModel {
         `
           INSERT INTO ${this.categoriesTable} (price_list_id, name, sort_order)
           VALUES ($1, $2, $3)
-          RETURNING id, name, sort_order, created_at, updated_at
+          RETURNING id, name, sort_order, enabled, created_at, updated_at
         `,
         [id, name, sortOrder],
       );
@@ -873,6 +909,43 @@ class PriceListModel {
     }
   }
 
+  async setCategoryEnabled(req, priceListId, categoryId, enabled) {
+    try {
+      const db = Database.get(req);
+      const userId = db.getUserId();
+      if (!userId) {
+        throw new AppError('User context required', 401, AppError.CODES.UNAUTHORIZED);
+      }
+      const listId = await this.assertPriceListOwned(db, userId, priceListId);
+      const id = parseInt(String(categoryId), 10);
+      if (Number.isNaN(id)) {
+        throw new AppError('Category not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const rows = await this.queryChild(
+        db,
+        `
+          UPDATE ${this.categoriesTable}
+          SET enabled = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2 AND price_list_id = $3
+          RETURNING id, name, sort_order, enabled, created_at, updated_at
+        `,
+        [enabled === true, id, listId],
+      );
+      if (!rows.length) {
+        throw new AppError('Category not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      return this.transformCategoryRow(rows[0]);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to update price list category', error, { priceListId, categoryId });
+      throw new AppError(
+        'Failed to update price list category',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
+    }
+  }
+
   async getItemsForPriceList(dbOrTx, priceListId) {
     return this.queryChild(
       dbOrTx,
@@ -881,6 +954,7 @@ class PriceListModel {
           i.*,
           inv.article_name AS inventory_article_name,
           inv.slug AS inventory_slug,
+          inv.archived_at AS inventory_archived_at,
           inv.sale_price AS inventory_sale_price,
           inv.recommended_price AS inventory_recommended_price,
           v.audience AS inventory_variant_audience,
@@ -1000,6 +1074,7 @@ class PriceListModel {
             i.featured_image_url,
             i.publication_status,
             i.featured,
+            i.categories_enabled,
             i.currency,
             i.sort_order,
             i.created_at,
@@ -1075,10 +1150,11 @@ class PriceListModel {
               featured_image_url,
               publication_status,
               featured,
+              categories_enabled,
               currency,
               sort_order
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
           `,
           [
@@ -1089,6 +1165,7 @@ class PriceListModel {
             fields.featuredImageUrl ?? null,
             fields.publicationStatus ?? 'draft',
             fields.featured === true,
+            fields.categoriesEnabled !== false,
             fields.currency ?? DEFAULT_CURRENCY,
             sortOrder,
           ],
@@ -1144,6 +1221,12 @@ class PriceListModel {
                 : data.publication_status
               : existing[0].publication_status,
           featured: data.featured !== undefined ? data.featured : existing[0].featured,
+          categoriesEnabled:
+            data.categoriesEnabled !== undefined || data.categories_enabled !== undefined
+              ? data.categoriesEnabled !== undefined
+                ? data.categoriesEnabled
+                : data.categories_enabled
+              : existing[0].categories_enabled,
           currency: data.currency !== undefined ? data.currency : existing[0].currency,
         },
         { partial: false },
@@ -1155,7 +1238,20 @@ class PriceListModel {
       let itemCount;
       if (replaceItems) {
         itemCount = items.length;
-        await this.assertInventoryLinksOwned(db, userId, items);
+        const existingLinks = await this.queryChild(
+          db,
+          `
+            SELECT DISTINCT inventory_item_id
+            FROM ${this.itemsTable}
+            WHERE price_list_id = $1
+              AND inventory_item_id IS NOT NULL
+          `,
+          [id],
+        );
+        const allowedExistingLinkIds = new Set(
+          existingLinks.map((row) => Number(row.inventory_item_id)),
+        );
+        await this.assertInventoryLinksOwned(db, userId, items, allowedExistingLinkIds);
       } else {
         const existingItems = await this.getItemsForPriceList(db, id);
         itemCount = existingItems.length;
@@ -1174,9 +1270,10 @@ class PriceListModel {
               featured_image_url = $4,
               publication_status = $5,
               featured = $6,
-              currency = $7,
+              categories_enabled = $7,
+              currency = $8,
               updated_at = CURRENT_TIMESTAMP
-            WHERE id = $8 AND user_id = $9
+            WHERE id = $9 AND user_id = $10
             RETURNING *
           `,
           [
@@ -1186,6 +1283,7 @@ class PriceListModel {
             fields.featuredImageUrl ?? null,
             fields.publicationStatus ?? 'draft',
             fields.featured === true,
+            fields.categoriesEnabled !== false,
             fields.currency ?? DEFAULT_CURRENCY,
             id,
             userId,

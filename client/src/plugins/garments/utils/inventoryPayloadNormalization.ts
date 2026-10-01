@@ -15,6 +15,7 @@ export function normalizeInventoryItemPayload(raw: InventoryItemPayload): Invent
     ? raw.variants.map((variant, index) => ({
         id: variant.id,
         sku: (variant.sku ?? '').trim(),
+        gtin: String(variant.gtin ?? '').replace(/\s+/g, ''),
         audience: (variant.audience ?? '').trim(),
         color: (variant.color ?? '').trim(),
         size: (variant.size ?? '').trim(),
@@ -51,6 +52,7 @@ export function normalizeInventoryVariantPayload(
 ): InventoryVariantPayload {
   return {
     sku: (variant.sku ?? '').trim(),
+    gtin: String(variant.gtin ?? '').replace(/\s+/g, ''),
     audience: (variant.audience ?? '').trim(),
     color: (variant.color ?? '').trim(),
     size: (variant.size ?? '').trim(),

@@ -98,6 +98,7 @@ export interface InventoryVariant {
   id: string;
   itemId: string;
   sku: string;
+  gtin?: string;
   audience: string;
   color: string;
   size: string;
@@ -110,6 +111,7 @@ export interface InventoryVariant {
 export interface InventoryVariantPayload {
   id?: string;
   sku?: string;
+  gtin?: string;
   audience?: string;
   color?: string;
   size?: string;
@@ -134,6 +136,8 @@ export interface InventoryItem {
   variantCount: number;
   /** Garment lists this item is assigned to. */
   assignedListIds?: string[];
+  /** Set when the article is out of the active catalog. Null or omitted means active. */
+  archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

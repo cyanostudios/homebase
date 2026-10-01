@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { StatusOutlineBadge } from '@/core/ui/StatusOutlineBadge';
 import { BULK_ACTION_DESTRUCTIVE_CONTENT_CLASS } from '@/core/ui/BulkActionRoundBar';
 import { listReorderRowStyle } from '@/core/ui/listReorderTransition';
 import {
@@ -28,7 +29,12 @@ import { clubdeskApi } from '../api/clubdeskApi';
 import { useClubdeskContext } from '../context/ClubdeskContext';
 import type { ClubdeskInventoryItem, ClubdeskInventoryVariant } from '../types/inventory';
 import type { ClubdeskPriceListItemPayload } from '../types/priceList';
+import { isInventoryItemLinkable } from '../utils/inventoryListFilter';
 import { canReorderItemWithinCategory } from '../utils/priceListItemOps';
+import {
+  formatInventoryPickerSecondaryMeta,
+  inventoryMatchesPickerSearch,
+} from '../utils/inventoryKioskDisplay';
 import {
   buildInventoryLinkPatch,
   clearInventoryLinkPatch,
@@ -52,6 +58,8 @@ import {
 export type PriceListItemsEditorProps = {
   items: ClubdeskPriceListItemPayload[];
   categoryOptions: string[];
+  categoriesEnabled?: boolean;
+  isCategoryOff?: (category: string | null | undefined) => boolean;
   duplicatedIndexes: Set<number>;
   getTitleError?: (index: number) => string | undefined;
   onUpdate: (index: number, patch: Partial<ClubdeskPriceListItemPayload>) => void;
@@ -153,14 +161,9 @@ function InventoryLinkRow({
     .join(' · ');
 
   const suggestions = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const rows = inventoryItems;
-    const filtered = !q
-      ? rows
-      : rows.filter((row) => {
-          const hay = `${row.articleName} ${row.brand}`.toLowerCase();
-          return hay.includes(q);
-        });
+    const q = search.trim();
+    const rows = inventoryItems.filter((row) => isInventoryItemLinkable(row));
+    const filtered = !q ? rows : rows.filter((row) => inventoryMatchesPickerSearch(row, q));
     return filtered.slice(0, 40);
   }, [inventoryItems, search]);
 
@@ -211,7 +214,12 @@ function InventoryLinkRow({
 
   return (
     <div className="contents">
-      <div className="shrink-0 self-end">
+      <div className="flex shrink-0 flex-col items-end gap-1 self-end">
+        {linked && item.inventoryArchived ? (
+          <span className="text-[10px] font-extrabold text-muted-foreground">
+            {t('clubdesk.inventory.archived')}
+          </span>
+        ) : null}
         {linked ? (
           <RoundIconLabelButton
             type="button"
@@ -323,36 +331,32 @@ function InventoryLinkRow({
                       </p>
                     ) : (
                       <div className="max-h-52 overflow-y-auto">
-                        {suggestions.map((row) => (
-                          <button
-                            key={row.id}
-                            type="button"
-                            className={cn(
-                              'flex w-full items-start rounded-lg px-2.5 py-2 text-left',
-                              DETAIL_LIST_ITEM_HOVER_CLASS,
-                            )}
-                            disabled={loadingDetail}
-                            onClick={() => void selectArticle(row)}
-                          >
-                            <span className="min-w-0">
-                              <span className="block truncate text-xs font-extrabold">
-                                {row.articleName}
+                        {suggestions.map((row) => {
+                          const pickerMeta = formatInventoryPickerSecondaryMeta(row);
+                          return (
+                            <button
+                              key={row.id}
+                              type="button"
+                              className={cn(
+                                'flex w-full items-start rounded-lg px-2.5 py-2 text-left',
+                                DETAIL_LIST_ITEM_HOVER_CLASS,
+                              )}
+                              disabled={loadingDetail}
+                              onClick={() => void selectArticle(row)}
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate text-xs font-extrabold">
+                                  {row.articleName}
+                                </span>
+                                {pickerMeta ? (
+                                  <span className="block truncate text-[11px] text-muted-foreground">
+                                    {pickerMeta}
+                                  </span>
+                                ) : null}
                               </span>
-                              <span className="block truncate text-[11px] text-muted-foreground">
-                                {[
-                                  row.brand,
-                                  row.variantCount > 0
-                                    ? t('clubdesk.priceList.variantCount', {
-                                        count: row.variantCount,
-                                      })
-                                    : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(' · ')}
-                              </span>
-                            </span>
-                          </button>
-                        ))}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </>
@@ -378,6 +382,8 @@ function InventoryLinkRow({
 export function PriceListItemsEditor({
   items,
   categoryOptions,
+  categoriesEnabled = true,
+  isCategoryOff,
   duplicatedIndexes,
   getTitleError,
   onUpdate,
@@ -415,6 +421,7 @@ export function PriceListItemsEditor({
           <div className={PRICE_LIST_ITEM_EDIT_TRACK_CLASS}>
             {items.map((item, index) => {
               const titleError = getTitleError?.(index);
+              const categoryOff = isCategoryOff?.(item.category) === true;
               const isDuplicated = duplicatedIndexes.has(index);
               const inventoryCatalog =
                 item.inventoryCatalogPrice != null &&
@@ -445,8 +452,15 @@ export function PriceListItemsEditor({
                     <div className={PRICE_LIST_ITEM_STACK_CLASS}>
                       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1">
                         <div className={LINE_ITEM_FIELD_CLASS}>
-                          <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
+                          <Label
+                            className={cn(LINE_ITEM_COMPACT_LABEL_CLASS, 'flex items-center gap-2')}
+                          >
                             {t('clubdesk.priceList.title')}
+                            {categoryOff ? (
+                              <StatusOutlineBadge className="text-sm text-red-600 dark:text-red-500">
+                                {t('clubdesk.priceList.categoryOff')}
+                              </StatusOutlineBadge>
+                            ) : null}
                           </Label>
                           <Input
                             value={item.title}
@@ -552,36 +566,38 @@ export function PriceListItemsEditor({
                             />
                           </div>
                         )}
-                        <div className={LINE_ITEM_FIELD_CLASS}>
-                          <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
-                            {t('clubdesk.priceList.category')}
-                          </Label>
-                          <Select
-                            value={item.category?.trim() ? item.category : '__none__'}
-                            onValueChange={(value) =>
-                              onUpdate(
-                                index,
-                                value === '__none__' ? { category: null } : { category: value },
-                              )
-                            }
-                          >
-                            <SelectTrigger className={LINE_ITEM_COMPACT_SELECT_CLASS}>
-                              <SelectValue
-                                placeholder={t('clubdesk.priceList.categoryPlaceholder')}
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">
-                                {t('clubdesk.priceList.categoryNone')}
-                              </SelectItem>
-                              {categoryOptions.map((cat) => (
-                                <SelectItem key={cat} value={cat}>
-                                  {cat}
+                        {categoriesEnabled ? (
+                          <div className={LINE_ITEM_FIELD_CLASS}>
+                            <Label className={LINE_ITEM_COMPACT_LABEL_CLASS}>
+                              {t('clubdesk.priceList.category')}
+                            </Label>
+                            <Select
+                              value={item.category?.trim() ? item.category : '__none__'}
+                              onValueChange={(value) =>
+                                onUpdate(
+                                  index,
+                                  value === '__none__' ? { category: null } : { category: value },
+                                )
+                              }
+                            >
+                              <SelectTrigger className={LINE_ITEM_COMPACT_SELECT_CLASS}>
+                                <SelectValue
+                                  placeholder={t('clubdesk.priceList.categoryPlaceholder')}
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">
+                                  {t('clubdesk.priceList.categoryNone')}
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                                {categoryOptions.map((cat) => (
+                                  <SelectItem key={cat} value={cat}>
+                                    {cat}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     <div className={cn(LINE_ITEM_FIELD_CLASS, 'h-full')}>

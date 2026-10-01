@@ -47,6 +47,7 @@ function inventoryGroupKey(articleName: string, brand: string): string {
 function rowToVariant(row: Record<string, string>, sortOrder: number): InventoryVariantPayload {
   return {
     sku: String(row.sku ?? row.articleNo ?? '').trim(),
+    gtin: String(row.gtin ?? '').replace(/\s+/g, ''),
     audience: String(row.audience ?? '').trim(),
     color: String(row.color ?? '').trim(),
     size: String(row.size ?? '').trim(),

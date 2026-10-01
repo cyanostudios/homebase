@@ -1,10 +1,12 @@
 import {
+  Archive,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
   CheckCircle2,
   CheckSquare,
   ChevronDown,
+  CircleDot,
   FileText,
   LayoutGrid,
   Menu,
@@ -63,7 +65,9 @@ import { useClubdesk } from '../hooks/useClubdesk';
 import type { ClubdeskInventoryItem } from '../types/inventory';
 import { getClubdeskListStatusErrorMessage } from '../utils/clubdeskListStatusError';
 import {
+  inventoryItemVisibleInCatalog,
   inventoryMatchesListFilters,
+  isInventoryItemArchived,
   toggleInventoryListFilter,
   type InventoryListFilter,
   type InventoryListFilterSelection,
@@ -79,6 +83,7 @@ import {
   ClubdeskInventorySettingsView,
   type ClubdeskInventorySettingsCategory,
 } from './ClubdeskInventorySettingsView';
+import { InventoryBulkStatusDialog } from './InventoryBulkStatusDialog';
 import { InventoryForm } from './InventoryForm';
 import { InventoryListTable } from './InventoryListTable';
 import { InventoryView } from './InventoryView';
@@ -99,6 +104,7 @@ export const InventoryList: React.FC = () => {
   const {
     inventoryItems,
     deleteInventoryItems,
+    setInventoryItemsPublicationStatus,
     selectedInventoryIds,
     toggleInventorySelected,
     mergeIntoInventorySelection,
@@ -141,10 +147,13 @@ export const InventoryList: React.FC = () => {
   const { searchTerm, setSearchTerm } = usePersistedListSearch('clubdesk-inventory');
   const [selectionMode, setSelectionMode] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [primarySort, setPrimarySort] = useState<InventorySortField>('articleName');
   const [sortOrder, setSortOrder] = useState<InventorySortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<InventoryListFilterSelection>([]);
+  const [showArchivedOnly, setShowArchivedOnly] = useState(false);
+  const [bulkDeleteWarning, setBulkDeleteWarning] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<ClubdeskInventoryItem | null>(null);
   const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
@@ -313,34 +322,31 @@ export const InventoryList: React.FC = () => {
   );
 
   const sortedInventorys = useMemo(() => {
-    const byFilter = inventoryItems.filter((item) =>
-      inventoryMatchesListFilters(item, activeFilters),
-    );
-
-    const q = searchTerm.toLowerCase();
-    const filtered = byFilter.filter(
+    const filtered = inventoryItems.filter(
       (item) =>
-        item.articleName.toLowerCase().includes(q) ||
-        (item.description || '').toLowerCase().includes(q) ||
-        (item.slug || '').toLowerCase().includes(q),
+        inventoryItemVisibleInCatalog(item, { archivedOnly: showArchivedOnly, searchTerm }) &&
+        inventoryMatchesListFilters(item, activeFilters),
     );
 
     return [...filtered].sort((a, b) => compareInventoryByField(a, b, primarySort, sortOrder));
-  }, [inventoryItems, searchTerm, primarySort, sortOrder, activeFilters]);
+  }, [inventoryItems, searchTerm, primarySort, sortOrder, activeFilters, showArchivedOnly]);
 
   const isFilterActive = (filter: InventoryListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: InventoryListFilter) => {
     setActiveFilters((prev) => toggleInventoryListFilter(prev, filter));
   };
 
-  const stats = useMemo(
-    () => ({
-      total: inventoryItems.length,
-      draft: inventoryItems.filter((i) => i.publicationStatus === 'draft').length,
-      published: inventoryItems.filter((i) => i.publicationStatus === 'published').length,
-    }),
-    [inventoryItems],
-  );
+  const stats = useMemo(() => {
+    const slice = inventoryItems.filter((item) =>
+      showArchivedOnly ? isInventoryItemArchived(item) : !isInventoryItemArchived(item),
+    );
+    return {
+      total: inventoryItems.filter((item) => !isInventoryItemArchived(item)).length,
+      archived: inventoryItems.filter((item) => isInventoryItemArchived(item)).length,
+      draft: slice.filter((i) => i.publicationStatus === 'draft').length,
+      published: slice.filter((i) => i.publicationStatus === 'published').length,
+    };
+  }, [inventoryItems, showArchivedOnly]);
 
   const visibleIds = useMemo(
     () => sortedInventorys.map((item) => String(item.id)),
@@ -375,8 +381,19 @@ export const InventoryList: React.FC = () => {
       return;
     }
     setDeleting(true);
+    setBulkDeleteWarning(null);
     try {
-      await deleteInventoryItems(selectedInventoryIds);
+      const result = await deleteInventoryItems(selectedInventoryIds);
+      if (result.blockedIds.length > 0) {
+        selectAllInventory(result.blockedIds);
+        setBulkDeleteWarning(
+          t('clubdesk.inventory.bulkDeleteBlocked', {
+            deleted: result.deleted,
+            blocked: result.blockedIds.length,
+          }),
+        );
+        return;
+      }
       setShowBulkDeleteModal(false);
     } catch (err: unknown) {
       console.error('Bulk delete failed:', err);
@@ -435,17 +452,27 @@ export const InventoryList: React.FC = () => {
 
   const bulkRoundActions = useMemo((): BulkActionRoundItem[] => {
     const disabled = inventorySelectedCount === 0;
-    return [
+    const actions: BulkActionRoundItem[] = [
       {
+        key: 'status',
+        label: t('clubdesk.inventory.bulkStatusAction'),
+        icon: CircleDot,
+        disabled,
+        onClick: () => setShowBulkStatusDialog(true),
+      },
+    ];
+    if (showArchivedOnly) {
+      actions.push({
         key: 'delete',
         label: t('common.delete'),
         icon: Trash2,
         disabled,
         tone: 'destructive',
         onClick: () => setShowBulkDeleteModal(true),
-      },
-    ];
-  }, [inventorySelectedCount, t]);
+      });
+    }
+    return actions;
+  }, [inventorySelectedCount, showArchivedOnly, t]);
 
   const listStatusError = getClubdeskListStatusErrorMessage(validationErrors);
 
@@ -461,9 +488,14 @@ export const InventoryList: React.FC = () => {
         type="button"
         variant="ghost"
         size="sm"
-        onClick={() => setActiveFilters([])}
+        onClick={() => {
+          setActiveFilters([]);
+          setShowArchivedOnly(false);
+        }}
         className={cn(
-          activeFilters.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+          activeFilters.length === 0 && !showArchivedOnly
+            ? LIST_FILTER_CHIP_ACTIVE_CLASS
+            : LIST_FILTER_CHIP_CLASS,
         )}
       >
         <LayoutGrid className="h-3.5 w-3.5" />
@@ -500,6 +532,20 @@ export const InventoryList: React.FC = () => {
         <span>
           {t('clubdesk.filter.published')}{' '}
           <span className="tabular-nums font-semibold">({stats.published})</span>
+        </span>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        aria-pressed={showArchivedOnly}
+        onClick={() => setShowArchivedOnly((current) => !current)}
+        className={cn(showArchivedOnly ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+      >
+        <Archive className="h-3.5 w-3.5" />
+        <span>
+          {t('clubdesk.inventory.filterArchived')}{' '}
+          <span className="tabular-nums font-semibold">({stats.archived})</span>
         </span>
       </Button>
     </div>
@@ -779,13 +825,26 @@ export const InventoryList: React.FC = () => {
             </p>
           ) : null}
 
+          <InventoryBulkStatusDialog
+            isOpen={showBulkStatusDialog}
+            onClose={() => setShowBulkStatusDialog(false)}
+            selectedCount={inventorySelectedCount}
+            onApply={(status, onProgress) =>
+              setInventoryItemsPublicationStatus(selectedInventoryIds, status, onProgress)
+            }
+          />
+
           <BulkDeleteModal
             isOpen={showBulkDeleteModal}
-            onClose={() => setShowBulkDeleteModal(false)}
+            onClose={() => {
+              setShowBulkDeleteModal(false);
+              setBulkDeleteWarning(null);
+            }}
             onConfirm={handleBulkDelete}
             itemCount={inventorySelectedCount}
             itemLabel="clubdesk"
             isLoading={deleting}
+            warningMessage={bulkDeleteWarning ?? undefined}
           />
 
           <div

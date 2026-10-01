@@ -13,6 +13,7 @@ const messages = {
   recommendedPriceInvalid: 'rek invalid',
   salePriceInvalid: 'sale invalid',
   quantityInvalid: 'qty invalid',
+  gtinInvalid: 'gtin invalid',
 };
 
 describe('validateInventoryPayload', () => {
@@ -80,10 +81,29 @@ describe('findDuplicateVariantIndices', () => {
   });
 });
 
+describe('validateInventoryPayload GTIN', () => {
+  it('accepts empty and 8, 12, 13, or 14 digits, including spaces', () => {
+    const base = { articleName: 'Jersey', variants: [{ gtin: '' }] };
+    expect(validateInventoryPayload(base, messages)).toEqual([]);
+    for (const gtin of ['12345678', '123456789012', '1234567890123', '0731 2345 678901']) {
+      expect(validateInventoryPayload({ ...base, variants: [{ gtin }] }, messages)).toEqual([]);
+    }
+  });
+
+  it('rejects a GTIN that is not 8, 12, 13, or 14 digits', () => {
+    const errors = validateInventoryPayload(
+      { articleName: 'Jersey', variants: [{ gtin: '12345' }] },
+      messages,
+    );
+    expect(errors).toEqual([{ field: 'variants.0.gtin', message: 'gtin invalid' }]);
+  });
+});
+
 describe('buildDuplicatedVariantPayload', () => {
-  it('copies audience/color/size and clears sku and quantity', () => {
+  it('copies audience/color/size and clears sku, gtin, and quantity', () => {
     const copy = buildDuplicatedVariantPayload({
       sku: 'KEEP-ME',
+      gtin: '07312345678901',
       audience: 'Women',
       color: 'Navy',
       size: 'L',
@@ -92,6 +112,7 @@ describe('buildDuplicatedVariantPayload', () => {
     });
     expect(copy).toEqual({
       sku: '',
+      gtin: '',
       audience: 'Women',
       color: 'Navy',
       size: 'L',
@@ -102,12 +123,12 @@ describe('buildDuplicatedVariantPayload', () => {
 });
 
 describe('buildDuplicatedItemVariantPayloads', () => {
-  it('clears all SKUs and keeps audience/color/size', () => {
+  it('clears all SKUs and GTINs and keeps audience/color/size', () => {
     const copies = buildDuplicatedItemVariantPayloads([
       { sku: 'A1', audience: 'Women', color: 'Black', size: 'M', quantity: 2, sortOrder: 0 },
       { sku: 'A2', audience: 'Men', color: 'White', size: 'L', quantity: 1, sortOrder: 1 },
     ]);
-    expect(copies.every((v) => v.sku === '')).toBe(true);
+    expect(copies.every((v) => v.sku === '' && v.gtin === '')).toBe(true);
     expect(copies[0].audience).toBe('Women');
     expect(copies[1].size).toBe('L');
   });

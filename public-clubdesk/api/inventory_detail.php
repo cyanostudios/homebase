@@ -47,10 +47,7 @@ try {
     }
 
     $pdo = getPdoFromEnv();
-    if (!publicAppCardVisible($pdo, 'inventory')) {
-        respond(404, ['error' => 'Inventory is not public']);
-    }
-    $query = publicAppInventoryBySlugSql($slugOrId);
+    $query = publicAppInventoryBySlugSql($pdo, $slugOrId);
     $stmt = $pdo->prepare($query['sql']);
     $stmt->execute($query['params']);
     $row = $stmt->fetch();
@@ -89,16 +86,30 @@ try {
         'slug' => $row['slug'] ?? null,
         'description' => $row['description'] ?? null,
         'material' => $row['material'] ?? '',
+        'category' => $row['category'] ?? '',
+        'packageSize' => $row['package_size'] ?? '',
+        'packageUnit' => $row['package_unit'] ?? '',
+        'gtin' => $row['gtin'] ?? '',
+        'articleNumber' => $row['article_number'] ?? '',
+        'ingredients' => $row['ingredients'] ?? null,
+        'allergens' => $row['allergens'] ?? null,
+        'energyKcal100g' => isset($row['energy_kcal_100g']) && $row['energy_kcal_100g'] !== '' ? (float) $row['energy_kcal_100g'] : null,
+        'fatG100g' => isset($row['fat_g_100g']) && $row['fat_g_100g'] !== '' ? (float) $row['fat_g_100g'] : null,
+        'saturatedFatG100g' => isset($row['saturated_fat_g_100g']) && $row['saturated_fat_g_100g'] !== '' ? (float) $row['saturated_fat_g_100g'] : null,
+        'carbohydrateG100g' => isset($row['carbohydrate_g_100g']) && $row['carbohydrate_g_100g'] !== '' ? (float) $row['carbohydrate_g_100g'] : null,
+        'sugarG100g' => isset($row['sugar_g_100g']) && $row['sugar_g_100g'] !== '' ? (float) $row['sugar_g_100g'] : null,
+        'proteinG100g' => isset($row['protein_g_100g']) && $row['protein_g_100g'] !== '' ? (float) $row['protein_g_100g'] : null,
+        'saltG100g' => isset($row['salt_g_100g']) && $row['salt_g_100g'] !== '' ? (float) $row['salt_g_100g'] : null,
+        'netContent' => $row['net_content'] ?? '',
+        'countryOfOrigin' => $row['country_of_origin'] ?? '',
+        'countryOfManufacture' => $row['country_of_manufacture'] ?? '',
+        'supplier' => $row['supplier'] ?? '',
         'recommendedPrice' => $recommended !== null && $recommended !== '' ? (float) $recommended : null,
         'salePrice' => $sale !== null && $sale !== '' ? (float) $sale : null,
         'currency' => trim((string) ($row['currency'] ?? 'SEK')) ?: 'SEK',
         'tags' => $tags,
         'featuredImageUrl' => $row['featured_image_url'] ?? null,
-        'featured' => $row['featured'] === true
-            || $row['featured'] === 't'
-            || $row['featured'] === 'true'
-            || $row['featured'] === 1
-            || $row['featured'] === '1',
+        'featured' => false,
         'variantCount' => count($variants),
         'variants' => $variants,
         'updatedAt' => $row['updated_at'] ?? null,

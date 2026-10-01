@@ -1,0 +1,25 @@
+---
+description: Inventory catalog changes apply to both Garments and Clubdesk unless the user limits the scope
+alwaysApply: true
+---
+
+# Inventory gäller både Garments och Clubdesk
+
+När arbetet rör **inventory** (katalog, arkiv, återställning, borttagning, unika namn, varianter, koppling till listor, publik synlighet eller katalogfilter) ska samma produktregel gälla båda:
+
+- Garments: `client/src/plugins/garments/`, `plugins/garments/`
+- Clubdesk: `client/src/plugins/clubdesk/`, `plugins/clubdesk/`, `plugins/public-clubdesk/`, `public-clubdesk/`
+
+Gör ändringen i båda i samma uppgift. Nämn båda i svaret.
+
+## Mappning
+
+- Plagglistor motsvarar Clubdesk-prislistor.
+- Befintlig koppling behålls. Ny koppling till en arkiverad artikel stoppas.
+- Publik yta: garments-delning respektive Clubdesk publik katalog.
+
+Kopiera inte ytor som bara finns i ett plugin (personmatris, fit summary, listdubblett, `publication_status`, slug, publik sajt). Regeln är densamma. Ytan följer pluginets modell.
+
+## Undantag
+
+Gör bara ett plugin när användaren uttryckligen säger garments-only eller clubdesk-only.

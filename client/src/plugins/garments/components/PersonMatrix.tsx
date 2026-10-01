@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { QC_STATUS_BADGE_COLORS } from '@/core/ui/badgeStyles';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -67,6 +68,7 @@ import {
   mergeFitSummaryProcurement,
   personHasFilledInventoryItem,
   resolveMatrixColumns,
+  selectOptionsWithStoredValue,
   type GarmentFitSummaryEntry,
 } from '../utils/inventoryListColumns';
 import { MATRIX_TABLE_SCROLL_CLASS } from '../utils/variantListStyles';
@@ -1520,6 +1522,14 @@ export function PersonMatrix({
                           const ctSizeValue = inventoryItemId
                             ? (person.ctSizes?.[inventoryItemId] ?? '')
                             : '';
+                          const audienceOptions = selectOptionsWithStoredValue(
+                            presetAudiences,
+                            ctAudienceValue,
+                          );
+                          const sizeOptions = selectOptionsWithStoredValue(
+                            presetSizes,
+                            ctSizeValue,
+                          );
                           const sizeSelectDisabled =
                             presetAudiences.length > 1 && !effectiveAudience;
                           return (
@@ -1534,6 +1544,16 @@ export function PersonMatrix({
                                     className="border-r border-border bg-muted/10 py-1.5 pl-9 pr-2 text-xs text-muted-foreground"
                                   >
                                     {translateCheckboxGroupLabel(t, group)}
+                                    {inventoryItem?.archivedAt ? (
+                                      <span
+                                        className={cn(
+                                          'ml-1.5 text-[10px] font-extrabold',
+                                          QC_STATUS_BADGE_COLORS.muted,
+                                        )}
+                                      >
+                                        {t('garments.archived')}
+                                      </span>
+                                    ) : null}
                                   </td>
                                 ) : (
                                   <td
@@ -1586,7 +1606,7 @@ export function PersonMatrix({
                                 <>
                                   {showAudienceColumn ? (
                                     <td className="border-l border-border/40 px-0.5 py-1.5">
-                                      {inventoryItemId && presetAudiences.length > 0 ? (
+                                      {inventoryItemId && audienceOptions.length > 0 ? (
                                         <Select
                                           value={ctAudienceValue || '__none__'}
                                           onValueChange={(value) =>
@@ -1612,7 +1632,7 @@ export function PersonMatrix({
                                             <SelectItemCompact value="__none__">
                                               —
                                             </SelectItemCompact>
-                                            {presetAudiences.map((audience) => (
+                                            {audienceOptions.map((audience) => (
                                               <SelectItemCompact key={audience} value={audience}>
                                                 {audience}
                                               </SelectItemCompact>
@@ -1624,7 +1644,7 @@ export function PersonMatrix({
                                   ) : null}
                                   <td className="border-l border-border/40 px-0.5 py-1.5">
                                     {inventoryItemId ? (
-                                      presetSizes.length > 0 ? (
+                                      sizeOptions.length > 0 ? (
                                         <Select
                                           value={ctSizeValue || '__none__'}
                                           disabled={sizeSelectDisabled}
@@ -1650,7 +1670,7 @@ export function PersonMatrix({
                                             <SelectItemCompact value="__none__">
                                               —
                                             </SelectItemCompact>
-                                            {presetSizes.map((size) => (
+                                            {sizeOptions.map((size) => (
                                               <SelectItemCompact key={size} value={size}>
                                                 {size}
                                               </SelectItemCompact>

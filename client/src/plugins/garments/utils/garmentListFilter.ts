@@ -34,6 +34,31 @@ export function inventoryItemMatchesSearch(item: InventoryItem, searchTerm: stri
   );
 }
 
+export function isInventoryItemArchived(item: { archivedAt?: string | null }): boolean {
+  return typeof item.archivedAt === 'string' && item.archivedAt.trim() !== '';
+}
+
+/**
+ * Active catalog hides archived articles.
+ * Archived-only shows just those.
+ * A non-empty search also includes archived matches in the active catalog.
+ */
+export function inventoryItemVisibleInCatalog(
+  item: InventoryItem,
+  options: { archivedOnly: boolean; searchTerm: string },
+): boolean {
+  const archived = isInventoryItemArchived(item);
+  if (options.archivedOnly) {
+    return archived;
+  }
+  if (!archived) {
+    return true;
+  }
+  return (
+    options.searchTerm.trim().length > 0 && inventoryItemMatchesSearch(item, options.searchTerm)
+  );
+}
+
 /** `null` / empty = all items. Match is case-insensitive on assigned item tags. */
 export function inventoryItemMatchesTagFilter(
   item: Pick<InventoryItem, 'tags'>,

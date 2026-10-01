@@ -36,10 +36,6 @@ import {
   buildDuplicatedItemVariantPayloads,
   validateInventoryPayload,
 } from '../utils/inventoryValidation';
-import {
-  buildDuplicatedListPersonPayload,
-  buildDuplicatedPersonCtPatch,
-} from '../utils/listDuplicate';
 import { groupInventoryImportRows } from '../utils/groupInventoryImportRows';
 import {
   buildInventoryImportFailureMessages,
@@ -79,7 +75,7 @@ function inventoryProxyList(item: InventoryItem): GarmentList {
   };
 }
 
-function mergeInventorySaved(
+export function mergeInventorySaved(
   existing: InventoryItem | null | undefined,
   saved: InventoryItem,
 ): InventoryItem {
@@ -439,6 +435,7 @@ export function GarmentProvider({
         recommendedPriceInvalid: t('garments.recommendedPriceInvalid'),
         salePriceInvalid: t('garments.salePriceInvalid'),
         quantityInvalid: t('garments.quantityInvalid'),
+        gtinInvalid: t('garments.gtinInvalid'),
       }),
     [t],
   );
@@ -575,6 +572,7 @@ export function GarmentProvider({
         ? raw.variants.map((variant, index) => ({
             id: variant.id,
             sku: (variant.sku ?? '').trim(),
+            gtin: String(variant.gtin ?? '').replace(/\s+/g, ''),
             audience: (variant.audience ?? '').trim(),
             color: (variant.color ?? '').trim(),
             size: (variant.size ?? '').trim(),
@@ -664,37 +662,7 @@ export function GarmentProvider({
   const createListDuplicate = useCallback(
     async (item: GarmentList, newName: string): Promise<GarmentList> => {
       const nextName = (newName ?? '').trim() || item.name?.trim() || t('garments.list');
-      // Always reload the source list so assigned inventory + ct sizes/audiences are present
-      // (list-index payloads often omit persons / assignment detail).
-      const source = (await garmentsApi.getList(item.id)) ?? item;
-      const created = await garmentsApi.createList({
-        name: nextName,
-        teamId: source.teamId ?? null,
-        checkboxColumns:
-          source.checkboxColumns?.length > 0
-            ? source.checkboxColumns
-            : createDefaultCheckboxColumns(),
-      });
-      // Inventory must be assigned before persons so inv_* checkbox values and
-      // ct size/audience keys are accepted and audience/size UI is available.
-      for (const inventoryItemId of source.assignedInventoryItemIds ?? []) {
-        await garmentsApi.assignInventoryItemToList(created.id, inventoryItemId);
-      }
-      for (const person of source.persons ?? []) {
-        const createdPerson = await garmentsApi.createPerson(
-          created.id,
-          buildDuplicatedListPersonPayload(person),
-        );
-        const ctPatch = buildDuplicatedPersonCtPatch(person);
-        if (ctPatch) {
-          await garmentsApi.updatePersonCtSizes(created.id, createdPerson.id, ctPatch);
-        }
-      }
-      const procurement = source.fitSummaryProcurement;
-      if (procurement && Object.keys(procurement).length > 0) {
-        await garmentsApi.patchFitSummaryProcurement(created.id, procurement);
-      }
-      const full = (await garmentsApi.getList(created.id)) ?? created;
+      const full = await garmentsApi.duplicateList(item.id, nextName);
       setGarmentLists((prev) => [full, ...prev]);
       try {
         const inventory = await garmentsApi.getInventory();
@@ -807,7 +775,7 @@ export function GarmentProvider({
   );
 
   const deleteInventoryItem = useCallback(
-    async (id: string): Promise<string | null> => {
+    async (id: string, options?: { silent?: boolean }): Promise<string | null> => {
       try {
         await garmentsApi.deleteInventoryItem(id);
         setInventoryItems((prev) => prev.filter((i) => i.id !== id));
@@ -823,11 +791,18 @@ export function GarmentProvider({
         return null;
       } catch (err: any) {
         console.error('Failed to delete inventory item:', err);
-        const message =
-          err?.status === 409
-            ? err?.message || t('garments.deleteInventoryAssigned')
+        const notArchived =
+          err?.status === 409 &&
+          typeof err?.message === 'string' &&
+          err.message.includes('not archived');
+        const message = notArchived
+          ? t('garments.deleteInventoryNotArchived')
+          : err?.status === 409
+            ? t('garments.deleteInventoryBlockedArchived')
             : t('garments.deleteInventoryFailed');
-        setValidationErrors([{ field: 'general', message }]);
+        if (!options?.silent) {
+          setValidationErrors([{ field: 'general', message }]);
+        }
         return message;
       }
     },
@@ -836,11 +811,49 @@ export function GarmentProvider({
 
   const deleteInventoryItems = useCallback(
     async (ids: string[]) => {
+      const blockedIds: string[] = [];
+      let deleted = 0;
       for (const id of ids) {
-        await deleteInventoryItem(id);
+        const message = await deleteInventoryItem(id, { silent: true });
+        if (message) {
+          blockedIds.push(id);
+        } else {
+          deleted += 1;
+        }
       }
+      return { deleted, blockedIds };
     },
     [deleteInventoryItem],
+  );
+
+  const archiveInventoryItem = useCallback(
+    async (id: string): Promise<string | null> => {
+      try {
+        const saved = await garmentsApi.archiveInventoryItem(id);
+        applyInventoryItemUpdate(saved);
+        return null;
+      } catch (err) {
+        console.error('Failed to archive inventory item:', err);
+        return t('garments.archiveFailed');
+      }
+    },
+    [applyInventoryItemUpdate, t],
+  );
+
+  const restoreInventoryItem = useCallback(
+    async (id: string): Promise<string | null> => {
+      try {
+        const saved = await garmentsApi.restoreInventoryItem(id);
+        applyInventoryItemUpdate(saved);
+        return null;
+      } catch (err: any) {
+        console.error('Failed to restore inventory item:', err);
+        return err?.status === 409
+          ? t('garments.restoreNameConflict')
+          : t('garments.restoreFailed');
+      }
+    },
+    [applyInventoryItemUpdate, t],
   );
 
   const deleteGarment = useCallback(
@@ -1420,7 +1433,7 @@ export function GarmentProvider({
         const name = inv?.articleName;
         const assignedCount = inv?.assignedListIds?.length ?? 0;
         if (name && assignedCount > 0) {
-          return t('garments.deleteInventoryConfirmAssigned', { name, count: assignedCount });
+          return t('garments.deleteInventoryBlockedActive');
         }
         if (name) {
           return t('garments.deleteInventoryConfirm', { name });
@@ -1474,6 +1487,8 @@ export function GarmentProvider({
       clearTagsFromInventoryItem,
       deleteInventoryItem,
       deleteInventoryItems,
+      archiveInventoryItem,
+      restoreInventoryItem,
       getDuplicateConfig,
       executeDuplicate,
       recentlyDuplicatedInventoryId,
@@ -1542,6 +1557,8 @@ export function GarmentProvider({
       clearTagsFromInventoryItem,
       deleteInventoryItem,
       deleteInventoryItems,
+      archiveInventoryItem,
+      restoreInventoryItem,
       getDuplicateConfig,
       executeDuplicate,
       recentlyDuplicatedInventoryId,

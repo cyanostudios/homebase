@@ -17,7 +17,8 @@ describe('inventoryImportSchema', () => {
     const mapping = buildAutoMapping(grid[0], schema);
     expect(mapping.articleName).toBe(0);
     expect(mapping.sku).toBe(9);
-    expect(mapping.quantity).toBe(13);
+    expect(mapping.gtin).toBe(10);
+    expect(mapping.quantity).toBe(14);
     expect(grid).toHaveLength(3);
   });
 });

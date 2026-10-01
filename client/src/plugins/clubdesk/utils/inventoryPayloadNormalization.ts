@@ -9,6 +9,21 @@ function parseOptionalPrice(raw: unknown): number | null {
   return Number.isNaN(num) ? null : num;
 }
 
+function parseOptionalNutrition(raw: unknown): number | null {
+  return parseOptionalPrice(raw);
+}
+
+function trimCatalogText(raw: unknown): string {
+  return raw == null ? '' : String(raw).trim();
+}
+
+function trimNullableText(raw: unknown): string | null {
+  if (raw == null || String(raw).trim() === '') {
+    return null;
+  }
+  return String(raw).trim();
+}
+
 /** Shared normalization for inventory create/update and CSV import. */
 export function normalizeClubdeskInventoryItemPayload(
   raw: ClubdeskInventoryItemPayload,
@@ -17,6 +32,7 @@ export function normalizeClubdeskInventoryItemPayload(
     ? raw.variants.map((variant, index) => ({
         id: variant.id,
         sku: (variant.sku ?? '').trim(),
+        gtin: String(variant.gtin ?? '').replace(/\s+/g, ''),
         audience: (variant.audience ?? '').trim(),
         color: (variant.color ?? '').trim(),
         size: (variant.size ?? '').trim(),
@@ -48,8 +64,26 @@ export function normalizeClubdeskInventoryItemPayload(
       raw.featuredImageUrl != null && String(raw.featuredImageUrl).trim() !== ''
         ? String(raw.featuredImageUrl).trim()
         : null,
+    category: trimCatalogText(raw.category),
+    packageSize: trimCatalogText(raw.packageSize),
+    packageUnit: trimCatalogText(raw.packageUnit),
+    gtin: String(raw.gtin ?? '').replace(/\s+/g, ''),
+    articleNumber: trimCatalogText(raw.articleNumber),
+    ingredients: trimNullableText(raw.ingredients),
+    allergens: trimNullableText(raw.allergens),
+    energyKcal100g: parseOptionalNutrition(raw.energyKcal100g),
+    fatG100g: parseOptionalNutrition(raw.fatG100g),
+    saturatedFatG100g: parseOptionalNutrition(raw.saturatedFatG100g),
+    carbohydrateG100g: parseOptionalNutrition(raw.carbohydrateG100g),
+    sugarG100g: parseOptionalNutrition(raw.sugarG100g),
+    proteinG100g: parseOptionalNutrition(raw.proteinG100g),
+    saltG100g: parseOptionalNutrition(raw.saltG100g),
+    netContent: trimCatalogText(raw.netContent),
+    countryOfOrigin: trimCatalogText(raw.countryOfOrigin),
+    countryOfManufacture: trimCatalogText(raw.countryOfManufacture),
+    supplier: trimCatalogText(raw.supplier),
     publicationStatus: raw.publicationStatus === 'draft' ? 'draft' : 'published',
-    featured: raw.featured === true,
+    featured: false,
     variants,
   };
 }
@@ -63,6 +97,7 @@ export function normalizeClubdeskInventoryVariant(
 ): ClubdeskInventoryVariant {
   return {
     sku: (variant.sku ?? '').trim(),
+    gtin: String(variant.gtin ?? '').replace(/\s+/g, ''),
     audience: (variant.audience ?? '').trim(),
     color: (variant.color ?? '').trim(),
     size: (variant.size ?? '').trim(),

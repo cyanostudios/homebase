@@ -12,6 +12,22 @@ const {
   resolveTenantConnectionStringForShare,
 } = require('../../server/core/utils/shareRoutingHelper');
 
+const GTIN_DIGITS = /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/;
+
+/** Empty, or 8/12/13/14 digits after spaces are removed. */
+function normalizeGtin(value) {
+  const raw = String(value ?? '').replace(/\s+/g, '');
+  if (!raw) return '';
+  if (!GTIN_DIGITS.test(raw)) {
+    throw new AppError(
+      'GTIN must be 8, 12, 13, or 14 digits',
+      400,
+      AppError.CODES.VALIDATION_ERROR,
+    );
+  }
+  return raw;
+}
+
 function parseJsonb(value, fallback) {
   if (value == null) return fallback;
   if (typeof value === 'object') return value;
@@ -483,6 +499,97 @@ class GarmentsModel {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to create list', 500, AppError.CODES.DATABASE_ERROR);
     }
+  }
+
+  /**
+   * Copy a list in one transaction, including joins to archived articles.
+   * This is not assignment: assignInventoryItemToList stays closed for archived items.
+   */
+  async duplicateList(req, listId, data) {
+    const name = String(data?.name ?? '').trim();
+    if (!name || name.length > 255) {
+      throw new AppError('List name is required', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+
+    const db = Database.get(req);
+    const pool = this._pool(req);
+    const sourceId = parseInt(String(listId), 10);
+    const userId = db.getUserId();
+    const client = await pool.connect();
+    let newId = null;
+
+    try {
+      await client.query('BEGIN');
+      const sourceResult = await client.query(
+        `SELECT team_id, checkbox_columns, fit_summary_procurement
+         FROM garment_lists
+         WHERE id = $1 AND user_id = $2`,
+        [sourceId, userId],
+      );
+      if (!sourceResult.rows.length) {
+        throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const source = sourceResult.rows[0];
+      const inserted = await client.query(
+        `
+        INSERT INTO garment_lists (user_id, name, team_id, checkbox_columns, fit_summary_procurement)
+        VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)
+        RETURNING id
+        `,
+        [
+          userId,
+          name,
+          source.team_id ?? null,
+          JSON.stringify(parseJsonb(source.checkbox_columns, [])),
+          JSON.stringify(parseJsonb(source.fit_summary_procurement, {})),
+        ],
+      );
+      newId = inserted.rows[0].id;
+
+      await client.query(
+        `
+        INSERT INTO garment_list_inventory_items (list_id, item_id, sort_order)
+        SELECT $1, item_id, sort_order
+        FROM garment_list_inventory_items
+        WHERE list_id = $2
+        ORDER BY sort_order ASC, id ASC
+        `,
+        [newId, sourceId],
+      );
+
+      await client.query(
+        `
+        INSERT INTO garment_list_persons (
+          list_id, name, shirt_size, shorts_size, socks_size, jersey_number,
+          jersey_name, initials, comment, checkbox_values, ct_sizes, ct_audiences,
+          sort_order, contact_id, team_id
+        )
+        SELECT
+          $1, name, shirt_size, shorts_size, socks_size, jersey_number,
+          jersey_name, initials, comment, checkbox_values, ct_sizes, ct_audiences,
+          sort_order, contact_id, team_id
+        FROM garment_list_persons
+        WHERE list_id = $2
+        ORDER BY sort_order ASC, id ASC
+        `,
+        [newId, sourceId],
+      );
+
+      await client.query('COMMIT');
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        Logger.error('Failed to roll back garment list duplicate', rollbackError, { listId });
+      }
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to duplicate garment list', error, { listId });
+      throw new AppError('Failed to duplicate list', 500, AppError.CODES.DATABASE_ERROR);
+    } finally {
+      client.release();
+    }
+
+    return this.getListById(req, newId);
   }
 
   async updateList(req, listId, data) {
@@ -1058,6 +1165,7 @@ class GarmentsModel {
   normalizeVariantInput(data, sortOrderFallback = 0) {
     return {
       sku: String(data.sku ?? '').trim(),
+      gtin: normalizeGtin(data.gtin),
       audience: String(data.audience ?? '').trim(),
       color: String(data.color ?? '').trim(),
       size: String(data.size ?? '').trim(),
@@ -1144,6 +1252,7 @@ class GarmentsModel {
       const nextTags =
         data.tags !== undefined ? normalizeInventoryTags(data.tags) : (existing.tags ?? []);
 
+      // archivedAt is not a product field. Archive and restore are separate routes.
       await db.query(
         `
         UPDATE garment_inventory_items SET
@@ -1220,17 +1329,19 @@ class GarmentsModel {
           `
           UPDATE garment_inventory_variants SET
             sku = $1,
-            audience = $2,
-            color = $3,
-            size = $4,
-            quantity = $5,
-            sort_order = $6,
+            gtin = $2,
+            audience = $3,
+            color = $4,
+            size = $5,
+            quantity = $6,
+            sort_order = $7,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $7 AND item_id = $8
+          WHERE id = $8 AND item_id = $9
           RETURNING id
           `,
           [
             variant.sku,
+            variant.gtin,
             variant.audience,
             variant.color,
             variant.size,
@@ -1243,19 +1354,37 @@ class GarmentsModel {
         if (!rows.rows.length) {
           await pool.query(
             `
-            INSERT INTO garment_inventory_variants (item_id, sku, audience, color, size, quantity, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO garment_inventory_variants (item_id, sku, gtin, audience, color, size, quantity, sort_order)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             `,
-            [id, variant.sku, variant.audience, variant.color, variant.size, variant.quantity, i],
+            [
+              id,
+              variant.sku,
+              variant.gtin,
+              variant.audience,
+              variant.color,
+              variant.size,
+              variant.quantity,
+              i,
+            ],
           );
         }
       } else {
         await pool.query(
           `
-          INSERT INTO garment_inventory_variants (item_id, sku, audience, color, size, quantity, sort_order)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          INSERT INTO garment_inventory_variants (item_id, sku, gtin, audience, color, size, quantity, sort_order)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           `,
-          [id, variant.sku, variant.audience, variant.color, variant.size, variant.quantity, i],
+          [
+            id,
+            variant.sku,
+            variant.gtin,
+            variant.audience,
+            variant.color,
+            variant.size,
+            variant.quantity,
+            i,
+          ],
         );
       }
     }
@@ -1281,13 +1410,14 @@ class GarmentsModel {
       const variant = this.normalizeVariantInput(data, (maxOrder.rows[0]?.m ?? -1) + 1);
       const result = await pool.query(
         `
-        INSERT INTO garment_inventory_variants (item_id, sku, audience, color, size, quantity, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO garment_inventory_variants (item_id, sku, gtin, audience, color, size, quantity, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
         `,
         [
           id,
           variant.sku,
+          variant.gtin,
           variant.audience,
           variant.color,
           variant.size,
@@ -1326,6 +1456,7 @@ class GarmentsModel {
       }
       const existing = existingResult.rows[0];
       const nextSku = data.sku !== undefined ? String(data.sku ?? '').trim() : (existing.sku ?? '');
+      const nextGtin = data.gtin !== undefined ? normalizeGtin(data.gtin) : (existing.gtin ?? '');
       const nextAudience =
         data.audience !== undefined
           ? String(data.audience ?? '').trim()
@@ -1347,16 +1478,17 @@ class GarmentsModel {
         `
         UPDATE garment_inventory_variants SET
           sku = $1,
-          audience = $2,
-          color = $3,
-          size = $4,
-          quantity = $5,
-          sort_order = $6,
+          gtin = $2,
+          audience = $3,
+          color = $4,
+          size = $5,
+          quantity = $6,
+          sort_order = $7,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $7 AND item_id = $8
+        WHERE id = $8 AND item_id = $9
         RETURNING *
         `,
-        [nextSku, nextAudience, nextColor, nextSize, nextQuantity, nextSort, vid, lid],
+        [nextSku, nextGtin, nextAudience, nextColor, nextSize, nextQuantity, nextSort, vid, lid],
       );
       await pool.query(
         `UPDATE garment_inventory_items SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
@@ -1434,27 +1566,66 @@ class GarmentsModel {
     }
   }
 
+  /**
+   * History still points at this article: a list join, saved person size/audience,
+   * an inv_{id}_* checkbox key, or fit-summary procurement for the item id.
+   */
+  async isInventoryItemInUse(pool, itemId) {
+    const id = parseInt(String(itemId), 10);
+    const key = String(id);
+    const checkboxPrefix = `${inventoryCheckboxPrefix(id)}%`;
+    const result = await pool.query(
+      `
+      SELECT 1 AS in_use
+      WHERE EXISTS (
+        SELECT 1 FROM garment_list_inventory_items WHERE item_id = $1
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM garment_list_persons p
+        WHERE COALESCE(p.ct_sizes, '{}'::jsonb) ? $2
+           OR COALESCE(p.ct_audiences, '{}'::jsonb) ? $2
+           OR EXISTS (
+             SELECT 1
+             FROM jsonb_each(COALESCE(p.checkbox_values, '{}'::jsonb)) AS chk(key, value)
+             WHERE chk.key LIKE $3
+           )
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM garment_lists gl
+        WHERE COALESCE(gl.fit_summary_procurement, '{}'::jsonb) ? $2
+      )
+      `,
+      [id, key, checkboxPrefix],
+    );
+    return result.rows.length > 0;
+  }
+
   async deleteInventoryItem(req, itemId) {
     try {
       const db = Database.get(req);
       const pool = this._pool(req);
       const id = parseInt(String(itemId), 10);
+      const existing = await this.getInventoryById(req, id);
+      if (!existing) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
 
-      const assignments = await pool.query(
-        `
-        SELECT gl.id AS list_id, gl.name AS list_name
-        FROM garment_list_inventory_items j
-        JOIN garment_lists gl ON gl.id = j.list_id
-        WHERE j.item_id = $1
-        ORDER BY gl.name ASC, gl.id ASC
-        `,
-        [id],
-      );
+      if (!existing.archivedAt) {
+        throw new AppError(
+          'Cannot delete an inventory item that is not archived',
+          409,
+          AppError.CODES.CONFLICT,
+        );
+      }
 
-      // Delete cascades: force-unassign from every list (clears this article's
-      // checkbox / size / audience keys), then remove the inventory row.
-      for (const row of assignments.rows) {
-        await this.unassignInventoryItemFromList(req, row.list_id, id, { force: true });
+      if (await this.isInventoryItemInUse(pool, id)) {
+        throw new AppError(
+          'Cannot delete inventory item while it is assigned to garment lists or saved person or order data',
+          409,
+          AppError.CODES.CONFLICT,
+        );
       }
 
       const rows = await db.query(
@@ -1469,6 +1640,71 @@ class GarmentsModel {
       if (error instanceof AppError) throw error;
       Logger.error('Failed to delete inventory item', error, { itemId });
       throw new AppError('Failed to delete inventory item', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async archiveInventoryItem(req, itemId) {
+    try {
+      const db = Database.get(req);
+      const id = parseInt(String(itemId), 10);
+      const existing = await this.getInventoryById(req, id);
+      if (!existing) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      if (existing.archivedAt) {
+        return existing;
+      }
+      await db.query(
+        `
+        UPDATE garment_inventory_items
+        SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        `,
+        [id],
+      );
+      return this.getInventoryById(req, id);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to archive inventory item', error, { itemId });
+      throw new AppError('Failed to archive inventory item', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async restoreInventoryItem(req, itemId) {
+    try {
+      const db = Database.get(req);
+      const id = parseInt(String(itemId), 10);
+      const existing = await this.getInventoryById(req, id);
+      if (!existing) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      if (!existing.archivedAt) {
+        return existing;
+      }
+      try {
+        await db.query(
+          `
+          UPDATE garment_inventory_items
+          SET archived_at = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+          `,
+          [id],
+        );
+      } catch (error) {
+        if (error?.code === '23505') {
+          throw new AppError(
+            'An inventory item with this article and brand already exists',
+            409,
+            AppError.CODES.CONFLICT,
+          );
+        }
+        throw error;
+      }
+      return this.getInventoryById(req, id);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to restore inventory item', error, { itemId });
+      throw new AppError('Failed to restore inventory item', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -1577,6 +1813,14 @@ class GarmentsModel {
       );
       if (existingJoin.rows.length) {
         return this.getListById(req, lid);
+      }
+
+      if (inventory.archivedAt) {
+        throw new AppError(
+          'Cannot assign an archived inventory item',
+          409,
+          AppError.CODES.CONFLICT,
+        );
       }
 
       const client = await pool.connect();
@@ -1922,6 +2166,7 @@ class GarmentsModel {
       id: String(row.id),
       itemId: String(row.item_id),
       sku: row.sku ?? '',
+      gtin: row.gtin ?? '',
       audience: row.audience ?? '',
       color: row.color ?? '',
       size: row.size ?? '',
@@ -1965,6 +2210,7 @@ class GarmentsModel {
       totalQuantity: 0,
       variantCount: 0,
       assignedListIds: [],
+      archivedAt: row.archived_at ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -1972,5 +2218,6 @@ class GarmentsModel {
 }
 
 module.exports = GarmentsModel;
+module.exports.normalizeGtin = normalizeGtin;
 module.exports.normalizeFitSummaryProcurement = normalizeFitSummaryProcurement;
 module.exports.mergeFitSummaryProcurementPatch = mergeFitSummaryProcurementPatch;

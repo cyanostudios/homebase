@@ -18,6 +18,7 @@ export interface ClubdeskPriceListItem {
   inventoryItemId?: string | null;
   inventoryVariantId?: string | null;
   inventoryArticleName?: string | null;
+  inventoryArchived?: boolean;
   inventorySlug?: string | null;
   inventoryVariantLabel?: string | null;
   createdAt?: string;
@@ -28,6 +29,8 @@ export interface ClubdeskPriceListItemCategory {
   id: string;
   name: string;
   sortOrder: number;
+  /** When false, the category's items stay in admin and are hidden on the public price list. */
+  enabled: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -41,6 +44,8 @@ export interface ClubdeskPriceList {
   publicationStatus: PublicationStatus;
   /** When true, shown as a square card on public Home. */
   featured: boolean;
+  /** When false, items render as one list without category headings. */
+  categoriesEnabled: boolean;
   currency: string;
   sortOrder?: number;
   itemCount?: number;
@@ -61,6 +66,7 @@ export interface ClubdeskPriceListItemPayload {
   inventoryVariantId?: string | null;
   /** Denormalized for editor status; stripped before API save. */
   inventoryArticleName?: string | null;
+  inventoryArchived?: boolean;
   inventorySlug?: string | null;
   inventoryVariantLabel?: string | null;
   /** Client-only React list key; stripped before API save. */
@@ -74,6 +80,7 @@ export interface ClubdeskPriceListPayload {
   featuredImageUrl: string | null;
   publicationStatus: PublicationStatus;
   featured: boolean;
+  categoriesEnabled: boolean;
   currency: string;
   items: ClubdeskPriceListItemPayload[];
 }

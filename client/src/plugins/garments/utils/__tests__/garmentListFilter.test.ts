@@ -2,6 +2,7 @@ import {
   countInventoryItemsWithTag,
   inventoryItemMatchesSearch,
   inventoryItemMatchesTagFilter,
+  inventoryItemVisibleInCatalog,
 } from '../garmentListFilter';
 import type { InventoryItem } from '../../types/garments';
 
@@ -48,6 +49,28 @@ describe('countInventoryItemsWithTag', () => {
     ];
     expect(countInventoryItemsWithTag(items, 'Home')).toBe(2);
     expect(countInventoryItemsWithTag(items, 'Training')).toBe(1);
+  });
+});
+
+describe('inventoryItemVisibleInCatalog', () => {
+  it('hides archived articles in the active catalog until search matches', () => {
+    const active = baseItem({ id: '1' });
+    const archived = baseItem({ id: '2', articleName: 'Old sauce', archivedAt: '2026-01-01' });
+    expect(inventoryItemVisibleInCatalog(active, { archivedOnly: false, searchTerm: '' })).toBe(
+      true,
+    );
+    expect(inventoryItemVisibleInCatalog(archived, { archivedOnly: false, searchTerm: '' })).toBe(
+      false,
+    );
+    expect(
+      inventoryItemVisibleInCatalog(archived, { archivedOnly: false, searchTerm: 'sauce' }),
+    ).toBe(true);
+    expect(inventoryItemVisibleInCatalog(archived, { archivedOnly: true, searchTerm: '' })).toBe(
+      true,
+    );
+    expect(inventoryItemVisibleInCatalog(active, { archivedOnly: true, searchTerm: '' })).toBe(
+      false,
+    );
   });
 });
 

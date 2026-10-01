@@ -107,7 +107,9 @@ function parseInventoryVariants(array $row): array
             continue;
         }
         $out[] = [
+            'id' => (int) ($variant['id'] ?? 0),
             'sku' => trim((string) ($variant['sku'] ?? '')),
+            'gtin' => preg_replace('/\s+/', '', (string) ($variant['gtin'] ?? '')) ?? '',
             'audience' => trim((string) ($variant['audience'] ?? '')),
             'color' => trim((string) ($variant['color'] ?? '')),
             'size' => trim((string) ($variant['size'] ?? '')),
@@ -135,6 +137,47 @@ function variantLabel(array $variant): string
     return $sku !== '' ? $sku : 'Variant';
 }
 
+function cellText(array $row, string $key): string
+{
+    $value = $row[$key] ?? null;
+    if ($value === null) {
+        return '';
+    }
+
+    return trim((string) $value);
+}
+
+function formatNutritionAmount(array $row, string $key, string $unit): string
+{
+    $raw = $row[$key] ?? null;
+    if ($raw === null || $raw === '' || !is_numeric($raw)) {
+        return '';
+    }
+    $num = (float) $raw;
+    $decimals = abs($num - round($num)) < 0.00001 ? 0 : 1;
+    $formatted = number_format($num, $decimals, ',', '');
+
+    return $formatted . ' ' . $unit;
+}
+
+/**
+ * @param list<array{label: string, value: string}> $rows
+ */
+function renderFactList(array $rows): void
+{
+    if ($rows === []) {
+        return;
+    }
+    echo '<dl class="inventory-facts">';
+    foreach ($rows as $row) {
+        echo '<div class="inventory-facts__row">';
+        echo '<dt class="inventory-facts__label">' . h($row['label']) . '</dt>';
+        echo '<dd class="inventory-facts__value">' . nl2br(h($row['value']), false) . '</dd>';
+        echo '</div>';
+    }
+    echo '</dl>';
+}
+
 $baseUrl = siteBaseUrl();
 $slug = parseInventoryPath();
 $item = null;
@@ -148,24 +191,20 @@ if ($slug === null || $slug === '') {
 } else {
     try {
         $pdo = getPdoFromEnv();
-        if (!publicAppCardVisible($pdo, 'inventory')) {
-            $notFound = true;
-        } else {
-            $q = publicAppInventoryBySlugSql($slug);
-            $stmt = $pdo->prepare($q['sql']);
-            $stmt->execute($q['params']);
-            $row = $stmt->fetch();
-            if ($row) {
-                $item = $row;
-                $variants = parseInventoryVariants($row);
-                $currency = trim((string) ($row['currency'] ?? 'SEK')) ?: 'SEK';
-                $featured = trim((string) ($row['featured_image_url'] ?? ''));
-                if ($featured !== '') {
-                    $ogImage = absolutePublicUrl($baseUrl, $featured);
-                }
-            } else {
-                $notFound = true;
+        $q = publicAppInventoryBySlugSql($pdo, $slug);
+        $stmt = $pdo->prepare($q['sql']);
+        $stmt->execute($q['params']);
+        $row = $stmt->fetch();
+        if ($row) {
+            $item = $row;
+            $variants = parseInventoryVariants($row);
+            $currency = trim((string) ($row['currency'] ?? 'SEK')) ?: 'SEK';
+            $featured = trim((string) ($row['featured_image_url'] ?? ''));
+            if ($featured !== '') {
+                $ogImage = absolutePublicUrl($baseUrl, $featured);
             }
+        } else {
+            $notFound = true;
         }
     } catch (Throwable $e) {
         $notFound = true;
@@ -249,15 +288,12 @@ $jsonLd = [
 <?php
     $articleTitle = (string) ($item['article_name'] ?? 'Artikel');
     $brandLine = trim((string) ($item['brand'] ?? ''));
-    $headerDesc = trim((string) ($item['description'] ?? ''));
 ?>
       <header class="guide-header">
         <div class="guide-header__copy">
           <h1 class="guide-header__title"><?= h($articleTitle) ?></h1>
 <?php if ($brandLine !== ''): ?>
           <p class="home-header__text guide-header__text"><?= h($brandLine) ?></p>
-<?php elseif ($headerDesc !== ''): ?>
-          <p class="home-header__text guide-header__text"><?= h(truncateMetaDescription($headerDesc, 120)) ?></p>
 <?php endif; ?>
         </div>
         <a class="guide-back-btn" href="/inventory/" id="detail-back-btn" aria-label="Tillbaka">
@@ -276,56 +312,171 @@ $jsonLd = [
           <a class="detail-back" href="/inventory/" id="detail-back-not-found">Till inventarie</a>
         </article>
 <?php else: ?>
-        <div id="inventory-app" class="home-sheet">
+        <div id="inventory-app" class="home-sheet" data-slug="<?= h($itemSlug) ?>">
 <?php if ($ogImage !== ''): ?>
           <img class="detail-hero" src="<?= h($ogImage) ?>" alt="" />
 <?php endif; ?>
 <?php
-    $materialLine = trim((string) ($item['material'] ?? ''));
-    $bodyDesc = trim((string) ($item['description'] ?? ''));
-    $priceLine = $sale !== null
-        ? formatPriceAmount($sale, $currency)
-        : ($recommended !== null ? formatPriceAmount($recommended, $currency) : '');
+    $bodyDesc = cellText($item, 'description');
+    // Internal note stays off the public page until staff gate returns.
+    $internalNote = '';
+    $packageSize = cellText($item, 'package_size');
+    $packageUnit = cellText($item, 'package_unit');
+    $packageLabel = trim($packageSize . ($packageSize !== '' && $packageUnit !== '' ? ' ' : '') . $packageUnit);
+    $factRows = [];
+    $pushFact = static function (string $label, string $value) use (&$factRows): void {
+        if ($value !== '') {
+            $factRows[] = ['label' => $label, 'value' => $value];
+        }
+    };
+    $pushFact('Varumärke', cellText($item, 'brand'));
+    $pushFact('Produktkategori', cellText($item, 'category'));
+    $pushFact('Förpackningsstorlek', $packageLabel);
+    $pushFact('Artikel-GTIN', cellText($item, 'gtin'));
+    $pushFact('Artikelnummer', cellText($item, 'article_number'));
+    $pushFact('Nettovikt', cellText($item, 'net_content'));
+    $pushFact('Material', cellText($item, 'material'));
+    $pushFact('Ursprungsland', cellText($item, 'country_of_origin'));
+    $pushFact('Tillverkningsland', cellText($item, 'country_of_manufacture'));
+    $pushFact('Leverantör', cellText($item, 'supplier'));
+    if ($recommended !== null) {
+        $pushFact('Rek. pris', formatPriceAmount($recommended, $currency));
+    }
+    if ($sale !== null) {
+        $pushFact('Försäljningspris', formatPriceAmount($sale, $currency));
+    }
+    $tagRaw = $item['tags'] ?? [];
+    if (is_string($tagRaw)) {
+        $decodedTags = json_decode($tagRaw, true);
+        $tagRaw = is_array($decodedTags) ? $decodedTags : [];
+    }
+    $tagLabels = [];
+    if (is_array($tagRaw)) {
+        foreach ($tagRaw as $tag) {
+            $label = trim((string) $tag);
+            if ($label !== '') {
+                $tagLabels[] = $label;
+            }
+        }
+    }
+    $pushFact('Taggar', implode(', ', $tagLabels));
+    $ingredients = cellText($item, 'ingredients');
+    $allergens = cellText($item, 'allergens');
+    $nutritionRows = [];
+    $pushNutrition = static function (string $label, string $key, string $unit) use (&$nutritionRows, $item): void {
+        $formatted = formatNutritionAmount($item, $key, $unit);
+        if ($formatted !== '') {
+            $nutritionRows[] = ['label' => $label, 'value' => $formatted];
+        }
+    };
+    $pushNutrition('Energi', 'energy_kcal_100g', 'kcal');
+    $pushNutrition('Fett', 'fat_g_100g', 'g');
+    $pushNutrition('Mättat fett', 'saturated_fat_g_100g', 'g');
+    $pushNutrition('Kolhydrat', 'carbohydrate_g_100g', 'g');
+    $pushNutrition('Socker', 'sugar_g_100g', 'g');
+    $pushNutrition('Protein', 'protein_g_100g', 'g');
+    $pushNutrition('Salt', 'salt_g_100g', 'g');
+    $stockRows = $variants !== [] ? $variants : [[
+        'id' => 0,
+        'audience' => '',
+        'color' => '',
+        'size' => '',
+        'sku' => '',
+        'gtin' => '',
+        'quantity' => 0,
+    ]];
+    $stockTotal = 0;
+    foreach ($stockRows as $stockRow) {
+        $stockTotal += (int) ($stockRow['quantity'] ?? 0);
+    }
 ?>
-<?php if ($bodyDesc !== '' || $materialLine !== '' || $priceLine !== ''): ?>
-          <section class="home-section">
-<?php if ($bodyDesc !== ''): ?>
-            <p class="option-card__desc price-list-row__desc"><?= nl2br(h($bodyDesc), false) ?></p>
-<?php endif; ?>
-<?php if ($materialLine !== ''): ?>
-            <p class="text-sm text-muted-foreground" style="margin-top:0.75rem;color:var(--muted-foreground,#64748b);">
-              Material: <?= h($materialLine) ?>
-            </p>
-<?php endif; ?>
-<?php if ($priceLine !== ''): ?>
-            <p class="price-list-row__price" style="margin-top:0.75rem;"><?= h($priceLine) ?></p>
-<?php if ($sale !== null && $recommended !== null && $sale < $recommended): ?>
-            <p class="text-sm" style="margin-top:0.25rem;color:var(--muted-foreground,#64748b);">
-              Ord. pris: <?= h(formatPriceAmount($recommended, $currency)) ?>
-            </p>
-<?php endif; ?>
-<?php endif; ?>
-          </section>
-<?php endif; ?>
-<?php if ($variants !== []): ?>
           <section class="home-section home-section--rows price-list-section">
-            <h2 class="home-section__title price-list-section__title">Varianter</h2>
+            <div class="home-section__head">
+              <h2 class="home-section__title"><?= $variants !== [] ? 'Varianter' : 'Lager' ?></h2>
+              <p class="inventory-stock-total">Totalt <span id="inventory-stock-total"><?= h((string) $stockTotal) ?></span> st</p>
+            </div>
+            <p id="inventory-stock-error" class="inventory-stock-error" hidden>Kunde inte spara lagersaldot.</p>
             <ul class="option-list price-list-rows">
-<?php foreach ($variants as $variant): ?>
-              <li class="option-card price-list-row">
+<?php foreach ($stockRows as $variant): ?>
+<?php
+    $variantId = (int) ($variant['id'] ?? 0);
+    $qty = (int) ($variant['quantity'] ?? 0);
+    $sku = trim((string) ($variant['sku'] ?? ''));
+    $gtin = trim((string) ($variant['gtin'] ?? ''));
+    $variantMeta = [];
+    if ($sku !== '') {
+        $variantMeta[] = 'Art.nr ' . $sku;
+    }
+    if ($gtin !== '') {
+        $variantMeta[] = 'GTIN ' . $gtin;
+    }
+    $rowTitle = $variants !== [] ? variantLabel($variant) : 'Lager';
+?>
+              <li
+                class="option-card price-list-row"
+                data-stock-row
+                data-variant-id="<?= h((string) $variantId) ?>"
+              >
                 <div class="option-card__body">
-                  <span class="option-card__title"><?= h(variantLabel($variant)) ?></span>
-<?php $sku = trim((string) ($variant['sku'] ?? '')); ?>
-<?php if ($sku !== ''): ?>
-                  <span class="option-card__desc price-list-row__desc">Art.nr <?= h($sku) ?></span>
+                  <span class="option-card__title"><?= h($rowTitle) ?></span>
+<?php if ($variantMeta !== []): ?>
+                  <span class="option-card__desc price-list-row__desc"><?= h(implode(' · ', $variantMeta)) ?></span>
 <?php endif; ?>
                 </div>
                 <span class="price-list-row__actions">
-                  <span class="price-list-row__price"><?= h((string) (int) ($variant['quantity'] ?? 0)) ?> st</span>
+                  <button type="button" class="price-list-qty-btn price-list-qty-btn--minus" data-stock-delta="-1" aria-label="Minska antal"<?= $qty <= 0 ? ' disabled' : '' ?>>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                      <path d="M5 12h14" />
+                    </svg>
+                  </button>
+                  <span class="inventory-stock-qty" data-stock-qty><?= h((string) $qty) ?></span>
+                  <button type="button" class="price-list-qty-btn price-list-qty-btn--plus" data-stock-delta="1" aria-label="Öka antal">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </button>
                 </span>
               </li>
 <?php endforeach; ?>
             </ul>
+<?php if ($bodyDesc !== '' || $internalNote !== ''): ?>
+            <div class="inventory-copy-block">
+<?php if ($bodyDesc !== ''): ?>
+              <div>
+                <h2 class="home-section__title">Beskrivning</h2>
+                <p class="inventory-copy"><?= nl2br(h($bodyDesc), false) ?></p>
+              </div>
+<?php endif; ?>
+<?php if ($internalNote !== ''): ?>
+              <p class="inventory-copy">
+                <span class="inventory-copy__label">Intern anteckning</span>
+                <?= nl2br(h($internalNote), false) ?>
+              </p>
+<?php endif; ?>
+            </div>
+<?php endif; ?>
+          </section>
+<?php if ($factRows !== []): ?>
+          <section class="home-section">
+<?php renderFactList($factRows); ?>
+          </section>
+<?php endif; ?>
+<?php if ($ingredients !== '' || $allergens !== '' || $nutritionRows !== []): ?>
+          <section class="home-section">
+            <h2 class="home-section__title">Ingredienser &amp; näringsvärde</h2>
+<?php if ($ingredients !== ''): ?>
+            <p class="inventory-copy"><?= nl2br(h($ingredients), false) ?></p>
+<?php endif; ?>
+<?php if ($allergens !== ''): ?>
+            <p class="inventory-copy">
+              <span class="inventory-copy__label">Allergener</span>
+              <?= nl2br(h($allergens), false) ?>
+            </p>
+<?php endif; ?>
+<?php if ($nutritionRows !== []): ?>
+            <p class="inventory-copy__label">Näringsvärde per 100 g</p>
+<?php renderFactList($nutritionRows); ?>
+<?php endif; ?>
           </section>
 <?php endif; ?>
         </div>
@@ -385,5 +536,6 @@ $jsonLd = [
         bindBackNav(document.getElementById('detail-back-not-found'));
       })();
     </script>
+    <script src="/inventory-stock-app.js" defer></script>
   </body>
 </html>

@@ -44,6 +44,8 @@ export function InventoryListAssignmentCheckboxes({
     [assignedListIds, garmentLists],
   );
   const assignAllBusy = busyKey === 'all';
+  const archived = Boolean(item?.archivedAt);
+  const listsToShow = archived ? assignedLists : garmentLists;
   const allListsAssigned = garmentLists.length > 0 && assignedListIds.size === garmentLists.length;
   const someListsAssigned = assignedListIds.size > 0 && !allListsAssigned;
 
@@ -113,7 +115,9 @@ export function InventoryListAssignmentCheckboxes({
 
   const body = (
     <>
-      {!embedded && !readOnly ? (
+      {archived ? (
+        <p className="mb-3 text-xs text-muted-foreground">{t('garments.archivedAssignHint')}</p>
+      ) : !embedded && !readOnly ? (
         <p className="mb-3 text-xs text-muted-foreground">{t('garments.inventoryInListsHint')}</p>
       ) : null}
 
@@ -145,31 +149,37 @@ export function InventoryListAssignmentCheckboxes({
         )
       ) : null}
 
-      {itemId && !readOnly && garmentLists.length > 0 ? (
+      {itemId && !readOnly && archived && assignedLists.length === 0 ? (
+        <p className={DETAIL_EMPTY_STATE_CLASS}>{t('garments.notAssignedToAnyList')}</p>
+      ) : null}
+
+      {itemId && !readOnly && listsToShow.length > 0 ? (
         <ul className="space-y-1.5">
-          <li className="border-b border-border/50 pb-2">
-            <label
-              className={cn(
-                'flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm',
-                assignAllBusy && 'cursor-wait opacity-60',
-              )}
-            >
-              <Checkbox
-                checked={allListsAssigned}
-                indeterminate={someListsAssigned}
-                disabled={assignAllBusy}
-                onChange={() => void toggleAllLists()}
-                aria-label={t('garments.assignToAllLists')}
-              />
-              <span className="font-semibold text-foreground">
-                {t('garments.assignToAllLists')}
-              </span>
-              {assignAllBusy ? (
-                <span className="text-xs text-muted-foreground">{t('common.saving')}</span>
-              ) : null}
-            </label>
-          </li>
-          {garmentLists.map((list) => {
+          {archived ? null : (
+            <li className="border-b border-border/50 pb-2">
+              <label
+                className={cn(
+                  'flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm',
+                  assignAllBusy && 'cursor-wait opacity-60',
+                )}
+              >
+                <Checkbox
+                  checked={allListsAssigned}
+                  indeterminate={someListsAssigned}
+                  disabled={assignAllBusy}
+                  onChange={() => void toggleAllLists()}
+                  aria-label={t('garments.assignToAllLists')}
+                />
+                <span className="font-semibold text-foreground">
+                  {t('garments.assignToAllLists')}
+                </span>
+                {assignAllBusy ? (
+                  <span className="text-xs text-muted-foreground">{t('common.saving')}</span>
+                ) : null}
+              </label>
+            </li>
+          )}
+          {listsToShow.map((list) => {
             const assigned = assignedListIds.has(String(list.id));
             const key = `${itemId}:${list.id}`;
             const rowBusy = busyKey === key;

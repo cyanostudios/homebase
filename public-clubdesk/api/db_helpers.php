@@ -204,8 +204,15 @@ SQL;
 /**
  * @return array{sql: string, params: array<int, mixed>}
  */
-function publicAppPriceListBySlugSql(string $slugOrId): array
+function publicAppPriceListBySlugSql(PDO $pdo, string $slugOrId): array
 {
+    $categoriesSelect = publicAppTableHasColumn($pdo, 'clubdesk_price_lists', 'categories_enabled')
+        ? 'p.categories_enabled'
+        : 'TRUE AS categories_enabled';
+    $categoryEnabledExpr = publicAppTableHasColumn($pdo, 'clubdesk_price_list_item_categories', 'enabled')
+        ? 'COALESCE(c.enabled, TRUE)'
+        : 'TRUE';
+
     if (ctype_digit($slugOrId)) {
         return [
             'sql' => <<<SQL
@@ -215,6 +222,7 @@ SELECT
   p.slug,
   p.description,
   p.currency,
+  {$categoriesSelect},
   p.updated_at,
   COALESCE(
     (
@@ -229,9 +237,10 @@ SELECT
             i.price
           ),
           'category', COALESCE(i.category, ''),
+          'categoryEnabled', {$categoryEnabledExpr},
           'sequenceOrder', i.sequence_order,
           'inventorySlug', CASE
-            WHEN inv.publication_status = 'published' THEN inv.slug
+            WHEN inv.publication_status = 'published' AND inv.archived_at IS NULL THEN inv.slug
             ELSE NULL
           END
         )
@@ -269,6 +278,7 @@ SELECT
   p.slug,
   p.description,
   p.currency,
+  {$categoriesSelect},
   p.updated_at,
   COALESCE(
     (
@@ -283,9 +293,10 @@ SELECT
             i.price
           ),
           'category', COALESCE(i.category, ''),
+          'categoryEnabled', {$categoryEnabledExpr},
           'sequenceOrder', i.sequence_order,
           'inventorySlug', CASE
-            WHEN inv.publication_status = 'published' THEN inv.slug
+            WHEN inv.publication_status = 'published' AND inv.archived_at IS NULL THEN inv.slug
             ELSE NULL
           END
         )
@@ -446,11 +457,45 @@ SQL
     }
 }
 
+function publicAppInventoryVariantsAggSql(): string
+{
+    return <<<'SQL'
+COALESCE(
+  (
+    SELECT json_agg(
+      json_build_object(
+        'id', v.id,
+        'sku', COALESCE(v.sku, ''),
+        'gtin', COALESCE(v.gtin, ''),
+        'audience', COALESCE(v.audience, ''),
+        'color', COALESCE(v.color, ''),
+        'size', COALESCE(v.size, ''),
+        'quantity', v.quantity,
+        'sortOrder', v.sort_order
+      )
+      ORDER BY v.sort_order ASC, v.id ASC
+    )
+    FROM clubdesk_inventory_variants v
+    WHERE v.item_id = i.id
+  ),
+  '[]'::json
+) AS variants
+SQL;
+}
+
 function publicAppInventorySql(PDO $pdo): string
 {
     $featuredSelect = publicAppTableHasColumn($pdo, 'clubdesk_inventory_items', 'featured')
         ? 'i.featured'
         : 'FALSE AS featured';
+    $searchColumns = [];
+    foreach (['category', 'article_number', 'package_size'] as $column) {
+        if (publicAppTableHasColumn($pdo, 'clubdesk_inventory_items', $column)) {
+            $searchColumns[] = 'i.' . $column;
+        }
+    }
+    $searchSelect = $searchColumns === [] ? '' : ",\n  " . implode(",\n  ", $searchColumns);
+    $variantsAgg = publicAppInventoryVariantsAggSql();
 
     return <<<SQL
 SELECT
@@ -467,14 +512,11 @@ SELECT
   i.featured_image_url,
   {$featuredSelect},
   i.sort_order,
-  i.updated_at,
-  (
-    SELECT COUNT(*)::int
-    FROM clubdesk_inventory_variants v
-    WHERE v.item_id = i.id
-  ) AS variant_count
+  i.updated_at{$searchSelect},
+  {$variantsAgg}
 FROM clubdesk_inventory_items i
 WHERE i.publication_status = 'published'
+  AND i.archived_at IS NULL
 ORDER BY
   i.sort_order ASC NULLS LAST,
   lower(i.article_name) ASC,
@@ -483,30 +525,56 @@ SQL;
 }
 
 /**
+ * Product facts for the public article. Omits purchase price and catalog provenance.
+ * The article query adds `comment` separately so the kiosk can show the internal note.
+ *
+ * @return string SQL fragment starting with a comma, or empty when columns are absent
+ */
+function publicAppInventoryCatalogSelect(PDO $pdo): string
+{
+    $columns = [
+        'category',
+        'package_size',
+        'package_unit',
+        'gtin',
+        'article_number',
+        'ingredients',
+        'allergens',
+        'energy_kcal_100g',
+        'fat_g_100g',
+        'saturated_fat_g_100g',
+        'carbohydrate_g_100g',
+        'sugar_g_100g',
+        'protein_g_100g',
+        'salt_g_100g',
+        'net_content',
+        'country_of_origin',
+        'country_of_manufacture',
+        'supplier',
+    ];
+    $present = [];
+    foreach ($columns as $column) {
+        if (publicAppTableHasColumn($pdo, 'clubdesk_inventory_items', $column)) {
+            $present[] = 'i.' . $column;
+        }
+    }
+    if ($present === []) {
+        return '';
+    }
+
+    return ",\n  " . implode(",\n  ", $present);
+}
+
+/**
  * @return array{sql: string, params: array<int, mixed>}
  */
-function publicAppInventoryBySlugSql(string $slugOrId): array
+function publicAppInventoryBySlugSql(PDO $pdo, string $slugOrId): array
 {
-    $variantsAgg = <<<'SQL'
-COALESCE(
-  (
-    SELECT json_agg(
-      json_build_object(
-        'sku', COALESCE(v.sku, ''),
-        'audience', COALESCE(v.audience, ''),
-        'color', COALESCE(v.color, ''),
-        'size', COALESCE(v.size, ''),
-        'quantity', v.quantity,
-        'sortOrder', v.sort_order
-      )
-      ORDER BY v.sort_order ASC, v.id ASC
-    )
-    FROM clubdesk_inventory_variants v
-    WHERE v.item_id = i.id
-  ),
-  '[]'::json
-) AS variants
-SQL;
+    $catalogSelect = publicAppInventoryCatalogSelect($pdo);
+    $variantsAgg = publicAppInventoryVariantsAggSql();
+    $commentSelect = publicAppTableHasColumn($pdo, 'clubdesk_inventory_items', 'comment')
+        ? ",\n  i.comment"
+        : '';
 
     if (ctype_digit($slugOrId)) {
         return [
@@ -516,7 +584,7 @@ SELECT
   i.article_name,
   i.brand,
   i.slug,
-  i.description,
+  i.description{$commentSelect},
   i.material,
   i.recommended_price,
   i.sale_price,
@@ -524,11 +592,12 @@ SELECT
   i.tags,
   i.featured_image_url,
   i.featured,
-  i.updated_at,
+  i.updated_at{$catalogSelect},
   {$variantsAgg}
 FROM clubdesk_inventory_items i
 WHERE i.id = ?
   AND i.publication_status = 'published'
+  AND i.archived_at IS NULL
 LIMIT 1
 SQL,
             'params' => [(int) $slugOrId],
@@ -542,7 +611,7 @@ SELECT
   i.article_name,
   i.brand,
   i.slug,
-  i.description,
+  i.description{$commentSelect},
   i.material,
   i.recommended_price,
   i.sale_price,
@@ -550,11 +619,12 @@ SELECT
   i.tags,
   i.featured_image_url,
   i.featured,
-  i.updated_at,
+  i.updated_at{$catalogSelect},
   {$variantsAgg}
 FROM clubdesk_inventory_items i
 WHERE lower(i.slug) = lower(?)
   AND i.publication_status = 'published'
+  AND i.archived_at IS NULL
 LIMIT 1
 SQL,
         'params' => [$slugOrId],

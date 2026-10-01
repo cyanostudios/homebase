@@ -1,5 +1,40 @@
 import type { ClubdeskInventoryItem } from '../types/inventory';
 
+export function isInventoryItemArchived(item: { archivedAt?: string | null }): boolean {
+  return typeof item.archivedAt === 'string' && item.archivedAt.trim() !== '';
+}
+
+/** Price-list picker: published and not archived. */
+export function isInventoryItemLinkable(item: {
+  archivedAt?: string | null;
+  publicationStatus?: string;
+}): boolean {
+  return !isInventoryItemArchived(item) && item.publicationStatus === 'published';
+}
+
+/**
+ * Active catalog hides archived articles.
+ * Archived-only shows just those.
+ * A non-empty search also includes archived matches in the active catalog.
+ */
+export function inventoryItemVisibleInCatalog(
+  item: ClubdeskInventoryItem,
+  options: { archivedOnly: boolean; searchTerm: string },
+): boolean {
+  const archived = isInventoryItemArchived(item);
+  const matchesSearch = inventoryItemMatchesSearch(item, options.searchTerm);
+  if (!matchesSearch) {
+    return false;
+  }
+  if (options.archivedOnly) {
+    return archived;
+  }
+  if (!archived) {
+    return true;
+  }
+  return options.searchTerm.trim().length > 0;
+}
+
 export type InventoryListFilter = 'draft' | 'published';
 
 export type InventoryListFilterSelection = InventoryListFilter[];

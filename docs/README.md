@@ -20,6 +20,7 @@
 | Plugin List/View/Form / quick context (obligatorisk) | [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md)                                                                               |
 | Plugin-standarder (obligatoriskt)                    | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)                                                                                 |
 | UI/UX (V3 + list shell v3.6)                         | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) · shell utan TopBar: ADR [`ai/adr/SHELL_NO_TOPBAR.md`](ai/adr/SHELL_NO_TOPBAR.md)                 |
+| Design system audit (färger + komponentinventering)  | [`ai/design/DESIGN_SYSTEM_AUDIT.md`](ai/design/DESIGN_SYSTEM_AUDIT.md) — underlag för kommande designmall (2026-09-30)                                     |
 | Home dashboard (KPI / snabbåtgärder / diagram)       | [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md)                                                                                                                   |
 | Cross-plugin navigation (URL) + entity quick-info    | [`MENTIONS_AND_CROSS_PLUGIN_UI.md`](MENTIONS_AND_CROSS_PLUGIN_UI.md) § Entity quick-info popup, § Cross-plugin URL navigation                              |
 | Säkerhet, CSRF, `apiFetch`                           | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                                                                                                         |

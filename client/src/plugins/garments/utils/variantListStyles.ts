@@ -18,9 +18,9 @@ export const VARIANT_COMPACT_LABEL_CLASS =
 /** Filled compact control for variant edit rows. */
 export const VARIANT_COMPACT_INPUT_CLASS = `mt-0.5 ${FORM_COMPACT_INPUT_CLASS}`;
 
-/** Edit row: SKU grows; other columns stay content-sized. */
+/** Edit row: SKU and GTIN grow; other columns stay content-sized. */
 export const VARIANT_EDIT_GRID_CLASS =
-  'grid min-w-0 flex-1 grid-cols-2 gap-x-2 gap-y-1.5 sm:grid-cols-[minmax(0,1.25fr)_5.5rem_5.5rem_4rem_3.5rem_auto] sm:items-end';
+  'grid min-w-0 flex-1 grid-cols-2 gap-x-2 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,8.5rem)_5.5rem_5.5rem_4rem_3.5rem_auto] sm:items-end';
 
 /**
  * Wide person matrix — horizontal scroll inside the card on phone, without trapping

@@ -23,6 +23,7 @@
   const cartView = document.getElementById('cart-view');
   const cartBody = document.getElementById('cart-body');
   const cartTotalEl = document.getElementById('cart-total');
+  const cartCountLabelEl = document.getElementById('cart-count-label');
   const cartSwishEl = document.getElementById('cart-swish');
   const cartSwishQrEl = document.getElementById('cart-swish-qr');
   const cartSwishNumberEl = document.getElementById('cart-swish-number');
@@ -82,10 +83,20 @@
     toggleBtn.disabled = disabled;
     toggleBtn.classList.toggle('is-disabled', disabled);
     toggleBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
-    toggleBtn.setAttribute('aria-label', showingCart ? 'Visa lista' : 'Visa varukorg');
+    const count = Cart.itemCount(cart);
+    const cartLabel =
+      count > 0 ? `Visa varukorg, ${count} ${count === 1 ? 'vara' : 'varor'}` : 'Visa varukorg';
+    toggleBtn.setAttribute('aria-label', showingCart ? 'Visa lista' : cartLabel);
     toggleBtn.classList.toggle('step-nav__btn--next', !showingCart);
     toggleBtn.classList.toggle('step-nav__btn--prev', showingCart);
     toggleBtn.innerHTML = showingCart ? ICON_LIST : ICON_CART;
+    if (!showingCart && count > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'cart-toggle-btn__count';
+      badge.setAttribute('aria-hidden', 'true');
+      badge.textContent = count > 99 ? '99+' : String(count);
+      toggleBtn.appendChild(badge);
+    }
   }
 
   function hideCartSwish() {
@@ -140,6 +151,11 @@
 
   function syncHeader(cart) {
     const sum = Cart.total(cart);
+    const count = Cart.itemCount(cart);
+    if (cartCountLabelEl) {
+      const productWord = count === 1 ? 'produkt' : 'produkter';
+      cartCountLabelEl.textContent = `Varukorgen - ${count} ${productWord}`;
+    }
     if (subTotalEl) {
       subTotalEl.textContent = money(sum);
       subTotalEl.classList.add('step-subheader__total');

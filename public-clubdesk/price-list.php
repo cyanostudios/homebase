@@ -95,6 +95,7 @@ function parsePriceListItems(array $item): array
             'description' => (string) ($row['description'] ?? ''),
             'price' => $price,
             'category' => $category,
+            'categoryEnabled' => !priceListFlagOff($row['categoryEnabled'] ?? true),
             'inventorySlug' => trim((string) ($row['inventorySlug'] ?? '')),
         ];
     }
@@ -110,13 +111,15 @@ $lines = [];
 $currency = 'SEK';
 $swishPayee = '';
 $swishMessage = '';
+$inventoryTabVisible = true;
 
 if ($slug === null || $slug === '') {
     $notFound = true;
 } else {
     try {
         $pdo = getPdoFromEnv();
-        $q = publicAppPriceListBySlugSql($slug);
+        $inventoryTabVisible = publicAppCardVisible($pdo, 'inventory');
+        $q = publicAppPriceListBySlugSql($pdo, $slug);
         $stmt = $pdo->prepare($q['sql']);
         $stmt->execute($q['params']);
         $row = $stmt->fetch();
@@ -172,13 +175,34 @@ $jsonLd = [
     ],
 ];
 
-$grouped = [];
-foreach ($lines as $line) {
-    $cat = $line['category'] !== '' ? $line['category'] : 'Övrigt';
-    if (!isset($grouped[$cat])) {
-        $grouped[$cat] = [];
+function priceListFlagOff(mixed $flag): bool
+{
+    return $flag === false || $flag === 0 || $flag === '0' || $flag === 'f' || $flag === 'false';
+}
+
+$categoriesEnabled = true;
+if (is_array($item) && array_key_exists('categories_enabled', $item)) {
+    if (priceListFlagOff($item['categories_enabled'])) {
+        $categoriesEnabled = false;
     }
-    $grouped[$cat][] = $line;
+}
+
+$lines = array_values(array_filter(
+    $lines,
+    static fn (array $line): bool => ($line['categoryEnabled'] ?? true) !== false,
+));
+
+$grouped = [];
+if (!$categoriesEnabled) {
+    $grouped['__flat__'] = $lines;
+} else {
+    foreach ($lines as $line) {
+        $cat = $line['category'] !== '' ? $line['category'] : 'Övrigt';
+        if (!isset($grouped[$cat])) {
+            $grouped[$cat] = [];
+        }
+        $grouped[$cat][] = $line;
+    }
 }
 ?>
 <!doctype html>
@@ -230,7 +254,7 @@ foreach ($lines as $line) {
       <div class="step-subheader" id="price-list-subheader">
         <div class="step-subheader__inner step-subheader__inner--cart">
           <div class="step-subheader__cart-text">
-            <p class="step-subheader__guide" id="price-list-subheader-label">Varukorg</p>
+            <p class="step-subheader__guide step-subheader__guide--count" id="cart-count-label">Varukorgen - 0 produkter</p>
             <p class="step-subheader__step step-subheader__total" id="price-list-subheader-info" aria-live="polite"><?= h(formatPriceAmount(0, $currency)) ?></p>
           </div>
           <div class="step-subheader__cart-actions">
@@ -298,9 +322,11 @@ foreach ($lines as $line) {
 <?php else: ?>
 <?php foreach ($grouped as $catName => $catLines): ?>
             <section class="home-section home-section--rows price-list-section">
+<?php if ($catName !== '__flat__'): ?>
               <div class="home-section__head">
                 <h2 class="home-section__title price-list-section__title"><?= h((string) $catName) ?></h2>
               </div>
+<?php endif; ?>
               <ul class="option-list price-list-rows">
 <?php foreach ($catLines as $line): ?>
                 <li
@@ -311,10 +337,18 @@ foreach ($lines as $line) {
                   data-category="<?= h((string) ($line['category'] !== '' ? $line['category'] : 'Övrigt')) ?>"
                 >
                   <span class="option-card__text">
-                    <span class="option-card__title"><?= h($line['title']) ?></span>
+                    <span class="option-card__title price-list-row__title">
 <?php if (!empty($line['inventorySlug'])): ?>
-                    <a class="option-card__desc price-list-row__inventory-link" href="/inventory/<?= h((string) $line['inventorySlug']) ?>">Visa produkt</a>
+                      <a class="price-list-row__info" href="/inventory/<?= h((string) $line['inventorySlug']) ?>" aria-label="Visa produkt">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 16v-4" />
+                          <path d="M12 8h.01" />
+                        </svg>
+                      </a>
 <?php endif; ?>
+                      <?= h($line['title']) ?>
+                    </span>
 <?php if ($line['description'] !== ''): ?>
                     <span class="option-card__desc price-list-row__desc"><?= h($line['description']) ?></span>
 <?php endif; ?>
@@ -339,7 +373,6 @@ foreach ($lines as $line) {
             <div id="cart-body"></div>
             <section class="home-section cart-pay">
               <div class="cart-pay__row">
-                <h2 class="cart-pay__title">Att betala</h2>
                 <p class="cart-total" id="cart-total" aria-live="polite"><?= h(formatPriceAmount(0, $currency)) ?></p>
               </div>
               <div class="cart-swish org-swish" id="cart-swish" hidden>
@@ -379,6 +412,16 @@ foreach ($lines as $line) {
             <span class="bottom-bar__label">Price list</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
+          <?php if ($inventoryTabVisible): ?>
+          <a class="bottom-bar__tab" href="/inventory/" data-tab="inventory">
+            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <path d="M3.3 7 12 12l8.7-5M12 22V12" />
+            </svg>
+            <span class="bottom-bar__label">Inventory</span>
+            <span class="bottom-bar__dot" aria-hidden="true"></span>
+          </a>
+          <?php endif; ?>
         </div>
       </nav>
     </div>

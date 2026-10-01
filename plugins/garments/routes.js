@@ -131,6 +131,7 @@ function createGarmentsRoutes(controller, context) {
 
   const variantBody = [
     commonRules.optionalString('sku', 100),
+    commonRules.optionalString('gtin', 40),
     commonRules.optionalString('audience', 100),
     commonRules.optionalString('color', 100),
     commonRules.optionalString('size', 100),
@@ -168,6 +169,24 @@ function createGarmentsRoutes(controller, context) {
     commonRules.id('id'),
     validateRequest,
     (req, res, next) => controller.deleteInventoryItem(req, res, next),
+  );
+
+  router.post(
+    '/inventory/:id/archive',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res, next) => controller.archiveInventoryItem(req, res, next),
+  );
+
+  router.post(
+    '/inventory/:id/restore',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res, next) => controller.restoreInventoryItem(req, res, next),
   );
 
   router.post(
@@ -232,6 +251,16 @@ function createGarmentsRoutes(controller, context) {
     checkboxColumnsBody(),
     validateRequest,
     (req, res, next) => controller.createList(req, res, next),
+  );
+
+  router.post(
+    '/lists/:id/duplicate',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.plainString('name', 1, 255),
+    validateRequest,
+    (req, res, next) => controller.duplicateList(req, res, next),
   );
 
   router.get('/lists/:id', gate, commonRules.id('id'), validateRequest, (req, res, next) =>
