@@ -27,17 +27,19 @@ function createContactRoutes(controller, context) {
   });
 
   // POST /api/contacts - Create new contact
+  // companyName/notes/website: plain text (React escapes on render). Do not use
+  // commonRules.string/optionalString (.escape()) — that stores literal &amp; in titles.
   router.post(
     '/',
     gate,
     csrfProtection,
-    commonRules.string('companyName', 1, 255),
+    commonRules.plainString('companyName', 1, 255),
     commonRules.optionalString('email', 255),
     commonRules.email('email'),
     commonRules.optionalString('phone', 50),
     commonRules.phone('phone'),
-    commonRules.optionalString('website', 255),
-    commonRules.optionalString('notes', 5000),
+    commonRules.htmlContent('website', 255),
+    commonRules.htmlContent('notes', 5000),
     validateRequest,
     (req, res) => {
       controller.create(req, res);
@@ -50,13 +52,13 @@ function createContactRoutes(controller, context) {
     gate,
     csrfProtection,
     commonRules.id('id'),
-    commonRules.string('companyName', 1, 255),
+    commonRules.plainString('companyName', 1, 255),
     commonRules.optionalString('email', 255),
     commonRules.email('email'),
     commonRules.optionalString('phone', 50),
     commonRules.phone('phone'),
-    commonRules.optionalString('website', 255),
-    commonRules.optionalString('notes', 5000),
+    commonRules.htmlContent('website', 255),
+    commonRules.htmlContent('notes', 5000),
     validateRequest,
     (req, res) => {
       controller.update(req, res);
