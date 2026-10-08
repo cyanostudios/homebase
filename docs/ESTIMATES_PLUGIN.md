@@ -93,7 +93,7 @@ Aligned with Contacts-class chrome; see [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](
 | Edit / create | Same tab shell; **Linked** and **Activity** greyed/disabled in edit; invoiced estimates cannot enter edit |
 | Duplicate     | `usePluginDuplicate` + `DuplicateDialog` (header menus)                                                   |
 
-**Line items (edit):** `EstimateLineItemsEditor` wraps **`InvoiceLineItemsEditor`** — shared `kind`, `unit`, text rows, and move/duplicate behavior.
+**Line items (edit):** `EstimateLineItemsEditor` wraps **`InvoiceLineItemsEditor`** — shared `kind`, `unit`, text rows, move/duplicate, and optional **Add from inventory** (same gate as invoices: Garments/Clubdesk `invoicable` + plugin enabled; snapshot row, no catalog FK). See CHANGELOG 2026-10-08 and [`GARMENTS_PLUGIN.md`](./GARMENTS_PLUGIN.md) / [`ai/adr/CLUBDESK_INVENTORY_EPIC1.md`](./ai/adr/CLUBDESK_INVENTORY_EPIC1.md).
 
 **Order number / delivery method:** Editable on the form (Information tab properties area); persisted on the estimate and shown on PDF/preview when set.
 

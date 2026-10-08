@@ -45,6 +45,7 @@ import {
   FORM_GHOST_READONLY_CLASS,
   FORM_GHOST_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
+import { PaymentTermsField } from '@/core/ui/PaymentTermsField';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { formatDate } from '@/core/utils/dateFormat';
@@ -97,8 +98,6 @@ import { InvoiceStatusSelect } from './InvoiceStatusSelect';
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
-const PAYMENT_TERMS_OPTIONS = ['0', '15', '30', '60'] as const;
-
 type InvoiceFormTab = 'information' | 'lines' | 'payments' | 'linked' | 'activity';
 
 const INVOICE_FORM_TABS: InvoiceFormTab[] = [
@@ -146,8 +145,7 @@ function normalizePaymentTermsSelectValue(
   if (days === null) {
     return '30';
   }
-  const asString = String(days);
-  return (PAYMENT_TERMS_OPTIONS as readonly string[]).includes(asString) ? asString : asString;
+  return String(days);
 }
 
 function dueDateFromIssueAndTerms(issueDate: Date, paymentTerms: string): Date {
@@ -630,6 +628,10 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
       updateField('lineItems', [...formData.lineItems, dup]);
     };
 
+    const addLineItemFromInventory = (item: InvoiceLineItem) => {
+      updateField('lineItems', [...formData.lineItems, item]);
+    };
+
     const removeLineItem = (index: number) => {
       const victim = formData.lineItems[index];
       setDuplicatedItemIds((prev) => {
@@ -1049,44 +1051,13 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                       <span className="text-sm text-slate-500 dark:text-slate-400">
                         {t('invoices.paymentTerms', { defaultValue: 'Payment terms' })}
                       </span>
-                      <NativeSelect
+                      <PaymentTermsField
                         id="invoice-payment-terms"
-                        value={formData.paymentTerms}
-                        onChange={(e) => updateField('paymentTerms', e.target.value)}
-                        className={propSelectClass}
-                      >
-                        <option value="0">
-                          {t('invoices.paymentTermsImmediate', { defaultValue: 'Immediate' })}
-                        </option>
-                        <option value="15">
-                          {t('invoices.paymentTermsDays', {
-                            defaultValue: '{{count}} days',
-                            count: 15,
-                          })}
-                        </option>
-                        <option value="30">
-                          {t('invoices.paymentTermsDays', {
-                            defaultValue: '{{count}} days',
-                            count: 30,
-                          })}
-                        </option>
-                        <option value="60">
-                          {t('invoices.paymentTermsDays', {
-                            defaultValue: '{{count}} days',
-                            count: 60,
-                          })}
-                        </option>
-                        {!(PAYMENT_TERMS_OPTIONS as readonly string[]).includes(
-                          formData.paymentTerms,
-                        ) ? (
-                          <option value={formData.paymentTerms}>
-                            {t('invoices.paymentTermsDays', {
-                              defaultValue: '{{count}} days',
-                              count: Number(formData.paymentTerms) || 0,
-                            })}
-                          </option>
-                        ) : null}
-                      </NativeSelect>
+                        value={String(formData.paymentTerms ?? '30')}
+                        onChange={(next) => updateField('paymentTerms', next)}
+                        selectClassName={propSelectClass}
+                        inputClassName={FORM_GHOST_PROP_CONTROL_CLASS}
+                      />
                     </div>
 
                     <div className={DETAIL_PROP_ROW_CLASS}>
@@ -1246,6 +1217,8 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                   duplicatedItemIds={duplicatedItemIds}
                   onAdd={addLineItem}
                   onAddTextField={addTextFieldLineItem}
+                  onAddFromInventory={addLineItemFromInventory}
+                  defaultVatRate={defaultVatRate}
                   onUpdate={updateLineItem}
                   onDuplicate={duplicateLineItem}
                   onRemove={removeLineItem}

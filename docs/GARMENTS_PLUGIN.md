@@ -136,6 +136,20 @@ Lists and inventory items in API responses include `assignedInventoryItemIds` / 
 
 **Residual (Security R-INV-BULK-1, low):** tag-only bulk uses full inventory PUT including variants + sequential requests — same class as Contacts bulk tags. No separate TPM gate.
 
+## Inventory settings (gear)
+
+Open from the inventory list header (desktop gear; mobile via list `onSettings`). `GarmentsInventorySettingsView` categories:
+
+| Category      | When shown                                                                                      | Stored in `user_settings` (`garments`)                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Tags**      | Always                                                                                          | `tags` (catalog tag list)                                                                                      |
+| **Invoicing** | Only when tenant has **invoices** and/or **estimates** enabled (`hasInventoryInvoicingPlugins`) | `invoicable` (boolean, default **off**) — toggle **Available for invoices** (`InventoryInvoicingEnableSwitch`) |
+| **Import**    | Always                                                                                          | — (wizard only; see [Import inventory](#import-inventory-csv--excel--paste))                                   |
+
+When `invoicable === true` and the garments plugin is enabled, invoice/estimate line editors show **Add from inventory** (`InvoiceInventoryPicker` via shared `InvoiceLineItemsEditor`). Picker loads `GET /api/garments/inventory` on open; only **non-archived** articles are listed. Picking an article adds a line with description = `articleName`, unit price = `salePrice` (or 0), quantity 1 — **no** inventory id on the line and **no** stock update.
+
+**Security:** `invoicable` controls UI visibility only; inventory APIs remain gated by `requirePlugin('garments')` (and CSRF on writes). See CHANGELOG 2026-10-08 (invoicable inventory).
+
 ## Person rows (list detail)
 
 Admin list full view uses a **Notes-style** layout: list name + persons spreadsheet in the main card; Quick Actions and Information (incl. team) in the sidebar.

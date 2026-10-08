@@ -1,4 +1,4 @@
-import { Download, Eye, Plus, Upload, X } from 'lucide-react';
+import { Download, Eye, Plus, Receipt, Upload, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
+import { hasInventoryInvoicingPlugins } from '@/core/settings/inventoryInvoicingGate';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { InventoryInvoicingEnableSwitch } from '@/plugins/invoices/components/InventoryInvoicingEnableSwitch';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
 import {
@@ -30,7 +33,7 @@ import { inventoryTagsEqual, normalizeInventoryTags } from '../utils/inventoryTa
 
 import { ClubdeskPublicVisibleSwitch } from './ClubdeskPublicVisibleSwitch';
 
-export type ClubdeskInventorySettingsCategory = 'public' | 'tags' | 'import';
+export type ClubdeskInventorySettingsCategory = 'public' | 'tags' | 'invoicing' | 'import';
 
 interface ClubdeskInventorySettingsViewProps {
   selectedCategory?: ClubdeskInventorySettingsCategory;
@@ -49,6 +52,8 @@ export function ClubdeskInventorySettingsView({
 }: ClubdeskInventorySettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
+  const enabledPlugins = useEnabledPlugins();
+  const showInvoicingCategory = hasInventoryInvoicingPlugins(enabledPlugins);
   const { importInventoryItems } = useClubdesk();
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
@@ -62,13 +67,15 @@ export function ClubdeskInventorySettingsView({
   const [newTag, setNewTag] = useState('');
   const [inventoryPublicVisible, setInventoryPublicVisible] = useState(true);
   const [initialInventoryPublicVisible, setInitialInventoryPublicVisible] = useState(true);
+  const [invoicable, setInvoicable] = useState(false);
+  const [initialInvoicable, setInitialInvoicable] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   const importSchema = useMemo(() => getClubdeskInventoryImportSchema(), []);
 
-  const categories: PluginSettingsCategory[] = useMemo(
-    () => [
+  const categories: PluginSettingsCategory[] = useMemo(() => {
+    const list: PluginSettingsCategory[] = [
       {
         id: 'public',
         label: t('clubdesk.inventory.settingsCategories.public'),
@@ -81,15 +88,23 @@ export function ClubdeskInventorySettingsView({
         description: t('clubdesk.inventory.settingsCategories.tagsDescription'),
         icon: SETTINGS_CATEGORY_ICONS.tags,
       },
-      {
-        id: 'import',
-        label: t('common.import'),
-        description: t('clubdesk.inventory.settingsCategories.importDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.import,
-      },
-    ],
-    [t],
-  );
+    ];
+    if (showInvoicingCategory) {
+      list.push({
+        id: 'invoicing',
+        label: t('clubdesk.inventory.settingsCategories.invoicing'),
+        description: t('clubdesk.inventory.settingsCategories.invoicingDescription'),
+        icon: Receipt,
+      });
+    }
+    list.push({
+      id: 'import',
+      label: t('common.import'),
+      description: t('clubdesk.inventory.settingsCategories.importDescription'),
+      icon: SETTINGS_CATEGORY_ICONS.import,
+    });
+    return list;
+  }, [showInvoicingCategory, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +116,9 @@ export function ClubdeskInventorySettingsView({
         const loadedTags = normalizeInventoryTags(settings?.tags);
         setTags(loadedTags);
         setInitialTags(loadedTags);
+        const loadedInvoicable = settings?.invoicable === true;
+        setInvoicable(loadedInvoicable);
+        setInitialInvoicable(loadedInvoicable);
         const visible = readCardVisible(siteContent.inventory?.meta);
         setInventoryPublicVisible(visible);
         setInitialInventoryPublicVisible(visible);
@@ -118,8 +136,11 @@ export function ClubdeskInventorySettingsView({
 
   const tagsDirty = !inventoryTagsEqual(tags, initialTags);
   const publicDirty = inventoryPublicVisible !== initialInventoryPublicVisible;
+  const invoicingDirty = invoicable !== initialInvoicable;
   const isDirty =
-    (activeCategory === 'tags' && tagsDirty) || (activeCategory === 'public' && publicDirty);
+    (activeCategory === 'tags' && tagsDirty) ||
+    (activeCategory === 'public' && publicDirty) ||
+    (activeCategory === 'invoicing' && invoicingDirty);
 
   const handleSave = useCallback(async () => {
     if (activeCategory === 'import') {
@@ -132,6 +153,9 @@ export function ClubdeskInventorySettingsView({
         await updateSettings(CLUBDESK_INVENTORY_SETTINGS_KEY, { tags: next });
         setTags(next);
         setInitialTags(next);
+      } else if (activeCategory === 'invoicing') {
+        await updateSettings(CLUBDESK_INVENTORY_SETTINGS_KEY, { invoicable });
+        setInitialInvoicable(invoicable);
       } else if (activeCategory === 'public') {
         await clubdeskApi.saveSiteContent([
           {
@@ -147,7 +171,7 @@ export function ClubdeskInventorySettingsView({
     } finally {
       setIsSaving(false);
     }
-  }, [activeCategory, inventoryPublicVisible, tags, updateSettings]);
+  }, [activeCategory, inventoryPublicVisible, invoicable, tags, updateSettings]);
 
   const addTag = useCallback(() => {
     const next = newTag.trim();
@@ -209,6 +233,26 @@ export function ClubdeskInventorySettingsView({
           >
             <p className="text-sm text-muted-foreground">
               {t('clubdesk.inventory.settingsCategories.publicHint')}
+            </p>
+          </DetailSection>
+        )}
+
+        {activeCategory === 'invoicing' && (
+          <DetailSection
+            title={t('clubdesk.inventory.settingsCategories.invoicing')}
+            icon={Receipt}
+            subtleTitle
+            className="pt-0"
+            titleAside={
+              <InventoryInvoicingEnableSwitch
+                id="clubdesk-inventory-invoicable"
+                checked={invoicable}
+                onCheckedChange={setInvoicable}
+              />
+            }
+          >
+            <p className="text-sm text-muted-foreground">
+              {t('clubdesk.inventory.settingsCategories.invoicingHint')}
             </p>
           </DetailSection>
         )}

@@ -84,7 +84,12 @@
     "clearFilters": "Rensa filter",
     "filters": "Filter",
     "showFilters": "Visa filter",
-    "hideFilters": "Dölj filter"
+    "hideFilters": "Dölj filter",
+    "paymentTermsImmediate": "Omedelbart",
+    "paymentTermsDays": "{{count}} dagar",
+    "paymentTermsCustom": "Anpassat…",
+    "paymentTermsCustomDays": "Anpassade dagar",
+    "paymentTermsCustomDaysSuffix": "dagar"
   },
   "importWizard": {
     "file": "Fil",
@@ -569,6 +574,7 @@
   "contacts": {
     "searchPlaceholder": "Sök {{count}} kontakter...",
     "description": "Hantera dina företag och personliga kontakter",
+    "paymentTerms": "Betalningsvillkor",
     "type": {
       "company": "Företag",
       "private": "Privat"
@@ -1039,7 +1045,20 @@
     "previewPageBreak": "Sidbrytning",
     "issue": "Utfärda",
     "addItem": "Lägg till rad",
+    "addFromInventory": "Lägg till från lager",
     "addField": "Add field",
+    "inventoryInvoicing": {
+      "enabledLabel": "Tillgänglig för fakturor"
+    },
+    "inventoryPicker": {
+      "searchPlaceholder": "Sök i lager…",
+      "loading": "Laddar lager…",
+      "loadError": "Kunde inte ladda lager. Försök igen.",
+      "emptyCatalog": "Inga fakturerbara artiklar i lagret ännu.",
+      "noMatches": "Inga artiklar matchar sökningen.",
+      "sectionGarments": "Garments",
+      "sectionClubdesk": "Clubdesk"
+    },
     "freeTextField": "Text field",
     "freeTextPlaceholder": "Free text…",
     "selectCustomer": "Välj kund…",
@@ -1132,6 +1151,9 @@
     "paymentTerms": "Betalningsvillkor",
     "paymentTermsImmediate": "Omedelbart",
     "paymentTermsDays": "{{count}} dagar",
+    "paymentTermsCustom": "Anpassat…",
+    "paymentTermsCustomDays": "Anpassade dagar",
+    "paymentTermsCustomDaysSuffix": "dagar",
     "dueDateFromPaymentTerms": "Beräknas från fakturadatum + betalningsvillkor",
     "issueDate": "Fakturadatum",
     "dueStatus": "Förfallostatus",
@@ -1964,6 +1986,9 @@
         "tagsDescription": "Taggar du kan tilldela produkter i inventariet.",
         "tagsHint": "Taggar kan tilldelas när du redigerar en produkt.",
         "tagsPlaceholder": "Lägg till en tagg (t.ex. Ekologisk, Glutenfri, Lokal)",
+        "invoicing": "Fakturering",
+        "invoicingDescription": "Låt faktura- och offert rader fyllas från Clubdesk-inventariet.",
+        "invoicingHint": "När på kan publicerade aktiva produkter väljas på faktura- och offert rader (försäljningspris kopieras; lagret ändras inte).",
         "importDescription": "Importera produkter från CSV eller Excel."
       },
       "importInventory": "Importera inventarie",
@@ -4271,6 +4296,9 @@
       "tagsDescription": "Taggar du kan tilldela lagerartiklar.",
       "tagsHint": "Taggar kan tilldelas lagerartiklar när du redigerar en artikel.",
       "tagsPlaceholder": "Lägg till en tagg (t.ex. Matchställ, Träning)",
+      "invoicing": "Fakturering",
+      "invoicingDescription": "Låt faktura- och offert rader fyllas från Garments-lager.",
+      "invoicingHint": "När på kan aktiva lagerartiklar väljas på faktura- och offert rader (försäljningspris kopieras; lagret ändras inte).",
       "columns": "Tabellkolumner",
       "columnsDescription": "Välj vilka kolumner som visas i lagertabellen och i vilken ordning.",
       "columnsHint": "Dra för att ändra ordning. Växla för att visa eller dölja en kolumn. Artikelnamn är alltid synligt.",

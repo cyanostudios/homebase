@@ -4,6 +4,36 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-10-08 – Invoicable inventory → invoice/estimate line items (Garments + Clubdesk)
+
+**Typ:** Feature (UI + client settings)  
+**Scope:** Per-tenant opt-in on Garments and Clubdesk inventory **Settings → Invoicing** (`user_settings.invoicable`, default off). Category visible only when the tenant has **invoices** and/or **estimates** enabled (`hasInventoryInvoicingPlugins`). Invoice and estimate **line editors** show **Add from inventory** when at least one enabled inventory plugin has `invoicable === true`; picker loads catalog on open (soft fetch via existing admin inventory APIs). Selected row becomes a normal line item snapshot (`articleName` → description, `salePrice` → unit price, qty 1, default unit, contact/default VAT); **no** inventory FK and **no** stock coupling. Garments picker: non-archived articles only. Clubdesk picker: **published** and not archived (`isInventoryItemLinkable`). Shared UI: `InventoryInvoicingEnableSwitch`, `InvoiceInventoryPicker`, `InvoiceLineItemsEditor` (Estimates via `EstimateLineItemsEditor` wrapper).  
+**Risk:** Low (client UX gate; server inventory auth unchanged).
+
+**Sammanfattning:** Aktivera lager i faktura/offert-rader per plugin; välj artikel → snapshot-rad utan lagerkoppling.
+
+**Verifierat beteende:**
+
+- **Settings gate:** `client/src/core/settings/inventoryInvoicingGate.ts` — Invoicing settings category when `invoices` or `estimates` in `useEnabledPlugins`.
+- **Persist `invoicable`:** Garments → `updateSettings(GARMENTS_SETTINGS_KEY, { invoicable })` in `GarmentsInventorySettingsView`. Clubdesk → `CLUBDESK_INVENTORY_SETTINGS_KEY` (`clubdesk`) in `ClubdeskInventorySettingsView`. Types: `garments.ts` / `clubdesk` inventory settings types.
+- **Picker eligibility:** `useInvoiceInventorySources` — sources `garments` / `clubdesk` only when plugin enabled **and** `invoicable === true`.
+- **Filters + mapping:** `client/src/plugins/invoices/utils/invoicableInventory.ts` — archived Garments excluded; Clubdesk requires linkable (published, not archived); search capped at 40 suggestions per source; `mapInventoryArticleToLineItem`.
+- **Load on open:** `InvoiceInventoryPicker` — `garmentsApi.getInventory()` / `clubdeskApi.getInventoryItems()` when popover opens; state reset on close.
+- **Forms:** `InvoicesForm` / `EstimateForm` pass `onAddFromInventory`; button hidden when no sources or handler omitted.
+- **Tester:** `inventoryInvoicingGate.test.ts`, `invoicableInventory.test.ts`, `invoiceInventoryPicker.test.js`.
+
+**Begränsningar:**
+
+- Line items remain denormalized text/price rows — editing inventory later does not update issued/draft lines.
+- Picker uses item-level `salePrice` (not variant-level pricing).
+- Requires tenant plugin access to garments/clubdesk **and** opt-in `invoicable` for the picker to appear; disabling either hides the control without deleting stored settings.
+
+**Security (QA + Security approved):** `invoicable` is a **client UX opt-in** only; inventory list APIs stay behind existing `requirePlugin('garments')` / `requirePlugin('clubdesk')`, session, and CSRF on mutations. No new public routes or inventory fields on invoice/estimate API bodies.
+
+**Docs:** [`GARMENTS_PLUGIN.md`](./GARMENTS_PLUGIN.md) (Inventory settings); [`ai/adr/CLUBDESK_INVENTORY_EPIC1.md`](./ai/adr/CLUBDESK_INVENTORY_EPIC1.md) (settings categories); [`INVOICES_PLUGIN.md`](./INVOICES_PLUGIN.md) / [`ESTIMATES_PLUGIN.md`](./ESTIMATES_PLUGIN.md) (line editor).
+
+---
+
 ## 2026-10-08 – Contacts CSV import: full create-payload field coverage
 
 **Typ:** Beteende  

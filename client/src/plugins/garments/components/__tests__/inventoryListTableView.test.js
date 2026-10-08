@@ -171,7 +171,8 @@ describe('Garment inventory list split view wiring', () => {
       'utf8',
     );
     expect(settingsSrc).not.toMatch(/TableColumnsSettingsSection/);
-    expect(settingsSrc).toMatch(/'tags' \| 'import'/);
+    expect(settingsSrc).toMatch(/'tags' \| 'invoicing' \| 'import'/);
+    expect(settingsSrc).toMatch(/hasInventoryInvoicingPlugins/);
   });
 
   test('inventory bulk select supports list visibility like contacts assignable', () => {

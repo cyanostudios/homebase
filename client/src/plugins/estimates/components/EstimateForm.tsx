@@ -524,6 +524,10 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
       updateField('lineItems', updatedItems);
     };
 
+    const addLineItemFromInventory = (item: LineItem) => {
+      updateField('lineItems', [...formData.lineItems, item]);
+    };
+
     const duplicateLineItem = (index: number) => {
       const itemToDuplicate = formData.lineItems[index];
       const newItemId = Date.now().toString();
@@ -985,6 +989,8 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                         duplicatedItemIds={duplicatedItemIds}
                         onAdd={addLineItem}
                         onAddTextField={addTextFieldLineItem}
+                        onAddFromInventory={addLineItemFromInventory}
+                        defaultVatRate={defaultVatRate}
                         onUpdate={updateLineItem}
                         onDuplicate={duplicateLineItem}
                         onRemove={removeLineItem}
