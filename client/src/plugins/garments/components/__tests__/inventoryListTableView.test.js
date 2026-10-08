@@ -208,4 +208,34 @@ describe('Garment inventory list split view wiring', () => {
     expect(updatePersonBlock).toMatch(/setCurrentGarment/);
     expect(matrixSrc).toMatch(/patchPersonLocal\(list\.id, person\.id, \{ teamId: next \}\)/);
   });
+
+  test('inventory mode desktop aside shows Clubdesk-like statistics with KPI filters', () => {
+    const statsSrc = fs.readFileSync(
+      path.join(__dirname, '../GarmentsInventoryStatisticsView.tsx'),
+      'utf8',
+    );
+    expect(listSrc).toMatch(/GarmentsInventoryStatisticsView/);
+    expect(listSrc).toMatch(/isInventoryEffective \? \(/);
+    expect(listSrc).toMatch(/onSelectFilter/);
+    expect(listSrc).toMatch(/setShowArchivedOnly\(true\)/);
+    expect(listSrc).toMatch(/setShowArchivedOnly\(false\)/);
+    expect(listSrc).toMatch(/setInventoryTagFilter\(null\)/);
+    expect(listSrc).toMatch(/setFiltersVisible\(true\)/);
+    expect(statsSrc).toMatch(/garments\.inventoryStatistics\.title/);
+    expect(statsSrc).toMatch(/isInventoryItemArchived/);
+    expect(statsSrc).toMatch(/STAT_KPI_SOFT_CLASS/);
+    expect(statsSrc).toMatch(/onSelectFilter/);
+    expect(statsSrc).toMatch(/'total'/);
+    expect(statsSrc).toMatch(/'archived'/);
+    expect(statsSrc).not.toMatch(/publicationStatus/);
+    expect(statsSrc).not.toMatch(/['"]published['"]/);
+    expect(statsSrc).not.toMatch(/['"]draft['"]/);
+  });
+
+  test('lists mode keeps garment list statistics without inventory KPI gate', () => {
+    expect(listSrc).toMatch(/GarmentsStatisticsView/);
+    expect(listSrc).toMatch(
+      /isInventoryEffective \?[\s\S]*GarmentsInventoryStatisticsView[\s\S]*:[\s\S]*GarmentsStatisticsView/,
+    );
+  });
 });

@@ -2,13 +2,21 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Garments inventory KPI → filter docs (2026-10-02)
+
+Verifierad mot QA Godkänt: inventory empty aside `GarmentsInventoryStatisticsView` (Active/Archived → All/Archived chips; tag cleared; set-not-toggle). Lists mode behåller `GarmentsStatisticsView`. Supersedes “Garments statistics unchanged” under Clubdesk inventory statistics aside (2026-10-01). Produkt-CHANGELOG + `GARMENTS_PLUGIN.md` uppdaterade. Ingen publicationStatus i Garments.
+
+## Default texts plugin gate docs (2026-10-02)
+
+Verifierad mot QA-godkänd UI-gate: Core Settings → Default texts endast när tenant har `invoices` och/eller `estimates`. Produkt-CHANGELOG + `UI_AND_UX_STANDARDS_V3.md` + `INVOICES_PLUGIN.md` / `ESTIMATES_PLUGIN.md` speglar synlighet, partiell save och begränsningen att API fortfarande accepterar båda nycklar.
+
 ## Statistics KPI → list filter links (2026-10-01)
 
-Cross-plugin pattern (Clubdesk inventory reference): `activeFilters` + `onSelectFilter` on statistics views; lists call `handleStatKpiListFilterSelect` from `client/src/core/ui/statKpiListFilterLink.ts`. KPI click sets `[filter]` or clears on total; `setFiltersVisible(true)` when lists use persisted filter chips. Tiles without matching chips remain non-clickable (e.g. Requests unlinked/external, Ingest inactive/types).
+Cross-plugin pattern (Clubdesk inventory reference): `activeFilters` + `onSelectFilter` on statistics views; lists call `handleStatKpiListFilterSelect` from `client/src/core/ui/statKpiListFilterLink.ts`. KPI click sets `[filter]` or clears on total; `setFiltersVisible(true)` when lists use persisted filter chips. Tiles without matching chips remain non-clickable (e.g. Requests unlinked/external, Ingest inactive/types). Garments inventory later added Active/Archived KPI links (2026-10-02) — see entry above; the original “Garments out of scope” note is historical for that pass only.
 
 ## Clubdesk inventory statistics aside (2026-10-01)
 
-Desktop inventory list empty aside: `ClubdeskInventoryStatisticsView` with soft-sky KPI tiles (total active, published, draft, archived) computed client-side from `inventoryItems`. i18n under `clubdesk.inventory.statistics`. Garments statistics unchanged.
+Desktop inventory list empty aside: `ClubdeskInventoryStatisticsView` with soft-sky KPI tiles (total active, published, draft, archived) computed client-side from `inventoryItems`. i18n under `clubdesk.inventory.statistics`. **Superseded for Garments:** inventory mode now uses `GarmentsInventoryStatisticsView` (Active/Archived only) — 2026-10-02.
 
 ## Public price list compact type (2026-09-30)
 

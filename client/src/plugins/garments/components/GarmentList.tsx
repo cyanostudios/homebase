@@ -107,6 +107,7 @@ import {
   GarmentsListsSettingsView,
   type GarmentsListsSettingsCategory,
 } from './GarmentsListsSettingsView';
+import { GarmentsInventoryStatisticsView } from './GarmentsInventoryStatisticsView';
 import { GarmentsStatisticsView } from './GarmentsStatisticsView';
 import { GarmentView } from './GarmentView';
 import { InventoryBulkListsDialog } from './InventoryBulkListsDialog';
@@ -1346,7 +1347,23 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                   )
                 ) : (
                   <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
-                    <GarmentsStatisticsView />
+                    {isInventoryEffective ? (
+                      <GarmentsInventoryStatisticsView
+                        showArchivedOnly={showArchivedOnly}
+                        tagFilterActive={inventoryTagFilter != null}
+                        onSelectFilter={(filter) => {
+                          setFiltersVisible(true);
+                          setInventoryTagFilter(null);
+                          if (filter === 'total') {
+                            setShowArchivedOnly(false);
+                            return;
+                          }
+                          setShowArchivedOnly(true);
+                        }}
+                      />
+                    ) : (
+                      <GarmentsStatisticsView />
+                    )}
                   </Card>
                 )}
               </aside>

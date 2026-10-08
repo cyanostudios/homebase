@@ -4,6 +4,34 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-10-02 – Garments inventory statistics match Clubdesk KPI filters
+
+**Typ:** UI  
+**Scope:** Garments inventory desktop aside (`GarmentsInventoryStatisticsView` + `GarmentList`). When no row is selected in inventory mode, the aside shows Clubdesk-style soft-sky KPI tiles (Active products, Archived) that set the matching list filter chips (All / Archived), open filter chips when persisted, and clear tag filters on select. Lists mode keeps `GarmentsStatisticsView` (order summaries). No `publicationStatus` in Garments. Clubdesk inventory KPI filter linking unchanged.  
+**Risk:** Low.
+
+**Sammanfattning:** Garments inventariestatistik liknar Clubdesk och styr Active/Archived-filter.
+
+**Begränsningar:** Garments has no publish/draft catalog fields — inventory KPIs are Active + Archived only (Clubdesk still has published/draft). Tag chips have no matching KPI tile (tag filter → neither Active nor Archived pressed).
+
+**Docs:** [`GARMENTS_PLUGIN.md`](./GARMENTS_PLUGIN.md) (Inventory view, list filter, statistics).
+
+---
+
+## 2026-10-01 – Default texts gated by invoices/estimates plugins
+
+**Typ:** UI  
+**Scope:** Core Settings → Default texts (`SettingsList`, `DefaultTextsSettingsForm`, `defaultTextsPluginGate`). Category hidden when neither `invoices` nor `estimates` is enabled for the tenant; invoice/estimate mail fields shown only for the matching enabled plugin. If the category disappears while selected, Settings falls back to Preferences. Partial save keeps the hidden field’s stored value. API/storage unchanged.  
+**Risk:** Low.
+
+**Sammanfattning:** Standardtexter syns bara när faktura- och/eller offert-plugin är aktiverat för tenant.
+
+**Begränsningar:** Visibility is a **UI gate** only (`useEnabledPlugins`). `GET/PUT /api/default-texts` still accepts both `invoiceMail` and `estimateMail` regardless of which plugins the tenant has enabled.
+
+**Docs:** [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) (Core Settings → Default texts); [`INVOICES_PLUGIN.md`](./INVOICES_PLUGIN.md) / [`ESTIMATES_PLUGIN.md`](./ESTIMATES_PLUGIN.md) (Email + defaults).
+
+---
+
 ## 2026-10-01 – Statistics KPI tiles link to list filters (cross-plugin)
 
 **Typ:** UI  
