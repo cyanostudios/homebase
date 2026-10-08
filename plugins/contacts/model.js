@@ -8,6 +8,7 @@ const {
   normalizeStoredContactType,
 } = require('./applyContactTypeFieldRules');
 const { toNullableInt } = require('./toNullableInt');
+const { decodeHtmlEntities } = require('../../server/core/utils/htmlEscape');
 
 class ContactModel {
   constructor() {
@@ -54,7 +55,7 @@ class ContactModel {
       const result = await db.insert('contacts', {
         contact_number: contactNumber,
         contact_type: contactType,
-        company_name: contactData.companyName || '',
+        company_name: decodeHtmlEntities(contactData.companyName || ''),
         company_type: typeFields.company_type,
         organization_number: typeFields.organization_number,
         vat_number: typeFields.vat_number,
@@ -64,12 +65,12 @@ class ContactModel {
         email: contactData.email || '',
         phone: contactData.phone || '',
         phone2: contactData.phone2 || '',
-        website: contactData.website || '',
+        website: decodeHtmlEntities(contactData.website || ''),
         tax_rate: typeFields.tax_rate,
         payment_terms: toNullableInt(contactData.paymentTerms),
         currency: contactData.currency || '',
         f_tax: typeFields.f_tax,
-        notes: contactData.notes || '',
+        notes: decodeHtmlEntities(contactData.notes || ''),
         tags: JSON.stringify(contactData.tags || []),
         is_assignable: contactData.isAssignable === true,
       });
@@ -107,7 +108,7 @@ class ContactModel {
       const updatePayload = {
         contact_number: contactData.contactNumber,
         contact_type: contactType,
-        company_name: contactData.companyName || '',
+        company_name: decodeHtmlEntities(contactData.companyName || ''),
         company_type: typeFields.company_type,
         organization_number: typeFields.organization_number,
         vat_number: typeFields.vat_number,
@@ -117,12 +118,12 @@ class ContactModel {
         email: contactData.email || '',
         phone: contactData.phone || '',
         phone2: contactData.phone2 || '',
-        website: contactData.website || '',
+        website: decodeHtmlEntities(contactData.website || ''),
         tax_rate: typeFields.tax_rate,
         payment_terms: toNullableInt(contactData.paymentTerms),
         currency: contactData.currency || '',
         f_tax: typeFields.f_tax,
-        notes: contactData.notes || '',
+        notes: decodeHtmlEntities(contactData.notes || ''),
         is_assignable: contactData.isAssignable !== undefined ? contactData.isAssignable : true,
       };
       // Only update tags when provided to avoid wiping on partial updates
@@ -314,7 +315,8 @@ class ContactModel {
       id: row.id.toString(),
       contactNumber: row.contact_number,
       contactType: row.contact_type,
-      companyName: row.company_name,
+      // Decode legacy rows saved while companyName used express-validator .escape()
+      companyName: decodeHtmlEntities(row.company_name || ''),
       companyType: row.company_type || '',
       organizationNumber: row.organization_number || '',
       vatNumber: row.vat_number || '',
@@ -324,12 +326,12 @@ class ContactModel {
       email: row.email || '',
       phone: row.phone || '',
       phone2: row.phone2 || '',
-      website: row.website || '',
+      website: decodeHtmlEntities(row.website || ''),
       taxRate: row.tax_rate || '',
       paymentTerms: row.payment_terms || '',
       currency: row.currency || '',
       fTax: row.f_tax || '',
-      notes: row.notes || '',
+      notes: decodeHtmlEntities(row.notes || ''),
       tags,
       isAssignable: row.is_assignable !== false, // Default to true if null/undefined
       createdAt: row.created_at,
