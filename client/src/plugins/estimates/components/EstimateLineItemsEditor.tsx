@@ -10,6 +10,8 @@ interface EstimateLineItemsEditorProps {
   duplicatedItemIds: Set<string>;
   onAdd: () => void;
   onAddTextField: () => void;
+  onAddFromInventory?: (item: LineItem) => void;
+  defaultVatRate?: number;
   onUpdate: (index: number, field: keyof LineItem, value: unknown) => void;
   onDuplicate: (index: number) => void;
   onRemove: (index: number) => void;
@@ -24,6 +26,8 @@ export function EstimateLineItemsEditor(props: EstimateLineItemsEditorProps) {
       duplicatedItemIds={props.duplicatedItemIds}
       onAdd={props.onAdd}
       onAddTextField={props.onAddTextField}
+      onAddFromInventory={props.onAddFromInventory as ((item: InvoiceLineItem) => void) | undefined}
+      defaultVatRate={props.defaultVatRate}
       onUpdate={
         props.onUpdate as (index: number, field: keyof InvoiceLineItem, value: unknown) => void
       }

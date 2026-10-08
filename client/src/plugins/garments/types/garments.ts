@@ -182,4 +182,6 @@ export interface GarmentsSettings {
   columnCount?: 1 | 2 | 3;
   /** Catalog of tags assignable on inventory items (Contacts-style). */
   tags?: string[];
+  /** When true, active inventory articles can be added to invoice/estimate lines. */
+  invoicable?: boolean;
 }

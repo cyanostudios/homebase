@@ -10,6 +10,11 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { listReorderRowStyle } from '@/core/ui/listReorderTransition';
 import { cn } from '@/lib/utils';
 
+import {
+  useInvoiceInventorySources,
+  type InvoiceInventorySource,
+} from '../hooks/useInvoiceInventorySources';
+import { InvoiceInventoryPicker } from './InvoiceInventoryPicker';
 import type { InvoiceLineItem } from '../types/invoices';
 import {
   DEFAULT_INVOICE_LINE_ITEM_UNIT,
@@ -35,6 +40,8 @@ interface InvoiceLineItemsEditorProps {
   duplicatedItemIds: Set<string>;
   onAdd: () => void;
   onAddTextField: () => void;
+  onAddFromInventory?: (item: InvoiceLineItem) => void;
+  defaultVatRate?: number;
   onUpdate: (index: number, field: keyof InvoiceLineItem, value: any) => void;
   onDuplicate: (index: number) => void;
   onRemove: (index: number) => void;
@@ -107,9 +114,17 @@ function LineItemActions({
 function AddLineButtons({
   onAdd,
   onAddTextField,
+  onAddFromInventory,
+  defaultVatRate,
+  nextSortOrder,
+  inventorySources,
 }: {
   onAdd: () => void;
   onAddTextField: () => void;
+  onAddFromInventory?: (item: InvoiceLineItem) => void;
+  defaultVatRate: number;
+  nextSortOrder: number;
+  inventorySources: InvoiceInventorySource[];
 }) {
   const { t } = useTranslation();
 
@@ -124,6 +139,14 @@ function AddLineButtons({
         alwaysExpanded
         onClick={onAdd}
       />
+      {onAddFromInventory && inventorySources.length > 0 ? (
+        <InvoiceInventoryPicker
+          sources={inventorySources}
+          defaultVatRate={defaultVatRate}
+          nextSortOrder={nextSortOrder}
+          onSelect={onAddFromInventory}
+        />
+      ) : null}
       <RoundIconLabelButton
         type="button"
         icon={TextCursorInput}
@@ -142,6 +165,8 @@ export function InvoiceLineItemsEditor({
   duplicatedItemIds,
   onAdd,
   onAddTextField,
+  onAddFromInventory,
+  defaultVatRate = 25,
   onUpdate,
   onDuplicate,
   onRemove,
@@ -149,7 +174,9 @@ export function InvoiceLineItemsEditor({
   onMoveDown,
 }: InvoiceLineItemsEditorProps) {
   const { t } = useTranslation();
+  const { sources: inventorySources } = useInvoiceInventorySources();
   const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
+  const nextSortOrder = items.length;
 
   const handleDeleteClick = (index: number) => {
     const item = items[index];
@@ -169,7 +196,14 @@ export function InvoiceLineItemsEditor({
         <div className="rounded-md border border-dashed border-border/70 px-3 py-6 text-center">
           <p className="text-xs text-muted-foreground">{t('invoices.noLineItems')}</p>
           <div className="mt-3 flex justify-center">
-            <AddLineButtons onAdd={onAdd} onAddTextField={onAddTextField} />
+            <AddLineButtons
+              onAdd={onAdd}
+              onAddTextField={onAddTextField}
+              onAddFromInventory={onAddFromInventory}
+              defaultVatRate={defaultVatRate}
+              nextSortOrder={nextSortOrder}
+              inventorySources={inventorySources}
+            />
           </div>
         </div>
       ) : (
@@ -367,7 +401,14 @@ export function InvoiceLineItemsEditor({
               })}
             </div>
           </div>
-          <AddLineButtons onAdd={onAdd} onAddTextField={onAddTextField} />
+          <AddLineButtons
+            onAdd={onAdd}
+            onAddTextField={onAddTextField}
+            onAddFromInventory={onAddFromInventory}
+            defaultVatRate={defaultVatRate}
+            nextSortOrder={nextSortOrder}
+            inventorySources={inventorySources}
+          />
         </div>
       )}
 

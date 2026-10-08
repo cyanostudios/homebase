@@ -84,7 +84,12 @@
     "clearFilters": "Clear filters",
     "filters": "Filters",
     "showFilters": "Show filters",
-    "hideFilters": "Hide filters"
+    "hideFilters": "Hide filters",
+    "paymentTermsImmediate": "Immediate",
+    "paymentTermsDays": "{{count}} days",
+    "paymentTermsCustom": "Custom…",
+    "paymentTermsCustomDays": "Custom days",
+    "paymentTermsCustomDaysSuffix": "days"
   },
   "importWizard": {
     "file": "File",
@@ -575,6 +580,7 @@
   "contacts": {
     "searchPlaceholder": "Search {{count}} contacts...",
     "description": "Manage your companies and personal contacts",
+    "paymentTerms": "Payment terms",
     "type": {
       "company": "Company",
       "private": "Private"
@@ -1045,7 +1051,20 @@
     "previewPageBreak": "Page break",
     "issue": "Issue",
     "addItem": "Add Item",
+    "addFromInventory": "Add from inventory",
     "addField": "Add field",
+    "inventoryInvoicing": {
+      "enabledLabel": "Available for invoices"
+    },
+    "inventoryPicker": {
+      "searchPlaceholder": "Search inventory…",
+      "loading": "Loading inventory…",
+      "loadError": "Could not load inventory. Try again.",
+      "emptyCatalog": "No invoicable articles in inventory yet.",
+      "noMatches": "No articles match your search.",
+      "sectionGarments": "Garments",
+      "sectionClubdesk": "Clubdesk"
+    },
     "freeTextField": "Text field",
     "freeTextPlaceholder": "Free text…",
     "selectCustomer": "Select a customer…",
@@ -1138,6 +1157,9 @@
     "paymentTerms": "Payment terms",
     "paymentTermsImmediate": "Immediate",
     "paymentTermsDays": "{{count}} days",
+    "paymentTermsCustom": "Custom…",
+    "paymentTermsCustomDays": "Custom days",
+    "paymentTermsCustomDaysSuffix": "days",
     "dueDateFromPaymentTerms": "Calculated from issue date + payment terms",
     "issueDate": "Issue Date",
     "dueStatus": "Due status",
@@ -1970,6 +1992,9 @@
         "tagsDescription": "Tags you can assign on inventory products.",
         "tagsHint": "Tags can be assigned when editing a product.",
         "tagsPlaceholder": "Add a tag (e.g. Organic, Gluten-free, Local)",
+        "invoicing": "Invoicing",
+        "invoicingDescription": "Let invoice and estimate lines be filled from Clubdesk inventory.",
+        "invoicingHint": "When on, published active products can be picked on invoice and estimate line items (sale price is copied; stock is not changed).",
         "importDescription": "Import products from CSV or Excel."
       },
       "importInventory": "Import inventory",
@@ -4277,6 +4302,9 @@
       "tagsDescription": "Tags you can assign on inventory items.",
       "tagsHint": "Tags can be assigned to inventory items when editing an article.",
       "tagsPlaceholder": "Add a tag (e.g. Match kit, Training)",
+      "invoicing": "Invoicing",
+      "invoicingDescription": "Let invoice and estimate lines be filled from Garments inventory.",
+      "invoicingHint": "When on, active inventory articles can be picked on invoice and estimate line items (sale price is copied; stock is not changed).",
       "columns": "Table columns",
       "columnsDescription": "Choose which columns appear in the inventory table and their order.",
       "columnsHint": "Drag to reorder. Toggle to show or hide a column. Article name is always visible.",

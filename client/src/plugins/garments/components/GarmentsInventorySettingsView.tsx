@@ -1,4 +1,4 @@
-import { Download, Plus, Upload, X } from 'lucide-react';
+import { Download, Plus, Receipt, Upload, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
+import { hasInventoryInvoicingPlugins } from '@/core/settings/inventoryInvoicingGate';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { InventoryInvoicingEnableSwitch } from '@/plugins/invoices/components/InventoryInvoicingEnableSwitch';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
 import {
@@ -27,7 +30,7 @@ import {
 } from '../utils/inventoryImportSchema';
 import { inventoryTagsEqual, normalizeInventoryTags } from '../utils/inventoryTags';
 
-export type GarmentsInventorySettingsCategory = 'tags' | 'import';
+export type GarmentsInventorySettingsCategory = 'tags' | 'invoicing' | 'import';
 
 interface GarmentsInventorySettingsViewProps {
   selectedCategory?: GarmentsInventorySettingsCategory;
@@ -42,6 +45,8 @@ export function GarmentsInventorySettingsView({
 }: GarmentsInventorySettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
+  const enabledPlugins = useEnabledPlugins();
+  const showInvoicingCategory = hasInventoryInvoicingPlugins(enabledPlugins);
   const { importInventoryItems } = useGarments();
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
@@ -53,28 +58,38 @@ export function GarmentsInventorySettingsView({
   const [tags, setTags] = useState<string[]>([]);
   const [initialTags, setInitialTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  const [invoicable, setInvoicable] = useState(false);
+  const [initialInvoicable, setInitialInvoicable] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   const importSchema = useMemo(() => getGarmentInventoryImportSchema(), []);
 
-  const categories: PluginSettingsCategory[] = useMemo(
-    () => [
+  const categories: PluginSettingsCategory[] = useMemo(() => {
+    const list: PluginSettingsCategory[] = [
       {
         id: 'tags',
         label: t('garments.settingsCategories.tags'),
         description: t('garments.settingsCategories.tagsDescription'),
         icon: SETTINGS_CATEGORY_ICONS.tags,
       },
-      {
-        id: 'import',
-        label: t('common.import'),
-        description: t('garments.settingsCategories.importDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.import,
-      },
-    ],
-    [t],
-  );
+    ];
+    if (showInvoicingCategory) {
+      list.push({
+        id: 'invoicing',
+        label: t('garments.settingsCategories.invoicing'),
+        description: t('garments.settingsCategories.invoicingDescription'),
+        icon: Receipt,
+      });
+    }
+    list.push({
+      id: 'import',
+      label: t('common.import'),
+      description: t('garments.settingsCategories.importDescription'),
+      icon: SETTINGS_CATEGORY_ICONS.import,
+    });
+    return list;
+  }, [showInvoicingCategory, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +101,9 @@ export function GarmentsInventorySettingsView({
         const loadedTags = normalizeInventoryTags(settings?.tags);
         setTags(loadedTags);
         setInitialTags(loadedTags);
+        const loadedInvoicable = settings?.invoicable === true;
+        setInvoicable(loadedInvoicable);
+        setInitialInvoicable(loadedInvoicable);
       })
       .catch(() => {})
       .finally(() => {
@@ -99,24 +117,31 @@ export function GarmentsInventorySettingsView({
   }, [getSettings, settingsVersion]);
 
   const tagsDirty = !inventoryTagsEqual(tags, initialTags);
-  const isDirty = activeCategory === 'tags' && tagsDirty;
+  const invoicingDirty = invoicable !== initialInvoicable;
+  const isDirty =
+    (activeCategory === 'tags' && tagsDirty) || (activeCategory === 'invoicing' && invoicingDirty);
 
   const handleSave = useCallback(async () => {
-    if (activeCategory !== 'tags') {
+    if (activeCategory === 'import') {
       return;
     }
     setIsSaving(true);
     try {
-      const next = normalizeInventoryTags(tags);
-      await updateSettings(GARMENTS_SETTINGS_KEY, { tags: next });
-      setTags(next);
-      setInitialTags(next);
+      if (activeCategory === 'tags') {
+        const next = normalizeInventoryTags(tags);
+        await updateSettings(GARMENTS_SETTINGS_KEY, { tags: next });
+        setTags(next);
+        setInitialTags(next);
+      } else if (activeCategory === 'invoicing') {
+        await updateSettings(GARMENTS_SETTINGS_KEY, { invoicable });
+        setInitialInvoicable(invoicable);
+      }
     } catch (error) {
-      console.error('Failed to save garments inventory tags:', error);
+      console.error('Failed to save garments inventory settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [activeCategory, tags, updateSettings]);
+  }, [activeCategory, invoicable, tags, updateSettings]);
 
   const addTag = useCallback(() => {
     const next = newTag.trim();
@@ -162,6 +187,26 @@ export function GarmentsInventorySettingsView({
           ) : null
         }
       >
+        {activeCategory === 'invoicing' && (
+          <DetailSection
+            title={t('garments.settingsCategories.invoicing')}
+            icon={Receipt}
+            subtleTitle
+            className="pt-0"
+            titleAside={
+              <InventoryInvoicingEnableSwitch
+                id="garments-inventory-invoicable"
+                checked={invoicable}
+                onCheckedChange={setInvoicable}
+              />
+            }
+          >
+            <p className="text-sm text-muted-foreground">
+              {t('garments.settingsCategories.invoicingHint')}
+            </p>
+          </DetailSection>
+        )}
+
         {activeCategory === 'tags' && (
           <DetailSection
             title={t('garments.settingsCategories.tags')}

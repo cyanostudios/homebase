@@ -106,4 +106,6 @@ export interface ClubdeskInventoryImportResult {
 /** Persisted via AppContext getSettings/updateSettings — key `clubdesk` (tags catalog). */
 export interface ClubdeskInventorySettings {
   tags?: string[];
+  /** When true, linkable inventory products can be added to invoice/estimate lines. */
+  invoicable?: boolean;
 }

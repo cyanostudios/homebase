@@ -31,6 +31,7 @@ import React, {
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { BADGE_CHIP_CLASS } from '@/core/ui/badgeStyles';
+import { PaymentTermsField } from '@/core/ui/PaymentTermsField';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -1049,18 +1050,16 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
           </div>
 
           <div className={PROP_ROW_CLASS}>
-            <span className="text-sm text-slate-500 dark:text-slate-400">Payment terms</span>
-            <NativeSelect
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {t('contacts.paymentTerms', { defaultValue: 'Payment terms' })}
+            </span>
+            <PaymentTermsField
               id="paymentTerms"
-              value={formData.paymentTerms}
-              onChange={(e) => updateField('paymentTerms', e.target.value)}
-              className={FORM_GHOST_PROP_CONTROL_CLASS}
-            >
-              <option value="0">Immediate</option>
-              <option value="15">15 days</option>
-              <option value="30">30 days</option>
-              <option value="60">60 days</option>
-            </NativeSelect>
+              value={String(formData.paymentTerms ?? '30')}
+              onChange={(next) => updateField('paymentTerms', next)}
+              selectClassName={FORM_GHOST_PROP_CONTROL_CLASS}
+              inputClassName={FORM_GHOST_PROP_CONTROL_CLASS}
+            />
           </div>
 
           <div className={PROP_ROW_CLASS}>
