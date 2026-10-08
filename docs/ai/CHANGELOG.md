@@ -2,6 +2,10 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Contacts tabular import field coverage (2026-10-08)
+
+Verifierad mot QA + Security Godkänt: utökad `getContactImportSchema` (Fortnox-vänliga SV/EN-alias), `mapContactImportRow` → full `createContact`-payload, kundnummer utanför schema, tom Type + personnummer-heuristik → private, rad-för-rad `POST /api/contacts`. ADR `TABULAR_IMPORT_EXPORT.md` § Contacts adapter; produkt-CHANGELOG 2026-10-08; `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §5 referens. v1-gränser oförändrade (create-only; 5 MB / 2000 rader).
+
 ## Garments inventory KPI → filter docs (2026-10-02)
 
 Verifierad mot QA Godkänt: inventory empty aside `GarmentsInventoryStatisticsView` (Active/Archived → All/Archived chips; tag cleared; set-not-toggle). Lists mode behåller `GarmentsStatisticsView`. Supersedes “Garments statistics unchanged” under Clubdesk inventory statistics aside (2026-10-01). Produkt-CHANGELOG + `GARMENTS_PLUGIN.md` uppdaterade. Ingen publicationStatus i Garments.

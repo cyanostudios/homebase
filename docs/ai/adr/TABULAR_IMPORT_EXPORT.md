@@ -94,6 +94,32 @@ flowchart TB
 
 **Plugin äger:** `get*ImportSchema()`, `import*(rows)` → create + `{ successCount, failureCount [, failureMessages] }`, settings-yta, `*ExportConfig`. Domän-specifik radgruppering (t.ex. garments inventory variants) sker i plugin före create.
 
+### Contacts adapter — fält och mappning (verifierad 2026-10-08)
+
+Referensimplementation (core `ImportWizard` oförändrad):
+
+| Del                        | Sökväg                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Schema + alias + mallrader | `client/src/plugins/contacts/utils/contactImportSchema.ts` (`getContactImportSchema`, `CONTACT_IMPORT_EXAMPLE_ROWS`)   |
+| Rad → create-payload       | `client/src/plugins/contacts/utils/mapContactImportRow.ts`                                                             |
+| Persistens                 | `client/src/plugins/contacts/context/ContactProvider.tsx` (`importContacts` → rad-för-rad `contactsApi.createContact`) |
+| Settings-yta               | `client/src/plugins/contacts/components/ContactSettingsView.tsx`                                                       |
+
+**ImportSchema (wizard-kolumner):** required endast **Name** (`companyName`); valfria fält inkluderar Type, org-/personnummer, VAT, gatuadress 1–2, postnummer, ort, land, kontaktperson, e-post, telefon, betalningsvillkor, anteckningar, leveransvillkor, samt valfria Homebase-scalars (`companyType`, `phone2`, `website`, `taxRate`, `currency`, `fTax`). Labels är engelska med SV/EN-alias (t.ex. Fortnox `Namn`, `Organisationsnummer`, `Kontaktperson`, `Betalningsvillkor`).
+
+**Medvetet utanför schema:** kundnummer / customer number / `contactNumber` — auto-mapping mappar dem inte; servern tilldelar kontaktnummer vid create.
+
+**Payload-regler (`mapContactImportRow`):**
+
+- **Type:** ifylld kolumn → `normalizeContactType`; tom Type + organisationsnummer-fält som svenskt personnummer/samordningsnummer → `private`; annars tom Type → `company`.
+- **Nummer:** företag → `organizationNumber`; privat → `personalNumber` (personnummer-kolumn eller org-kolumn).
+- **Adress:** minst ett adressfält → en adress `type: Billing Address`; tom country → `Sweden`.
+- **Kontaktperson:** namn → en post i `contactPersons`.
+- **paymentTerms:** första siffersekvensen i fritext.
+- **notes:** Notes, annars Leveransvillkor om Notes tom.
+
+**v1-gränser (oförändrade):** create-only (ingen upsert); soft limits **5 MB** (före filläsning) och **2000** rader. Tester: `client/src/plugins/contacts/utils/__tests__/contactImportSchema.test.ts`, `mapContactImportRow.test.ts`.
+
 ### Verifierade nyckelfiler
 
 | Del              | Sökväg                                                |

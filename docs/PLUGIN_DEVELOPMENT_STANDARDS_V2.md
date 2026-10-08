@@ -174,6 +174,8 @@ När en plugin stödjer manuell tabellimport (inte FOGIS/cups-style API-import):
 5. **Copy:** settings-beskrivning via i18n (t.ex. `*.importDescription`); wizard-strängar under `importWizard.*`.
 6. **Parser:** core `parseDelimitedGrid` (comma, semicolon, tab) + `checkImportLimits` — plugins ska inte duplicera CSV-parse.
 
+**Referens — full create-payload (contacts, 2026-10-08):** `getContactImportSchema()` + `mapContactImportRow()` + `CONTACT_IMPORT_EXAMPLE_ROWS` under `client/src/plugins/contacts/utils/`; Settings → Import i `ContactSettingsView`. Detaljer och ADR-gränser (create-only, 5 MB / 2000 rader): [`docs/ai/adr/TABULAR_IMPORT_EXPORT.md`](ai/adr/TABULAR_IMPORT_EXPORT.md) § Contacts adapter.
+
 **Core äger** parsers, wizard och mall-generator. **Plugin äger** schema, exempelrad och persistens. Domän/API-import (matcher FOGIS, cups←ingest) förblir plugin-ägda services — blanda inte ihop med denna yta.
 
 **Varför:** Samma UX för contacts/notes/tasks; nya plugins slipper bygga egen CSV/Excel-UI.

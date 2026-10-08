@@ -4,6 +4,33 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-10-08 – Contacts CSV import: full create-payload field coverage
+
+**Typ:** Beteende  
+**Scope:** Contacts Settings → Import (`ImportWizard` oförändrad i core). `getContactImportSchema()` utökat med SV/EN-alias (inkl. typiska Fortnox-kundexportrubriker). `mapContactImportRow()` bygger samma create-payload som manuellt formulär: org-/personnummer, VAT, en **Billing Address** från adresskolumner, `contactPersons` från kontaktperson, betalningsvillkor som första siffersekvens, anteckningar från Notes eller Leveransvillkor, plus valfria Homebase-fält (`companyType`, `phone2`, `website`, `taxRate`, `currency`, `fTax`). CSV-mall: två exempelrader (`CONTACT_IMPORT_EXAMPLE_ROWS`). Persistens: rad-för-rad `POST /api/contacts` via `importContacts`.  
+**Risk:** Low (create-only; oförändrade tabular soft limits).
+
+**Sammanfattning:** Kontaktimport mappar fler kolumner till full create-body; Fortnox-CSV auto-mappas utan kundnummer.
+
+**Verifierat beteende:**
+
+- **Schema + auto-mapping:** `client/src/plugins/contacts/utils/contactImportSchema.ts` — endast **Name** är required; övriga fält valfria med alias (t.ex. `Namn`, `Organisationsnummer`, `Kontaktperson`, `Betalningsvillkor`). Rubriker som **Kundnummer** / customer number finns **inte** i schemat och mappas inte (kontaktnummer tilldelas av servern vid create).
+- **Rad → payload:** `client/src/plugins/contacts/utils/mapContactImportRow.ts` — `contactType` från Type när angiven (`normalizeContactType`); när Type är tom och organisationsnummer-fältet matchar svenskt personnummer/samordningsnummer → `private` (personnummer i org-kolumn stöds); annars tom Type → `company`. Företag behåller org-nummer i `organizationNumber`; privat sätter `personalNumber` från personnummer-kolumn eller org-kolumn.
+- **Adress / kontaktperson:** Minst ett adressfält → en adress med `type: Billing Address`, default `country: Sweden` om tomt. Kontaktpersonnamn → en post i `contactPersons` (övriga personfält tomma).
+- **Anteckningar / betalning:** `paymentTerms` = första sifferlöp i mappat betalningsvillkor (t.ex. `30 dagar` → `30`). `notes` = Notes, eller Leveransvillkor om Notes tom.
+- **Wiring:** `ContactProvider.importContacts` anropar `mapContactImportRow` + `contactsApi.createContact` per rad; `ContactSettingsView` använder `getContactImportSchema()` för mall och wizard.
+- **Tester:** `contactImportSchema.test.ts`, `mapContactImportRow.test.ts` (10 passed).
+
+**Begränsningar (oförändrat tabular v1 enligt ADR):**
+
+- **Create-only** — ingen upsert/dedupe.
+- **Soft limits:** max **5 MB** filstorlek (kontroll **före** filläsning) och max **2000** datarader (`importUtils` / `ImportWizard`).
+- Okänd **Type**-text (när kolumnen är ifylld) coerce:as fortfarande till `company` via `normalizeContactType`.
+
+**Docs:** [`docs/ai/adr/TABULAR_IMPORT_EXPORT.md`](ai/adr/TABULAR_IMPORT_EXPORT.md) (Contacts adapter); importmönster i [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §5.
+
+---
+
 ## 2026-10-02 – Garments inventory statistics match Clubdesk KPI filters
 
 **Typ:** UI  

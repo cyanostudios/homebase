@@ -16,30 +16,12 @@ import {
 } from '@/core/ui/PluginSettingsPageShell';
 import { FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
-import type { ImportSchema } from '@/core/utils/importUtils';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
 import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
 import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
-
-const getContactImportSchema = (): ImportSchema => ({
-  fields: [
-    { key: 'companyName', label: 'Name', required: true },
-    { key: 'contactType', label: 'Type', required: false },
-    { key: 'email', label: 'Email', required: false },
-    { key: 'phone', label: 'Phone', required: false },
-    { key: 'notes', label: 'Notes', required: false },
-  ],
-});
-
-const CONTACT_IMPORT_EXAMPLE_ROW: Record<string, string> = {
-  companyName: 'Acme AB',
-  contactType: 'company',
-  email: 'info@acme.se',
-  phone: '0701234567',
-  notes: 'Imported sample',
-};
+import { CONTACT_IMPORT_EXAMPLE_ROWS, getContactImportSchema } from '../utils/contactImportSchema';
 
 export type ContactSettingsCategory = 'tags' | 'import';
 
@@ -256,7 +238,7 @@ export function ContactSettingsView({
                   downloadImportCsvTemplate({
                     schema: getContactImportSchema(),
                     filename: 'contacts-import-template.csv',
-                    exampleRow: CONTACT_IMPORT_EXAMPLE_ROW,
+                    exampleRows: CONTACT_IMPORT_EXAMPLE_ROWS,
                   })
                 }
               />
