@@ -4,6 +4,81 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-10-08 – Contacts CSV import: full create-payload field coverage
+
+**Typ:** Beteende  
+**Scope:** Contacts Settings → Import (`ImportWizard` oförändrad i core). `getContactImportSchema()` utökat med SV/EN-alias (inkl. typiska Fortnox-kundexportrubriker). `mapContactImportRow()` bygger samma create-payload som manuellt formulär: org-/personnummer, VAT, en **Billing Address** från adresskolumner, `contactPersons` från kontaktperson, betalningsvillkor som första siffersekvens, anteckningar från Notes eller Leveransvillkor, plus valfria Homebase-fält (`companyType`, `phone2`, `website`, `taxRate`, `currency`, `fTax`). CSV-mall: två exempelrader (`CONTACT_IMPORT_EXAMPLE_ROWS`). Persistens: rad-för-rad `POST /api/contacts` via `importContacts`.  
+**Risk:** Low (create-only; oförändrade tabular soft limits).
+
+**Sammanfattning:** Kontaktimport mappar fler kolumner till full create-body; Fortnox-CSV auto-mappas utan kundnummer.
+
+**Verifierat beteende:**
+
+- **Schema + auto-mapping:** `client/src/plugins/contacts/utils/contactImportSchema.ts` — endast **Name** är required; övriga fält valfria med alias (t.ex. `Namn`, `Organisationsnummer`, `Kontaktperson`, `Betalningsvillkor`). Rubriker som **Kundnummer** / customer number finns **inte** i schemat och mappas inte (kontaktnummer tilldelas av servern vid create).
+- **Rad → payload:** `client/src/plugins/contacts/utils/mapContactImportRow.ts` — `contactType` från Type när angiven (`normalizeContactType`); när Type är tom och organisationsnummer-fältet matchar svenskt personnummer/samordningsnummer → `private` (personnummer i org-kolumn stöds); annars tom Type → `company`. Företag behåller org-nummer i `organizationNumber`; privat sätter `personalNumber` från personnummer-kolumn eller org-kolumn.
+- **Adress / kontaktperson:** Minst ett adressfält → en adress med `type: Billing Address`, default `country: Sweden` om tomt. Kontaktpersonnamn → en post i `contactPersons` (övriga personfält tomma).
+- **Anteckningar / betalning:** `paymentTerms` = första sifferlöp i mappat betalningsvillkor (t.ex. `30 dagar` → `30`). `notes` = Notes, eller Leveransvillkor om Notes tom.
+- **Wiring:** `ContactProvider.importContacts` anropar `mapContactImportRow` + `contactsApi.createContact` per rad; `ContactSettingsView` använder `getContactImportSchema()` för mall och wizard.
+- **Tester:** `contactImportSchema.test.ts`, `mapContactImportRow.test.ts` (10 passed).
+
+**Begränsningar (oförändrat tabular v1 enligt ADR):**
+
+- **Create-only** — ingen upsert/dedupe.
+- **Soft limits:** max **5 MB** filstorlek (kontroll **före** filläsning) och max **2000** datarader (`importUtils` / `ImportWizard`).
+- Okänd **Type**-text (när kolumnen är ifylld) coerce:as fortfarande till `company` via `normalizeContactType`.
+
+**Docs:** [`docs/ai/adr/TABULAR_IMPORT_EXPORT.md`](ai/adr/TABULAR_IMPORT_EXPORT.md) (Contacts adapter); importmönster i [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §5.
+
+---
+
+## 2026-10-02 – Garments inventory statistics match Clubdesk KPI filters
+
+**Typ:** UI  
+**Scope:** Garments inventory desktop aside (`GarmentsInventoryStatisticsView` + `GarmentList`). When no row is selected in inventory mode, the aside shows Clubdesk-style soft-sky KPI tiles (Active products, Archived) that set the matching list filter chips (All / Archived), open filter chips when persisted, and clear tag filters on select. Lists mode keeps `GarmentsStatisticsView` (order summaries). No `publicationStatus` in Garments. Clubdesk inventory KPI filter linking unchanged.  
+**Risk:** Low.
+
+**Sammanfattning:** Garments inventariestatistik liknar Clubdesk och styr Active/Archived-filter.
+
+**Begränsningar:** Garments has no publish/draft catalog fields — inventory KPIs are Active + Archived only (Clubdesk still has published/draft). Tag chips have no matching KPI tile (tag filter → neither Active nor Archived pressed).
+
+**Docs:** [`GARMENTS_PLUGIN.md`](./GARMENTS_PLUGIN.md) (Inventory view, list filter, statistics).
+
+---
+
+## 2026-10-01 – Default texts gated by invoices/estimates plugins
+
+**Typ:** UI  
+**Scope:** Core Settings → Default texts (`SettingsList`, `DefaultTextsSettingsForm`, `defaultTextsPluginGate`). Category hidden when neither `invoices` nor `estimates` is enabled for the tenant; invoice/estimate mail fields shown only for the matching enabled plugin. If the category disappears while selected, Settings falls back to Preferences. Partial save keeps the hidden field’s stored value. API/storage unchanged.  
+**Risk:** Low.
+
+**Sammanfattning:** Standardtexter syns bara när faktura- och/eller offert-plugin är aktiverat för tenant.
+
+**Begränsningar:** Visibility is a **UI gate** only (`useEnabledPlugins`). `GET/PUT /api/default-texts` still accepts both `invoiceMail` and `estimateMail` regardless of which plugins the tenant has enabled.
+
+**Docs:** [`UI_AND_UX_STANDARDS_V3.md`](./UI_AND_UX_STANDARDS_V3.md) (Core Settings → Default texts); [`INVOICES_PLUGIN.md`](./INVOICES_PLUGIN.md) / [`ESTIMATES_PLUGIN.md`](./ESTIMATES_PLUGIN.md) (Email + defaults).
+
+---
+
+## 2026-10-01 – Statistics KPI tiles link to list filters (cross-plugin)
+
+**Typ:** UI  
+**Scope:** Contacts, Notes, Tasks, Requests, Estimates, Matches, Cups, Slots, Files, Mail providers, Pulse providers, AI providers, and Ingest list desktop statistics asides. Soft-sky KPI tiles set the matching list filter chip (not toggle), show pressed when active, open filter chips when persisted, and clear on Total/All. Requests unlinked/external and Ingest inactive/types KPIs stay display-only. Clubdesk inventory reference unchanged. Garments, Invoices, Teams, Sportadmin out of scope.  
+**Risk:** Low.
+
+**Sammanfattning:** KPI-rutor i statistikpanelen styr samma filter som chip-raden i listan.
+
+---
+
+## 2026-10-01 – Clubdesk inventory desktop statistics aside
+
+**Typ:** UI  
+**Scope:** Clubdesk inventory list desktop split pane. When no row is selected, the aside shows KPI overview (active, published, draft, archived) from loaded `inventoryItems`. Garments unchanged.  
+**Risk:** Low.
+
+**Sammanfattning:** Tom högerpanel ersatt med lagerstatistik i samma mönster som Garments/Contacts.
+
+---
+
 ## 2026-09-30 – Public price list uses compact category and row type
 
 **Typ:** UI  

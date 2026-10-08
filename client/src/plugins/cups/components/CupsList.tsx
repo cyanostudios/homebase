@@ -38,6 +38,7 @@ import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
@@ -55,10 +56,10 @@ import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
-import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
@@ -83,17 +84,17 @@ import {
 import { resolveVisibleCupTableColumns, type CupTableColumnId } from '../utils/cupTableColumns';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
+import { CupForm } from './CupForm';
+import { CupIngestImportProgressDialog } from './CupIngestImportProgressDialog';
 import {
   CupIngestImportResultDialog,
   type CupIngestImportResultVariant,
 } from './CupIngestImportResultDialog';
-import { CupIngestImportProgressDialog } from './CupIngestImportProgressDialog';
 import { CupIngestPickSourceDialog } from './CupIngestPickSourceDialog';
-import { CupForm } from './CupForm';
 import { CupListTable } from './CupListTable';
-import { CupView } from './CupView';
 import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView';
 import { CupsStatisticsView } from './CupsStatisticsView';
+import { CupView } from './CupView';
 
 type SortField = CupSortField;
 type SortOrder = CupSortOrder;
@@ -1090,7 +1091,12 @@ export function CupsList() {
                   <CupView cup={detailCup} stacked />
                 ) : (
                   <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
-                    <CupsStatisticsView />
+                    <CupsStatisticsView
+                      activeFilters={activeFilters}
+                      onSelectFilter={(filter) =>
+                        handleStatKpiListFilterSelect(filter, setFiltersVisible, setActiveFilters)
+                      }
+                    />
                   </Card>
                 )}
               </aside>

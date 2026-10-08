@@ -204,6 +204,8 @@
   "defaultTexts": {
     "title": "Default texts",
     "description": "Default messages for invoice and estimate emails",
+    "descriptionInvoiceOnly": "Default messages for invoice emails",
+    "descriptionEstimateOnly": "Default messages for estimate emails",
     "hint": "These texts appear in the email dialog when sending an invoice or estimate. You can edit or clear them before sending.",
     "invoiceMail": "Default text for invoice mail",
     "estimateMail": "Default text for estimate mail",
@@ -1987,6 +1989,15 @@
         "emptyHint": "Choose a row to preview details here.",
         "decreaseQuantity": "Decrease quantity",
         "increaseQuantity": "Increase quantity"
+      },
+      "statistics": {
+        "title": "Inventory statistics",
+        "description": "Overview of active, published, draft, and archived products.",
+        "overview": "Overview",
+        "total": "Active products",
+        "published": "Published",
+        "draft": "Draft",
+        "archived": "Archived"
       },
       "searchPlaceholder": "Search {{count}} products...",
       "noMatch": "No matches",
@@ -4077,6 +4088,13 @@
     "archivedAssignHint": "Archived articles stay on lists they're already on. They can't be added to new lists.",
     "bulkDeleteInventoryBlocked": "Deleted {{deleted}}. {{blocked}} could not be deleted because they are still on lists.",
     "bulkListsArchivedSkipped": "{{count}} archived articles were not added.",
+    "inventoryStatistics": {
+      "title": "Inventory statistics",
+      "description": "Overview of active and archived products.",
+      "overview": "Overview",
+      "total": "Active products",
+      "archived": "Archived"
+    },
     "statistics": {
       "title": "Garment statistics",
       "description": "Overview of lists, inventory, and assignments.",

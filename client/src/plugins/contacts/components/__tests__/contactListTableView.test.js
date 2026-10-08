@@ -9,6 +9,15 @@ const quickContextActionsSrc = fs.readFileSync(
 );
 
 describe('ContactList table view wiring', () => {
+  test('desktop aside wires statistics KPIs to list filters', () => {
+    const statsSrc = fs.readFileSync(path.join(__dirname, '../ContactsStatisticsView.tsx'), 'utf8');
+    expect(listSrc).toMatch(/ContactsStatisticsView/);
+    expect(listSrc).toMatch(/onSelectFilter/);
+    expect(listSrc).toMatch(/handleStatKpiListFilterSelect/);
+    expect(statsSrc).toMatch(/onSelectFilter/);
+    expect(statsSrc).toMatch(/isStatKpiListFilterPressed/);
+  });
+
   test('list supports table view with mail-style thin toolbar', () => {
     expect(listSrc).toMatch(/ContactListTable/);
     expect(listSrc).not.toMatch(/ListColumnLayoutToggle/);

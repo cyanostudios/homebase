@@ -12,12 +12,14 @@ import {
   readSettingsReturnPath,
   rememberSettingsReturnPath,
 } from '@/core/routing/settingsReturnTo';
+import { hasDefaultTextsPlugins } from '@/core/settings/defaultTextsPluginGate';
 import type { SettingsCategory as SettingsCategoryType } from '@/core/settings/types';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 
 import { useSettingsContext } from '../context/SettingsContext';
 
@@ -28,10 +30,12 @@ export function SettingsList() {
   const navigate = useNavigate();
   const location = useLocation();
   const { submitSave, isSaving, hasChanges } = useSettingsContext();
+  const enabledPlugins = useEnabledPlugins();
+  const showDefaultTexts = hasDefaultTextsPlugins(enabledPlugins);
   const returnToRef = useRef<string | null>(null);
 
-  const categories: PluginSettingsCategory[] = useMemo(
-    () => [
+  const categories: PluginSettingsCategory[] = useMemo(() => {
+    const next: PluginSettingsCategory[] = [
       {
         id: 'preferences',
         label: t('preferences.title', { defaultValue: 'Preferences' }),
@@ -48,14 +52,30 @@ export function SettingsList() {
         }),
         icon: Building2,
       },
-      {
+    ];
+
+    if (showDefaultTexts) {
+      const hasInvoices = enabledPlugins.has('invoices');
+      const hasEstimates = enabledPlugins.has('estimates');
+      let descriptionKey = 'defaultTexts.description';
+      let descriptionDefault = 'Default messages for invoice and estimate emails';
+      if (hasInvoices && !hasEstimates) {
+        descriptionKey = 'defaultTexts.descriptionInvoiceOnly';
+        descriptionDefault = 'Default messages for invoice emails';
+      } else if (!hasInvoices && hasEstimates) {
+        descriptionKey = 'defaultTexts.descriptionEstimateOnly';
+        descriptionDefault = 'Default messages for estimate emails';
+      }
+
+      next.push({
         id: 'default-texts',
         label: t('defaultTexts.title', { defaultValue: 'Default texts' }),
-        description: t('defaultTexts.description', {
-          defaultValue: 'Default messages for invoice and estimate emails',
-        }),
+        description: t(descriptionKey, { defaultValue: descriptionDefault }),
         icon: FileText,
-      },
+      });
+    }
+
+    next.push(
       {
         id: 'team',
         label: t('team.title', { defaultValue: 'Team' }),
@@ -72,11 +92,18 @@ export function SettingsList() {
         }),
         icon: History,
       },
-    ],
-    [t],
-  );
+    );
+
+    return next;
+  }, [t, showDefaultTexts, enabledPlugins]);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('preferences');
+
+  useEffect(() => {
+    if (selectedCategory === 'default-texts' && !showDefaultTexts) {
+      setSelectedCategory('preferences');
+    }
+  }, [selectedCategory, showDefaultTexts]);
 
   const isReadOnlyCategory = selectedCategory === 'activity-log';
   const usesOwnCards =

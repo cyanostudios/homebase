@@ -29,6 +29,7 @@ import {
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import {
   DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_AND_SORT_ROW_CLASS,
@@ -40,14 +41,14 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
-import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
+import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
-import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
@@ -67,11 +68,11 @@ import {
   type AIProviderSortOrder,
 } from '../utils/aiProvidersListSort';
 
-import { AIProviderView } from './AIProviderView';
 import { AIProvidersListTable } from './AIProvidersListTable';
 import { AIProvidersRouting } from './AIProvidersRouting';
 import { AIProvidersSettingsForm } from './AIProvidersSettingsForm';
 import { AIProvidersStatisticsView } from './AIProvidersStatisticsView';
+import { AIProviderView } from './AIProviderView';
 
 const AI_PROVIDERS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.ai-providers.toolbar.filtersVisible';
 
@@ -694,7 +695,12 @@ export const AIProvidersList: React.FC = () => {
                   <AIProviderView aiProvider={detailProvider} stacked />
                 ) : (
                   <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
-                    <AIProvidersStatisticsView />
+                    <AIProvidersStatisticsView
+                      activeFilters={activeFilters}
+                      onSelectFilter={(filter) =>
+                        handleStatKpiListFilterSelect(filter, setFiltersVisible, setActiveFilters)
+                      }
+                    />
                   </Card>
                 )}
               </aside>

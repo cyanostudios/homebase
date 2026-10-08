@@ -4,14 +4,24 @@ import { useTranslation } from 'react-i18next';
 
 import { StatKpiTile } from '@/core/ui/charts/StatCharts';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
 
 import { useMail } from '../hooks/useMail';
+import type { MailProvidersListFilterSelection } from '../utils/mailProvidersListFilter';
 
 const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
 const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
-export function MailProvidersStatisticsView() {
+export type MailProvidersStatisticsFilter = 'total' | 'enabled' | 'disabled' | 'configured';
+
+export function MailProvidersStatisticsView({
+  activeFilters = [],
+  onSelectFilter,
+}: {
+  activeFilters?: MailProvidersListFilterSelection;
+  onSelectFilter?: (filter: MailProvidersStatisticsFilter) => void;
+} = {}) {
   const { t } = useTranslation();
   const { providers } = useMail();
 
@@ -23,6 +33,18 @@ export function MailProvidersStatisticsView() {
       configured: providers.filter((provider) => provider.configured).length,
     }),
     [providers],
+  );
+
+  const tile = (filter: MailProvidersStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
   );
 
   return (
@@ -44,34 +66,14 @@ export function MailProvidersStatisticsView() {
         subtleTitle
       >
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4">
-          <StatKpiTile
-            label={t('mail.total', { defaultValue: 'Total' })}
-            value={stats.total}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('mail.statusEnabled', { defaultValue: 'Enabled' })}
-            value={stats.enabled}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('mail.statusDisabled', { defaultValue: 'Disabled' })}
-            value={stats.disabled}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('mail.keyConfigured', { defaultValue: 'Configured' })}
-            value={stats.configured}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
+          {tile('total', t('mail.total', { defaultValue: 'Total' }), stats.total)}
+          {tile('enabled', t('mail.statusEnabled', { defaultValue: 'Enabled' }), stats.enabled)}
+          {tile('disabled', t('mail.statusDisabled', { defaultValue: 'Disabled' }), stats.disabled)}
+          {tile(
+            'configured',
+            t('mail.keyConfigured', { defaultValue: 'Configured' }),
+            stats.configured,
+          )}
         </div>
       </DetailSection>
     </div>

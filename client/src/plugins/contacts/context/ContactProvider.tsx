@@ -36,7 +36,7 @@ import {
 } from '../utils/contactTagsDraft';
 import { buildContactAssignableSavePayload } from '../utils/contactAssignableSave';
 import { buildContactPersonsInvoiceReferenceSavePayload } from '../utils/contactInvoiceReference';
-import { normalizeContactType } from '../utils/normalizeContactType';
+import { mapContactImportRow } from '../utils/mapContactImportRow';
 
 import { ContactContext } from './ContactContext';
 import type { ContactContextType } from './ContactContext';
@@ -903,13 +903,7 @@ export function ContactProvider({
       let failureCount = 0;
       for (const row of data) {
         try {
-          const payload = {
-            companyName: row.companyName ?? row.name ?? '',
-            contactType: normalizeContactType(row.contactType ?? row.type),
-            email: row.email ?? '',
-            phone: row.phone ?? '',
-            notes: row.notes ?? '',
-          };
+          const payload = mapContactImportRow(row);
           await contactsApi.createContact(payload);
           successCount++;
         } catch (error) {

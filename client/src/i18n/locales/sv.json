@@ -204,6 +204,8 @@
   "defaultTexts": {
     "title": "Standardtexter",
     "description": "Standardmeddelanden för faktura- och offertmejl",
+    "descriptionInvoiceOnly": "Standardmeddelanden för fakturamejl",
+    "descriptionEstimateOnly": "Standardmeddelanden för offertmejl",
     "hint": "Dessa texter fylls i i mejldialogen när du skickar en faktura eller offert. Du kan ändra eller radera dem innan du skickar.",
     "invoiceMail": "Standardtext för fakturamejl",
     "estimateMail": "Standardtext för offertmejl",
@@ -1981,6 +1983,15 @@
         "emptyHint": "Välj en rad för att förhandsgranska detaljer här.",
         "decreaseQuantity": "Minska antal",
         "increaseQuantity": "Öka antal"
+      },
+      "statistics": {
+        "title": "Lagerstatistik",
+        "description": "Översikt av aktiva, publicerade, utkast och arkiverade produkter.",
+        "overview": "Översikt",
+        "total": "Aktiva produkter",
+        "published": "Publicerade",
+        "draft": "Utkast",
+        "archived": "Arkiverade"
       },
       "searchPlaceholder": "Sök bland {{count}} produkter…",
       "noMatch": "Inga träffar",
@@ -4051,6 +4062,13 @@
     "sortDesc": "Fallande",
     "collapseToolbar": "Dölj verktygsfält",
     "expandToolbar": "Visa verktygsfält",
+    "inventoryStatistics": {
+      "title": "Lagerstatistik",
+      "description": "Översikt av aktiva och arkiverade produkter.",
+      "overview": "Översikt",
+      "total": "Aktiva produkter",
+      "archived": "Arkiverade"
+    },
     "statistics": {
       "title": "Klädstatistik",
       "description": "Översikt av listor, inventarie och tilldelningar.",

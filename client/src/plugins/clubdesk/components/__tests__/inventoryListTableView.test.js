@@ -49,6 +49,25 @@ describe('Clubdesk InventoryList table view wiring', () => {
     expect(listSrc).toMatch(/onSettings/);
   });
 
+  test('desktop aside shows inventory statistics when no selection', () => {
+    const statsSrc = fs.readFileSync(
+      path.join(__dirname, '../InventoryStatisticsView.tsx'),
+      'utf8',
+    );
+    expect(listSrc).toMatch(/ClubdeskInventoryStatisticsView/);
+    expect(listSrc).toMatch(
+      /DETAIL_VIEW_CARD_CLASS[\s\S]*ClubdeskInventoryStatisticsView|Card[\s\S]*DETAIL_VIEW_CARD_CLASS[\s\S]*ClubdeskInventoryStatisticsView/,
+    );
+    expect(listSrc).toMatch(/onSelectFilter/);
+    expect(listSrc).toMatch(/setActiveFilters\(\['published'\]\)|setActiveFilters\(\[filter\]\)/);
+    expect(statsSrc).toMatch(/clubdesk\.inventory\.statistics\.title/);
+    expect(statsSrc).toMatch(/isInventoryItemArchived/);
+    expect(statsSrc).toMatch(/grid-cols-2/);
+    expect(statsSrc).toMatch(/STAT_KPI_SOFT_CLASS/);
+    expect(statsSrc).toMatch(/onSelectFilter/);
+    expect(statsSrc).not.toMatch(/space-y-6 p-4/);
+  });
+
   test('inventory tags settings key is allowlisted clubdesk category', () => {
     const keySrc = fs.readFileSync(
       path.join(__dirname, '../../utils/clubdeskInventorySettingsKey.ts'),

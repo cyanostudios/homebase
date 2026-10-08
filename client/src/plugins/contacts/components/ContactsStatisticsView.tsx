@@ -12,8 +12,10 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
 
 import { useContacts } from '../hooks/useContacts';
+import type { ContactListFilterSelection } from '../utils/contactListFilter';
 
 const TYPE_CHART_COLORS = {
   company: '#0ea5e9',
@@ -24,11 +26,25 @@ const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
 const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
+export type ContactsStatisticsFilter =
+  | 'total'
+  | 'company'
+  | 'private'
+  | 'withTags'
+  | 'timeLogged'
+  | 'assignable';
+
 interface ContactsStatisticsViewProps {
   onClose?: () => void;
+  activeFilters?: ContactListFilterSelection;
+  onSelectFilter?: (filter: ContactsStatisticsFilter) => void;
 }
 
-export function ContactsStatisticsView({ onClose }: ContactsStatisticsViewProps = {}) {
+export function ContactsStatisticsView({
+  onClose,
+  activeFilters = [],
+  onSelectFilter,
+}: ContactsStatisticsViewProps = {}) {
   const { t } = useTranslation();
   const { contacts, contactIdsWithTimeEntries } = useContacts();
 
@@ -66,6 +82,18 @@ export function ContactsStatisticsView({ onClose }: ContactsStatisticsViewProps 
     [stats.companies, stats.private, t],
   );
 
+  const tile = (filter: ContactsStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
+  );
+
   return (
     <div className="space-y-6">
       <div className={PLUGIN_PAGE_HEADER_CLASS}>
@@ -100,48 +128,16 @@ export function ContactsStatisticsView({ onClose }: ContactsStatisticsViewProps 
         subtleTitle
       >
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-          <StatKpiTile
-            label={t('contacts.stats.total')}
-            value={stats.total}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('contacts.stats.companies')}
-            value={stats.companies}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('contacts.stats.private')}
-            value={stats.private}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('contacts.stats.withTags')}
-            value={stats.withTags}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('contacts.stats.timeLogged')}
-            value={stats.timeLogged}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('contacts.assignableYes', { defaultValue: 'Assignable' })}
-            value={stats.assignable}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
+          {tile('total', t('contacts.stats.total'), stats.total)}
+          {tile('company', t('contacts.stats.companies'), stats.companies)}
+          {tile('private', t('contacts.stats.private'), stats.private)}
+          {tile('withTags', t('contacts.stats.withTags'), stats.withTags)}
+          {tile('timeLogged', t('contacts.stats.timeLogged'), stats.timeLogged)}
+          {tile(
+            'assignable',
+            t('contacts.assignableYes', { defaultValue: 'Assignable' }),
+            stats.assignable,
+          )}
         </div>
       </DetailSection>
 

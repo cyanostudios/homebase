@@ -20,6 +20,9 @@ describe('Matches statistics content view wiring', () => {
     expect(contextSrc).toMatch(/closeMatchStatisticsView/);
 
     expect(providerSrc).toMatch(/setMatchesContentView\('statistics'\)/);
+    expect(listSrc).toMatch(/onSelectFilter/);
+    expect(listSrc).toMatch(/handleStatKpiListFilterSelect/);
+    expect(statsSrc).toMatch(/onSelectFilter/);
     expect(statsSrc).toMatch(/matches\.statistics\.title/);
     expect(statsSrc).toMatch(/MatchSeriesStats/);
     expect(statsSrc).toMatch(/tabSeries|matches\.series\.tabSeries/);

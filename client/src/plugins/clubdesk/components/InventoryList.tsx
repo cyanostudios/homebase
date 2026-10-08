@@ -86,6 +86,7 @@ import {
 import { InventoryBulkStatusDialog } from './InventoryBulkStatusDialog';
 import { InventoryForm } from './InventoryForm';
 import { InventoryListTable } from './InventoryListTable';
+import { ClubdeskInventoryStatisticsView } from './InventoryStatisticsView';
 import { InventoryView } from './InventoryView';
 
 type InventoryContentView = 'list' | 'settings';
@@ -939,12 +940,25 @@ export const InventoryList: React.FC = () => {
                   <InventoryView inventory={detailInventory} stacked />
                 ) : (
                   <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'p-4 md:p-6')}>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {t('clubdesk.inventory.quickContext.emptyTitle')}
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {t('clubdesk.inventory.quickContext.emptyHint')}
-                    </p>
+                    <ClubdeskInventoryStatisticsView
+                      activeFilters={activeFilters}
+                      showArchivedOnly={showArchivedOnly}
+                      onSelectFilter={(filter) => {
+                        setFiltersVisible(true);
+                        if (filter === 'total') {
+                          setActiveFilters([]);
+                          setShowArchivedOnly(false);
+                          return;
+                        }
+                        if (filter === 'archived') {
+                          setActiveFilters([]);
+                          setShowArchivedOnly(true);
+                          return;
+                        }
+                        setShowArchivedOnly(false);
+                        setActiveFilters([filter]);
+                      }}
+                    />
                   </Card>
                 )}
               </aside>

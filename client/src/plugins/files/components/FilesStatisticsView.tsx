@@ -10,9 +10,15 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
 
 import { useFiles } from '../hooks/useFiles';
-import { fileHasSize, fileIsImage, fileIsUpdatedWithinDays } from '../utils/fileListFilter';
+import {
+  fileHasSize,
+  fileIsImage,
+  fileIsUpdatedWithinDays,
+  type FileListFilterSelection,
+} from '../utils/fileListFilter';
 
 const MIME_CHART_COLORS = {
   images: '#0ea5e9',
@@ -23,11 +29,19 @@ const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
 const STAT_KPI_SOFT_VALUE_CLASS = 'text-sky-800 dark:text-sky-200';
 
+export type FilesStatisticsFilter = 'total' | 'images' | 'withSize' | 'updated7d';
+
 interface FilesStatisticsViewProps {
   onClose?: () => void;
+  activeFilters?: FileListFilterSelection;
+  onSelectFilter?: (filter: FilesStatisticsFilter) => void;
 }
 
-export function FilesStatisticsView({ onClose }: FilesStatisticsViewProps = {}) {
+export function FilesStatisticsView({
+  onClose,
+  activeFilters = [],
+  onSelectFilter,
+}: FilesStatisticsViewProps = {}) {
   const { t } = useTranslation();
   const { files } = useFiles();
 
@@ -61,6 +75,18 @@ export function FilesStatisticsView({ onClose }: FilesStatisticsViewProps = {}) 
     ].filter((segment) => segment.value > 0);
   }, [stats.total, stats.images, t]);
 
+  const tile = (filter: FilesStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
+  );
+
   return (
     <div className="space-y-6">
       <div className={PLUGIN_PAGE_HEADER_CLASS}>
@@ -83,34 +109,10 @@ export function FilesStatisticsView({ onClose }: FilesStatisticsViewProps = {}) 
         subtleTitle
       >
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4">
-          <StatKpiTile
-            label={t('files.filterTotal')}
-            value={stats.total}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('files.filterImages')}
-            value={stats.images}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('files.filterWithSize')}
-            value={stats.withSize}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('files.filterUpdated7d')}
-            value={stats.updated7d}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
+          {tile('total', t('files.filterTotal'), stats.total)}
+          {tile('images', t('files.filterImages'), stats.images)}
+          {tile('withSize', t('files.filterWithSize'), stats.withSize)}
+          {tile('updated7d', t('files.filterUpdated7d'), stats.updated7d)}
         </div>
       </DetailSection>
 

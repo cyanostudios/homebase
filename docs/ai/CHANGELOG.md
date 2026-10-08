@@ -2,6 +2,26 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Contacts tabular import field coverage (2026-10-08)
+
+Verifierad mot QA + Security Godkänt: utökad `getContactImportSchema` (Fortnox-vänliga SV/EN-alias), `mapContactImportRow` → full `createContact`-payload, kundnummer utanför schema, tom Type + personnummer-heuristik → private, rad-för-rad `POST /api/contacts`. ADR `TABULAR_IMPORT_EXPORT.md` § Contacts adapter; produkt-CHANGELOG 2026-10-08; `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §5 referens. v1-gränser oförändrade (create-only; 5 MB / 2000 rader).
+
+## Garments inventory KPI → filter docs (2026-10-02)
+
+Verifierad mot QA Godkänt: inventory empty aside `GarmentsInventoryStatisticsView` (Active/Archived → All/Archived chips; tag cleared; set-not-toggle). Lists mode behåller `GarmentsStatisticsView`. Supersedes “Garments statistics unchanged” under Clubdesk inventory statistics aside (2026-10-01). Produkt-CHANGELOG + `GARMENTS_PLUGIN.md` uppdaterade. Ingen publicationStatus i Garments.
+
+## Default texts plugin gate docs (2026-10-02)
+
+Verifierad mot QA-godkänd UI-gate: Core Settings → Default texts endast när tenant har `invoices` och/eller `estimates`. Produkt-CHANGELOG + `UI_AND_UX_STANDARDS_V3.md` + `INVOICES_PLUGIN.md` / `ESTIMATES_PLUGIN.md` speglar synlighet, partiell save och begränsningen att API fortfarande accepterar båda nycklar.
+
+## Statistics KPI → list filter links (2026-10-01)
+
+Cross-plugin pattern (Clubdesk inventory reference): `activeFilters` + `onSelectFilter` on statistics views; lists call `handleStatKpiListFilterSelect` from `client/src/core/ui/statKpiListFilterLink.ts`. KPI click sets `[filter]` or clears on total; `setFiltersVisible(true)` when lists use persisted filter chips. Tiles without matching chips remain non-clickable (e.g. Requests unlinked/external, Ingest inactive/types). Garments inventory later added Active/Archived KPI links (2026-10-02) — see entry above; the original “Garments out of scope” note is historical for that pass only.
+
+## Clubdesk inventory statistics aside (2026-10-01)
+
+Desktop inventory list empty aside: `ClubdeskInventoryStatisticsView` with soft-sky KPI tiles (total active, published, draft, archived) computed client-side from `inventoryItems`. i18n under `clubdesk.inventory.statistics`. **Superseded for Garments:** inventory mode now uses `GarmentsInventoryStatisticsView` (Active/Archived only) — 2026-10-02.
+
 ## Public price list compact type (2026-09-30)
 
 Public price list/cart: category H2 and row titles at `--fs-sm` (category weight 700); tighter section gap (~1.25rem) and row padding. Inventory shared title scale unchanged. Supersedes the larger `--fs-xl` category heading pass earlier the same day.

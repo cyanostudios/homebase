@@ -10,9 +10,10 @@ import {
   PLUGIN_PAGE_TITLE_CLASS,
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
+import { isStatKpiListFilterPressed } from '@/core/ui/statKpiListFilterLink';
 
 import { useTasks } from '../hooks/useTasks';
-import { taskIsOpen, taskIsOverdue } from '../utils/taskListFilter';
+import { taskIsOpen, taskIsOverdue, type TaskListFilterSelection } from '../utils/taskListFilter';
 
 const STAT_KPI_SOFT_CLASS = 'bg-sky-50 shadow-none dark:bg-sky-950/40';
 const STAT_KPI_SOFT_LABEL_CLASS = 'text-sky-600/70 dark:text-sky-400/70';
@@ -24,11 +25,19 @@ const WORKLOAD_CHART_COLORS = {
   overdue: '#f43f5e',
 } as const;
 
+export type TasksStatisticsFilter = 'total' | 'open' | 'completed' | 'overdue';
+
 interface TasksStatisticsViewProps {
   onClose?: () => void;
+  activeFilters?: TaskListFilterSelection;
+  onSelectFilter?: (filter: TasksStatisticsFilter) => void;
 }
 
-export function TasksStatisticsView({ onClose }: TasksStatisticsViewProps = {}) {
+export function TasksStatisticsView({
+  onClose,
+  activeFilters = [],
+  onSelectFilter,
+}: TasksStatisticsViewProps = {}) {
   const { t } = useTranslation();
   const { tasks } = useTasks();
 
@@ -69,6 +78,18 @@ export function TasksStatisticsView({ onClose }: TasksStatisticsViewProps = {}) 
     [stats.completed, stats.open, stats.overdue, t],
   );
 
+  const tile = (filter: TasksStatisticsFilter, label: string, value: number) => (
+    <StatKpiTile
+      label={label}
+      value={value}
+      className={STAT_KPI_SOFT_CLASS}
+      labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
+      valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
+      pressed={isStatKpiListFilterPressed(activeFilters, filter)}
+      onClick={onSelectFilter ? () => onSelectFilter(filter) : undefined}
+    />
+  );
+
   return (
     <div className="space-y-6">
       <div className={PLUGIN_PAGE_HEADER_CLASS}>
@@ -91,34 +112,10 @@ export function TasksStatisticsView({ onClose }: TasksStatisticsViewProps = {}) 
         subtleTitle
       >
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-          <StatKpiTile
-            label={t('tasks.filter.total')}
-            value={stats.total}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('tasks.filter.open')}
-            value={stats.open}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('tasks.filter.completed')}
-            value={stats.completed}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
-          <StatKpiTile
-            label={t('tasks.filter.overdue')}
-            value={stats.overdue}
-            className={STAT_KPI_SOFT_CLASS}
-            labelClassName={STAT_KPI_SOFT_LABEL_CLASS}
-            valueClassName={STAT_KPI_SOFT_VALUE_CLASS}
-          />
+          {tile('total', t('tasks.filter.total'), stats.total)}
+          {tile('open', t('tasks.filter.open'), stats.open)}
+          {tile('completed', t('tasks.filter.completed'), stats.completed)}
+          {tile('overdue', t('tasks.filter.overdue'), stats.overdue)}
         </div>
       </DetailSection>
 
