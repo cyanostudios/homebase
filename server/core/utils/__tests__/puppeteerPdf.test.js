@@ -9,6 +9,16 @@ describe('pdfGenerationHttpError', () => {
     expect(mapped.error).toMatch(/puppeteer:install-chrome/);
   });
 
+  test('maps missing executablePath browser to 503', () => {
+    const mapped = pdfGenerationHttpError(
+      new Error(
+        'Browser was not found at the configured executablePath (/app/.cache/puppeteer/chrome/linux-138/chrome)',
+      ),
+    );
+    expect(mapped.status).toBe(503);
+    expect(mapped.error).toMatch(/puppeteer:install-chrome/);
+  });
+
   test('maps other failures to generic 500', () => {
     expect(pdfGenerationHttpError(new Error('timeout'))).toEqual({
       status: 500,

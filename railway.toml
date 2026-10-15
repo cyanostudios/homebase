@@ -4,7 +4,8 @@
 [build]
 builder = "nixpacks"
 # Install phase already runs npm ci (see nixpacks.toml). Second npm ci causes EBUSY on node_modules/.cache.
-buildCommand = "npm run build"
+# Install Chrome for Testing into .cache/puppeteer (PUPPETEER_SKIP_DOWNLOAD skips npm postinstall only).
+buildCommand = "npm run puppeteer:install-chrome && npm run build"
 
 [deploy]
 startCommand = "npm start"
