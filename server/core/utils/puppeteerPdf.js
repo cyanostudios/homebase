@@ -27,7 +27,11 @@ async function launchPdfBrowser() {
  */
 function pdfGenerationHttpError(error) {
   const msg = String((error && /** @type {{ message?: string }} */ (error).message) || '');
-  if (/Could not find Chrome|Failed to launch the browser|Chrome for Testing/i.test(msg)) {
+  if (
+    /Could not find Chrome|Browser was not found|Failed to launch the browser|Chrome for Testing/i.test(
+      msg,
+    )
+  ) {
     return {
       status: 503,
       error:
