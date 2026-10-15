@@ -15,7 +15,7 @@ export interface InvoiceLineItem {
   /** `item` = priced row; `text` = free-text note row (no qty/price). */
   kind?: 'item' | 'text';
   quantity: number;
-  /** Display unit next to qty (e.g. piece, hour, day, week). */
+  /** Display unit next to qty (e.g. piece, hour, day, week, month). */
   unit?: string;
   unitPrice: number;
   discount: number; // percent 0–100
@@ -30,7 +30,7 @@ export interface InvoiceLineItem {
   sortOrder: number;
 }
 
-export const INVOICE_LINE_ITEM_UNITS = ['piece', 'hour', 'day', 'week'] as const;
+export const INVOICE_LINE_ITEM_UNITS = ['piece', 'hour', 'day', 'week', 'month'] as const;
 export type InvoiceLineItemUnit = (typeof INVOICE_LINE_ITEM_UNITS)[number];
 /** Empty unit is allowed; UI shows "-" for blank. */
 export const DEFAULT_INVOICE_LINE_ITEM_UNIT = '';

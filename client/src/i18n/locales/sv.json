@@ -1079,6 +1079,7 @@
     "subtotalAfterLineDiscounts": "Delsumma efter radrabatter",
     "subtotalAfterInvoiceDiscount": "Delsumma efter fakturarabatt",
     "totalVat": "Moms totalt",
+    "oreRounding": "Öresutjämning",
     "totalAmount": "Totalt",
     "deleteLineItemTitle": "Ta bort rad?",
     "deleteLineItemMessage": "Den här raden har innehåll. Är du säker på att du vill ta bort den?",
@@ -1205,10 +1206,11 @@
     },
     "units": {
       "empty": "-",
-      "piece": "Piece",
-      "hour": "Hour",
-      "day": "Day",
-      "week": "Week"
+      "piece": "Styck",
+      "hour": "Timme",
+      "day": "Dag",
+      "week": "Vecka",
+      "month": "Månad"
     }
   },
   "shareDialog": {

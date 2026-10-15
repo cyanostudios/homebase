@@ -86,11 +86,24 @@ function resolveVatLabel(lineItems: any[], _totalVat: number) {
   return 'Moms (25%)';
 }
 
+/** Known line-item unit keys → Swedish labels (Facio docs are SV). */
+const ESTIMATE_UNIT_LABELS_SV: Record<string, string> = {
+  piece: 'Styck',
+  hour: 'Timme',
+  day: 'Dag',
+  week: 'Vecka',
+  month: 'Månad',
+};
+
+function formatUnitLabel(unit: string): string {
+  return ESTIMATE_UNIT_LABELS_SV[unit] || unit;
+}
+
 function formatQty(li: any): string {
   const q = Number(li.quantity || 0);
   const unit = String(li.unit || li.unitLabel || '').trim();
   const qtyStr = formatSvNumber(q, 0, 2);
-  return unit ? `${qtyStr} ${escapeHtml(unit)}` : qtyStr;
+  return unit ? `${qtyStr} ${escapeHtml(formatUnitLabel(unit))}` : qtyStr;
 }
 
 /** Same Facio CSS as plugins/estimates/pdfTemplate.js / invoices webTemplate. */
@@ -106,6 +119,7 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
         max-width: none;
         width: 100%;
         border: 1px solid #cbd5e1;
+        padding-top: 16mm;
         padding-left: 12mm;
         padding-right: 12mm;
         min-height: 0;
@@ -132,14 +146,14 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
         color: #111827;
         margin: 0;
         padding: 0;
-        font-size: 12px;
+        font-size: 10px;
         line-height: 1.45;
         background: #f1f5f9;
       }
       .page {
         max-width: 720px;
         margin: 24px auto;
-        padding: 8mm 12mm;
+        padding: 16mm 12mm;
         background: #fff;
         box-shadow: 0 0 40px rgba(15, 23, 42, 0.06);
         /* Match PDF: fill first A4 content box so footer sticks to bottom when short. */
@@ -216,7 +230,8 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
       }
       .top {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        /* Wider left column so customer values can breathe; invoice block sits right. */
+        grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
         grid-template-rows: auto auto;
         column-gap: 32px;
         row-gap: 16px;
@@ -229,12 +244,17 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
       .top-right-meta { grid-column: 2; grid-row: 2; }
       .issuer-lines {
         color: #334155;
-        font-size: 12px;
+        font-size: 10px;
       }
       .issuer-lines p { margin: 1px 0; }
       .summary {
         text-align: left;
+        max-width: none;
+      }
+      .top-payment .summary,
+      .top-right-meta .summary {
         max-width: 220px;
+        margin-left: auto;
       }
       .summary .row {
         display: flex;
@@ -257,14 +277,14 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
         flex-shrink: 0;
       }
       .summary .lbl {
-        font-size: 12px;
+        font-size: 10px;
         color: #64748b;
         flex-shrink: 0;
       }
       .summary .lbl::after { content: ':'; }
       .summary .val,
       .summary .amount {
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 700;
         color: #0f172a;
         text-align: right;
@@ -300,7 +320,7 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
         grid-template-columns: 1fr 1fr;
         gap: 8px 40px;
         padding: 14px 0;
-        font-size: 12px;
+        font-size: 10px;
       }
       .meta .pair { display: flex; gap: 6px; flex-wrap: wrap; }
       .meta .k { color: #64748b; }
@@ -313,7 +333,7 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
       }
       .items th {
         text-align: left;
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 700;
         color: #0f172a;
         padding: 8px 6px 10px 0;
@@ -349,7 +369,7 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
       .notes-block table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 12px;
+        font-size: 10px;
       }
       .notes-block td {
         padding: 4px 0;
@@ -365,7 +385,7 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
       .totals {
         width: 260px;
         border-collapse: collapse;
-        font-size: 12px;
+        font-size: 10px;
         margin: 0 0 0 auto;
         padding: 0;
         flex-shrink: 0;
@@ -381,7 +401,7 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
       .totals .grand td {
         padding-top: 10px;
         font-weight: 800;
-        font-size: 14px;
+        font-size: 12px;
         color: #0f172a;
       }
       .footer {
@@ -420,7 +440,7 @@ function facioDocumentStyles(options: { forceDesktop?: boolean } = {}): string {
         color: #fff;
         text-align: center;
         padding: 8px;
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 600;
         margin-bottom: 16px;
         border-radius: 6px;

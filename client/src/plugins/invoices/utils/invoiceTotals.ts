@@ -20,6 +20,8 @@ export type InvoiceTotals = {
   invoiceDiscountAmount: number;
   subtotalAfterInvoiceDiscount: number;
   totalVat: number;
+  /** Adjustment so `total` is a whole krona (öresutjämning). Positive increases amount due. */
+  oreRounding: number;
   total: number;
 };
 
@@ -33,6 +35,7 @@ export type InvoiceTotalsSource = {
   invoiceDiscountAmount?: number | null;
   subtotalAfterInvoiceDiscount?: number | null;
   totalVat?: number | null;
+  oreRounding?: number | null;
   total?: number | null;
 };
 
@@ -55,6 +58,7 @@ export function applyCreditNoteTotalsSign(
     invoiceDiscountAmount: -Math.abs(totals.invoiceDiscountAmount),
     subtotalAfterInvoiceDiscount: -Math.abs(totals.subtotalAfterInvoiceDiscount),
     totalVat: -Math.abs(totals.totalVat),
+    oreRounding: -totals.oreRounding,
     total: -Math.abs(totals.total),
   };
 }
@@ -74,6 +78,7 @@ export function calculateInvoiceTotals(
       invoiceDiscountAmount: 0,
       subtotalAfterInvoiceDiscount: 0,
       totalVat: 0,
+      oreRounding: 0,
       total: 0,
     };
   }
@@ -103,7 +108,10 @@ export function calculateInvoiceTotals(
     }
   });
 
-  const total = subtotalAfterInvoiceDiscount + totalVat;
+  const exactTotal = Math.round((subtotalAfterInvoiceDiscount + totalVat) * 100) / 100;
+  // Öresutjämning: amount due is a whole krona; difference is shown as its own line.
+  const roundedTotal = Math.round(exactTotal);
+  const oreRounding = Math.round((roundedTotal - exactTotal) * 100) / 100;
 
   return {
     subtotal: Math.round(subtotal * 100) / 100,
@@ -112,7 +120,8 @@ export function calculateInvoiceTotals(
     invoiceDiscountAmount: Math.round(invoiceDiscountAmount * 100) / 100,
     subtotalAfterInvoiceDiscount: Math.round(subtotalAfterInvoiceDiscount * 100) / 100,
     totalVat: Math.round(totalVat * 100) / 100,
-    total: Math.round(total * 100) / 100,
+    oreRounding,
+    total: roundedTotal,
   };
 }
 
@@ -134,6 +143,7 @@ export function resolveInvoiceTotals(source: InvoiceTotalsSource): InvoiceTotals
               0,
           ),
           totalVat: Number(source?.totalVat || 0),
+          oreRounding: Number(source?.oreRounding || 0),
           total: Number(source?.total || 0),
         };
   return applyCreditNoteTotalsSign(unsigned, source?.invoiceType);
