@@ -114,11 +114,24 @@ function formatDisc(li) {
   return `${formatSvNumber(d, { minFrac: 0, maxFrac: 2 })}%`;
 }
 
+/** Known line-item unit keys → Swedish labels (Facio docs are SV). */
+const INVOICE_UNIT_LABELS_SV = {
+  piece: 'Styck',
+  hour: 'Timme',
+  day: 'Dag',
+  week: 'Vecka',
+  month: 'Månad',
+};
+
+function formatUnitLabel(unit) {
+  return INVOICE_UNIT_LABELS_SV[unit] || unit;
+}
+
 function formatQty(li) {
   const q = Number(li.quantity || 0);
   const unit = String(li.unit || li.unitLabel || '').trim();
   const qtyStr = formatSvNumber(q, { minFrac: 0, maxFrac: 2 });
-  return unit ? `${qtyStr} ${escapeHtml(unit)}` : qtyStr;
+  return unit ? `${qtyStr} ${escapeHtml(formatUnitLabel(unit))}` : qtyStr;
 }
 
 /**
@@ -133,15 +146,16 @@ function facioDocumentStyles() {
         color: #111827;
         margin: 0;
         padding: 0;
-        font-size: 12px;
+        font-size: 10px;
         line-height: 1.45;
         background: #fff;
       }
       .page {
         max-width: 720px;
         margin: 0 auto;
-        /* Top clearance for repeating page label is in Puppeteer margin. */
-        padding: 2mm 10mm 6mm;
+        /* Top clearance for repeating page label is in Puppeteer margin (14mm). */
+        /* Extra page top padding (~2× previous total top air with the 14mm margin). */
+        padding: 18mm 10mm 6mm;
         /* Fill first A4 content box (297mm − 14mm top − 12mm bottom in puppeteerPdf). */
         min-height: 271mm;
         display: flex;
@@ -205,7 +219,8 @@ function facioDocumentStyles() {
       }
       .top {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        /* Wider left column so customer values can breathe; invoice block sits right. */
+        grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
         grid-template-rows: auto auto;
         column-gap: 32px;
         row-gap: 16px;
@@ -218,12 +233,17 @@ function facioDocumentStyles() {
       .top-right-meta { grid-column: 2; grid-row: 2; }
       .issuer-lines {
         color: #334155;
-        font-size: 12px;
+        font-size: 10px;
       }
       .issuer-lines p { margin: 1px 0; }
       .summary {
         text-align: left;
+        max-width: none;
+      }
+      .top-payment .summary,
+      .top-right-meta .summary {
         max-width: 220px;
+        margin-left: auto;
       }
       .summary .row {
         display: flex;
@@ -246,14 +266,14 @@ function facioDocumentStyles() {
         flex-shrink: 0;
       }
       .summary .lbl {
-        font-size: 12px;
+        font-size: 10px;
         color: #64748b;
         flex-shrink: 0;
       }
       .summary .lbl::after { content: ':'; }
       .summary .val,
       .summary .amount {
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 700;
         color: #0f172a;
         text-align: right;
@@ -289,7 +309,7 @@ function facioDocumentStyles() {
         grid-template-columns: 1fr 1fr;
         gap: 8px 40px;
         padding: 14px 0;
-        font-size: 12px;
+        font-size: 10px;
       }
       .meta .pair { display: flex; gap: 6px; flex-wrap: wrap; }
       .meta .k { color: #64748b; }
@@ -302,7 +322,7 @@ function facioDocumentStyles() {
       }
       .items th {
         text-align: left;
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 700;
         color: #0f172a;
         padding: 8px 6px 10px 0;
@@ -338,7 +358,7 @@ function facioDocumentStyles() {
       .notes-block table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 12px;
+        font-size: 10px;
       }
       .notes-block td {
         padding: 4px 0;
@@ -354,7 +374,7 @@ function facioDocumentStyles() {
       .totals {
         width: 260px;
         border-collapse: collapse;
-        font-size: 12px;
+        font-size: 10px;
         margin: 0 0 0 auto;
         padding: 0;
         flex-shrink: 0;
@@ -370,7 +390,7 @@ function facioDocumentStyles() {
       .totals .grand td {
         padding-top: 10px;
         font-weight: 800;
-        font-size: 14px;
+        font-size: 12px;
         color: #0f172a;
       }
       .footer {
@@ -409,7 +429,7 @@ function facioDocumentStyles() {
         color: #fff;
         text-align: center;
         padding: 8px;
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 600;
         margin-bottom: 16px;
         border-radius: 6px;
@@ -705,6 +725,16 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
             )}</td>
           </tr>
           ${vatBreakdownRows}
+          ${
+            Math.abs(Number(safeTotals.oreRounding || 0)) >= 0.005
+              ? `<tr>
+            <td>Öresutjämning</td>
+            <td class="amount">${
+              Number(safeTotals.oreRounding) > 0 ? '' : '−'
+            }${formatSvNumber(Math.abs(Number(safeTotals.oreRounding)))}</td>
+          </tr>`
+              : ''
+          }
           <tr class="grand">
             <td>Summa att betala</td>
             <td class="amount">${amountDueBold}</td>

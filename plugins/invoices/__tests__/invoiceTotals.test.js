@@ -70,6 +70,34 @@ describe('plugins/invoices/invoiceTotals (canonical)', () => {
     );
     expect(totals.subtotalAfterInvoiceDiscount).toBe(800);
     expect(totals.totalVat).toBe(200);
+    expect(totals.oreRounding).toBe(0);
     expect(totals.total).toBe(1000);
+  });
+
+  it('öresutjämnar totalsumman till hela kronor', () => {
+    const totals = calculateInvoiceTotals(
+      [
+        {
+          quantity: 1,
+          unitPrice: 100,
+          discount: 0,
+          vatRate: 25,
+          lineSubtotal: 100,
+          discountAmount: 0,
+        },
+        {
+          quantity: 1,
+          unitPrice: 50,
+          discount: 0,
+          vatRate: 25,
+          lineSubtotal: 50,
+          discountAmount: 0,
+        },
+      ],
+      0,
+    );
+    expect(totals.totalVat).toBe(37.5);
+    expect(totals.oreRounding).toBe(0.5);
+    expect(totals.total).toBe(188);
   });
 });

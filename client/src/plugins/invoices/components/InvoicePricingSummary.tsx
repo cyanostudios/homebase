@@ -104,6 +104,17 @@ export function InvoicePricingSummary({
           {formatInvoiceMoney(totals.totalVat, currency)}
         </span>
       </div>
+      {Math.abs(totals.oreRounding || 0) >= 0.005 ? (
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground">
+            {t('invoices.oreRounding', { defaultValue: 'Rounding' })}
+          </span>
+          <span className="text-xs font-medium tabular-nums text-foreground">
+            {totals.oreRounding > 0 ? '' : '−'}
+            {formatInvoiceMoney(Math.abs(totals.oreRounding), currency)}
+          </span>
+        </div>
+      ) : null}
       <div className="flex justify-between gap-3 border-t border-border pt-2 text-lg font-semibold">
         <span className="text-foreground">
           {t('invoices.totalAmount', { defaultValue: 'Total' })}

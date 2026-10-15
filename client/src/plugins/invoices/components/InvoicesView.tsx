@@ -603,8 +603,10 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
                     </div>
                     <span className={cn(LINE_ITEM_MUTED_VALUE_CLASS, 'shrink-0')}>
                       {lineItem.quantity || 0}
-                      {lineItem.unit ? ` ${lineItem.unit}` : ''} ×{' '}
-                      {formatInvoiceAmount(lineItem.unitPrice || 0)}
+                      {lineItem.unit
+                        ? ` ${t(`invoices.units.${lineItem.unit}`, { defaultValue: lineItem.unit })}`
+                        : ''}{' '}
+                      × {formatInvoiceAmount(lineItem.unitPrice || 0)}
                       {(lineItem.discount || 0) > 0 ? ` (−${lineItem.discount}%)` : ''}
                     </span>
                     <span className={cn(LINE_ITEM_VALUE_CLASS, 'shrink-0 font-semibold')}>

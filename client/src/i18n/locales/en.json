@@ -1085,6 +1085,7 @@
     "subtotalAfterLineDiscounts": "Subtotal after line discounts",
     "subtotalAfterInvoiceDiscount": "Subtotal after invoice discount",
     "totalVat": "Total VAT",
+    "oreRounding": "Rounding",
     "totalAmount": "Total",
     "deleteLineItemTitle": "Remove line item?",
     "deleteLineItemMessage": "This line item has content. Are you sure you want to remove it?",
@@ -1214,7 +1215,8 @@
       "piece": "Piece",
       "hour": "Hour",
       "day": "Day",
-      "week": "Week"
+      "week": "Week",
+      "month": "Month"
     }
   },
   "shareDialog": {

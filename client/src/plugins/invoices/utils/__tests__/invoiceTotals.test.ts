@@ -39,7 +39,36 @@ describe('invoice totals — single derivation path', () => {
     expect(totals.invoiceDiscountAmount).toBe(140);
     expect(totals.subtotalAfterInvoiceDiscount).toBe(1260);
     expect(totals.totalVat).toBe(315);
+    expect(totals.oreRounding).toBe(0);
     expect(totals.total).toBe(1575);
+  });
+
+  it('öresutjämnar totalsumman till hela kronor', () => {
+    const totals = calculateInvoiceTotals(
+      [
+        calculateInvoiceLineItem({
+          id: '1',
+          description: 'A',
+          quantity: 1,
+          unitPrice: 100,
+          discount: 0,
+          vatRate: 25,
+        }),
+        calculateInvoiceLineItem({
+          id: '2',
+          description: 'B',
+          quantity: 1,
+          unitPrice: 50,
+          discount: 0,
+          vatRate: 25,
+        }),
+      ],
+      0,
+    );
+    // net 150 + vat 37.5 = 187.5 → round to 188
+    expect(totals.totalVat).toBe(37.5);
+    expect(totals.oreRounding).toBe(0.5);
+    expect(totals.total).toBe(188);
   });
 
   it('resolveInvoiceTotals matches calculateInvoiceTotals for invoices with lines', () => {
@@ -109,7 +138,8 @@ describe('invoice totals — single derivation path', () => {
       0,
     );
     expect(totals.totalDiscount).toBe(50);
-    expect(totals.total).toBe(187.5);
+    expect(totals.oreRounding).toBe(0.5);
+    expect(totals.total).toBe(188);
   });
 
   it('ignores text rows', () => {

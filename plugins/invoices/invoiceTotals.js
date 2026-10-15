@@ -21,6 +21,7 @@ function applyCreditNoteTotalsSign(totals, invoiceType) {
     invoiceDiscountAmount: -Math.abs(totals.invoiceDiscountAmount),
     subtotalAfterInvoiceDiscount: -Math.abs(totals.subtotalAfterInvoiceDiscount),
     totalVat: -Math.abs(totals.totalVat),
+    oreRounding: -totals.oreRounding,
     total: -Math.abs(totals.total),
   };
 }
@@ -37,6 +38,7 @@ function calculateInvoiceTotals(lineItems, invoiceDiscount = 0) {
       invoiceDiscountAmount: 0,
       subtotalAfterInvoiceDiscount: 0,
       totalVat: 0,
+      oreRounding: 0,
       total: 0,
     };
   }
@@ -68,7 +70,10 @@ function calculateInvoiceTotals(lineItems, invoiceDiscount = 0) {
     }
   });
 
-  const total = subtotalAfterInvoiceDiscount + totalVat;
+  const exactTotal = Math.round((subtotalAfterInvoiceDiscount + totalVat) * 100) / 100;
+  // Öresutjämning: amount due is a whole krona; difference is shown as its own line.
+  const roundedTotal = Math.round(exactTotal);
+  const oreRounding = Math.round((roundedTotal - exactTotal) * 100) / 100;
 
   return {
     subtotal: Math.round(subtotal * 100) / 100,
@@ -77,7 +82,8 @@ function calculateInvoiceTotals(lineItems, invoiceDiscount = 0) {
     invoiceDiscountAmount: Math.round(invoiceDiscountAmount * 100) / 100,
     subtotalAfterInvoiceDiscount: Math.round(subtotalAfterInvoiceDiscount * 100) / 100,
     totalVat: Math.round(totalVat * 100) / 100,
-    total: Math.round(total * 100) / 100,
+    oreRounding,
+    total: roundedTotal,
   };
 }
 
@@ -103,6 +109,7 @@ function resolveInvoiceTotals(source) {
               0,
           ),
           totalVat: Number(source?.totalVat || 0),
+          oreRounding: Number(source?.oreRounding || 0),
           total: Number(source?.total || 0),
         };
   return applyCreditNoteTotalsSign(unsigned, source?.invoiceType);
