@@ -2,6 +2,7 @@
 // Swedish Facio-style Offert PDF (matches invoices Facio layout; Offert semantics).
 
 const { escapeHtml, escapeHtmlText } = require('../../server/core/utils/htmlEscape');
+const { formatUnitLabelSv } = require('../invoices/unitLabels');
 const { calculateEstimateTotals } = require('./estimateTotals');
 
 function escapeAttr(value) {
@@ -82,24 +83,11 @@ function formatDisc(li) {
   return `${formatSvNumber(d, { minFrac: 0, maxFrac: 2 })}%`;
 }
 
-/** Known line-item unit keys → Swedish labels (Facio docs are SV). */
-const ESTIMATE_UNIT_LABELS_SV = {
-  piece: 'Styck',
-  hour: 'Timme',
-  day: 'Dag',
-  week: 'Vecka',
-  month: 'Månad',
-};
-
-function formatUnitLabel(unit) {
-  return ESTIMATE_UNIT_LABELS_SV[unit] || unit;
-}
-
 function formatQty(li) {
   const q = Number(li.quantity || 0);
   const unit = String(li.unit || li.unitLabel || '').trim();
   const qtyStr = formatSvNumber(q, { minFrac: 0, maxFrac: 2 });
-  return unit ? `${qtyStr} ${escapeHtml(formatUnitLabel(unit))}` : qtyStr;
+  return unit ? `${qtyStr} ${escapeHtml(formatUnitLabelSv(unit, q))}` : qtyStr;
 }
 
 /**

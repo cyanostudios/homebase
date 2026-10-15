@@ -57,6 +57,7 @@ import { resolveInvoiceTotals } from '../utils/invoiceTotals';
 import { deriveInvoiceContentProfile } from '../utils/invoiceMlCompliance';
 import { displayPlainText } from '../utils/htmlText';
 import { formatInvoiceAmount, formatInvoiceMoney } from '../utils/formatInvoiceAmount';
+import { translateInvoiceUnit } from '../utils/invoiceUnitLabel';
 import {
   buildInvoiceCustomerBlock,
   displayNameFromEmail,
@@ -205,6 +206,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
           deliveryMethod: actualItem.deliveryMethod,
           issueDate: actualItem.issueDate,
           supplyDate: actualItem.supplyDate,
+          showSupplyDate: actualItem.showSupplyDate !== false,
           dueDate: actualItem.dueDate,
           status: actualItem.status,
           invoiceType: actualItem.invoiceType,
@@ -377,15 +379,17 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
               </div>
               <div className={factValueClass}>{issueDateLabel}</div>
             </div>
-            <div>
-              <div className={factLabelClass}>
-                <Calendar className="h-3 w-3" />
-                {t('invoices.supplyDate', { defaultValue: 'Supply date' })}
+            {actualItem.showSupplyDate !== false ? (
+              <div>
+                <div className={factLabelClass}>
+                  <Calendar className="h-3 w-3" />
+                  {t('invoices.supplyDate', { defaultValue: 'Supply date' })}
+                </div>
+                <div className={factValueClass}>
+                  {formatDate(actualItem.supplyDate) || issueDateLabel}
+                </div>
               </div>
-              <div className={factValueClass}>
-                {formatDate(actualItem.supplyDate) || issueDateLabel}
-              </div>
-            </div>
+            ) : null}
             <div>
               <div className={factLabelClass}>
                 <Calendar className="h-3 w-3" />
@@ -528,6 +532,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
                 deliveryMethod: actualItem.deliveryMethod || '',
                 issueDate: actualItem.issueDate ? new Date(actualItem.issueDate) : null,
                 supplyDate: actualItem.supplyDate ? new Date(actualItem.supplyDate) : null,
+                showSupplyDate: actualItem.showSupplyDate !== false,
                 dueDate: actualItem.dueDate ? new Date(actualItem.dueDate) : null,
                 status,
                 invoiceType: actualItem.invoiceType || 'invoice',
@@ -604,7 +609,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
                     <span className={cn(LINE_ITEM_MUTED_VALUE_CLASS, 'shrink-0')}>
                       {lineItem.quantity || 0}
                       {lineItem.unit
-                        ? ` ${t(`invoices.units.${lineItem.unit}`, { defaultValue: lineItem.unit })}`
+                        ? ` ${translateInvoiceUnit(t, lineItem.unit, lineItem.quantity || 0)}`
                         : ''}{' '}
                       × {formatInvoiceAmount(lineItem.unitPrice || 0)}
                       {(lineItem.discount || 0) > 0 ? ` (−${lineItem.discount}%)` : ''}

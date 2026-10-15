@@ -109,7 +109,13 @@ export function InvoiceDetailHeaderMenus({
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to download PDF:', error);
-      alert('Failed to download PDF. Please try again.');
+      alert(
+        error instanceof Error && error.message
+          ? error.message
+          : t('invoices.pdfDownloadFailed', {
+              defaultValue: 'Failed to download PDF. Please try again.',
+            }),
+      );
     } finally {
       setIsDownloadingPDF(false);
     }
@@ -348,8 +354,8 @@ export function InvoiceDetailHeaderMenus({
         isOpen={showDuplicateDialog}
         onConfirm={(newName) => {
           executeDuplicate(invoice, newName)
-            .then(({ closePanel, highlightId }) => {
-              closePanel();
+            .then(({ highlightId }) => {
+              // Provider opens the new draft via openInvoiceForEdit; do not closePanel.
               if (highlightId) {
                 setRecentlyDuplicatedInvoiceId(highlightId);
               }

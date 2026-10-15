@@ -123,7 +123,13 @@ export function EstimateDetailHeaderMenus({
       await estimatesApi.downloadPDF(estimate.id);
     } catch (error) {
       console.error('Failed to download PDF:', error);
-      alert('Failed to download PDF. Please try again.');
+      alert(
+        error instanceof Error && error.message
+          ? error.message
+          : t('estimates.pdfDownloadFailed', {
+              defaultValue: 'Failed to download PDF. Please try again.',
+            }),
+      );
     } finally {
       setIsDownloadingPDF(false);
     }

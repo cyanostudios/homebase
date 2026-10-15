@@ -48,6 +48,7 @@ export function useInvoiceStatusActions() {
         deliveryMethod: invoice.deliveryMethod ?? '',
         issueDate: toIsoDate(invoice.issueDate),
         supplyDate: toIsoDate(invoice.supplyDate),
+        showSupplyDate: invoice.showSupplyDate !== false,
         dueDate: toIsoDate(invoice.dueDate),
         invoiceType: invoice.invoiceType ?? 'invoice',
         estimateId: invoice.estimateId ?? null,

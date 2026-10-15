@@ -1109,6 +1109,7 @@
     "correctionSummaryPlaceholder": "What changed vs the original invoice?",
     "supplyDate": "Supply date",
     "supplyDateHelp": "Defaults to issue date if empty when you issue.",
+    "showSupplyDate": "Show supply date on invoice",
     "contentProfile": "Document profile",
     "contentProfileFull": "Full",
     "contentProfileSimplified": "Simplified",
@@ -1212,11 +1213,16 @@
     },
     "units": {
       "empty": "-",
-      "piece": "Piece",
-      "hour": "Hour",
-      "day": "Day",
-      "week": "Week",
-      "month": "Month"
+      "piece_one": "Piece",
+      "piece_other": "Pieces",
+      "hour_one": "Hour",
+      "hour_other": "Hours",
+      "day_one": "Day",
+      "day_other": "Days",
+      "week_one": "Week",
+      "week_other": "Weeks",
+      "month_one": "Month",
+      "month_other": "Months"
     }
   },
   "shareDialog": {

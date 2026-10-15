@@ -74,6 +74,7 @@ import {
   LINE_ITEM_VALUE_CLASS,
 } from '@/plugins/invoices/utils/invoiceLineItemStyles';
 import { resolveInvoiceTotals } from '@/plugins/invoices/utils/invoiceTotals';
+import { translateInvoiceUnit } from '@/plugins/invoices/utils/invoiceUnitLabel';
 
 import { useEstimateLinkedInvoice } from '../hooks/useEstimateLinkedInvoice';
 import { useEstimates } from '../hooks/useEstimates';
@@ -527,7 +528,7 @@ export function EstimateView({ estimate, stacked = false }: EstimateViewProps) {
                     <span className={cn(LINE_ITEM_MUTED_VALUE_CLASS, 'shrink-0')}>
                       {lineItem.quantity || 0}
                       {lineItem.unit
-                        ? ` ${t(`invoices.units.${lineItem.unit}`, { defaultValue: lineItem.unit })}`
+                        ? ` ${translateInvoiceUnit(t, lineItem.unit, lineItem.quantity || 0)}`
                         : ''}{' '}
                       × {formatInvoiceAmount(lineItem.unitPrice || 0)}
                       {(lineItem.discount || 0) > 0 ? ` (−${lineItem.discount}%)` : ''}

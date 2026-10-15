@@ -18,6 +18,8 @@ export interface Invoice {
   issueDate?: Date | string | null;
   /** Supply / delivery date; defaults to issue date at leave-draft (server). */
   supplyDate?: Date | string | null;
+  /** When false, leveransdatum is omitted from PDF/preview (default true). */
+  showSupplyDate?: boolean;
   dueDate?: Date | string | null;
   status?: 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled' | 'partially_paid';
   invoiceType?: 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt';

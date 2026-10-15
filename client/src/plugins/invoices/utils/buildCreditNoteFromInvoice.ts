@@ -50,6 +50,7 @@ export function buildCreditNoteCreatePayload(
     deliveryMethod: original.deliveryMethod || '',
     issueDate: issueDate.toISOString(),
     supplyDate: issueDate.toISOString(),
+    showSupplyDate: original.showSupplyDate !== false,
     dueDate: dueDate.toISOString(),
     invoiceNumber,
     invoiceType: 'credit_note',

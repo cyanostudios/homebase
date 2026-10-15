@@ -1103,6 +1103,7 @@
     "correctionSummaryPlaceholder": "Vad har ändrats jämfört med originalfakturan?",
     "supplyDate": "Leveransdatum",
     "supplyDateHelp": "Sätts till fakturadatum om det är tomt vid utfärdande.",
+    "showSupplyDate": "Visa leveransdatum på fakturan",
     "contentProfile": "Dokumentprofil",
     "contentProfileFull": "Fullständig",
     "contentProfileSimplified": "Förenklad",
@@ -1206,11 +1207,16 @@
     },
     "units": {
       "empty": "-",
-      "piece": "Styck",
-      "hour": "Timme",
-      "day": "Dag",
-      "week": "Vecka",
-      "month": "Månad"
+      "piece_one": "Styck",
+      "piece_other": "Stycken",
+      "hour_one": "Timme",
+      "hour_other": "Timmar",
+      "day_one": "Dag",
+      "day_other": "Dagar",
+      "week_one": "Vecka",
+      "week_other": "Veckor",
+      "month_one": "Månad",
+      "month_other": "Månader"
     }
   },
   "shareDialog": {

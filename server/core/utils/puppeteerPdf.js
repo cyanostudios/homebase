@@ -1,5 +1,42 @@
 // Hardened Puppeteer PDF generation: block network after setContent.
 
+const puppeteer = require('puppeteer');
+
+/**
+ * Launch Chromium for invoice/estimate PDF. Prefer project `.cache/puppeteer`
+ * (see server/index.ts PUPPETEER_CACHE_DIR override).
+ * @returns {Promise<import('puppeteer').Browser>}
+ */
+async function launchPdfBrowser() {
+  const launchOpts = {
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  };
+  try {
+    launchOpts.executablePath = puppeteer.executablePath();
+  } catch {
+    // executablePath() throws when Chrome is missing; launch() will too with a clearer path.
+  }
+  return puppeteer.launch(launchOpts);
+}
+
+/**
+ * Map Puppeteer/Chrome failures to a safe API error payload.
+ * @param {unknown} error
+ * @returns {{ status: number, error: string }}
+ */
+function pdfGenerationHttpError(error) {
+  const msg = String((error && /** @type {{ message?: string }} */ (error).message) || '');
+  if (/Could not find Chrome|Failed to launch the browser|Chrome for Testing/i.test(msg)) {
+    return {
+      status: 503,
+      error:
+        'PDF engine unavailable (Chrome missing). On this machine run: npm run puppeteer:install-chrome',
+    };
+  }
+  return { status: 500, error: 'Failed to generate PDF' };
+}
+
 /**
  * @param {import('puppeteer').Page} page
  */
@@ -60,6 +97,8 @@ async function renderInvoicePdf(page, html) {
 }
 
 module.exports = {
+  launchPdfBrowser,
+  pdfGenerationHttpError,
   blockExternalNetwork,
   setPdfHtmlContent,
   invoicePdfPrintOptions,

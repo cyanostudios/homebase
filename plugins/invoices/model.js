@@ -151,6 +151,7 @@ class InvoiceModel {
       deliveryMethod: row.delivery_method || '',
       issueDate: row.issue_date,
       supplyDate: row.supply_date || null,
+      showSupplyDate: row.show_supply_date !== false && row.show_supply_date !== 0,
       dueDate: row.due_date,
       invoiceType: row.invoice_type || 'invoice',
       contentProfile: row.content_profile || 'full',
@@ -399,6 +400,12 @@ class InvoiceModel {
       estimateId,
       issueDate,
       supplyDate,
+      showSupplyDate: (() => {
+        const raw = source.showSupplyDate ?? currentInvoice?.showSupplyDate;
+        if (raw === undefined || raw === null) return true;
+        if (raw === false || raw === 0 || raw === '0' || raw === 'false') return false;
+        return true;
+      })(),
       dueDate,
       lineItems,
       invoiceDiscount,
@@ -702,6 +709,7 @@ class InvoiceModel {
         delivery_method: prepared.deliveryMethod || '',
         issue_date: prepared.issueDate,
         supply_date: prepared.supplyDate,
+        show_supply_date: prepared.showSupplyDate !== false,
         due_date: prepared.dueDate,
         invoice_type: prepared.invoiceType,
         content_profile: prepared.contentProfile,
@@ -835,6 +843,7 @@ class InvoiceModel {
         delivery_method: prepared.deliveryMethod || '',
         issue_date: prepared.issueDate,
         supply_date: prepared.supplyDate,
+        show_supply_date: prepared.showSupplyDate !== false,
         due_date: prepared.dueDate,
         invoice_type: prepared.invoiceType,
         content_profile: prepared.contentProfile,

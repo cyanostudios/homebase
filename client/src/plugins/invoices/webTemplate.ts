@@ -3,6 +3,7 @@
 
 import { resolveInvoiceTotals } from './utils/invoiceTotals';
 import { decodeHtmlEntities } from './utils/htmlText';
+import { formatUnitLabelSv } from './utils/invoiceUnitLabel';
 
 function escapeHtml(str: string | null | undefined): string {
   if (str === null || str === undefined) {
@@ -117,24 +118,11 @@ function resolveVatLabel(lineItems: any[], _totalVat: number) {
   return 'Moms (25%)';
 }
 
-/** Known line-item unit keys → Swedish labels (Facio docs are SV). */
-const INVOICE_UNIT_LABELS_SV: Record<string, string> = {
-  piece: 'Styck',
-  hour: 'Timme',
-  day: 'Dag',
-  week: 'Vecka',
-  month: 'Månad',
-};
-
-function formatUnitLabel(unit: string): string {
-  return INVOICE_UNIT_LABELS_SV[unit] || unit;
-}
-
 function formatQty(li: any): string {
   const q = Number(li.quantity || 0);
   const unit = String(li.unit || li.unitLabel || '').trim();
   const qtyStr = formatSvNumber(q, 0, 2);
-  return unit ? `${qtyStr} ${escapeHtml(formatUnitLabel(unit))}` : qtyStr;
+  return unit ? `${qtyStr} ${escapeHtml(formatUnitLabelSv(unit, q))}` : qtyStr;
 }
 
 /** Same Facio CSS as plugins/invoices/pdfTemplate.js */
@@ -564,6 +552,17 @@ export function generateInvoiceWebHTML(
   const dueDate = formatDate(invoice.dueDate);
   const issueDate = formatDate(invoice.issueDate || invoice.createdAt);
   const supplyDate = formatDate(invoice.supplyDate || invoice.issueDate || invoice.createdAt);
+  const showSupplyDate =
+    invoice.showSupplyDate !== false &&
+    invoice.showSupplyDate !== 0 &&
+    invoice.showSupplyDate !== 'false';
+  const supplyDateRowHtml = showSupplyDate
+    ? `
+              <div class="row plain">
+                <span class="lbl">Leveransdatum</span>
+                <span class="val">${supplyDate || '—'}</span>
+              </div>`
+    : '';
   const vatLabel = resolveVatLabel(invoice.lineItems || [], totals.totalVat);
   const amountDuePlain = `${formatSvNumber(totals.total, 0, 2)} kr`;
   const amountDueBold = formatSvNumber(totals.total, 0, 2);
@@ -636,11 +635,7 @@ export function generateInvoiceWebHTML(
               <div class="row plain">
                 <span class="lbl">Fakturadatum</span>
                 <span class="val">${issueDate || '—'}</span>
-              </div>
-              <div class="row plain">
-                <span class="lbl">Leveransdatum</span>
-                <span class="val">${supplyDate || '—'}</span>
-              </div>
+              </div>${supplyDateRowHtml}
               <div class="row plain">
                 <span class="lbl">Betalningsvillkor</span>
                 <span class="val">${paymentTerms}</span>
