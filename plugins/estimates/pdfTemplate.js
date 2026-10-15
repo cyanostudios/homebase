@@ -130,10 +130,9 @@ function facioDocumentStyles() {
         flex-direction: column;
       }
       .doc-header {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 32px;
+        display: flex;
         align-items: center;
+        gap: 14px;
         margin-bottom: 28px;
       }
       .doc-header .issuer-brand {
@@ -142,6 +141,7 @@ function facioDocumentStyles() {
         align-items: center;
         gap: 14px;
         min-width: 0;
+        flex: 1;
       }
       .doc-header .issuer-logo {
         display: block;
@@ -161,29 +161,8 @@ function facioDocumentStyles() {
         color: #0f172a;
         line-height: 1.2;
       }
-      .doc-header .title-block {
-        display: block;
-        min-width: 0;
-      }
-      .doc-header .title-row {
-        display: block;
-        margin: 0;
-        font-size: 18px;
+      .doc-header .doc-title-sep {
         font-weight: 700;
-        color: #0f172a;
-        text-align: left;
-        line-height: 1.2;
-      }
-      .doc-header .title-row .lbl {
-        font-size: inherit;
-        font-weight: inherit;
-        color: inherit;
-      }
-      .doc-header .title-row .lbl::after { content: none; }
-      .doc-header .title-row .val {
-        font-size: inherit;
-        font-weight: inherit;
-        margin-left: 0.35em;
       }
       .top {
         display: grid;
@@ -298,8 +277,11 @@ function facioDocumentStyles() {
       }
       .items th.right, .items td.right { text-align: right; }
       .items td {
-        padding: 12px 6px 12px 0;
+        padding: 8px 6px 8px 0;
         vertical-align: top;
+        border-bottom: none;
+      }
+      .items tbody tr:last-child td {
         border-bottom: 1px solid #e2e8f0;
       }
       .items .desc {
@@ -547,13 +529,7 @@ function generatePDFHTML(estimate, organization = {}, customer = null, options =
       <header class="doc-header">
         <div class="issuer-brand">
           ${logoSrc ? `<img class="issuer-logo" src="${logoSrc}" alt="" />` : ''}
-          <h1 class="issuer-name">${issuerName}</h1>
-        </div>
-        <div class="title-block">
-          <div class="title-row">
-            <span class="lbl">${documentTitle}</span>
-            <span class="val">${numberLabel}</span>
-          </div>
+          <h1 class="issuer-name">${issuerName}<span class="doc-title-sep"> - </span>${documentTitle} ${numberLabel}</h1>
         </div>
       </header>
 
