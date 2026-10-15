@@ -239,6 +239,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         deliveryMethod: '',
         issueDate,
         supplyDate: issueDate as Date | null,
+        showSupplyDate: true,
         dueDate: dueDateFromIssueAndTerms(issueDate, paymentTerms),
         status: 'draft' as 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled' | 'partially_paid',
         invoiceType: 'invoice' as 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt',
@@ -284,6 +285,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           deliveryMethod: currentInvoice.deliveryMethod || '',
           issueDate,
           supplyDate,
+          showSupplyDate: currentInvoice.showSupplyDate !== false,
           dueDate: storedDue ?? dueDateFromIssueAndTerms(issueDate, paymentTerms),
           status: (currentInvoice.status as any) || 'draft',
           invoiceType: (currentInvoice.invoiceType as any) || 'invoice',
@@ -321,6 +323,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         deliveryMethod: '',
         issueDate,
         supplyDate: issueDate,
+        showSupplyDate: true,
         dueDate: dueDateFromIssueAndTerms(issueDate, paymentTerms),
         status: 'draft',
         invoiceType: 'invoice',
@@ -351,6 +354,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         deliveryMethod: '',
         issueDate,
         supplyDate: issueDate,
+        showSupplyDate: true,
         dueDate: dueDateFromIssueAndTerms(issueDate, paymentTerms),
         status: 'draft',
         invoiceType: 'invoice',
@@ -445,6 +449,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
             deliveryMethod: formData.deliveryMethod,
             issueDate: formData.issueDate,
             supplyDate: formData.supplyDate,
+            showSupplyDate: formData.showSupplyDate !== false,
             dueDate: formData.dueDate,
             status: formData.status,
             invoiceType: formData.invoiceType,
@@ -1009,6 +1014,25 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                         variant="default"
                         propWidth
                       />
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <label
+                        htmlFor="invoice-show-supply-date"
+                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 pr-3 text-sm text-slate-500 dark:text-slate-400"
+                      >
+                        <input
+                          id="invoice-show-supply-date"
+                          type="checkbox"
+                          checked={formData.showSupplyDate !== false}
+                          onChange={(e) => updateField('showSupplyDate', e.target.checked)}
+                          disabled={(formData.status || 'draft') !== 'draft'}
+                          className="h-4 w-4"
+                        />
+                        {t('invoices.showSupplyDate', {
+                          defaultValue: 'Show supply date on invoice',
+                        })}
+                      </label>
                     </div>
 
                     <div className={DETAIL_PROP_ROW_CLASS}>

@@ -33,6 +33,7 @@ export interface InvoicePreviewFormData {
   deliveryMethod?: string;
   issueDate?: Date | string | null;
   supplyDate?: Date | string | null;
+  showSupplyDate?: boolean;
   dueDate?: Date | string | null;
   status?: string;
   invoiceType?: string;
@@ -182,6 +183,7 @@ export function InvoiceDocumentPreview({
         deliveryMethod: deferredFormData.deliveryMethod,
         issueDate: deferredFormData.issueDate,
         supplyDate: deferredFormData.supplyDate,
+        showSupplyDate: deferredFormData.showSupplyDate !== false,
         dueDate: deferredFormData.dueDate,
         status: deferredFormData.status,
         invoiceType: deferredFormData.invoiceType,

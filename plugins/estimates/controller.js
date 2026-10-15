@@ -1,8 +1,11 @@
 // plugins/estimates/controller.js
 // Estimates controller - V3 with @homebase/core SDK
 const EstimateModel = require('./model');
-const puppeteer = require('puppeteer');
-const { renderInvoicePdf } = require('../../server/core/utils/puppeteerPdf');
+const {
+  launchPdfBrowser,
+  pdfGenerationHttpError,
+  renderInvoicePdf,
+} = require('../../server/core/utils/puppeteerPdf');
 const { generatePDFHTML } = require('./pdfTemplate');
 const { displayNameFromEmail, resolveLogoDataUrl } = require('../invoices/documentAssets');
 const { Logger, Context } = require('@homebase/core');
@@ -439,10 +442,7 @@ class EstimateController {
       ]);
       const organization = await this.prepareOrganizationForDocument(organizationRaw);
 
-      browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
+      browser = await launchPdfBrowser();
 
       const page = await browser.newPage();
       const html = generatePDFHTML(estimate, organization, customer, { referencePerson });
@@ -461,7 +461,8 @@ class EstimateController {
       res.end(pdfBuffer);
     } catch (error) {
       Logger.error('PDF generation failed', error, { estimateId: req.params.id });
-      res.status(500).json({ error: 'Failed to generate PDF' });
+      const mapped = pdfGenerationHttpError(error);
+      res.status(mapped.status).json({ error: mapped.error });
     } finally {
       if (browser) {
         try {
@@ -528,10 +529,7 @@ class EstimateController {
       const organization = await this.prepareOrganizationForDocument(organizationRaw);
       const publicEstimate = stripInternalShareFields(estimate);
 
-      browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
+      browser = await launchPdfBrowser();
       const page = await browser.newPage();
 
       const html = generatePDFHTML(publicEstimate, organization, customer, { referencePerson });
@@ -558,7 +556,8 @@ class EstimateController {
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      res.status(500).json({ error: 'Failed to generate PDF' });
+      const mapped = pdfGenerationHttpError(error);
+      res.status(mapped.status).json({ error: mapped.error });
     } finally {
       if (browser) {
         try {

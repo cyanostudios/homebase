@@ -14,6 +14,7 @@ const ML_LOCKED_FIELDS = [
   'organizationNumber',
   'issueDate',
   'supplyDate',
+  'showSupplyDate',
   'dueDate',
   'paymentTerms',
   'lineItems',

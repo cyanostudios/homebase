@@ -55,6 +55,7 @@ function normalizeInvoiceDates(invoice: any): Invoice {
     updatedAt: invoice.updatedAt ? new Date(invoice.updatedAt) : null,
     issueDate: invoice.issueDate ? new Date(invoice.issueDate) : null,
     supplyDate: invoice.supplyDate ? new Date(invoice.supplyDate) : null,
+    showSupplyDate: invoice.showSupplyDate !== false,
     dueDate: invoice.dueDate ? new Date(invoice.dueDate) : null,
     paidAt: invoice.paidAt ? new Date(invoice.paidAt) : null,
   }) as Invoice;
@@ -718,13 +719,15 @@ export function InvoicesProvider({
         });
         const normalized = normalizeInvoiceDates(saved);
         setInvoices((prev) => [normalized, ...prev]);
+        // Close source invoice and open the new draft (same as credit-note create).
+        openInvoiceForEdit(normalized);
         return normalized;
       } catch (err) {
         console.error('Failed to duplicate invoice:', err);
         return null;
       }
     },
-    [api],
+    [api, openInvoiceForEdit],
   );
 
   const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({

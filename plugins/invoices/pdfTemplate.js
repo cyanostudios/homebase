@@ -3,6 +3,7 @@
 
 const { escapeHtml, escapeHtmlText } = require('../../server/core/utils/htmlEscape');
 const { resolveInvoiceTotals } = require('./invoiceTotals');
+const { formatUnitLabelSv } = require('./unitLabels');
 
 function escapeAttr(value) {
   if (value === null || value === undefined) {
@@ -114,24 +115,11 @@ function formatDisc(li) {
   return `${formatSvNumber(d, { minFrac: 0, maxFrac: 2 })}%`;
 }
 
-/** Known line-item unit keys → Swedish labels (Facio docs are SV). */
-const INVOICE_UNIT_LABELS_SV = {
-  piece: 'Styck',
-  hour: 'Timme',
-  day: 'Dag',
-  week: 'Vecka',
-  month: 'Månad',
-};
-
-function formatUnitLabel(unit) {
-  return INVOICE_UNIT_LABELS_SV[unit] || unit;
-}
-
 function formatQty(li) {
   const q = Number(li.quantity || 0);
   const unit = String(li.unit || li.unitLabel || '').trim();
   const qtyStr = formatSvNumber(q, { minFrac: 0, maxFrac: 2 });
-  return unit ? `${qtyStr} ${escapeHtml(formatUnitLabel(unit))}` : qtyStr;
+  return unit ? `${qtyStr} ${escapeHtml(formatUnitLabelSv(unit, q))}` : qtyStr;
 }
 
 /**
@@ -520,6 +508,17 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
   const dueDate = formatDate(invoice.dueDate);
   const issueDate = formatDate(invoice.issueDate || invoice.createdAt);
   const supplyDate = formatDate(invoice.supplyDate || invoice.issueDate || invoice.createdAt);
+  const showSupplyDate =
+    invoice.showSupplyDate !== false &&
+    invoice.showSupplyDate !== 0 &&
+    invoice.showSupplyDate !== 'false';
+  const supplyDateRowHtml = showSupplyDate
+    ? `
+            <div class="row plain">
+              <span class="lbl">Leveransdatum</span>
+              <span class="val">${supplyDate || '—'}</span>
+            </div>`
+    : '';
   const vatLabel = resolveVatLabel(invoice.lineItems, safeTotals.totalVat);
   const amountDuePlain = `${formatSvNumber(safeTotals.total, { minFrac: 0, maxFrac: 2 })} kr`;
   const amountDueBold = formatSvNumber(safeTotals.total, { minFrac: 0, maxFrac: 2 });
@@ -630,11 +629,7 @@ function generatePDFHTML(invoice, organization = {}, customer = null, options = 
             <div class="row plain">
               <span class="lbl">Fakturadatum</span>
               <span class="val">${issueDate || '—'}</span>
-            </div>
-            <div class="row plain">
-              <span class="lbl">Leveransdatum</span>
-              <span class="val">${supplyDate || '—'}</span>
-            </div>
+            </div>${supplyDateRowHtml}
             <div class="row plain">
               <span class="lbl">Betalningsvillkor</span>
               <span class="val">${paymentTerms}</span>

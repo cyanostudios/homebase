@@ -29,4 +29,20 @@ describe('invoice web preview supply date', () => {
     expect(html).toMatch(/Leveransdatum/);
     expect(html).toMatch(/2026-09-15/);
   });
+
+  it('hides leveransdatum when showSupplyDate is false', () => {
+    const html = generateInvoiceWebHTML({
+      id: '3',
+      invoiceNumber: '2026-003',
+      issueDate: '2026-09-01',
+      supplyDate: '2026-09-15',
+      showSupplyDate: false,
+      dueDate: '2026-10-01',
+      lineItems: [],
+      organization: { name: 'Test AB' },
+    });
+
+    expect(html).not.toMatch(/Leveransdatum/);
+    expect(html).not.toMatch(/2026-09-15/);
+  });
 });

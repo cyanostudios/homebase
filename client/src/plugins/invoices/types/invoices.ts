@@ -53,6 +53,8 @@ export interface Invoice {
 
   issueDate?: Date | string | null;
   supplyDate?: Date | string | null;
+  /** When false, leveransdatum is omitted from PDF/preview (default true). */
+  showSupplyDate?: boolean;
   dueDate?: Date | string | null;
 
   // Totals — denormalized cache. Always derive via resolveInvoiceTotals / withResolvedInvoiceTotals.

@@ -2,6 +2,7 @@
 // Swedish Facio-style Offert HTML (matches plugins/estimates/pdfTemplate.js + invoices Facio layout).
 
 import { decodeHtmlEntities } from '@/plugins/invoices/utils/htmlText';
+import { formatUnitLabelSv } from '@/plugins/invoices/utils/invoiceUnitLabel';
 
 import { resolveEstimateTotals } from './utils/estimateTotals';
 
@@ -86,24 +87,11 @@ function resolveVatLabel(lineItems: any[], _totalVat: number) {
   return 'Moms (25%)';
 }
 
-/** Known line-item unit keys → Swedish labels (Facio docs are SV). */
-const ESTIMATE_UNIT_LABELS_SV: Record<string, string> = {
-  piece: 'Styck',
-  hour: 'Timme',
-  day: 'Dag',
-  week: 'Vecka',
-  month: 'Månad',
-};
-
-function formatUnitLabel(unit: string): string {
-  return ESTIMATE_UNIT_LABELS_SV[unit] || unit;
-}
-
 function formatQty(li: any): string {
   const q = Number(li.quantity || 0);
   const unit = String(li.unit || li.unitLabel || '').trim();
   const qtyStr = formatSvNumber(q, 0, 2);
-  return unit ? `${qtyStr} ${escapeHtml(formatUnitLabel(unit))}` : qtyStr;
+  return unit ? `${qtyStr} ${escapeHtml(formatUnitLabelSv(unit, q))}` : qtyStr;
 }
 
 /** Same Facio CSS as plugins/estimates/pdfTemplate.js / invoices webTemplate. */

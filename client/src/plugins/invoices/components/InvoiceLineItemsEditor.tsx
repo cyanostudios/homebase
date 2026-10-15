@@ -299,7 +299,7 @@ export function InvoiceLineItemsEditor({
                             </option>
                             {INVOICE_LINE_ITEM_UNITS.map((unit) => (
                               <option key={unit} value={unit}>
-                                {t(`invoices.units.${unit}`, { defaultValue: unit })}
+                                {t(`invoices.units.${unit}`, { count: 1, defaultValue: unit })}
                               </option>
                             ))}
                             {item.unit &&
