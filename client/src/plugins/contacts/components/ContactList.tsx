@@ -64,6 +64,7 @@ import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
+import { ListTagsChipsToggle } from '@/core/ui/ListTagsChipsToggle';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import {
   PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS,
@@ -89,7 +90,10 @@ import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
 import { contactExportConfig } from '../utils/contactExportConfig';
 import {
   contactMatchesListFilters,
+  contactMatchesSelectedTags,
+  countContactsWithTag,
   toggleContactListFilter,
+  toggleContactTagFilter,
   type ContactListFilter,
   type ContactListFilterSelection,
 } from '../utils/contactListFilter';
@@ -116,6 +120,7 @@ type SortField = ContactSortField;
 type SortOrder = ContactSortOrder;
 
 const CONTACTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.contacts.toolbar.filtersVisible';
+const CONTACTS_TAGS_VISIBLE_STORAGE_KEY = 'homebase.contacts.toolbar.tagsVisible';
 const COMPANION_VISIBLE_COLUMN_IDS: ContactTableColumnId[] = ['name'];
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
@@ -207,6 +212,7 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
   );
   const tableColumnIds = isCompanion ? COMPANION_VISIBLE_COLUMN_IDS : visibleColumnIds;
   const [activeFilters, setActiveFilters] = useState<ContactListFilterSelection>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('tags');
   const [selectionMode, setSelectionMode] = useState(false);
   const [previewContact, setPreviewContact] = useState<Contact | null>(null);
@@ -214,6 +220,8 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     CONTACTS_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const { filtersVisible: tagsVisible, setFiltersVisible: setTagsVisible } =
+    usePersistedFiltersVisible(CONTACTS_TAGS_VISIBLE_STORAGE_KEY);
   const restoredPendingContactRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -300,6 +308,13 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
     };
   }, [getSettings, settingsVersion]);
 
+  useEffect(() => {
+    setSelectedTags((prev) => {
+      const next = prev.filter((tag) => availableTags.includes(tag));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [availableTags]);
+
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
     setSortOrder(isContactAscDefaultField(field) ? 'asc' : 'desc');
@@ -323,8 +338,10 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
     const comparePair = (a: Contact, b: Contact): number =>
       compareContactsByField(a, b, primarySort, sortOrder, timeCtx);
 
-    const byFilter = contacts.filter((contact) =>
-      contactMatchesListFilters(contact, activeFilters, contactIdsWithTimeEntries),
+    const byFilter = contacts.filter(
+      (contact) =>
+        contactMatchesListFilters(contact, activeFilters, contactIdsWithTimeEntries) &&
+        contactMatchesSelectedTags(contact, selectedTags),
     );
 
     const needle = searchTerm.trim().toLowerCase();
@@ -351,6 +368,7 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
     primarySort,
     sortOrder,
     activeFilters,
+    selectedTags,
     activeTimeTrackingContactId,
     contactIdsWithTimeEntries,
   ]);
@@ -581,11 +599,76 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
     setActiveFilters((prev) => toggleContactListFilter(prev, filter));
   };
 
+  const toggleTagFilter = (tag: string) => {
+    setSelectedTags((prev) => toggleContactTagFilter(prev, tag));
+  };
+
   const headerDropdownTriggerClass =
     'gap-1.5 border-0 bg-primary/10 px-3.5 text-sm font-extrabold text-primary shadow-none hover:bg-primary hover:text-primary-foreground';
 
   const headerDropdownTriggerDangerClass =
     'gap-1.5 border-0 bg-red-600/10 px-3.5 text-sm font-extrabold text-red-700 shadow-none hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white';
+
+  const renderChipRowClear = (opts: {
+    visible: boolean;
+    ariaLabel: string;
+    onClear: () => void;
+  }) => {
+    if (!opts.visible) {
+      return null;
+    }
+    return (
+      <RoundIconLabelButton
+        type="button"
+        icon={X}
+        label={opts.ariaLabel}
+        size="xs"
+        expandOnHover={false}
+        variant="secondary"
+        className="shrink-0 bg-white text-red-600 shadow-sm hover:bg-red-600 hover:text-white dark:bg-white dark:text-red-600 dark:hover:bg-red-600 dark:hover:text-white"
+        contentClassName="text-red-600 group-hover:text-white dark:text-red-600 dark:group-hover:text-white"
+        onClick={opts.onClear}
+      />
+    );
+  };
+
+  const renderTagChips = () => {
+    if (availableTags.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+        {availableTags.map((tag) => {
+          const active = selectedTags.includes(tag);
+          const count = countContactsWithTag(contacts, tag);
+          return (
+            <Button
+              key={tag}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleTagFilter(tag)}
+              className={cn(
+                active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
+              )}
+            >
+              <Tag className="h-3.5 w-3.5" />
+              <span>
+                {tag} <span className="tabular-nums font-semibold">({count})</span>
+              </span>
+            </Button>
+          );
+        })}
+        {renderChipRowClear({
+          visible: selectedTags.length > 0,
+          ariaLabel: t('common.clearTags'),
+          onClear: () => setSelectedTags([]),
+        })}
+      </div>
+    );
+  };
 
   const renderFilterChips = () => {
     const chips: Array<{
@@ -660,6 +743,11 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
               </span>
             </Button>
           );
+        })}
+        {renderChipRowClear({
+          visible: activeFilters.length > 0,
+          ariaLabel: t('common.clearFilters'),
+          onClear: () => setActiveFilters([]),
         })}
       </div>
     );
@@ -965,12 +1053,25 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                       <ListFilterChipsToggle
                         visible={filtersVisible}
                         onVisibleChange={setFiltersVisible}
+                        hasActiveSelection={activeFilters.length > 0}
                         className={
                           isCompanion
                             ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
                             : 'h-11 rounded-full'
                         }
                       />
+                      {availableTags.length > 0 ? (
+                        <ListTagsChipsToggle
+                          visible={tagsVisible}
+                          onVisibleChange={setTagsVisible}
+                          hasActiveSelection={selectedTags.length > 0}
+                          className={
+                            isCompanion
+                              ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                              : 'h-11 rounded-full'
+                          }
+                        />
+                      ) : null}
                       {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -1006,6 +1107,17 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                       {renderFilterChips()}
                     </div>
                   ) : null}
+                  {tagsVisible && availableTags.length > 0 ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {renderTagChips()}
+                    </div>
+                  ) : null}
                   {!isCompanion ? renderBulkActionBar('py-3') : null}
                 </div>
               </div>
@@ -1015,12 +1127,22 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
           {!isCompanion ? (
             <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
               {filtersVisible ? renderFilterChips() : null}
+              {tagsVisible && availableTags.length > 0 ? renderTagChips() : null}
               <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
                 <ListFilterChipsToggle
                   visible={filtersVisible}
                   onVisibleChange={setFiltersVisible}
+                  hasActiveSelection={activeFilters.length > 0}
                   className="h-7 rounded-md"
                 />
+                {availableTags.length > 0 ? (
+                  <ListTagsChipsToggle
+                    visible={tagsVisible}
+                    onVisibleChange={setTagsVisible}
+                    hasActiveSelection={selectedTags.length > 0}
+                    className="h-7 rounded-md"
+                  />
+                ) : null}
                 {renderSortDropdown('h-7 rounded-md')}
               </div>
             </div>
