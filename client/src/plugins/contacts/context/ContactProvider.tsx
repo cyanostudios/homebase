@@ -187,8 +187,17 @@ export function ContactProvider({
             contactName: item.companyName || '',
             organizationNumber: item.organizationNumber || '',
             currency: item.currency || 'SEK',
-            paymentTerms: item.paymentTerms || '30',
-            taxRate: item.contactType === 'private' ? '0' : item.taxRate || '25',
+            paymentTerms:
+              item.paymentTerms === 0 || item.paymentTerms === '0'
+                ? '0'
+                : String(item.paymentTerms || '30'),
+            // Keep explicit 0%; only default to 25 when taxRate is missing.
+            taxRate:
+              item.contactType === 'private'
+                ? '0'
+                : item.taxRate === 0 || item.taxRate === '0'
+                  ? '0'
+                  : String(item.taxRate ?? '').trim() || '25',
           });
         },
       });

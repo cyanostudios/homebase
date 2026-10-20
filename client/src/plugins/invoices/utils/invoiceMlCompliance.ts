@@ -289,11 +289,37 @@ export function resolveInvoiceCurrency(currency?: string | null): string {
   return (INVOICE_CURRENCY_OPTIONS as readonly string[]).includes(code) ? code : 'SEK';
 }
 
-/** Map contact taxRate (string %) onto an allowed invoice VAT rate. */
+/**
+ * Map contact taxRate (string/number %) onto an allowed invoice VAT rate.
+ * Missing/blank → 25 (standard). Explicit 0 → 0. Invalid → 25.
+ * Note: Number(null) and Number('') are 0 — must not treat those as 0% VAT.
+ */
 export function resolveInvoiceVatRateFromContact(taxRate?: string | number | null): number {
+  if (taxRate === undefined || taxRate === null || taxRate === '') {
+    return 25;
+  }
   const n = Number(taxRate);
   if (isAllowedInvoiceVatRate(n)) {
     return n;
   }
   return 25;
+}
+
+/** VAT default from a contact row (private → 0%, else contact taxRate). */
+export function resolveInvoiceVatRateFromContactRecord(
+  contact:
+    | {
+        contactType?: string | null;
+        taxRate?: string | number | null;
+      }
+    | null
+    | undefined,
+): number {
+  if (!contact) {
+    return 25;
+  }
+  if (contact.contactType === 'private') {
+    return 0;
+  }
+  return resolveInvoiceVatRateFromContact(contact.taxRate);
 }

@@ -71,6 +71,7 @@ import {
   isInvoiceIssued,
   resolveInvoiceCurrency,
   resolveInvoiceVatRateFromContact,
+  resolveInvoiceVatRateFromContactRecord,
 } from '../utils/invoiceMlCompliance';
 import {
   computeDueDateFromPaymentTerms,
@@ -294,12 +295,12 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           creditedInvoiceNumber: currentInvoice.creditedInvoiceNumber || '',
           correctionSummary: currentInvoice.correctionSummary || '',
         });
-        const contactTax = contacts?.find(
-          (c) => String(c.id) === String(currentInvoice.contactId),
-        )?.taxRate;
+        const contactRow = contacts?.find((c) => String(c.id) === String(currentInvoice.contactId));
         const fromLines = migrated.find((li) => li.kind !== 'text')?.vatRate;
         setDefaultVatRate(
-          resolveInvoiceVatRateFromContact(contactTax ?? (fromLines != null ? fromLines : 25)),
+          contactRow
+            ? resolveInvoiceVatRateFromContactRecord(contactRow)
+            : resolveInvoiceVatRateFromContact(fromLines != null ? fromLines : 25),
         );
         markClean();
         setDuplicatedItemIds(new Set());
@@ -547,9 +548,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
       if (contact) {
         const paymentTerms = normalizePaymentTermsSelectValue(contact.paymentTerms);
         const currency = resolveInvoiceCurrency(contact.currency);
-        const vatRate = resolveInvoiceVatRateFromContact(
-          contact.contactType === 'private' ? '0' : contact.taxRate,
-        );
+        const vatRate = resolveInvoiceVatRateFromContactRecord(contact);
         setDefaultVatRate(vatRate);
         setFormData((prev) => {
           const issueDate = prev.issueDate;

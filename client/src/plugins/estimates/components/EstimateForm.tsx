@@ -63,6 +63,7 @@ import {
   INVOICE_VAT_RATES,
   resolveInvoiceCurrency,
   resolveInvoiceVatRateFromContact,
+  resolveInvoiceVatRateFromContactRecord,
 } from '@/plugins/invoices/utils/invoiceMlCompliance';
 
 import { useEstimates } from '../hooks/useEstimates';
@@ -442,9 +443,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
       }
       if (contact) {
         const currency = resolveInvoiceCurrency(contact.currency);
-        const vatRate = resolveInvoiceVatRateFromContact(
-          contact.contactType === 'private' ? '0' : contact.taxRate,
-        );
+        const vatRate = resolveInvoiceVatRateFromContactRecord(contact);
         setDefaultVatRate(vatRate);
         setFormData((prev) => ({
           ...prev,
