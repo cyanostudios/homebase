@@ -69,10 +69,10 @@ describe('EstimateForm edit UX parity (Contacts-class / EstimateView shell)', ()
 
   test('list settings exits go through attemptNavigation', () => {
     expect(listSrc).toMatch(
-      /onSettings:\s*\(\)\s*=>\s*attemptNavigation\(\(\)\s*=>\s*openEstimateSettings\(\)\)/,
+      /onSettings:\s*\(\)\s*=>\s*\{\s*setSettingsCategory\('numbering'\);\s*attemptNavigation\(\(\)\s*=>\s*openEstimateSettings\(\)\)/,
     );
     expect(listSrc).toMatch(
-      /onClick=\{\(\)\s*=>\s*attemptNavigation\(\(\)\s*=>\s*openEstimateSettings\(\)\)\}/,
+      /onClick=\{\(\)\s*=>\s*\{\s*setSettingsCategory\('numbering'\);\s*attemptNavigation\(\(\)\s*=>\s*openEstimateSettings\(\)\);\s*\}/,
     );
   });
 });

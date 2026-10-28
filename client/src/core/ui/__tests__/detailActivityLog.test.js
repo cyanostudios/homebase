@@ -6,8 +6,9 @@ const src = fs.readFileSync(path.join(__dirname, '../DetailActivityLog.tsx'), 'u
 describe('DetailActivityLog', () => {
   test('renders always-open card without Collapsible', () => {
     expect(src).not.toMatch(/from '@\/components\/ui\/collapsible'/);
-    expect(src).not.toMatch(/Collapsible/);
-    expect(src).not.toMatch(/defaultOpen/);
+    expect(src).not.toMatch(/<Collapsible/);
+    expect(src).toMatch(/collapsible = false/);
+    expect(src).toMatch(/defaultOpen = true/);
     expect(src).toMatch(/<Card/);
     expect(src).toMatch(/History/);
   });
