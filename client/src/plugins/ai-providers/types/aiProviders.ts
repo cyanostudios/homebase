@@ -9,6 +9,7 @@ export interface ProviderSettings {
   /** Masked (`••••••••`) when a key is stored; empty string when unset. */
   apiKey: string;
   hasApiKey: boolean;
+  tags?: string[];
   createdAt: string | null;
   updatedAt: string | null;
 }

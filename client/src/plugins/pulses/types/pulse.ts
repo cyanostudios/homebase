@@ -48,6 +48,7 @@ export interface PulseProviderSettings {
   configured: boolean;
   smsNotificationCapable: boolean;
   verifyCapable: boolean;
+  tags?: string[];
   createdAt: string | null;
   updatedAt: string | null;
 }
