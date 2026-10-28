@@ -23,9 +23,12 @@ import { FORM_GHOST_INPUT_CLASS, FORM_GHOST_TEXTAREA_CLASS } from '@/core/ui/for
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { filesApi } from '@/plugins/files/api/filesApi';
 
 import { useCups } from '../hooks/useCups';
+import { CUPS_SETTINGS_KEY } from '../utils/cupColumnCount';
 import type { Cup } from '../types/cups';
 
 import { CupPropertiesFields } from './CupPropertiesFields';
@@ -133,6 +136,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
     sanctioned: true,
     featured: false,
     featured_image_url: '',
+    tags: [] as string[],
   });
   const [imageUploadBusy, setImageUploadBusy] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
@@ -165,6 +169,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
       sanctioned: item?.sanctioned !== false,
       featured: item?.featured === true,
       featured_image_url: item?.featured_image_url || '',
+      tags: Array.isArray(item?.tags) ? item.tags : [],
     });
     setImageUploadError(null);
     clearValidationErrors();
@@ -205,6 +210,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
       source_url: form.source_url || null,
       description: form.description || null,
       featured_image_url: form.featured_image_url.trim() || null,
+      tags: form.tags,
     });
     if (ok) {
       markClean();
@@ -507,6 +513,22 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
           {formHeader}
           {activeTab === 'information' ? informationCard : null}
           {activeTab === 'information' ? propertiesCard : null}
+          {activeTab === 'information' ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('common.tags')}
+                icon={SETTINGS_CATEGORY_ICONS.tags}
+                subtleTitle
+                className="p-4"
+              >
+                <ItemTagsField
+                  settingsKey={CUPS_SETTINGS_KEY}
+                  value={form.tags}
+                  onChange={(tags) => onFieldChange('tags', tags)}
+                />
+              </DetailSection>
+            </Card>
+          ) : null}
         </div>
       </DetailLayout>
       {validationErrors.length > 0 && (

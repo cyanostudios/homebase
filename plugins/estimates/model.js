@@ -5,6 +5,7 @@ const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const ServiceManager = require('../../server/core/ServiceManager');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 const {
   registerPublicShareRoute,
   resolvePublicShareTenantFromToken,
@@ -122,6 +123,7 @@ class EstimateModel {
       acceptanceReasons: acceptanceReasons,
       rejectionReasons: rejectionReasons,
       statusChangedAt: row.status_changed_at,
+      tags: parseItemTags(row.tags),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -260,6 +262,7 @@ class EstimateModel {
         acceptance_reasons: JSON.stringify(estimateData.acceptanceReasons || []),
         rejection_reasons: JSON.stringify(estimateData.rejectionReasons || []),
         status_changed_at: status === 'accepted' || status === 'rejected' ? new Date() : null,
+        tags: serializeItemTags(estimateData.tags),
       });
 
       Logger.info('Estimate created', { estimateId: result.id, estimateNumber });
@@ -339,7 +342,7 @@ class EstimateModel {
         total,
       } = this.calculateTotals(lineItems, estimateData.estimateDiscount || 0);
 
-      const result = await db.update('estimates', estimateId, {
+      const estimateUpdatePayload = {
         contact_id: estimateData.contactId || null,
         contact_name: estimateData.contactName || '',
         organization_number: estimateData.organizationNumber || '',
@@ -364,7 +367,12 @@ class EstimateModel {
           isStatusChanging && isBecomingAcceptedOrRejected
             ? new Date()
             : currentEstimate.statusChangedAt,
-      });
+      };
+      if (typeof estimateData.tags !== 'undefined') {
+        estimateUpdatePayload.tags = serializeItemTags(estimateData.tags);
+      }
+
+      const result = await db.update('estimates', estimateId, estimateUpdatePayload);
 
       Logger.info('Estimate updated', { estimateId });
 

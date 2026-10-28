@@ -1,6 +1,7 @@
 // plugins/ingest/model.js
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 
 const SOURCES = 'ingest_sources';
 const RUNS = 'ingest_runs';
@@ -19,6 +20,7 @@ class IngestModel {
       lastFetchedAt: row.last_fetched_at ?? null,
       lastFetchStatus: row.last_fetch_status ?? 'never',
       lastFetchError: row.last_fetch_error ?? null,
+      tags: parseItemTags(row.tags),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -81,6 +83,7 @@ class IngestModel {
         is_active: data.isActive !== false,
         notes: data.notes ?? null,
         last_fetch_status: 'never',
+        tags: serializeItemTags(data.tags),
       });
       return this.transformSourceRow(record);
     } catch (error) {
@@ -96,14 +99,18 @@ class IngestModel {
       if (!existing.length) {
         throw new AppError('Source not found', 404, AppError.CODES.NOT_FOUND);
       }
-      const result = await db.update(SOURCES, id, {
+      const updatePayload = {
         name: data.name,
         source_url: data.sourceUrl,
         source_type: data.sourceType,
         fetch_method: data.fetchMethod || 'generic_http',
         is_active: data.isActive !== false,
         notes: data.notes ?? null,
-      });
+      };
+      if (typeof data.tags !== 'undefined') {
+        updatePayload.tags = serializeItemTags(data.tags);
+      }
+      const result = await db.update(SOURCES, id, updatePayload);
       return this.transformSourceRow(result);
     } catch (error) {
       if (error instanceof AppError) throw error;

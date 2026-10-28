@@ -1,10 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
+import {
+  PluginSettingsPageShell,
+  type PluginSettingsCategory,
+} from '@/core/ui/PluginSettingsPageShell';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 
 import type { InstructionSettingsTab } from '../context/InstructionContext';
-import { useInstructions } from '../hooks/useInstructions';
+
+const INSTRUCTIONS_SETTINGS_KEY = 'instructions';
+
+export type InstructionSettingsCategory = 'tags';
 
 interface InstructionSettingsViewProps {
   selectedTab?: InstructionSettingsTab;
@@ -14,33 +22,42 @@ interface InstructionSettingsViewProps {
   onClose?: () => void;
 }
 
-/** Settings shell kept for navigation; list view prefs live on the list header. */
+/** Settings shell; tag catalog and list view prefs. */
 export function InstructionSettingsView({
   selectedTab,
   onSelectedTabChange,
   onClose,
 }: InstructionSettingsViewProps = {}) {
   const { t } = useTranslation();
-  const { instructionsSettingsTab } = useInstructions();
 
-  const [internalTab, setInternalTab] = useState<InstructionSettingsTab | undefined>(undefined);
-  const activeTab = selectedTab ?? internalTab;
-  const setActiveTab = onSelectedTabChange ?? setInternalTab;
+  const [internalCategory, setInternalCategory] = useState<InstructionSettingsCategory>('tags');
+  const activeCategory = (selectedTab ?? internalCategory) as InstructionSettingsCategory;
+  const setActiveCategory = (onSelectedTabChange ?? setInternalCategory) as (
+    category: InstructionSettingsCategory,
+  ) => void;
 
-  useEffect(() => {
-    setActiveTab(instructionsSettingsTab);
-  }, [instructionsSettingsTab, setActiveTab]);
+  const categories: PluginSettingsCategory[] = useMemo(
+    () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
+    ],
+    [t],
+  );
 
   return (
     <PluginSettingsPageShell
       title={t('instructions.settings.title')}
       subtitle={t('instructions.settingsSubtitle')}
-      categories={[]}
-      activeCategory={activeTab ?? ''}
-      onCategoryChange={() => {}}
+      categories={categories}
+      activeCategory={activeCategory}
+      onCategoryChange={(id) => setActiveCategory(id as InstructionSettingsCategory)}
       onClose={onClose}
     >
-      {null}
+      {activeCategory === 'tags' && <SettingsTagsSection settingsKey={INSTRUCTIONS_SETTINGS_KEY} />}
     </PluginSettingsPageShell>
   );
 }

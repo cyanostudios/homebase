@@ -48,6 +48,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -55,6 +56,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -80,7 +82,7 @@ import {
 
 import { FileForm } from './FileForm';
 import { FileListTable } from './FileListTable';
-import { FileSettingsView } from './FileSettingsView';
+import { FileSettingsView, type FileSettingsCategory } from './FileSettingsView';
 import { FilesStatisticsView } from './FilesStatisticsView';
 import { FileView } from './FileView';
 
@@ -88,6 +90,7 @@ type SortField = FileSortField;
 type SortOrder = FileSortOrder;
 
 const FILES_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.files.toolbar.filtersVisible';
+const FILES_SETTINGS_KEY = 'files';
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'name', labelKey: 'files.sort.name' },
@@ -125,10 +128,14 @@ export const FileList: React.FC = () => {
     validationErrors,
   } = useFiles();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const [settingsCategory, setSettingsCategory] = useState<FileSettingsCategory>('cloud');
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openFilePanel(null)),
-    onSettings: () => attemptNavigation(() => openFileSettings()),
+    onSettings: () => {
+      setSettingsCategory('cloud');
+      attemptNavigation(() => openFileSettings());
+    },
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -152,6 +159,15 @@ export const FileList: React.FC = () => {
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     FILES_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const tagFilter = usePluginListTags({
+    settingsKey: FILES_SETTINGS_KEY,
+    storageKey: 'homebase.files.toolbar.tagsVisible',
+    items: files,
+    onOpenSettings: () => {
+      setSettingsCategory('tags');
+      attemptNavigation(() => openFileSettings());
+    },
+  });
   const restoredPendingFileRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -230,7 +246,9 @@ export const FileList: React.FC = () => {
   );
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = files.filter((item) => fileMatchesListFilters(item, activeFilters));
+    const byFilter = files.filter(
+      (item) => fileMatchesListFilters(item, activeFilters) && tagFilter.matches(item),
+    );
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = byFilter.filter((item) => {
@@ -251,7 +269,7 @@ export const FileList: React.FC = () => {
     });
 
     return [...filtered].sort((a, b) => compareFilesByField(a, b, primarySort, sortOrder));
-  }, [files, searchTerm, primarySort, sortOrder, activeFilters]);
+  }, [files, searchTerm, primarySort, sortOrder, activeFilters, tagFilter]);
 
   const stats = useMemo(
     () => ({
@@ -473,6 +491,11 @@ export const FileList: React.FC = () => {
             </Button>
           );
         })}
+        <ListChipRowClear
+          visible={activeFilters.length > 0}
+          ariaLabel={t('common.clearFilters')}
+          onClear={() => setActiveFilters([])}
+        />
       </div>
     );
   };
@@ -601,7 +624,11 @@ export const FileList: React.FC = () => {
     return (
       <div className="plugin-files min-h-full bg-background">
         <div className="px-6 py-4">
-          <FileSettingsView onClose={closeFileSettingsView} />
+          <FileSettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            onClose={closeFileSettingsView}
+          />
         </div>
       </div>
     );
@@ -683,14 +710,19 @@ export const FileList: React.FC = () => {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={() => attemptNavigation(() => openFileSettings())}
+                      onClick={() => {
+                        setSettingsCategory('cloud');
+                        attemptNavigation(() => openFileSettings());
+                      }}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle
                       visible={filtersVisible}
                       onVisibleChange={setFiltersVisible}
+                      hasActiveSelection={activeFilters.length > 0}
                       className="h-11 rounded-full"
                     />
+                    {tagFilter.toggle}
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -718,6 +750,17 @@ export const FileList: React.FC = () => {
                     {renderFilterChips()}
                   </div>
                 ) : null}
+                {tagFilter.row ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {tagFilter.row}
+                  </div>
+                ) : null}
                 {renderBulkActionBar('py-3')}
               </div>
             </div>
@@ -725,12 +768,15 @@ export const FileList: React.FC = () => {
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
             {filtersVisible ? renderFilterChips() : null}
+            {tagFilter.row}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
               <ListFilterChipsToggle
                 visible={filtersVisible}
                 onVisibleChange={setFiltersVisible}
+                hasActiveSelection={activeFilters.length > 0}
                 className="h-7 rounded-md"
               />
+              {tagFilter.mobileToggle}
               {renderSortDropdown('h-7 rounded-md')}
             </div>
           </div>

@@ -135,6 +135,31 @@ export function contactMatchesTagFilter(
   return tags.includes(tagFilter);
 }
 
+/**
+ * Empty selection = no tag filter (all contacts).
+ * Non-empty = OR across selected catalog tags (contact has at least one).
+ */
+export function contactMatchesSelectedTags(
+  contact: Pick<Contact, 'tags'>,
+  selectedTags: readonly string[],
+): boolean {
+  if (selectedTags.length === 0) {
+    return true;
+  }
+  return selectedTags.some((tag) => contactMatchesTagFilter(contact, tag));
+}
+
+export function countContactsWithTag(contacts: Array<Pick<Contact, 'tags'>>, tag: string): number {
+  return contacts.filter((contact) => contactMatchesTagFilter(contact, tag)).length;
+}
+
+export function toggleContactTagFilter(current: readonly string[], tag: string): string[] {
+  if (current.includes(tag)) {
+    return current.filter((entry) => entry !== tag);
+  }
+  return [...current, tag];
+}
+
 export function collectContactTags(contacts: Array<Pick<Contact, 'tags'>>): string[] {
   const set = new Set<string>();
   for (const contact of contacts) {

@@ -77,6 +77,18 @@ function rowToRequest(row: Record<string, unknown>): Request {
     firstViewedAt: ((row.firstViewedAt ?? row.first_viewed_at) as string | null) ?? null,
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
+    tags: Array.isArray(row.tags)
+      ? (row.tags as string[])
+      : typeof row.tags === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(row.tags);
+              return Array.isArray(parsed) ? parsed.map(String) : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [],
   };
 }
 
@@ -95,6 +107,7 @@ export interface RequestPayload {
   source?: Request['source'];
   response_due_at?: string | null;
   extra_data?: Record<string, string> | null;
+  tags?: string[];
 }
 
 export interface PublicRequestPayload {

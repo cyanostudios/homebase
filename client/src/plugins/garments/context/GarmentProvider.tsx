@@ -50,6 +50,7 @@ import {
   buildInventoryTagsSavePayload,
   inventoryTagsEqual,
   mergeInventoryTag,
+  normalizeInventoryTags,
 } from '../utils/inventoryTags';
 
 import { GarmentContext, type GarmentContextType } from './GarmentContext';
@@ -726,6 +727,7 @@ export function GarmentProvider({
           (currentGarment?.checkboxColumns?.length
             ? currentGarment.checkboxColumns
             : createDefaultCheckboxColumns()),
+        tags: normalizeInventoryTags(data.tags),
       };
       const errors = validateList(payload);
       setValidationErrors(errors);

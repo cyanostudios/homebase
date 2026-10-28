@@ -4,9 +4,10 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 
 /** Columns for list/get — omit user_id so PostgreSQLAdapter tenant filter applies. */
-const FILE_SELECT_COLUMNS = `id, name, size, mime_type, url, storage_provider, external_file_id, created_at, updated_at`;
+const FILE_SELECT_COLUMNS = `id, name, size, mime_type, url, storage_provider, external_file_id, tags, created_at, updated_at`;
 
 class FilesModel {
   constructor() {
@@ -131,6 +132,7 @@ class FilesModel {
       if (data?.externalFileId != null) {
         insertPayload.external_file_id = String(data.externalFileId);
       }
+      insertPayload.tags = serializeItemTags(data?.tags);
       const result = await db.insert(FilesModel.TABLE, insertPayload);
 
       Logger.info('File metadata created', { fileId: result.id });
@@ -175,6 +177,9 @@ class FilesModel {
       }
       if (Object.prototype.hasOwnProperty.call(data, 'externalFileId')) {
         updateData.external_file_id = data.externalFileId ?? null;
+      }
+      if (Object.prototype.hasOwnProperty.call(data, 'tags')) {
+        updateData.tags = serializeItemTags(data.tags);
       }
 
       // Use database.update for automatic tenant isolation
@@ -228,6 +233,7 @@ class FilesModel {
       url: row.url ?? null,
       storageProvider: row.storage_provider ?? 'local',
       externalFileId: row.external_file_id ?? null,
+      tags: parseItemTags(row.tags),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

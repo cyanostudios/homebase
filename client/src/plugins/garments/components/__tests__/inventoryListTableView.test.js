@@ -220,7 +220,14 @@ describe('Garment inventory list split view wiring', () => {
     expect(listSrc).toMatch(/onSelectFilter/);
     expect(listSrc).toMatch(/setShowArchivedOnly\(true\)/);
     expect(listSrc).toMatch(/setShowArchivedOnly\(false\)/);
-    expect(listSrc).toMatch(/setInventoryTagFilter\(null\)/);
+    expect(listSrc).toMatch(/selectedTags/);
+    expect(listSrc).toMatch(/setSelectedTags\(\[\]\)/);
+    expect(listSrc).toMatch(/ListTagsChipsToggle/);
+    expect(listSrc).toMatch(/ListTagsEmptyRow/);
+    expect(listSrc).toMatch(/openTagsSettings/);
+    expect(listSrc).toMatch(/homebase\.garments\.toolbar\.tagsVisible/);
+    expect(listSrc).toMatch(/inventoryItemMatchesSelectedTags/);
+    expect(listSrc).toMatch(/renderTagChips/);
     expect(listSrc).toMatch(/setFiltersVisible\(true\)/);
     expect(statsSrc).toMatch(/garments\.inventoryStatistics\.title/);
     expect(statsSrc).toMatch(/isInventoryItemArchived/);

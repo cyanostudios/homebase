@@ -53,6 +53,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -60,6 +61,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -88,7 +90,7 @@ import {
 
 import { EstimateForm } from './EstimateForm';
 import { EstimateListTable } from './EstimateListTable';
-import { EstimateSettingsView } from './EstimateSettingsView';
+import { EstimateSettingsView, type EstimateSettingsCategory } from './EstimateSettingsView';
 import { EstimatesStatisticsView } from './EstimatesStatisticsView';
 import { EstimateView } from './EstimateView';
 
@@ -135,10 +137,14 @@ export function EstimateList() {
   } = useEstimates();
   const { getSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const [settingsCategory, setSettingsCategory] = useState<EstimateSettingsCategory>('numbering');
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openEstimatePanel(null)),
-    onSettings: () => attemptNavigation(() => openEstimateSettings()),
+    onSettings: () => {
+      setSettingsCategory('numbering');
+      attemptNavigation(() => openEstimateSettings());
+    },
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -165,6 +171,15 @@ export function EstimateList() {
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     ESTIMATES_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const tagFilter = usePluginListTags({
+    settingsKey: ESTIMATES_SETTINGS_KEY,
+    storageKey: 'homebase.estimates.toolbar.tagsVisible',
+    items: estimates,
+    onOpenSettings: () => {
+      setSettingsCategory('tags');
+      attemptNavigation(() => openEstimateSettings());
+    },
+  });
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
   const [toolbarToggleBox, setToolbarToggleBox] = useState<{
@@ -268,8 +283,9 @@ export function EstimateList() {
   );
 
   const sortedEstimates = useMemo(() => {
-    const byFilter = estimates.filter((estimate) =>
-      estimateMatchesListFilters(estimate, activeFilters),
+    const byFilter = estimates.filter(
+      (estimate) =>
+        estimateMatchesListFilters(estimate, activeFilters) && tagFilter.matches(estimate),
     );
 
     const q = searchTerm.toLowerCase();
@@ -282,7 +298,7 @@ export function EstimateList() {
     );
 
     return [...filtered].sort((a, b) => compareEstimatesByField(a, b, primarySort, sortOrder));
-  }, [estimates, searchTerm, primarySort, sortOrder, activeFilters]);
+  }, [estimates, searchTerm, primarySort, sortOrder, activeFilters, tagFilter]);
 
   const isFilterActive = (filter: EstimateListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: EstimateListFilter) => {
@@ -587,6 +603,11 @@ export function EstimateList() {
           <span className="tabular-nums font-semibold">({stats.invoiced})</span>
         </span>
       </Button>
+      <ListChipRowClear
+        visible={activeFilters.length > 0}
+        ariaLabel={t('common.clearFilters')}
+        onClear={() => setActiveFilters([])}
+      />
     </div>
   );
 
@@ -714,7 +735,11 @@ export function EstimateList() {
     return (
       <div className="plugin-estimates min-h-full bg-background">
         <div className="px-6 py-4">
-          <EstimateSettingsView onClose={closeEstimateSettingsView} />
+          <EstimateSettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            onClose={closeEstimateSettingsView}
+          />
         </div>
       </div>
     );
@@ -798,14 +823,19 @@ export function EstimateList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={() => attemptNavigation(() => openEstimateSettings())}
+                      onClick={() => {
+                        setSettingsCategory('numbering');
+                        attemptNavigation(() => openEstimateSettings());
+                      }}
                     />
                     {renderSortDropdown('h-11 rounded-full')}
                     <ListFilterChipsToggle
                       visible={filtersVisible}
                       onVisibleChange={setFiltersVisible}
+                      hasActiveSelection={activeFilters.length > 0}
                       className="h-11 rounded-full"
                     />
+                    {tagFilter.toggle}
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -833,6 +863,17 @@ export function EstimateList() {
                     {renderFilterChips()}
                   </div>
                 ) : null}
+                {tagFilter.row ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {tagFilter.row}
+                  </div>
+                ) : null}
                 {renderBulkActionBar('py-3')}
               </div>
             </div>
@@ -840,12 +881,15 @@ export function EstimateList() {
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
             {filtersVisible ? renderFilterChips() : null}
+            {tagFilter.row}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
               <ListFilterChipsToggle
                 visible={filtersVisible}
                 onVisibleChange={setFiltersVisible}
+                hasActiveSelection={activeFilters.length > 0}
                 className="h-7 rounded-md"
               />
+              {tagFilter.mobileToggle}
               {renderSortDropdown('h-7 rounded-md')}
             </div>
           </div>

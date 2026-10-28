@@ -17,6 +17,7 @@ import {
   Package,
   Link2,
   Building2,
+  SearchCheck,
 } from 'lucide-react';
 import React from 'react';
 
@@ -147,6 +148,9 @@ import { useFiles } from '@/plugins/files/hooks/useFiles';
 // Ingest
 import { IngestNullProvider } from '@/plugins/ingest/context/IngestContext';
 import { useIngest } from '@/plugins/ingest/hooks/useIngest';
+// Site audits
+import { SiteAuditsNullProvider } from '@/plugins/site-audits/context/SiteAuditsContext';
+import { useSiteAudits } from '@/plugins/site-audits/hooks/useSiteAudits';
 // Guides
 import { GuideNullProvider } from '@/plugins/guides/context/GuidesContext';
 import { useGuides } from '@/plugins/guides/hooks/useGuides';
@@ -348,6 +352,23 @@ const IngestSourceView = React.lazy(() =>
 const IngestDashboardWidget = React.lazy(() =>
   import('@/plugins/ingest/components/IngestDashboardWidget').then((m) => ({
     default: m.IngestDashboardWidget,
+  })),
+);
+
+// Site audits
+const SiteAuditList = React.lazy(() =>
+  import('@/plugins/site-audits/components/SiteAuditList').then((m) => ({
+    default: m.SiteAuditList,
+  })),
+);
+const SiteAuditForm = React.lazy(() =>
+  import('@/plugins/site-audits/components/SiteAuditForm').then((m) => ({
+    default: m.SiteAuditForm,
+  })),
+);
+const SiteAuditView = React.lazy(() =>
+  import('@/plugins/site-audits/components/SiteAuditView').then((m) => ({
+    default: m.SiteAuditView,
   })),
 );
 
@@ -946,6 +967,31 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: IngestDashboardWidget,
     displayPrefix: 'ING',
+    contentFlush: true,
+    contentOwnsScroll: true,
+    slugField: 'name',
+    noPrimaryAction: true,
+  },
+  {
+    name: 'site-audits',
+    Provider: SiteAuditsNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/site-audits/context/SiteAuditsProvider').then((m) => m.SiteAuditsProvider),
+    NullProvider: SiteAuditsNullProvider,
+    hook: useSiteAudits,
+    panelKey: 'isSiteAuditPanelOpen',
+    components: {
+      List: SiteAuditList,
+      Form: SiteAuditForm,
+      View: SiteAuditView,
+    },
+    navigation: {
+      category: 'Tools',
+      label: 'Site audits',
+      icon: SearchCheck,
+      order: 5,
+    },
+    displayPrefix: 'AUD',
     contentFlush: true,
     contentOwnsScroll: true,
     slugField: 'name',

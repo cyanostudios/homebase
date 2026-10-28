@@ -44,6 +44,7 @@ export interface Match {
   is_finished: boolean;
   is_postponed: boolean;
   mentions: MatchMention[];
+  tags?: string[];
   created_at: string;
   updated_at: string;
 }

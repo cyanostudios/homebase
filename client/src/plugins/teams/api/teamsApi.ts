@@ -60,6 +60,18 @@ function rowToTeam(row: Record<string, unknown>): Team {
         : null,
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
+    tags: Array.isArray(row.tags)
+      ? (row.tags as string[])
+      : typeof row.tags === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(row.tags);
+              return Array.isArray(parsed) ? parsed.map(String) : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [],
   };
 }
 
@@ -94,6 +106,7 @@ export interface TeamPayload {
   responsibles?: Responsible[];
   color?: Team['color'];
   external_team_id?: string | null;
+  tags?: string[];
 }
 
 class TeamsApi {

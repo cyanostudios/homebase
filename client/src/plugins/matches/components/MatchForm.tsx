@@ -37,9 +37,12 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 
 import { useMatches } from '../hooks/useMatches';
+import { MATCHES_SETTINGS_KEY } from '../utils/matchColumnCount';
 import {
   type MatchMention,
   type SportType,
@@ -68,6 +71,7 @@ interface MatchFormState {
   is_canceled: boolean;
   is_finished: boolean;
   is_postponed: boolean;
+  tags: string[];
 }
 
 type AssignableContact = {
@@ -205,6 +209,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
     is_canceled: false,
     is_finished: false,
     is_postponed: false,
+    tags: [],
   });
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -237,6 +242,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
       is_canceled: false,
       is_finished: false,
       is_postponed: false,
+      tags: [],
     });
     setSelectedContactIds([]);
     markClean();
@@ -276,6 +282,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
         is_canceled: Boolean(currentMatch.is_canceled),
         is_finished: Boolean(currentMatch.is_finished),
         is_postponed: Boolean(currentMatch.is_postponed),
+        tags: Array.isArray(currentMatch.tags) ? currentMatch.tags : [],
       });
       const fromMentions =
         currentMatch.mentions?.map((m: MatchMention) => String(m.contactId)).filter(Boolean) ?? [];
@@ -372,7 +379,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
     [handleSubmit, handleCancel],
   );
 
-  const updateField = (field: keyof MatchFormState, value: string | boolean) => {
+  const updateField = (field: keyof MatchFormState, value: string | boolean | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     markDirty();
     clearValidationErrors();
@@ -910,6 +917,22 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
 
           {activeTab === 'information' ? informationCard : null}
           {activeTab === 'information' ? propertiesCard : null}
+          {activeTab === 'information' ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('common.tags')}
+                icon={SETTINGS_CATEGORY_ICONS.tags}
+                subtleTitle
+                className="p-4"
+              >
+                <ItemTagsField
+                  settingsKey={MATCHES_SETTINGS_KEY}
+                  value={formData.tags}
+                  onChange={(tags) => updateField('tags', tags)}
+                />
+              </DetailSection>
+            </Card>
+          ) : null}
           {activeTab === 'contacts' ? contactsCard : null}
         </form>
       </DetailLayout>

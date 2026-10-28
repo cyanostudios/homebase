@@ -2,6 +2,7 @@
 // V3 with @homebase/core SDK
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 const SPORT_TYPES = ['football', 'handball'];
@@ -266,6 +267,7 @@ class MatchModel {
         is_canceled: Boolean(is_canceled),
         is_finished: Boolean(is_finished),
         is_postponed: Boolean(is_postponed),
+        tags: serializeItemTags(matchData.tags),
       });
 
       Logger.info('Match created', { matchId: result.id });
@@ -322,7 +324,7 @@ class MatchModel {
       validateSportAndFormat(sport_type, format);
       const nextName = this._deriveName({ name, home_team, away_team });
 
-      const result = await db.update('matches', matchId, {
+      const matchUpdatePayload = {
         name: nextName,
         match_number:
           match_number !== undefined
@@ -384,7 +386,12 @@ class MatchModel {
           is_finished !== undefined ? Boolean(is_finished) : Boolean(existing[0].is_finished),
         is_postponed:
           is_postponed !== undefined ? Boolean(is_postponed) : Boolean(existing[0].is_postponed),
-      });
+      };
+      if (typeof matchData.tags !== 'undefined') {
+        matchUpdatePayload.tags = serializeItemTags(matchData.tags);
+      }
+
+      const result = await db.update('matches', matchId, matchUpdatePayload);
 
       Logger.info('Match updated', { matchId });
       return this.transformRow(result);
@@ -470,6 +477,7 @@ class MatchModel {
       is_finished: Boolean(row.is_finished),
       is_postponed: Boolean(row.is_postponed),
       mentions,
+      tags: parseItemTags(row.tags),
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

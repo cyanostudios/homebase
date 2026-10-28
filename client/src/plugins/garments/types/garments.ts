@@ -34,6 +34,7 @@ export interface GarmentList {
   fitSummaryProcurement?: FitSummaryProcurement;
   personCount?: number;
   persons?: GarmentPerson[];
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -51,6 +52,7 @@ export interface GarmentListPayload {
   name: string;
   teamId?: string | null;
   checkboxColumns?: GarmentCheckboxColumn[];
+  tags?: string[];
 }
 
 export interface GarmentPerson {

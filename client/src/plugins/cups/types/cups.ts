@@ -27,6 +27,7 @@ export interface Cup {
   created_at: string;
   updated_at: string;
   ratings_count: number;
+  tags?: string[];
 }
 
 export interface CupValidationError {

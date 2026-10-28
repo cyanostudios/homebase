@@ -13,6 +13,13 @@ describe('ListFilterChipsToggle wiring', () => {
     expect(toggleSrc).toMatch(/common\.hideFilters/);
     expect(toggleSrc).toMatch(/LIST_FILTER_CHIPS_TOGGLE_CLASS/);
     expect(toggleSrc).toMatch(/LIST_FILTER_CHIPS_TOGGLE_OFF_CLASS/);
+    expect(toggleSrc).toMatch(/hasActiveSelection/);
+    expect(toggleSrc).toMatch(/data-has-active-selection/);
+    expect(toggleSrc).toMatch(/common\.activeSelection/);
+    expect(toggleSrc).toMatch(/ListChipsToggleActivePip/);
+    expect(toggleSrc).toMatch(/aspect-square/);
+    expect(toggleSrc).toMatch(/left-\[85\.355%\]/);
+    expect(toggleSrc).toMatch(/top-\[14\.645%\]/);
   });
 
   test('visibility preference persists to localStorage', () => {

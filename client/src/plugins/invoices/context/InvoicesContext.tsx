@@ -33,6 +33,7 @@ export interface Invoice {
   createdAt?: Date | string | null;
   updatedAt?: Date | string | null;
   estimateId?: string | null;
+  tags?: string[];
   total?: number;
   totalVat?: number;
   subtotal?: number;

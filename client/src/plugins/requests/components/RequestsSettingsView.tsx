@@ -11,6 +11,7 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 import { garmentsApi } from '@/plugins/garments/api/garmentsApi';
@@ -24,7 +25,9 @@ import {
   intakeFieldLabelKey,
   type RequestTypeConfig,
 } from '../utils/requestTypeConfig';
-export type RequestsSettingsCategory = 'types';
+import { REQUESTS_SETTINGS_KEY } from '../utils/requestTableColumns';
+
+export type RequestsSettingsCategory = 'tags' | 'types';
 
 interface RequestsSettingsViewProps {
   selectedCategory?: RequestsSettingsCategory;
@@ -90,6 +93,12 @@ export function RequestsSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'types',
         label: t('requests.settingsCategories.types'),
@@ -354,6 +363,7 @@ export function RequestsSettingsView({
       onCategoryChange={(id) => setActiveCategory(id as RequestsSettingsCategory)}
       onClose={onClose}
     >
+      {activeCategory === 'tags' && <SettingsTagsSection settingsKey={REQUESTS_SETTINGS_KEY} />}
       {activeCategory === 'types' && (
         <DetailSection
           title={t('requests.settings.typesSection')}

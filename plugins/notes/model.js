@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 const {
   registerPublicShareRoute,
   unregisterPublicShareRoute,
@@ -76,6 +77,7 @@ class NoteModel {
         content: content || '',
         mentions: JSON.stringify(mentions || []),
         show_title_in_content: showTitleInContent,
+        tags: serializeItemTags(noteData.tags),
       });
 
       Logger.info('Note created', { noteId: result.id });
@@ -107,12 +109,17 @@ class NoteModel {
         noteData.showTitleInContent === undefined ? true : Boolean(noteData.showTitleInContent);
 
       // Use database.update for automatic tenant isolation
-      const result = await db.update('notes', noteId, {
+      const updatePayload = {
         title,
         content: content || '',
         mentions: JSON.stringify(mentions || []),
         show_title_in_content: showTitleInContent,
-      });
+      };
+      if (typeof noteData.tags !== 'undefined') {
+        updatePayload.tags = serializeItemTags(noteData.tags);
+      }
+
+      const result = await db.update('notes', noteId, updatePayload);
 
       Logger.info('Note updated', { noteId });
 
@@ -438,6 +445,7 @@ class NoteModel {
       content: row.content || '',
       mentions: mentions,
       showTitleInContent: row.show_title_in_content !== false,
+      tags: parseItemTags(row.tags),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

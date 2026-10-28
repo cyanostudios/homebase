@@ -18,6 +18,7 @@ export interface Task {
   /** Assigned team when teams plugin is used; null if none. */
   teamId: string | null;
   createdFromNote: string | null; // Note ID
+  tags?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

@@ -1,5 +1,6 @@
 // plugins/guides/model.js
 const { Logger, Database } = require('@homebase/core');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 const { AppError } = require('../../server/core/errors/AppError');
 const {
   DEFAULT_SOURCE_LANGUAGE,
@@ -198,6 +199,7 @@ class GuidesModel {
         masterGuideRow?.editorial_status ?? DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS,
       languages: parseGeneratedLanguages(placeRow.generated_languages),
       hasReadyAudio: Boolean(placeRow.has_ready_audio),
+      tags: parseItemTags(placeRow.tags),
       createdAt: placeRow.created_at,
       updatedAt: placeRow.updated_at,
     };
@@ -362,6 +364,13 @@ class GuidesModel {
           ],
         );
         const place = placeRows[0];
+        if (typeof data.tags !== 'undefined') {
+          await tx.query(`UPDATE ${PLACES_TABLE} SET tags = $1::jsonb WHERE id = $2`, [
+            serializeItemTags(data.tags),
+            place.id,
+          ]);
+          place.tags = serializeItemTags(data.tags);
+        }
 
         const masterRows = await tx.query(
           `
@@ -486,6 +495,17 @@ class GuidesModel {
           placeSnapshot?.resolvedAt ?? null,
         ],
       );
+
+      if (typeof data.tags !== 'undefined') {
+        const serializedTags = serializeItemTags(data.tags);
+        await db.query(`UPDATE ${PLACES_TABLE} SET tags = $1::jsonb WHERE id = $2`, [
+          serializedTags,
+          placeId,
+        ]);
+        if (rows[0]) {
+          rows[0].tags = serializedTags;
+        }
+      }
 
       const hasMasterGuideUpdates =
         data.sourceLanguage !== undefined || data.masterGuideEditorialStatus !== undefined;

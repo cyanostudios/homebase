@@ -14,6 +14,7 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 
 import { ESTIMATES_SETTINGS_KEY } from '../utils/estimateColumnCount';
 import {
@@ -24,7 +25,7 @@ import {
   sanitizeEstimateNumberStart,
 } from '../utils/estimateNumbering';
 
-export type EstimateSettingsCategory = 'numbering';
+export type EstimateSettingsCategory = 'tags' | 'numbering';
 
 interface EstimateSettingsViewProps {
   selectedCategory?: EstimateSettingsCategory;
@@ -52,6 +53,12 @@ export function EstimateSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'numbering',
         label: t('estimates.settingsCategories.numbering', { defaultValue: 'Numbering' }),
@@ -150,6 +157,7 @@ export function EstimateSettingsView({
         ) : null
       }
     >
+      {activeCategory === 'tags' && <SettingsTagsSection settingsKey={ESTIMATES_SETTINGS_KEY} />}
       {activeCategory === 'numbering' ? (
         <DetailSection
           title={t('estimates.settingsCategories.numbering')}

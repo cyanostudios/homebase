@@ -17,6 +17,7 @@ import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { FORM_COMPACT_SELECT_CLASS, FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 import { cn } from '@/lib/utils';
 
 import { usePulses } from '../hooks/usePulses';
@@ -426,6 +427,7 @@ export function PulseProvidersRouting({ onClose }: PulseProvidersRoutingProps = 
             )}
           </DetailSection>
         </Card>
+        <SettingsTagsSection settingsKey="pulses" />
       </div>
     </PluginSettingsPageShell>
   );

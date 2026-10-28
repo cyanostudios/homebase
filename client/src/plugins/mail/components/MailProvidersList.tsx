@@ -42,6 +42,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -49,6 +50,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -140,6 +142,12 @@ export const MailProvidersList: React.FC = () => {
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     MAIL_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const tagFilter = usePluginListTags({
+    settingsKey: 'mail',
+    storageKey: 'homebase.mail.toolbar.tagsVisible',
+    items: providers,
+    onOpenSettings: () => attemptNavigation(openRoutingView),
+  });
   const restoredPendingProviderRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -239,8 +247,9 @@ export const MailProvidersList: React.FC = () => {
   );
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = providers.filter((provider) =>
-      mailProviderMatchesListFilters(provider, activeFilters),
+    const byFilter = providers.filter(
+      (provider) =>
+        mailProviderMatchesListFilters(provider, activeFilters) && tagFilter.matches(provider),
     );
 
     const needle = searchTerm.trim().toLowerCase();
@@ -255,7 +264,7 @@ export const MailProvidersList: React.FC = () => {
     return [...filtered].sort((a, b) =>
       compareMailProviders(a, b, primarySort, sortOrder, (provider) => providerTitle(t, provider)),
     );
-  }, [activeFilters, primarySort, providers, searchTerm, sortOrder, t]);
+  }, [activeFilters, primarySort, providers, searchTerm, sortOrder, t, tagFilter]);
 
   const isFilterActive = (filter: MailProvidersListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: MailProvidersListFilter) => {
@@ -387,6 +396,11 @@ export const MailProvidersList: React.FC = () => {
             </Button>
           );
         })}
+        <ListChipRowClear
+          visible={activeFilters.length > 0}
+          ariaLabel={t('common.clearFilters')}
+          onClear={() => setActiveFilters([])}
+        />
       </div>
     );
   };
@@ -569,8 +583,10 @@ export const MailProvidersList: React.FC = () => {
                     <ListFilterChipsToggle
                       visible={filtersVisible}
                       onVisibleChange={setFiltersVisible}
+                      hasActiveSelection={activeFilters.length > 0}
                       className="h-11 rounded-full"
                     />
+                    {tagFilter.toggle}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <RoundExpandableSearch
@@ -600,18 +616,32 @@ export const MailProvidersList: React.FC = () => {
                     {renderFilterChips()}
                   </div>
                 ) : null}
+                {tagFilter.row ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {tagFilter.row}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
             {filtersVisible ? renderFilterChips() : null}
+            {tagFilter.row}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
               <ListFilterChipsToggle
                 visible={filtersVisible}
                 onVisibleChange={setFiltersVisible}
+                hasActiveSelection={activeFilters.length > 0}
                 className="h-7 rounded-md"
               />
+              {tagFilter.mobileToggle}
               {renderSortDropdown('h-7 rounded-md')}
             </div>
           </div>

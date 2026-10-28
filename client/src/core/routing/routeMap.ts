@@ -24,6 +24,7 @@ export const navPageToPath: Record<NavPage, string> = {
   invoices: '/invoices',
   files: '/files',
   ingest: '/ingest',
+  'site-audits': '/site-audits',
   guides: '/guides',
   instructions: '/instructions',
   clubdesk: '/clubdesk',

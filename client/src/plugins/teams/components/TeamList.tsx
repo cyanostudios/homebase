@@ -54,9 +54,11 @@ import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -85,7 +87,7 @@ import { resolveVisibleTeamTableColumns, type TeamTableColumnId } from '../utils
 import { TeamForm } from './TeamForm';
 import { TeamListTable } from './TeamListTable';
 import { TeamsBulkCreateView } from './TeamsBulkCreateView';
-import { TeamsSettingsView } from './TeamsSettingsView';
+import { TeamsSettingsView, type TeamsSettingsCategory } from './TeamsSettingsView';
 import { TeamsStatisticsView } from './TeamsStatisticsView';
 import { TeamView } from './TeamView';
 
@@ -141,7 +143,10 @@ export function TeamList() {
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openTeamPanel(null)),
-    onSettings: () => attemptNavigation(() => openTeamSettings()),
+    onSettings: () => {
+      setSettingsCategory('season');
+      attemptNavigation(() => openTeamSettings());
+    },
   });
 
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
@@ -169,6 +174,16 @@ export function TeamList() {
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     TEAMS_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const [settingsCategory, setSettingsCategory] = useState<TeamsSettingsCategory>('season');
+  const tagFilter = usePluginListTags({
+    settingsKey: TEAMS_SETTINGS_KEY,
+    storageKey: 'homebase.teams.toolbar.tagsVisible',
+    items: teams,
+    onOpenSettings: () => {
+      setSettingsCategory('tags');
+      attemptNavigation(() => openTeamSettings());
+    },
+  });
   const restoredPendingTeamRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -290,7 +305,7 @@ export function TeamList() {
       if (genderFilter !== 'all' && team.gender !== genderFilter) {
         return false;
       }
-      if (!teamMatchesListFilters(team, activeFilters)) {
+      if (!teamMatchesListFilters(team, activeFilters) || !tagFilter.matches(team)) {
         return false;
       }
       if (!q) {
@@ -303,7 +318,7 @@ export function TeamList() {
     });
 
     return [...filtered].sort((a, b) => compareTeamsByField(a, b, primarySort, sortOrder));
-  }, [teams, search, genderFilter, activeFilters, t, primarySort, sortOrder]);
+  }, [teams, search, genderFilter, activeFilters, t, primarySort, sortOrder, tagFilter]);
 
   const isFilterActive = (filter: TeamListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: TeamListFilter) => {
@@ -538,6 +553,11 @@ export function TeamList() {
           </Button>
         );
       })}
+      <ListChipRowClear
+        visible={activeFilters.length > 0}
+        ariaLabel={t('common.clearFilters')}
+        onClear={() => setActiveFilters([])}
+      />
     </div>
   );
 
@@ -665,7 +685,11 @@ export function TeamList() {
     return (
       <div className="plugin-teams min-h-full bg-background">
         <div className="px-4 py-4 md:px-6">
-          <TeamsSettingsView onClose={closeTeamSettingsView} />
+          <TeamsSettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            onClose={closeTeamSettingsView}
+          />
         </div>
       </div>
     );
@@ -769,7 +793,10 @@ export function TeamList() {
                       icon={Settings}
                       label={t('common.settings')}
                       variant="soft"
-                      onClick={() => attemptNavigation(() => openTeamSettings())}
+                      onClick={() => {
+                        setSettingsCategory('season');
+                        attemptNavigation(() => openTeamSettings());
+                      }}
                     />
                     <ExpandableIconButton
                       icon={BarChart2}
@@ -781,8 +808,10 @@ export function TeamList() {
                     <ListFilterChipsToggle
                       visible={filtersVisible}
                       onVisibleChange={setFiltersVisible}
+                      hasActiveSelection={activeFilters.length > 0}
                       className="h-11 rounded-full"
                     />
+                    {tagFilter.toggle}
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -816,6 +845,17 @@ export function TeamList() {
                     {renderFilterChips()}
                   </div>
                 ) : null}
+                {tagFilter.row ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {tagFilter.row}
+                  </div>
+                ) : null}
                 {renderBulkActionBar('py-3')}
               </div>
             </div>
@@ -823,12 +863,15 @@ export function TeamList() {
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
             {filtersVisible ? renderFilterChips() : null}
+            {tagFilter.row}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
               <ListFilterChipsToggle
                 visible={filtersVisible}
                 onVisibleChange={setFiltersVisible}
+                hasActiveSelection={activeFilters.length > 0}
                 className="h-7 rounded-md"
               />
+              {tagFilter.mobileToggle}
               {renderSortDropdown('h-7 rounded-md')}
             </div>
           </div>

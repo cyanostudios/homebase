@@ -11,6 +11,7 @@ const {
 const {
   resolveTenantConnectionStringForShare,
 } = require('../../server/core/utils/shareRoutingHelper');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 
 const GTIN_DIGITS = /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/;
 
@@ -491,6 +492,7 @@ class GarmentsModel {
         name: String(data.name || '').trim(),
         team_id: Number.isFinite(teamId) ? teamId : null,
         checkbox_columns: JSON.stringify(checkboxColumns),
+        tags: serializeItemTags(data.tags),
       });
       Logger.info('Garment list created', { listId: record.id });
       return this.getListById(req, record.id);
@@ -628,13 +630,29 @@ class GarmentsModel {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
+        const listSetClauses = [
+          'name = $1',
+          'team_id = $2',
+          'checkbox_columns = $3::jsonb',
+          'updated_at = CURRENT_TIMESTAMP',
+        ];
+        const listUpdateParams = [
+          name,
+          Number.isFinite(teamId) ? teamId : null,
+          JSON.stringify(checkboxColumns),
+        ];
+        if (typeof data.tags !== 'undefined') {
+          listSetClauses.splice(3, 0, `tags = $${listUpdateParams.length + 1}::jsonb`);
+          listUpdateParams.push(serializeItemTags(data.tags));
+        }
+        listUpdateParams.push(id);
         await client.query(
           `
           UPDATE garment_lists
-          SET name = $1, team_id = $2, checkbox_columns = $3::jsonb, updated_at = CURRENT_TIMESTAMP
-          WHERE id = $4
+          SET ${listSetClauses.join(', ')}
+          WHERE id = $${listUpdateParams.length}
           `,
-          [name, Number.isFinite(teamId) ? teamId : null, JSON.stringify(checkboxColumns), id],
+          listUpdateParams,
         );
 
         if (removedIds.length) {
@@ -2118,6 +2136,7 @@ class GarmentsModel {
       assignedInventoryItemIds: [],
       fitSummaryProcurement: normalizeFitSummaryProcurement(row.fit_summary_procurement),
       personCount: row.person_count != null ? Number(row.person_count) : undefined,
+      tags: parseItemTags(row.tags),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

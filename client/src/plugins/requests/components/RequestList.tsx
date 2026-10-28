@@ -56,6 +56,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -70,6 +71,7 @@ import {
 import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -94,6 +96,7 @@ import {
   type RequestSortOrder,
 } from '../utils/requestListSort';
 import {
+  REQUESTS_SETTINGS_KEY,
   resolveVisibleRequestTableColumns,
   type RequestTableColumnId,
 } from '../utils/requestTableColumns';
@@ -198,6 +201,16 @@ export function RequestList({ isCompanion = false }: { isCompanion?: boolean }) 
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     REQUESTS_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const tagFilter = usePluginListTags({
+    settingsKey: REQUESTS_SETTINGS_KEY,
+    storageKey: 'homebase.requests.toolbar.tagsVisible',
+    items: requests,
+    isCompanion,
+    onOpenSettings: () => {
+      setSettingsCategory('tags');
+      attemptNavigation(() => openRequestSettings());
+    },
+  });
   const restoredPendingRequestRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -318,7 +331,7 @@ export function RequestList({ isCompanion = false }: { isCompanion?: boolean }) 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return requests.filter((req) => {
-      if (!requestMatchesListFilters(req, activeFilters)) {
+      if (!requestMatchesListFilters(req, activeFilters) || !tagFilter.matches(req)) {
         return false;
       }
       if (typeFilter !== 'all' && req.requestType !== typeFilter) {
@@ -335,7 +348,7 @@ export function RequestList({ isCompanion = false }: { isCompanion?: boolean }) 
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [requests, search, activeFilters, typeFilter, teamFilter, teamById]);
+  }, [requests, search, activeFilters, typeFilter, teamFilter, teamById, tagFilter]);
 
   const isFilterActive = (filter: RequestListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: RequestListFilter) => {
@@ -581,6 +594,11 @@ export function RequestList({ isCompanion = false }: { isCompanion?: boolean }) 
           </Button>
         );
       })}
+      <ListChipRowClear
+        visible={activeFilters.length > 0}
+        ariaLabel={t('common.clearFilters')}
+        onClear={() => setActiveFilters([])}
+      />
     </div>
   );
 
@@ -828,12 +846,14 @@ export function RequestList({ isCompanion = false }: { isCompanion?: boolean }) 
                       <ListFilterChipsToggle
                         visible={filtersVisible}
                         onVisibleChange={setFiltersVisible}
+                        hasActiveSelection={activeFilters.length > 0}
                         className={
                           isCompanion
                             ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
                             : 'h-11 rounded-full'
                         }
                       />
+                      {tagFilter.toggle}
                       {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -879,6 +899,17 @@ export function RequestList({ isCompanion = false }: { isCompanion?: boolean }) 
                       {renderFilterChips()}
                     </div>
                   ) : null}
+                  {tagFilter.row ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {tagFilter.row}
+                    </div>
+                  ) : null}
                   {!isCompanion ? renderBulkActionBar('py-3') : null}
                 </div>
               </div>
@@ -888,12 +919,15 @@ export function RequestList({ isCompanion = false }: { isCompanion?: boolean }) 
           {!isCompanion ? (
             <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
               {filtersVisible ? renderFilterChips() : null}
+              {tagFilter.row}
               <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
                 <ListFilterChipsToggle
                   visible={filtersVisible}
                   onVisibleChange={setFiltersVisible}
+                  hasActiveSelection={activeFilters.length > 0}
                   className="h-7 rounded-md"
                 />
+                {tagFilter.mobileToggle}
                 {renderSortDropdown('h-7 rounded-md')}
               </div>
             </div>

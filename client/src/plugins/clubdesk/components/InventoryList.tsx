@@ -12,10 +12,12 @@ import {
   Menu,
   Plus,
   Settings,
+  Tag,
   Trash2,
   XCircle,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -33,6 +35,7 @@ import {
 import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
@@ -47,8 +50,11 @@ import {
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
+import { ListTagsChipsToggle } from '@/core/ui/ListTagsChipsToggle';
+import { ListTagsEmptyRow } from '@/core/ui/ListTagsEmptyRow';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
@@ -65,13 +71,18 @@ import { useClubdesk } from '../hooks/useClubdesk';
 import type { ClubdeskInventoryItem } from '../types/inventory';
 import { getClubdeskListStatusErrorMessage } from '../utils/clubdeskListStatusError';
 import {
+  countInventoryItemsWithTag,
+  inventoryItemMatchesSelectedTags,
   inventoryItemVisibleInCatalog,
   inventoryMatchesListFilters,
   isInventoryItemArchived,
   toggleInventoryListFilter,
+  toggleInventoryTagFilter,
   type InventoryListFilter,
   type InventoryListFilterSelection,
 } from '../utils/inventoryListFilter';
+import { CLUBDESK_INVENTORY_SETTINGS_KEY } from '../utils/clubdeskInventorySettingsKey';
+import { normalizeInventoryTags } from '../utils/inventoryTags';
 import {
   compareInventoryByField,
   isInventoryAscDefaultField,
@@ -99,6 +110,7 @@ const SORT_FIELD_OPTIONS: { value: InventorySortField; labelKey: string }[] = [
 ];
 
 const INVENTORY_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.clubdesk.inventory.toolbar.filtersVisible';
+const INVENTORY_TAGS_VISIBLE_STORAGE_KEY = 'homebase.clubdesk.inventory.toolbar.tagsVisible';
 
 export const InventoryList: React.FC = () => {
   const { t } = useTranslation();
@@ -123,15 +135,30 @@ export const InventoryList: React.FC = () => {
     closeClubdeskPanel,
     activeDomain,
   } = useClubdesk();
+  const { getSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [contentView, setContentView] = useState<InventoryContentView>('list');
   const [inventorySettingsCategory, setInventorySettingsCategory] =
     useState<ClubdeskInventorySettingsCategory>('public');
 
-  const openInventorySettings = useCallback(() => {
+  const openInventorySettings = useCallback((category?: ClubdeskInventorySettingsCategory) => {
+    if (category) {
+      setInventorySettingsCategory(category);
+    }
     setContentView('settings');
   }, []);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const state = location.state as { openSettings?: string } | null;
+    if (state?.openSettings !== 'tags') {
+      return;
+    }
+    openInventorySettings('tags');
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate, openInventorySettings]);
 
   const closeInventorySettings = useCallback(() => {
     setContentView('list');
@@ -153,6 +180,8 @@ export const InventoryList: React.FC = () => {
   const [primarySort, setPrimarySort] = useState<InventorySortField>('articleName');
   const [sortOrder, setSortOrder] = useState<InventorySortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<InventoryListFilterSelection>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [showArchivedOnly, setShowArchivedOnly] = useState(false);
   const [bulkDeleteWarning, setBulkDeleteWarning] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<ClubdeskInventoryItem | null>(null);
@@ -160,6 +189,8 @@ export const InventoryList: React.FC = () => {
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     INVENTORY_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const { filtersVisible: tagsVisible, setFiltersVisible: setTagsVisible } =
+    usePersistedFiltersVisible(INVENTORY_TAGS_VISIBLE_STORAGE_KEY);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
   const [toolbarToggleBox, setToolbarToggleBox] = useState<{
@@ -192,6 +223,28 @@ export const InventoryList: React.FC = () => {
       count: inventoryItems.length,
     }),
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings(CLUBDESK_INVENTORY_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        setAvailableTags(normalizeInventoryTags(settings?.tags));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  useEffect(() => {
+    setSelectedTags((prev) => {
+      const next = prev.filter((tag) => availableTags.includes(tag));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [availableTags]);
 
   useEffect(() => {
     // Keep soft preview in sync with index updates for the SAME id.
@@ -326,11 +379,20 @@ export const InventoryList: React.FC = () => {
     const filtered = inventoryItems.filter(
       (item) =>
         inventoryItemVisibleInCatalog(item, { archivedOnly: showArchivedOnly, searchTerm }) &&
-        inventoryMatchesListFilters(item, activeFilters),
+        inventoryMatchesListFilters(item, activeFilters) &&
+        inventoryItemMatchesSelectedTags(item, selectedTags),
     );
 
     return [...filtered].sort((a, b) => compareInventoryByField(a, b, primarySort, sortOrder));
-  }, [inventoryItems, searchTerm, primarySort, sortOrder, activeFilters, showArchivedOnly]);
+  }, [
+    inventoryItems,
+    searchTerm,
+    primarySort,
+    sortOrder,
+    activeFilters,
+    showArchivedOnly,
+    selectedTags,
+  ]);
 
   const isFilterActive = (filter: InventoryListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: InventoryListFilter) => {
@@ -348,6 +410,28 @@ export const InventoryList: React.FC = () => {
       published: slice.filter((i) => i.publicationStatus === 'published').length,
     };
   }, [inventoryItems, showArchivedOnly]);
+
+  const inventoryTagCounts = useMemo(() => {
+    const slice = inventoryItems.filter((item) =>
+      showArchivedOnly ? isInventoryItemArchived(item) : !isInventoryItemArchived(item),
+    );
+    const counts: Record<string, number> = {};
+    for (const tag of availableTags) {
+      counts[tag] = countInventoryItemsWithTag(slice, tag);
+    }
+    return counts;
+  }, [availableTags, inventoryItems, showArchivedOnly]);
+
+  const toggleTagFilter = (tag: string) => {
+    setSelectedTags((prev) => toggleInventoryTagFilter(prev, tag));
+  };
+
+  const filtersHaveActiveSelection = activeFilters.length > 0 || showArchivedOnly;
+
+  const clearListFilters = () => {
+    setActiveFilters([]);
+    setShowArchivedOnly(false);
+  };
 
   const visibleIds = useMemo(
     () => sortedInventorys.map((item) => String(item.id)),
@@ -489,10 +573,7 @@ export const InventoryList: React.FC = () => {
         type="button"
         variant="ghost"
         size="sm"
-        onClick={() => {
-          setActiveFilters([]);
-          setShowArchivedOnly(false);
-        }}
+        onClick={clearListFilters}
         className={cn(
           activeFilters.length === 0 && !showArchivedOnly
             ? LIST_FILTER_CHIP_ACTIVE_CLASS
@@ -549,8 +630,52 @@ export const InventoryList: React.FC = () => {
           <span className="tabular-nums font-semibold">({stats.archived})</span>
         </span>
       </Button>
+      <ListChipRowClear
+        visible={filtersHaveActiveSelection}
+        ariaLabel={t('common.clearFilters')}
+        onClear={clearListFilters}
+      />
     </div>
   );
+
+  const openTagsSettings = () => {
+    attemptNavigation(() => openInventorySettings('tags'));
+  };
+
+  const renderTagChips = () => {
+    if (availableTags.length === 0) {
+      return <ListTagsEmptyRow onOpenSettings={openTagsSettings} />;
+    }
+
+    return (
+      <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
+        {availableTags.map((tag) => {
+          const active = selectedTags.includes(tag);
+          return (
+            <Button
+              key={tag}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleTagFilter(tag)}
+              className={cn(active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
+            >
+              <Tag className="h-3.5 w-3.5" />
+              <span>
+                {tag}{' '}
+                <span className="tabular-nums font-semibold">({inventoryTagCounts[tag] ?? 0})</span>
+              </span>
+            </Button>
+          );
+        })}
+        <ListChipRowClear
+          visible={selectedTags.length > 0}
+          ariaLabel={t('common.clearTags')}
+          onClear={() => setSelectedTags([])}
+        />
+      </div>
+    );
+  };
 
   const primarySortLabel =
     SORT_FIELD_OPTIONS.find((option) => option.value === primarySort)?.labelKey ??
@@ -768,6 +893,13 @@ export const InventoryList: React.FC = () => {
                     <ListFilterChipsToggle
                       visible={filtersVisible}
                       onVisibleChange={setFiltersVisible}
+                      hasActiveSelection={filtersHaveActiveSelection}
+                      className="h-11 rounded-full"
+                    />
+                    <ListTagsChipsToggle
+                      visible={tagsVisible}
+                      onVisibleChange={setTagsVisible}
+                      hasActiveSelection={selectedTags.length > 0}
                       className="h-11 rounded-full"
                     />
                     {renderSelectControls('h-11 rounded-full')}
@@ -799,6 +931,17 @@ export const InventoryList: React.FC = () => {
                     {renderFilterChips()}
                   </div>
                 ) : null}
+                {tagsVisible ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {renderTagChips()}
+                  </div>
+                ) : null}
                 {renderBulkActionBar('py-3')}
               </div>
             </div>
@@ -806,10 +949,18 @@ export const InventoryList: React.FC = () => {
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
             {filtersVisible ? renderFilterChips() : null}
+            {tagsVisible ? renderTagChips() : null}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
               <ListFilterChipsToggle
                 visible={filtersVisible}
                 onVisibleChange={setFiltersVisible}
+                hasActiveSelection={filtersHaveActiveSelection}
+                className="h-7 rounded-md"
+              />
+              <ListTagsChipsToggle
+                visible={tagsVisible}
+                onVisibleChange={setTagsVisible}
+                hasActiveSelection={selectedTags.length > 0}
                 className="h-7 rounded-md"
               />
               {renderSortDropdown('h-7 rounded-md')}
@@ -866,17 +1017,26 @@ export const InventoryList: React.FC = () => {
                 {sortedInventorys.length === 0 ? (
                   <ListEmptyState
                     message={
-                      searchTerm || activeFilters.length > 0
+                      searchTerm ||
+                      activeFilters.length > 0 ||
+                      showArchivedOnly ||
+                      selectedTags.length > 0
                         ? t('clubdesk.inventory.noMatch')
                         : t('clubdesk.inventory.noYet')
                     }
                     createLabel={
-                      !searchTerm && activeFilters.length === 0
+                      !searchTerm &&
+                      activeFilters.length === 0 &&
+                      !showArchivedOnly &&
+                      selectedTags.length === 0
                         ? t('clubdesk.inventory.add')
                         : undefined
                     }
                     onCreate={
-                      !searchTerm && activeFilters.length === 0
+                      !searchTerm &&
+                      activeFilters.length === 0 &&
+                      !showArchivedOnly &&
+                      selectedTags.length === 0
                         ? () => attemptNavigation(() => openInventoryPanel(null))
                         : undefined
                     }

@@ -10,6 +10,7 @@ import {
   isInvoiceStatusOnlyPayload,
   resolveInvoiceCurrency,
   resolveInvoiceVatRateFromContact,
+  resolveInvoiceVatRateFromContactRecord,
   validateInvoiceMlClient,
 } from '../invoiceMlCompliance';
 import { calculateInvoiceLineItem } from '../../types/invoices';
@@ -142,7 +143,22 @@ describe('invoiceMlCompliance', () => {
     expect(resolveInvoiceCurrency('eur')).toBe('EUR');
     expect(resolveInvoiceCurrency('GBP')).toBe('SEK');
     expect(resolveInvoiceVatRateFromContact('12')).toBe(12);
+    expect(resolveInvoiceVatRateFromContact(12)).toBe(12);
     expect(resolveInvoiceVatRateFromContact('0')).toBe(0);
+    expect(resolveInvoiceVatRateFromContact(0)).toBe(0);
     expect(resolveInvoiceVatRateFromContact('99')).toBe(25);
+    // Missing/blank must not become 0% via Number(null)/Number('').
+    expect(resolveInvoiceVatRateFromContact(null)).toBe(25);
+    expect(resolveInvoiceVatRateFromContact(undefined)).toBe(25);
+    expect(resolveInvoiceVatRateFromContact('')).toBe(25);
+    expect(resolveInvoiceVatRateFromContactRecord({ contactType: 'private', taxRate: '25' })).toBe(
+      0,
+    );
+    expect(resolveInvoiceVatRateFromContactRecord({ contactType: 'company', taxRate: '12' })).toBe(
+      12,
+    );
+    expect(resolveInvoiceVatRateFromContactRecord({ contactType: 'company', taxRate: '' })).toBe(
+      25,
+    );
   });
 });

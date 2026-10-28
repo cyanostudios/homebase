@@ -47,6 +47,7 @@ import {
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -132,6 +133,15 @@ export const InstructionList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<InstructionSortOrder>('asc');
   const [activeFilters, setActiveFilters] = useState<InstructionListFilterSelection>([]);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const tagFilter = usePluginListTags({
+    settingsKey: 'instructions',
+    storageKey: 'homebase.instructions.toolbar.tagsVisible',
+    items: instructions,
+    onOpenSettings: () => {
+      setSettingsTab('tags');
+      attemptNavigation(() => openInstructionSettings());
+    },
+  });
 
   useEffect(() => {
     setSettingsTab(instructionsSettingsTab);
@@ -158,8 +168,8 @@ export const InstructionList: React.FC = () => {
   const catalogOrder = useMemo(() => categories.map((c) => c.name), [categories]);
 
   const sortedInstructions = useMemo(() => {
-    const byFilter = instructions.filter((item) =>
-      instructionMatchesListFilters(item, activeFilters),
+    const byFilter = instructions.filter(
+      (item) => instructionMatchesListFilters(item, activeFilters) && tagFilter.matches(item),
     );
 
     const byCategory =
@@ -177,7 +187,7 @@ export const InstructionList: React.FC = () => {
     );
 
     return [...filtered].sort((a, b) => compareInstructionsByField(a, b, primarySort, sortOrder));
-  }, [instructions, searchTerm, primarySort, sortOrder, activeFilters, categoryFilter]);
+  }, [instructions, searchTerm, primarySort, sortOrder, activeFilters, categoryFilter, tagFilter]);
 
   const isFilterActive = (filter: InstructionListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: InstructionListFilter) => {
@@ -325,6 +335,7 @@ export const InstructionList: React.FC = () => {
                     variant="soft"
                     onClick={() => attemptNavigation(() => openInstructionSettings())}
                   />
+                  {tagFilter.toggle}
                   {sortedInstructions.length > 0 ? (
                     selectionMode ? (
                       <ExpandableIconButton
@@ -372,6 +383,10 @@ export const InstructionList: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {tagFilter.row ? (
+          <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>{tagFilter.row}</div>
+        ) : null}
 
         <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
           <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
@@ -469,6 +484,7 @@ export const InstructionList: React.FC = () => {
             ) : null}
           </div>
           <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            {tagFilter.mobileToggle}
             <Select
               value={primarySort}
               onValueChange={(value) => handlePrimarySortChange(value as InstructionSortField)}

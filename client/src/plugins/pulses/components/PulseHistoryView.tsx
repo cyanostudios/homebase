@@ -44,6 +44,7 @@ import {
   LIST_FILTER_CHIP_ROW_CLASS,
   LIST_FILTER_CHIP_SLOT_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
@@ -328,6 +329,11 @@ export const PulseHistoryView: React.FC = () => {
             </Button>
           );
         })}
+        <ListChipRowClear
+          visible={activeFilters.length > 0}
+          ariaLabel={t('common.clearFilters')}
+          onClear={() => setActiveFilters([])}
+        />
       </div>
     );
   };
@@ -434,6 +440,7 @@ export const PulseHistoryView: React.FC = () => {
                 <ListFilterChipsToggle
                   visible={filtersVisible}
                   onVisibleChange={setFiltersVisible}
+                  hasActiveSelection={activeFilters.length > 0}
                   className="h-11 rounded-full"
                 />
                 {renderSelectControls('h-11 rounded-full')}

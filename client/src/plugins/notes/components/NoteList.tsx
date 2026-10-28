@@ -57,6 +57,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -71,6 +72,7 @@ import {
 import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
@@ -182,12 +184,22 @@ export const NoteList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = fa
   );
   const tableColumnIds = isCompanion ? COMPANION_VISIBLE_COLUMN_IDS : visibleColumnIds;
   const [activeFilters, setActiveFilters] = useState<NoteListFilterSelection>([]);
-  const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('import');
+  const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('tags');
   const [previewNote, setPreviewNote] = useState<Note | null>(null);
   const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     NOTES_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const tagFilter = usePluginListTags({
+    settingsKey: NOTES_SETTINGS_KEY,
+    storageKey: 'homebase.notes.toolbar.tagsVisible',
+    items: notes,
+    isCompanion,
+    onOpenSettings: () => {
+      setSettingsCategory('tags');
+      attemptNavigation(() => openNoteSettings());
+    },
+  });
   const restoredPendingNoteRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -281,7 +293,9 @@ export const NoteList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = fa
   );
 
   const sortedNotes = useMemo(() => {
-    const byFilter = notes.filter((note) => noteMatchesListFilters(note, activeFilters));
+    const byFilter = notes.filter(
+      (note) => noteMatchesListFilters(note, activeFilters) && tagFilter.matches(note),
+    );
 
     const q = searchTerm.toLowerCase();
     const filtered = byFilter.filter(
@@ -295,7 +309,7 @@ export const NoteList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = fa
     );
 
     return [...filtered].sort((a, b) => compareNotesByField(a, b, primarySort, sortOrder));
-  }, [notes, searchTerm, primarySort, sortOrder, activeFilters]);
+  }, [notes, searchTerm, primarySort, sortOrder, activeFilters, tagFilter]);
 
   const stats = useMemo(
     () => ({
@@ -588,6 +602,11 @@ export const NoteList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = fa
             </Button>
           );
         })}
+        <ListChipRowClear
+          visible={activeFilters.length > 0}
+          ariaLabel={t('common.clearFilters')}
+          onClear={() => setActiveFilters([])}
+        />
       </div>
     );
   };
@@ -827,12 +846,14 @@ export const NoteList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = fa
                       <ListFilterChipsToggle
                         visible={filtersVisible}
                         onVisibleChange={setFiltersVisible}
+                        hasActiveSelection={activeFilters.length > 0}
                         className={
                           isCompanion
                             ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
                             : 'h-11 rounded-full'
                         }
                       />
+                      {tagFilter.toggle}
                       {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -878,6 +899,17 @@ export const NoteList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = fa
                       {renderFilterChips()}
                     </div>
                   ) : null}
+                  {tagFilter.row ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {tagFilter.row}
+                    </div>
+                  ) : null}
                   {!isCompanion ? renderBulkActionBar('py-3') : null}
                 </div>
               </div>
@@ -887,12 +919,15 @@ export const NoteList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = fa
           {!isCompanion ? (
             <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
               {filtersVisible ? renderFilterChips() : null}
+              {tagFilter.row}
               <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
                 <ListFilterChipsToggle
                   visible={filtersVisible}
                   onVisibleChange={setFiltersVisible}
+                  hasActiveSelection={activeFilters.length > 0}
                   className="h-7 rounded-md"
                 />
+                {tagFilter.mobileToggle}
                 {renderSortDropdown('h-7 rounded-md')}
               </div>
             </div>

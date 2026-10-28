@@ -45,7 +45,9 @@ import {
   FORM_GHOST_READONLY_CLASS,
   FORM_GHOST_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -63,6 +65,7 @@ import {
   INVOICE_VAT_RATES,
   resolveInvoiceCurrency,
   resolveInvoiceVatRateFromContact,
+  resolveInvoiceVatRateFromContactRecord,
 } from '@/plugins/invoices/utils/invoiceMlCompliance';
 
 import { useEstimates } from '../hooks/useEstimates';
@@ -71,6 +74,7 @@ import {
   openEstimatePreviewWindow,
   writeEstimatePreviewWindow,
 } from '../utils/openEstimatePreviewWindow';
+import { ESTIMATES_SETTINGS_KEY } from '../utils/estimateColumnCount';
 import { generateWebHTML } from '../webTemplate';
 
 import { EstimateCustomerSelect } from './EstimateCustomerSelect';
@@ -178,6 +182,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
       deliveryMethod: '',
       validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
       status: 'draft' as Estimate['status'],
+      tags: [] as string[],
     });
 
     // Track which items are recently duplicated for visual feedback
@@ -235,6 +240,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
           deliveryMethod: currentEstimate.deliveryMethod || '',
           validTo: new Date(currentEstimate.validTo),
           status: currentEstimate.status || 'draft',
+          tags: Array.isArray(currentEstimate.tags) ? currentEstimate.tags : [],
         });
         const firstPriced = migratedLineItems.find((item) => item?.kind !== 'text');
         setDefaultVatRate(firstPriced ? resolveInvoiceVatRateFromContact(firstPriced.vatRate) : 25);
@@ -265,6 +271,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
         deliveryMethod: '',
         validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         status: 'draft',
+        tags: [],
       });
       setDefaultVatRate(25);
       markClean();
@@ -442,9 +449,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
       }
       if (contact) {
         const currency = resolveInvoiceCurrency(contact.currency);
-        const vatRate = resolveInvoiceVatRateFromContact(
-          contact.contactType === 'private' ? '0' : contact.taxRate,
-        );
+        const vatRate = resolveInvoiceVatRateFromContactRecord(contact);
         setDefaultVatRate(vatRate);
         setFormData((prev) => ({
           ...prev,
@@ -921,6 +926,21 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
                             />
                           </div>
                         </div>
+                      </DetailSection>
+                    </Card>
+
+                    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                      <DetailSection
+                        title={t('common.tags')}
+                        icon={SETTINGS_CATEGORY_ICONS.tags}
+                        subtleTitle
+                        className="p-4"
+                      >
+                        <ItemTagsField
+                          settingsKey={ESTIMATES_SETTINGS_KEY}
+                          value={formData.tags}
+                          onChange={(tags) => updateField('tags', tags)}
+                        />
                       </DetailSection>
                     </Card>
 

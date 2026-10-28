@@ -43,6 +43,8 @@ import {
 import { FORM_GHOST_INPUT_CLASS, FORM_GHOST_PROP_CONTROL_CLASS } from '@/core/ui/formFieldStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 
 import type { TeamPayload } from '../api/teamsApi';
@@ -84,6 +86,7 @@ import {
   type ExternalOptionsUiStatus,
 } from '../utils/externalTeamOptions';
 import { applyTrainingLocationPatch } from '../utils/trainingLocationSelect';
+import { TEAMS_SETTINGS_KEY } from '../utils/teamColumnCount';
 
 import { SeriesTeamBadge } from './ResponsibleRow';
 import { SeriesTeamColorPicker } from './SeriesTeamColorPicker';
@@ -197,6 +200,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
     status: 'active' as Team['status'],
     color: 'green' as Team['color'],
     external_team_id: '',
+    tags: [] as string[],
   });
   const [seriesTeams, setSeriesTeams] = useState<SeriesTeam[]>([]);
   const [trainingTimes, setTrainingTimes] = useState<TrainingTime[]>([]);
@@ -255,6 +259,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
       status: item?.status || 'active',
       color: item?.color || 'green',
       external_team_id: item?.external_team_id || '',
+      tags: Array.isArray(item?.tags) ? item.tags : [],
     });
     if (item?.series_teams?.length) {
       setSeriesTeams([...item.series_teams]);
@@ -459,6 +464,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
       team_notes: teamNotes,
       color: form.color,
       external_team_id: form.external_team_id.trim() || null,
+      tags: form.tags,
     });
     if (ok) {
       markClean();
@@ -742,6 +748,23 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                     ) : null}
                   </div>
                 </div>
+              </DetailSection>
+            </Card>
+          ) : null}
+
+          {activeTab === 'overview' ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('common.tags')}
+                icon={SETTINGS_CATEGORY_ICONS.tags}
+                subtleTitle
+                className="p-4"
+              >
+                <ItemTagsField
+                  settingsKey={TEAMS_SETTINGS_KEY}
+                  value={form.tags}
+                  onChange={(tags) => onFieldChange('tags', tags)}
+                />
               </DetailSection>
             </Card>
           ) : null}

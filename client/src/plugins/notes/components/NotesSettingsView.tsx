@@ -12,10 +12,12 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 import type { ImportSchema } from '@/core/utils/importUtils';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
 
 import { useNotes } from '../hooks/useNotes';
+import { NOTES_SETTINGS_KEY } from '../utils/noteColumnCount';
 
 const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
   fields: [
@@ -24,7 +26,7 @@ const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
   ],
 });
 
-export type NotesSettingsCategory = 'import';
+export type NotesSettingsCategory = 'tags' | 'import';
 
 interface NotesSettingsViewProps {
   selectedCategory?: NotesSettingsCategory;
@@ -40,7 +42,7 @@ export function NotesSettingsView({
   const { t } = useTranslation();
   const { importNotes } = useNotes();
 
-  const [internalCategory, setInternalCategory] = useState<NotesSettingsCategory>('import');
+  const [internalCategory, setInternalCategory] = useState<NotesSettingsCategory>('tags');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
@@ -48,6 +50,12 @@ export function NotesSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'import',
         label: t('common.import'),
@@ -68,6 +76,7 @@ export function NotesSettingsView({
         onCategoryChange={(id) => setActiveCategory(id as NotesSettingsCategory)}
         onClose={onClose}
       >
+        {activeCategory === 'tags' && <SettingsTagsSection settingsKey={NOTES_SETTINGS_KEY} />}
         {activeCategory === 'import' && (
           <DetailSection
             title={t('common.import')}

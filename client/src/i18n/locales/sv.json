@@ -82,9 +82,20 @@
     "statistics": "Statistik",
     "remove": "Ta bort",
     "clearFilters": "Rensa filter",
+    "clearTags": "Rensa taggar",
     "filters": "Filter",
     "showFilters": "Visa filter",
     "hideFilters": "Dölj filter",
+    "tags": "Taggar",
+    "showTags": "Visa taggar",
+    "hideTags": "Dölj taggar",
+    "activeSelection": "Urval aktivt",
+    "tagsEmptyHint": "Inga taggar ännu. Lägg till dem under Inställningar.",
+    "addTagsInSettings": "Lägg till taggar i Inställningar",
+    "tagsSettingsHint": "Skapa taggar här. De syns som filter i listan och kan sättas på varje post.",
+    "tagsPlaceholder": "Lägg till en tagg",
+    "noMoreTags": "Inga fler taggar att lägga till",
+    "removeTag": "Ta bort taggen {{tag}}",
     "paymentTermsImmediate": "Omedelbart",
     "paymentTermsDays": "{{count}} dagar",
     "paymentTermsCustom": "Anpassat…",
@@ -148,6 +159,8 @@
     "matches": "Matcher",
     "files": "Filer",
     "ingest": "Ingest",
+    "site-audits": "Site audits",
+    "site-audit": "Site audit",
     "guides": "Guider",
     "guide": "Guide",
     "instructions": "Instruktioner",
@@ -1446,6 +1459,427 @@
       "saveFailed": "Kunde inte spara källan"
     },
     "tabUnavailableInEdit": "Tillgänglig endast i visningsläge"
+  },
+  "siteAudits": {
+    "searchPlaceholder": "Sök bland {{count}} sajter…",
+    "noMatch": "Inga sajter matchar sökningen.",
+    "noYet": "Inga Site audits ännu",
+    "add": "Lägg till sajt",
+    "sort": "Sortera",
+    "sortAsc": "Stigande",
+    "sortDesc": "Fallande",
+    "table": {
+      "name": "Namn"
+    },
+    "scoreLabel": "Poäng",
+    "lastRunLabel": "Senaste körning",
+    "neverRun": "Aldrig körd",
+    "noScoreYet": "Ingen poäng ännu",
+    "openSite": "Öppna sajt {{name}}",
+    "quickContextTitle": "Förhandsgranskning",
+    "selectToPreview": "Välj en sajt i listan för att förhandsgranska den här, eller lägg till en ny sajt.",
+    "showingOf": "Visar {{shown}} av {{total}} sajter",
+    "name": "Namn",
+    "namePlaceholder": "t.ex. Marknadssajt",
+    "url": "URL",
+    "urlHint": "Sajten som ska granskas. HTTPS rekommenderas. En sökväg (t.ex. /nordics-baltics/) begränsar crawl till den sektionen; / granskar hela hosten.",
+    "competitorUrl": "Konkurrent-URL",
+    "competitorUrlHint": "Valfritt. Om angiven körs en konkurrentgranskning parallellt för jämförelse.",
+    "sectionDetails": "Sajtdetaljer",
+    "runAudit": "Kör granskning",
+    "running": "Kör…",
+    "runningWithTime": "Kör… {{time}}",
+    "stopAudit": "Stoppa",
+    "stopAuditWithTime": "Stoppa · {{time}}",
+    "stopping": "Stoppar…",
+    "openUrl": "Öppna URL",
+    "tabs": {
+      "overview": "Översikt",
+      "quickWins": "Snabba vinster",
+      "seo": "SEO",
+      "ai": "AI-beredskap",
+      "security": "Säkerhet",
+      "pages": "Sidor",
+      "technical": "Tekniskt",
+      "compare": "Jämför",
+      "history": "Historik",
+      "activity": "Aktivitet"
+    },
+    "technical": {
+      "emptySection": "Ingen inventeringsdata för den här körningen.",
+      "missing": "Saknas",
+      "present": "Finns",
+      "yes": "Ja",
+      "no": "Nej",
+      "headersMeta": "{{present}} / {{total}} finns",
+      "tlsMeta": "{{days}} dagar kvar",
+      "dnsMeta": "SPF {{spf}} · DMARC {{dmarc}}",
+      "resourcesMeta": "{{scripts}} skript · {{thirdParty}} tredjeparts-hostar",
+      "crawlMeta": "{{pages}} sidor · djup {{depth}}",
+      "technologiesMeta": "{{count}} identifierade",
+      "sections": {
+        "headers": "Säkerhetsheaders",
+        "tls": "TLS",
+        "dns": "DNS",
+        "technologies": "Identifierade teknologier",
+        "resources": "Resurser",
+        "crawl": "Crawl-täckning"
+      },
+      "headers": {
+        "hsts": "Strict-Transport-Security",
+        "csp": "Content-Security-Policy",
+        "xcto": "X-Content-Type-Options",
+        "referrerPolicy": "Referrer-Policy",
+        "permissionsPolicy": "Permissions-Policy",
+        "frameProtection": "Frame-skydd"
+      },
+      "tls": {
+        "protocol": "Protokoll",
+        "authorized": "Auktoriserad",
+        "hostnameMatch": "Hostname-match",
+        "issuer": "Utfärdare",
+        "validTo": "Giltig till",
+        "daysRemaining": "Dagar kvar"
+      },
+      "dns": {
+        "spf": "SPF",
+        "dmarc": "DMARC",
+        "records": "A / AAAA",
+        "ns": "NS",
+        "caa": "CAA"
+      },
+      "resources": {
+        "scripts": "Skript",
+        "stylesheets": "Stilmallar",
+        "images": "Bilder",
+        "asyncDefer": "Async / defer",
+        "manifest": "Web app-manifest",
+        "serviceWorker": "Service worker-hint",
+        "thirdPartyScripts": "Tredjeparts skript-hostar",
+        "compression": "Startsida Content-Encoding"
+      },
+      "crawl": {
+        "pathScope": "Sökvägsomfång",
+        "pathScopeWholeSite": "Hela sajten",
+        "pages": "Sidor genomsökta",
+        "sitemapUrls": "Sitemap-URL:er",
+        "maxDepth": "Max djup",
+        "sitemapOnly": "Bara i sitemap",
+        "notInSitemap": "Genomsökt, saknas i sitemap",
+        "sitemapOnlySample": "Exempel bara i sitemap"
+      },
+      "technologies": {
+        "empty": "Inga kända teknologier matchade",
+        "categories": {
+          "cms": "CMS",
+          "ecommerce": "E-handel",
+          "analytics": "Analys",
+          "cdn": "CDN",
+          "framework": "Ramverk",
+          "chat": "Chatt",
+          "marketing": "Marknadsföring",
+          "other": "Övrigt"
+        }
+      }
+    },
+    "overallScore": "Totalpoäng",
+    "runStatus": {
+      "queued": "Köad",
+      "running": "Kör",
+      "done": "Klar",
+      "failed": "Misslyckad",
+      "cancelled": "Avbruten"
+    },
+    "shellOnlyNote": "Sidan verkar vara en JS-renderad skal med lite genomsökbar HTML — resultatet kan vara ofullständigt (ingen JS-rendering i etapp 1).",
+    "shellOnlyPartialNote": "{{count}} genomsökta sidor ser ut som JS-skal — de resultaten kan vara ofullständiga.",
+    "quickWins": "Snabba vinster",
+    "emptyQuickWins": "Inga kritiska fynd eller varningar.",
+    "sectionMeta": {
+      "none": "Inga fynd",
+      "separator": " · ",
+      "critical_one": "{{count}} kritisk",
+      "critical_other": "{{count}} kritiska",
+      "warning_one": "{{count}} varning",
+      "warning_other": "{{count}} varningar",
+      "info_one": "{{count}} info",
+      "info_other": "{{count}} info"
+    },
+    "pillars": {
+      "seo": "SEO",
+      "ai": "AI-beredskap",
+      "security": "Säkerhet",
+      "empty": "Inga fynd i det här avsnittet."
+    },
+    "pageUrl": "URL",
+    "pageTitle": "Titel",
+    "pageStatus": "Status",
+    "pageFindings": "Fynd",
+    "pageScore": "Poäng",
+    "noRunsYet": "Inga körningar ännu. Använd Kör granskning eller Snabbgranskning för att analysera sajten.",
+    "noPagesYet": "Inga sidor genomsökta ännu.",
+    "pagesCrawled_one": "{{count}} sida genomsökt",
+    "pagesCrawled_other": "{{count}} sidor genomsökta",
+    "pagesCrawledFiltered": "{{shown}} av {{total}} visade · {{hidden}} dolda",
+    "pagesIncludeLabel": "Inkludera",
+    "pagesIncludePlaceholder": "Skriv och tryck Enter (t.ex. /blog)",
+    "pagesExcludeLabel": "Exkludera",
+    "pagesExcludePlaceholder": "Skriv och tryck Enter (t.ex. /asset/)",
+    "pagesAllFiltered": "Inga sidor matchar filtren.",
+    "compareNoCompetitorUrl": "Lägg till en konkurrent-URL för att jämföra poäng.",
+    "compareNoData": "Ingen konkurrentgranskning ännu. Kör granskning för att jämföra.",
+    "comparePending": "Konkurrentgranskningen för den här körningen är inte klar ännu.",
+    "compareFindings": "Fynd",
+    "compareVs": "mot",
+    "categories": {
+      "indexing": "Indexering",
+      "content": "Innehåll",
+      "technical": "Tekniskt",
+      "sharing": "Delning"
+    },
+    "severity": {
+      "critical": "Kritisk",
+      "warning": "Varning",
+      "info": "Info"
+    },
+    "runStarted": "Startad",
+    "runDuration": "Tid",
+    "runStatusCol": "Status",
+    "deleteTitle": "Ta bort sajtgranskning",
+    "deleteConfirmThis": "Vill du ta bort den här sajtgranskningen?",
+    "deleteConfirmNamed": "Vill du ta bort \"{{name}}\"?",
+    "errors": {
+      "nameRequired": "Namn krävs",
+      "urlRequired": "URL krävs",
+      "saveFailed": "Kunde inte spara sajtgranskningen",
+      "deleteFailed": "Kunde inte ta bort sajtgranskningen. Den är fortfarande öppen.",
+      "runFailed": "Kunde inte starta granskningen.",
+      "runBusy": "En annan granskning körs fortfarande. Vänta tills den är klar och försök igen.",
+      "cancelFailed": "Kunde inte stoppa granskningen."
+    },
+    "relative": {
+      "justNow": "just nu",
+      "minutesAgo": "{{count}} min sedan",
+      "hoursAgo": "{{count}} tim sedan",
+      "daysAgo": "{{count}} dag sedan"
+    },
+    "quickAudit": "Snabbgranskning",
+    "findingHintWhy": "Varför:",
+    "findingHintFix": "Åtgärd:",
+    "auditMode": {
+      "quick": "Snabb",
+      "full": "Full"
+    },
+    "sinceLastRun": {
+      "title": "Sedan förra körningen",
+      "counts": "{{added}} nya · {{resolved}} åtgärdade",
+      "added": "Nya ({{count}})",
+      "resolved": "Åtgärdade ({{count}})",
+      "showLists": "Visa fynd",
+      "hideLists": "Dölj fynd",
+      "none": "Inga"
+    },
+    "findingHints": {
+      "noindex": {
+        "why": "Sökmotorer kan hoppa över att indexera sidan.",
+        "fix": "Ta bort robots noindex (meta eller header) om sidan ska synas i sök."
+      },
+      "missing_canonical": {
+        "why": "Utan canonical kan dubblett-URL:er späda ut ranking.",
+        "fix": "Lägg till en rel=canonical-länk till den föredragna URL:en."
+      },
+      "http_error_status": {
+        "why": "Felstatus kastar bort crawl-budget och skadar synlighet.",
+        "fix": "Åtgärda svaret eller omdirigera till en fungerande sida med 200."
+      },
+      "redirect_response": {
+        "why": "Extra omdirigeringar saktar ner användare och crawlers.",
+        "fix": "Länka direkt till slut-URL:en när det går."
+      },
+      "soft_404": {
+        "why": "En 200-“saknas”-sida kan indexeras som riktigt innehåll.",
+        "fix": "Returnera riktig 404/410 för saknat innehåll."
+      },
+      "missing_title": {
+        "why": "Titlar är en viktig ranking- och SERP-signal.",
+        "fix": "Lägg till en unik, beskrivande <title> för sidan."
+      },
+      "title_too_short": {
+        "why": "Mycket korta titlar ger lite kontext.",
+        "fix": "Utöka titeln till ungefär 30–60 tecken med huvudämnet."
+      },
+      "title_too_long": {
+        "why": "Långa titlar kapas ofta i sökresultat.",
+        "fix": "Korta titeln till ungefär 30–60 tecken och behåll nyckelfrasen."
+      },
+      "missing_meta_description": {
+        "why": "Meta descriptions påverkar klick från sök.",
+        "fix": "Lägg till en kort meta description som sammanfattar sidan."
+      },
+      "meta_description_length": {
+        "why": "För korta eller långa descriptions fungerar sämre i SERP.",
+        "fix": "Sikta på ungefär 70–160 tecken."
+      },
+      "missing_h1": {
+        "why": "En H1 hjälper att strukturera sidans ämne.",
+        "fix": "Lägg till en tydlig H1 som matchar sidans syfte."
+      },
+      "multiple_h1": {
+        "why": "Flera H1 kan sudda ut huvudämnet.",
+        "fix": "Behåll en H1 och sänk övriga till H2+."
+      },
+      "shell_only": {
+        "why": "Lite crawlbar HTML gör att SEO-kontroller ser ett tomt skal.",
+        "fix": "Serverrendera nyckelinnehåll eller ge prerenderad HTML till crawlers."
+      },
+      "missing_alt": {
+        "why": "Saknad alt-text skadar tillgänglighet och bildförståelse.",
+        "fix": "Lägg till meningsfull alt (eller tom alt för dekorativa bilder)."
+      },
+      "thin_body": {
+        "why": "Mycket lite brödtext uppfattas som tunt innehåll.",
+        "fix": "Lägg till substantiellt innehåll som svarar på användarens behov."
+      },
+      "missing_h2": {
+        "why": "Underrubriker förbättrar skannbarhet och struktur.",
+        "fix": "Lägg till H2-sektioner som delar upp huvudämnena."
+      },
+      "not_https": {
+        "why": "HTTP är osäkert och rankas ofta lägre än HTTPS.",
+        "fix": "Servera sajten över HTTPS med giltigt certifikat."
+      },
+      "slow_response": {
+        "why": "Långsam TTFB skadar UX och crawl-effektivitet.",
+        "fix": "Optimera latens, cache och serverprestanda."
+      },
+      "large_html": {
+        "why": "Mycket stor HTML är långsammare att hämta och parsa.",
+        "fix": "Minska markup; skjut upp icke-kritiskt innehåll."
+      },
+      "missing_viewport": {
+        "why": "Utan viewport-meta blir mobil layout opålitlig.",
+        "fix": "Lägg till <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">."
+      },
+      "missing_lang": {
+        "why": "html lang hjälper tillgänglighet och språktargeting.",
+        "fix": "Sätt lang på <html> (t.ex. lang=\"sv\")."
+      },
+      "mixed_content": {
+        "why": "HTTP-resurser på HTTPS-sidor blockeras eller markeras som osäkra.",
+        "fix": "Ladda skript, bilder och stil över HTTPS endast."
+      },
+      "missing_og_title": {
+        "why": "Sociala förhandsvisningar behöver og:title.",
+        "fix": "Lägg till Open Graph og:title-meta."
+      },
+      "missing_og_description": {
+        "why": "og:description förbättrar delningsutdrag.",
+        "fix": "Lägg till Open Graph og:description-meta."
+      },
+      "missing_og_image": {
+        "why": "Delningar utan og:image ser ofullständiga ut.",
+        "fix": "Lägg till en absolut HTTPS og:image-URL."
+      },
+      "missing_twitter_card": {
+        "why": "Twitter/X-kort behöver en explicit korttyp.",
+        "fix": "Lägg till twitter:card (t.ex. summary_large_image)."
+      },
+      "invalid_json_ld": {
+        "why": "Trasig JSON-LD går inte att använda som strukturerad data.",
+        "fix": "Validera och åtgärda JSON-LD-skriptet."
+      },
+      "json_ld_no_useful_type": {
+        "why": "Strukturerad data utan användbar @type ger lite värde.",
+        "fix": "Använd en relevant schema.org-typ (t.ex. Organization, Article)."
+      },
+      "robots_txt_missing": {
+        "why": "Saknad robots.txt tar bort en standard yta för crawl-styrning.",
+        "fix": "Publicera /robots.txt med medvetna allow/disallow-regler."
+      },
+      "sitemap_missing": {
+        "why": "En sitemap hjälper crawlers hitta viktiga URL:er.",
+        "fix": "Publicera sitemap.xml och referera den från robots.txt."
+      },
+      "llms_txt_missing": {
+        "why": "llms.txt är en växande signal för AI-crawlers.",
+        "fix": "Lägg till en kort /llms.txt som beskriver önskad AI-användning."
+      },
+      "ai_bots_blocked": {
+        "why": "Att blockera stora AI-botar begränsar AI-synlighet.",
+        "fix": "Granska robots.txt Disallow för AI-user-agents om synlighet önskas."
+      },
+      "no_cache_control": {
+        "why": "Utan Cache-Control cachas sidor/resurser ineffektivt.",
+        "fix": "Sätt Cache-Control (m.m.) lämpligt per resurstyp."
+      },
+      "no_hsts": {
+        "why": "HSTS tvingar HTTPS och minskar SSL-stripping.",
+        "fix": "Skicka Strict-Transport-Security med rimlig max-age när HTTPS är stabilt."
+      },
+      "no_csp": {
+        "why": "CSP minskar XSS och oönskad skriptinjektion.",
+        "fix": "Inför Content-Security-Policy, gärna report-only först."
+      },
+      "no_xcto": {
+        "why": "X-Content-Type-Options: nosniff stoppar MIME-sniffing.",
+        "fix": "Skicka X-Content-Type-Options: nosniff."
+      },
+      "no_referrer_policy": {
+        "why": "Referrer-Policy begränsar läckage av känsliga URL:er.",
+        "fix": "Sätt Referrer-Policy, t.ex. strict-origin-when-cross-origin."
+      },
+      "no_permissions_policy": {
+        "why": "Permissions-Policy begränsar kraftfulla webbläsarfunktioner.",
+        "fix": "Deklarera Permissions-Policy som stänger av oanvända förmågor."
+      },
+      "no_frame_protection": {
+        "why": "Saknad frame-skydd möjliggör clickjacking.",
+        "fix": "Sätt X-Frame-Options eller CSP frame-ancestors."
+      },
+      "tls_hostname_mismatch": {
+        "why": "Certifikat med fel hostnamn bryter förtroendet.",
+        "fix": "Installera ett certifikat som matchar hostnamnet."
+      },
+      "tls_expired": {
+        "why": "Utgångna TLS-certifikat gör sajten osäker.",
+        "fix": "Förnya certifikatet och automatisera förnyelse."
+      },
+      "tls_expiring": {
+        "why": "Certifikat nära utgångsdatum riskerar driftstopp.",
+        "fix": "Förnya i tid och övervaka dagar kvar."
+      },
+      "spf_missing": {
+        "why": "SPF hjälper mottagare verifiera auktoriserade avsändare.",
+        "fix": "Publicera en DNS TXT SPF-post för apex-domänen."
+      },
+      "dmarc_missing": {
+        "why": "DMARC samordnar SPF/DKIM och sätter policy.",
+        "fix": "Publicera en _dmarc TXT-post (börja med p=none vid osäkerhet)."
+      },
+      "third_party_script_hosts": {
+        "why": "Många tredjeparts-skript ökar supply-chain- och integritetsrisk.",
+        "fix": "Granska och minska tredjepartsskript; ladda bara det nödvändiga."
+      },
+      "cookie_flags_missing": {
+        "why": "Cookies utan Secure/HttpOnly/SameSite är lättare att missbruka.",
+        "fix": "Sätt Secure, HttpOnly och lämplig SameSite på sessionscookies."
+      },
+      "duplicate_titles": {
+        "why": "Dubblettitlar gör att sidor konkurrerar med varandra.",
+        "fix": "Ge varje viktig URL en unik titel."
+      },
+      "broken_pages": {
+        "why": "Trasiga sidor slösar crawl-budget och frustrerar användare.",
+        "fix": "Åtgärda eller ta bort URL:er som returnerar fel."
+      },
+      "missing_author": {
+        "why": "Författarsignaler kan stödja E-E-A-T för innehållssidor.",
+        "fix": "Lägg till synlig författare eller strukturerad author-data där det är relevant."
+      },
+      "probe_exposed": {
+        "why": "Exponerade känsliga sökvägar (admin, backup, env) är högriskfynd.",
+        "fix": "Blockera eller ta bort sökvägen och granska åtkomstkontroll."
+      }
+    }
   },
   "instructions": {
     "listDescription": "Skapa steg-för-steg-guider för personalen.",

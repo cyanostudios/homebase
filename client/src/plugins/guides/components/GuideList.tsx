@@ -48,6 +48,7 @@ import {
   PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -67,7 +68,11 @@ import {
 } from '../utils/guideListSort';
 import { BulkStatusDialog } from './BulkStatusDialog';
 import { GuideListTable } from './GuideListTable';
-import { GuideSettingsView, type GuideSettingsCategory } from './GuideSettingsView';
+import {
+  GUIDES_SETTINGS_KEY,
+  GuideSettingsView,
+  type GuideSettingsCategory,
+} from './GuideSettingsView';
 
 type SortField = GuideSortField;
 type SortOrder = GuideSortOrder;
@@ -114,6 +119,15 @@ export const GuideList: React.FC = () => {
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [settingsCategory, setSettingsCategory] = useState<GuideSettingsCategory>('production');
+  const tagFilter = usePluginListTags({
+    settingsKey: GUIDES_SETTINGS_KEY,
+    storageKey: 'homebase.guides.toolbar.tagsVisible',
+    items: guides,
+    onOpenSettings: () => {
+      setSettingsCategory('tags');
+      attemptNavigation(() => openGuideSettings());
+    },
+  });
 
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
@@ -163,7 +177,9 @@ export const GuideList: React.FC = () => {
   }, [guides]);
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = guides.filter((guide) => guideMatchesListFilters(guide, activeFilters));
+    const byFilter = guides.filter(
+      (guide) => guideMatchesListFilters(guide, activeFilters) && tagFilter.matches(guide),
+    );
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = needle
@@ -177,7 +193,7 @@ export const GuideList: React.FC = () => {
       : byFilter;
 
     return [...filtered].sort((a, b) => compareGuidesByField(a, b, primarySort, sortOrder));
-  }, [guides, searchTerm, primarySort, sortOrder, activeFilters]);
+  }, [guides, searchTerm, primarySort, sortOrder, activeFilters, tagFilter]);
 
   const isFilterActive = (filter: GuideListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: GuideListFilter) => {
@@ -299,6 +315,7 @@ export const GuideList: React.FC = () => {
                     variant="soft"
                     onClick={() => attemptNavigation(() => openGuideSettings())}
                   />
+                  {tagFilter.toggle}
                   {filteredAndSorted.length > 0 ? (
                     selectionMode ? (
                       <ExpandableIconButton
@@ -344,6 +361,10 @@ export const GuideList: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {tagFilter.row ? (
+          <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>{tagFilter.row}</div>
+        ) : null}
 
         <div className={LIST_FILTER_AND_SORT_ROW_CLASS}>
           <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
@@ -411,6 +432,7 @@ export const GuideList: React.FC = () => {
             </Button>
           </div>
           <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
+            {tagFilter.mobileToggle}
             <Select
               value={primarySort}
               onValueChange={(value) => handlePrimarySortChange(value as SortField)}

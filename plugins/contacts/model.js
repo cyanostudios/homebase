@@ -327,8 +327,10 @@ class ContactModel {
       phone: row.phone || '',
       phone2: row.phone2 || '',
       website: decodeHtmlEntities(row.website || ''),
-      taxRate: row.tax_rate || '',
-      paymentTerms: row.payment_terms || '',
+      // Preserve 0% / 0 days — `|| ''` would drop numeric zero.
+      taxRate: row.tax_rate == null || row.tax_rate === '' ? '' : String(row.tax_rate),
+      paymentTerms:
+        row.payment_terms == null || row.payment_terms === '' ? '' : String(row.payment_terms),
       currency: row.currency || '',
       fTax: row.f_tax || '',
       notes: decodeHtmlEntities(row.notes || ''),

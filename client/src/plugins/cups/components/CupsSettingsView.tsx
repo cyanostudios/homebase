@@ -13,6 +13,7 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 import { cn } from '@/lib/utils';
 import { useCups } from '@/plugins/cups/hooks/useCups';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
@@ -27,7 +28,7 @@ import {
 import { CupIngestImportProgressDialog } from './CupIngestImportProgressDialog';
 import { CupFallbackPhotosSettings } from './CupFallbackPhotosSettings';
 
-export type CupsSettingsCategory = 'appearance' | 'import';
+export type CupsSettingsCategory = 'tags' | 'appearance' | 'import';
 
 export function CupsSettingsView({
   selectedCategory,
@@ -82,6 +83,12 @@ export function CupsSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'appearance',
         label: t('cups.settingsCategories.appearance'),
@@ -296,6 +303,7 @@ export function CupsSettingsView({
           ) : null
         }
       >
+        {activeCategory === 'tags' && <SettingsTagsSection settingsKey={CUPS_SETTINGS_KEY} />}
         {activeCategory === 'appearance' && (
           <CupFallbackPhotosSettings
             onDirtyChange={setAppearanceDirty}

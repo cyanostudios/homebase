@@ -45,6 +45,7 @@ export interface MailProviderSettings {
   options: Record<string, string>;
   configured: boolean;
   emailCapable: boolean;
+  tags?: string[];
   createdAt: string | null;
   updatedAt: string | null;
 }

@@ -46,6 +46,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -53,6 +54,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -146,6 +148,12 @@ export const IngestSourceList: React.FC = () => {
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     INGEST_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const tagFilter = usePluginListTags({
+    settingsKey: 'ingest',
+    storageKey: 'homebase.ingest.toolbar.tagsVisible',
+    items: ingest,
+    onOpenSettings: () => {},
+  });
   const restoredPendingSourceRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -224,7 +232,9 @@ export const IngestSourceList: React.FC = () => {
   );
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = ingest.filter((s) => ingestMatchesListFilters(s, activeFilters));
+    const byFilter = ingest.filter(
+      (s) => ingestMatchesListFilters(s, activeFilters) && tagFilter.matches(s),
+    );
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = byFilter.filter((s) => {
@@ -240,7 +250,7 @@ export const IngestSourceList: React.FC = () => {
     });
 
     return [...filtered].sort((a, b) => compareIngestByField(a, b, primarySort, sortOrder));
-  }, [ingest, searchTerm, primarySort, sortOrder, activeFilters]);
+  }, [ingest, searchTerm, primarySort, sortOrder, activeFilters, tagFilter]);
 
   const stats = useMemo(
     () => ({
@@ -469,6 +479,11 @@ export const IngestSourceList: React.FC = () => {
             </Button>
           );
         })}
+        <ListChipRowClear
+          visible={activeFilters.length > 0}
+          ariaLabel={t('common.clearFilters')}
+          onClear={() => setActiveFilters([])}
+        />
       </div>
     );
   };
@@ -669,8 +684,10 @@ export const IngestSourceList: React.FC = () => {
                     <ListFilterChipsToggle
                       visible={filtersVisible}
                       onVisibleChange={setFiltersVisible}
+                      hasActiveSelection={activeFilters.length > 0}
                       className="h-11 rounded-full"
                     />
+                    {tagFilter.toggle}
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -698,6 +715,17 @@ export const IngestSourceList: React.FC = () => {
                     {renderFilterChips()}
                   </div>
                 ) : null}
+                {tagFilter.row ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {tagFilter.row}
+                  </div>
+                ) : null}
                 {renderBulkActionBar('py-3')}
               </div>
             </div>
@@ -705,12 +733,15 @@ export const IngestSourceList: React.FC = () => {
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
             {filtersVisible ? renderFilterChips() : null}
+            {tagFilter.row}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
               <ListFilterChipsToggle
                 visible={filtersVisible}
                 onVisibleChange={setFiltersVisible}
+                hasActiveSelection={activeFilters.length > 0}
                 className="h-7 rounded-md"
               />
+              {tagFilter.mobileToggle}
               {renderSortDropdown('h-7 rounded-md')}
             </div>
           </div>

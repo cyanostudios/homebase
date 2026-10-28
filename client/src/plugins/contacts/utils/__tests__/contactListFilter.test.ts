@@ -6,8 +6,11 @@ import {
   contactIsRecentlyUpdated,
   contactMatchesListFilter,
   contactMatchesListFilters,
+  contactMatchesSelectedTags,
   contactMatchesTagFilter,
+  countContactsWithTag,
   toggleContactListFilter,
+  toggleContactTagFilter,
 } from '../contactListFilter';
 
 const base = {
@@ -83,5 +86,20 @@ describe('contactListFilter', () => {
     expect(contactMatchesTagFilter(tagged, 'vip')).toBe(true);
     expect(contactMatchesTagFilter(tagged, 'other')).toBe(false);
     expect(collectContactTags([tagged, { tags: ['vip', 'a'] }])).toEqual(['a', 'client', 'vip']);
+  });
+
+  it('ORs selected catalog tags; empty selection matches all', () => {
+    const vip = { ...base, tags: ['vip'] };
+    const client = { ...base, id: '2', tags: ['client'] };
+    const both = { ...base, id: '3', tags: ['vip', 'client'] };
+    expect(contactMatchesSelectedTags(vip, [])).toBe(true);
+    expect(contactMatchesSelectedTags(vip, ['vip'])).toBe(true);
+    expect(contactMatchesSelectedTags(vip, ['client'])).toBe(false);
+    expect(contactMatchesSelectedTags(vip, ['vip', 'client'])).toBe(true);
+    expect(contactMatchesSelectedTags(client, ['vip', 'client'])).toBe(true);
+    expect(contactMatchesSelectedTags(both, ['other'])).toBe(false);
+    expect(countContactsWithTag([vip, client, both], 'vip')).toBe(2);
+    expect(toggleContactTagFilter([], 'vip')).toEqual(['vip']);
+    expect(toggleContactTagFilter(['vip', 'client'], 'vip')).toEqual(['client']);
   });
 });

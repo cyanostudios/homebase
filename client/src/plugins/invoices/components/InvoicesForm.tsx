@@ -46,7 +46,9 @@ import {
   FORM_GHOST_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
 import { PaymentTermsField } from '@/core/ui/PaymentTermsField';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { formatDate } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -71,6 +73,7 @@ import {
   isInvoiceIssued,
   resolveInvoiceCurrency,
   resolveInvoiceVatRateFromContact,
+  resolveInvoiceVatRateFromContactRecord,
 } from '../utils/invoiceMlCompliance';
 import {
   computeDueDateFromPaymentTerms,
@@ -86,6 +89,7 @@ import {
   openInvoicePreviewWindow,
   writeInvoicePreviewWindow,
 } from '../utils/openInvoicePreviewWindow';
+import { INVOICES_SETTINGS_KEY } from '../utils/invoiceColumnCount';
 import { generateInvoiceWebHTML } from '../webTemplate';
 
 import { InvoiceCustomerSelect } from './InvoiceCustomerSelect';
@@ -247,6 +251,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         creditedInvoiceId: null as string | number | null,
         creditedInvoiceNumber: '' as string,
         correctionSummary: '',
+        tags: [] as string[],
       };
     });
 
@@ -293,13 +298,14 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           creditedInvoiceId: currentInvoice.creditedInvoiceId ?? null,
           creditedInvoiceNumber: currentInvoice.creditedInvoiceNumber || '',
           correctionSummary: currentInvoice.correctionSummary || '',
+          tags: Array.isArray(currentInvoice.tags) ? currentInvoice.tags : [],
         });
-        const contactTax = contacts?.find(
-          (c) => String(c.id) === String(currentInvoice.contactId),
-        )?.taxRate;
+        const contactRow = contacts?.find((c) => String(c.id) === String(currentInvoice.contactId));
         const fromLines = migrated.find((li) => li.kind !== 'text')?.vatRate;
         setDefaultVatRate(
-          resolveInvoiceVatRateFromContact(contactTax ?? (fromLines != null ? fromLines : 25)),
+          contactRow
+            ? resolveInvoiceVatRateFromContactRecord(contactRow)
+            : resolveInvoiceVatRateFromContact(fromLines != null ? fromLines : 25),
         );
         markClean();
         setDuplicatedItemIds(new Set());
@@ -331,6 +337,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         creditedInvoiceId: null,
         creditedInvoiceNumber: '',
         correctionSummary: '',
+        tags: [],
       });
       markClean();
       setDuplicatedItemIds(new Set());
@@ -362,6 +369,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         creditedInvoiceId: null,
         creditedInvoiceNumber: '',
         correctionSummary: '',
+        tags: [],
       });
       markClean();
       setDuplicatedItemIds(new Set());
@@ -547,9 +555,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
       if (contact) {
         const paymentTerms = normalizePaymentTermsSelectValue(contact.paymentTerms);
         const currency = resolveInvoiceCurrency(contact.currency);
-        const vatRate = resolveInvoiceVatRateFromContact(
-          contact.contactType === 'private' ? '0' : contact.taxRate,
-        );
+        const vatRate = resolveInvoiceVatRateFromContactRecord(contact);
         setDefaultVatRate(vatRate);
         setFormData((prev) => {
           const issueDate = prev.issueDate;
@@ -1172,6 +1178,21 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                 </DetailSection>
               </Card>
             </div>
+
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('common.tags')}
+                icon={SETTINGS_CATEGORY_ICONS.tags}
+                subtleTitle
+                className="p-4"
+              >
+                <ItemTagsField
+                  settingsKey={INVOICES_SETTINGS_KEY}
+                  value={formData.tags}
+                  onChange={(tags) => updateField('tags', tags)}
+                />
+              </DetailSection>
+            </Card>
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection

@@ -29,6 +29,7 @@ export interface Clubdesk {
   sortOrder?: number;
   stepCount?: number;
   steps?: ClubdeskStep[];
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -49,6 +50,7 @@ export interface ClubdeskPayload {
   publicationStatus: PublicationStatus;
   featured: boolean;
   steps: ClubdeskStepPayload[];
+  tags?: string[];
 }
 
 export interface ValidationError {

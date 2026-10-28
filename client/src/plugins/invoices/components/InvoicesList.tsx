@@ -60,9 +60,11 @@ import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
@@ -217,6 +219,15 @@ export function InvoicesList() {
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     INVOICES_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const tagFilter = usePluginListTags({
+    settingsKey: INVOICES_SETTINGS_KEY,
+    storageKey: 'homebase.invoices.toolbar.tagsVisible',
+    items: invoices,
+    onOpenSettings: () => {
+      setSettingsCategory('tags');
+      attemptNavigation(() => openInvoiceSettings());
+    },
+  });
   const restoredPendingInvoiceRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -333,8 +344,8 @@ export function InvoicesList() {
   );
 
   const sortedInvoices = useMemo(() => {
-    const byFilter = invoices.filter((invoice) =>
-      invoiceMatchesListFilters(invoice, activeFilters),
+    const byFilter = invoices.filter(
+      (invoice) => invoiceMatchesListFilters(invoice, activeFilters) && tagFilter.matches(invoice),
     );
 
     const q = searchTerm.toLowerCase();
@@ -349,7 +360,7 @@ export function InvoicesList() {
     );
 
     return [...filtered].sort((a, b) => compareInvoicesByField(a, b, primarySort, sortOrder));
-  }, [invoices, searchTerm, primarySort, sortOrder, activeFilters]);
+  }, [invoices, searchTerm, primarySort, sortOrder, activeFilters, tagFilter]);
 
   const isFilterActive = (filter: InvoiceListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: InvoiceListFilter) => {
@@ -641,6 +652,11 @@ export function InvoicesList() {
           </Button>
         );
       })}
+      <ListChipRowClear
+        visible={activeFilters.length > 0}
+        ariaLabel={t('common.clearFilters')}
+        onClear={() => setActiveFilters([])}
+      />
     </div>
   );
 
@@ -915,8 +931,10 @@ export function InvoicesList() {
                     <ListFilterChipsToggle
                       visible={filtersVisible}
                       onVisibleChange={setFiltersVisible}
+                      hasActiveSelection={activeFilters.length > 0}
                       className="h-11 rounded-full"
                     />
+                    {tagFilter.toggle}
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -946,6 +964,17 @@ export function InvoicesList() {
                     {renderFilterChips()}
                   </div>
                 ) : null}
+                {tagFilter.row ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {tagFilter.row}
+                  </div>
+                ) : null}
                 {renderBulkActionBar('py-3')}
               </div>
             </div>
@@ -953,12 +982,15 @@ export function InvoicesList() {
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
             {filtersVisible ? renderFilterChips() : null}
+            {tagFilter.row}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
               <ListFilterChipsToggle
                 visible={filtersVisible}
                 onVisibleChange={setFiltersVisible}
+                hasActiveSelection={activeFilters.length > 0}
                 className="h-7 rounded-md"
               />
+              {tagFilter.mobileToggle}
               {renderSortDropdown('h-7 rounded-md')}
             </div>
           </div>

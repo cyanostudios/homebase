@@ -169,7 +169,11 @@ export default defineConfig({
               id.includes('/core/ui/sidebar/') ||
               id.includes('/core/ui/LoginComponent.') ||
               id.includes('/core/ui/ResetPasswordPage.') ||
-              id.includes('/core/ui/rightSidebar/')
+              id.includes('/core/ui/rightSidebar/') ||
+              // AppContext consumers — must not land in vendor-shared (TDZ cycle).
+              id.includes('/core/ui/ItemTagsField.') ||
+              id.includes('/core/ui/SettingsTagsSection.') ||
+              id.includes('/core/ui/usePluginListTags.')
             ) {
               return 'app-shell';
             }

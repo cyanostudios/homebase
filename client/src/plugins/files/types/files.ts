@@ -10,6 +10,7 @@ export interface FileItem {
   url?: string | null; // presigned or relative path
   storageProvider?: string | null;
   externalFileId?: string | null;
+  tags?: string[];
   createdAt?: Date | string | null;
   updatedAt?: Date | string | null;
 }

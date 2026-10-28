@@ -39,4 +39,20 @@ describe('ContactModel companyName HTML entities', () => {
   it('decodeHtmlEntities undoes stacked amp escaping', () => {
     expect(decodeHtmlEntities('A &amp;amp; B')).toBe('A & B');
   });
+
+  it('transformRow preserves tax_rate and payment_terms of 0', () => {
+    const dto = model.transformRow({
+      id: 2,
+      contact_number: '2',
+      contact_type: 'company',
+      company_name: 'Zero VAT AB',
+      tax_rate: 0,
+      payment_terms: 0,
+      contact_persons: '[]',
+      addresses: '[]',
+      tags: '[]',
+    });
+    expect(dto.taxRate).toBe('0');
+    expect(dto.paymentTerms).toBe('0');
+  });
 });

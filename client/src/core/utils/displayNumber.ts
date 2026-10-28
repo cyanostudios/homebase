@@ -22,6 +22,7 @@ const DISPLAY_PREFIX_BY_PLUGIN: Record<string, string> = {
   clubdesk: 'CDK',
   mail: 'MAIL',
   pulses: 'PULSE',
+  'site-audits': 'AUD',
 };
 
 /**

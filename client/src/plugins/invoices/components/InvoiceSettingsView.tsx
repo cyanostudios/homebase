@@ -18,6 +18,7 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 import { cn } from '@/lib/utils';
 
 import { INVOICES_SETTINGS_KEY } from '../utils/invoiceColumnCount';
@@ -41,7 +42,7 @@ const NUMBERING_TYPE_ICONS = {
   receipt: Receipt,
 } as const;
 
-export type InvoiceSettingsCategory = 'numbering';
+export type InvoiceSettingsCategory = 'tags' | 'numbering';
 
 interface InvoiceSettingsViewProps {
   selectedCategory?: InvoiceSettingsCategory;
@@ -81,6 +82,12 @@ export function InvoiceSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'numbering',
         label: t('invoices.settingsCategories.numbering'),
@@ -227,6 +234,7 @@ export function InvoiceSettingsView({
         ) : null
       }
     >
+      {activeCategory === 'tags' && <SettingsTagsSection settingsKey={INVOICES_SETTINGS_KEY} />}
       {activeCategory === 'numbering' && (
         <DetailSection
           title={t('invoices.settingsCategories.numbering')}

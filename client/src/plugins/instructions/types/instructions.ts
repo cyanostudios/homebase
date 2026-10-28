@@ -27,6 +27,7 @@ export interface Instruction {
   sortOrder?: number;
   stepCount?: number;
   steps?: InstructionStep[];
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -46,6 +47,7 @@ export interface InstructionPayload {
   category: string | null;
   publicationStatus: PublicationStatus;
   steps: InstructionStepPayload[];
+  tags?: string[];
 }
 
 export interface ValidationError {

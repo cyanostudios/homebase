@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 const {
   registerPublicShareRoute,
   unregisterPublicShareRoute,
@@ -140,6 +141,7 @@ class TaskModel {
         assigned_to: primaryAssignee,
         created_from_note: created_from_note || null,
         team_id: teamIdValue,
+        tags: serializeItemTags(taskData.tags),
       };
 
       let result;
@@ -236,6 +238,9 @@ class TaskModel {
         assigned_to: primaryAssignee,
         team_id: teamIdValue,
       };
+      if (typeof taskData.tags !== 'undefined') {
+        basePayload.tags = serializeItemTags(taskData.tags);
+      }
 
       let result;
       const pool = req.tenantPool;
@@ -594,6 +599,7 @@ class TaskModel {
       assigned_to_ids: assignedToIds,
       team_id: row.team_id != null ? String(row.team_id) : null,
       created_from_note: row.created_from_note,
+      tags: parseItemTags(row.tags),
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

@@ -13,9 +13,27 @@ export const LIST_FILTER_CHIPS_TOGGLE_CLASS =
 export const LIST_FILTER_CHIPS_TOGGLE_OFF_CLASS =
   'gap-1.5 border-0 bg-primary/10 px-3.5 text-sm font-extrabold text-primary shadow-none hover:bg-primary hover:text-primary-foreground';
 
+/**
+ * Active-selection pip on a rounded-full control.
+ * Anchored to the right end-cap (height×height), then placed on the NE rim
+ * (~45°) so it sits on the curve — not the rectangular bounding-box corner.
+ */
+export function ListChipsToggleActivePip() {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-y-0 right-0 z-20 aspect-square h-full"
+    >
+      <span className="absolute left-[85.355%] top-[14.645%] h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-sm ring-2 ring-background" />
+    </span>
+  );
+}
+
 type ListFilterChipsToggleProps = {
   visible: boolean;
   onVisibleChange: (visible: boolean) => void;
+  /** When true, show a discreet pip that a filter selection is active. */
+  hasActiveSelection?: boolean;
   className?: string;
 };
 
@@ -26,25 +44,31 @@ type ListFilterChipsToggleProps = {
 export function ListFilterChipsToggle({
   visible,
   onVisibleChange,
+  hasActiveSelection = false,
   className,
 }: ListFilterChipsToggleProps) {
   const { t } = useTranslation();
+  const baseLabel = visible ? t('common.hideFilters') : t('common.showFilters');
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className={cn(
-        visible ? LIST_FILTER_CHIPS_TOGGLE_CLASS : LIST_FILTER_CHIPS_TOGGLE_OFF_CLASS,
-        className,
-      )}
-      aria-pressed={visible}
-      aria-label={visible ? t('common.hideFilters') : t('common.showFilters')}
-      onClick={() => onVisibleChange(!visible)}
-    >
-      <ListFilter className="h-3.5 w-3.5" />
-      <span>{t('common.filters')}</span>
-    </Button>
+    <span className="relative z-10 inline-flex shrink-0 overflow-visible">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn(
+          visible ? LIST_FILTER_CHIPS_TOGGLE_CLASS : LIST_FILTER_CHIPS_TOGGLE_OFF_CLASS,
+          className,
+        )}
+        aria-pressed={visible}
+        aria-label={hasActiveSelection ? `${baseLabel}. ${t('common.activeSelection')}` : baseLabel}
+        data-has-active-selection={hasActiveSelection ? 'true' : undefined}
+        onClick={() => onVisibleChange(!visible)}
+      >
+        <ListFilter className="h-3.5 w-3.5" />
+        <span>{t('common.filters')}</span>
+      </Button>
+      {hasActiveSelection ? <ListChipsToggleActivePip /> : null}
+    </span>
   );
 }
