@@ -46,7 +46,9 @@ import {
   FORM_GHOST_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
 import { PaymentTermsField } from '@/core/ui/PaymentTermsField';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { formatDate } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -87,6 +89,7 @@ import {
   openInvoicePreviewWindow,
   writeInvoicePreviewWindow,
 } from '../utils/openInvoicePreviewWindow';
+import { INVOICES_SETTINGS_KEY } from '../utils/invoiceColumnCount';
 import { generateInvoiceWebHTML } from '../webTemplate';
 
 import { InvoiceCustomerSelect } from './InvoiceCustomerSelect';
@@ -248,6 +251,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         creditedInvoiceId: null as string | number | null,
         creditedInvoiceNumber: '' as string,
         correctionSummary: '',
+        tags: [] as string[],
       };
     });
 
@@ -294,6 +298,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           creditedInvoiceId: currentInvoice.creditedInvoiceId ?? null,
           creditedInvoiceNumber: currentInvoice.creditedInvoiceNumber || '',
           correctionSummary: currentInvoice.correctionSummary || '',
+          tags: Array.isArray(currentInvoice.tags) ? currentInvoice.tags : [],
         });
         const contactRow = contacts?.find((c) => String(c.id) === String(currentInvoice.contactId));
         const fromLines = migrated.find((li) => li.kind !== 'text')?.vatRate;
@@ -332,6 +337,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         creditedInvoiceId: null,
         creditedInvoiceNumber: '',
         correctionSummary: '',
+        tags: [],
       });
       markClean();
       setDuplicatedItemIds(new Set());
@@ -363,6 +369,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         creditedInvoiceId: null,
         creditedInvoiceNumber: '',
         correctionSummary: '',
+        tags: [],
       });
       markClean();
       setDuplicatedItemIds(new Set());
@@ -1171,6 +1178,21 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                 </DetailSection>
               </Card>
             </div>
+
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('common.tags')}
+                icon={SETTINGS_CATEGORY_ICONS.tags}
+                subtleTitle
+                className="p-4"
+              >
+                <ItemTagsField
+                  settingsKey={INVOICES_SETTINGS_KEY}
+                  value={formData.tags}
+                  onChange={(tags) => updateField('tags', tags)}
+                />
+              </DetailSection>
+            </Card>
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection

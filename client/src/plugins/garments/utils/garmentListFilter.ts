@@ -82,6 +82,27 @@ export function countInventoryItemsWithTag(
   return items.filter((item) => inventoryItemMatchesTagFilter(item, tag)).length;
 }
 
+/**
+ * Empty selection = no tag filter (all items).
+ * Non-empty = OR across selected catalog tags (item has at least one).
+ */
+export function inventoryItemMatchesSelectedTags(
+  item: Pick<InventoryItem, 'tags'>,
+  selectedTags: readonly string[],
+): boolean {
+  if (selectedTags.length === 0) {
+    return true;
+  }
+  return selectedTags.some((tag) => inventoryItemMatchesTagFilter(item, tag));
+}
+
+export function toggleInventoryTagFilter(current: readonly string[], tag: string): string[] {
+  if (current.includes(tag)) {
+    return current.filter((entry) => entry !== tag);
+  }
+  return [...current, tag];
+}
+
 function jerseyTeamKey(teamId: string | null | undefined): string {
   if (teamId == null) {
     return '';

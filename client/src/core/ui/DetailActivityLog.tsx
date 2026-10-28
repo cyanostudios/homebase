@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { activityLogApi, ActivityLogEntry } from '@/core/api/activityLogApi';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DETAIL_INFO_ROW_CLASS } from '@/core/ui/detailViewCardStyles';
-import { Heading } from '@/core/ui/Typography';
+import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { getActivityActorLabel, getActivityDetailLines } from '@/core/utils/activityLogDisplay';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -37,6 +37,10 @@ interface DetailActivityLogProps {
    * Entity created date is already carried by activity log entries.
    */
   systemId?: string | null;
+  /** When true, section header toggles content (DetailSection collapsible). */
+  collapsible?: boolean;
+  /** Initial open state when collapsible. Default true. */
+  defaultOpen?: boolean;
 }
 
 export function DetailActivityLog({
@@ -48,6 +52,8 @@ export function DetailActivityLog({
   showClearButton = false,
   refreshKey,
   systemId,
+  collapsible = false,
+  defaultOpen = true,
 }: DetailActivityLogProps) {
   const { t } = useTranslation();
   const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
@@ -91,94 +97,110 @@ export function DetailActivityLog({
   const systemIdLabel =
     systemId != null && String(systemId).trim() !== '' ? String(systemId).trim() : null;
 
+  const clearAction = showClearButton ? (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="h-7 shrink-0 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/20"
+      onClick={() => setShowResetConfirm(true)}
+      disabled={loading || logs.length === 0}
+    >
+      <RotateCcw className="h-3 w-3 mr-1" />
+      {t('activityLog.reset', 'Reset')}
+    </Button>
+  ) : null;
+
+  const body = (
+    <>
+      {systemIdLabel ? (
+        <div className="border-b border-border/50 pb-3">
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">{t('common.id', 'ID')}</span>
+            <span className="font-mono font-extrabold text-foreground">{systemIdLabel}</span>
+          </div>
+        </div>
+      ) : null}
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">{t('common.loading', 'Loading...')}</p>
+      ) : logs.length === 0 ? (
+        <div className="mt-1 flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/30 px-4 py-8 text-center">
+          <History className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {t('activityLog.noActivity', 'No activity yet')}
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-3 text-xs">
+          {logs.map((entry) => {
+            const actor =
+              getActivityActorLabel(entry) ?? t('activityLog.unknownUser', 'Unknown user');
+            const details = getActivityDetailLines(entry, t, { hideEntityName: true });
+            return (
+              <li key={entry.id} className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className={cn(
+                      'inline-flex px-1.5 py-0.5 rounded font-medium capitalize',
+                      ACTION_COLORS[entry.action] ?? 'bg-muted text-muted-foreground',
+                    )}
+                  >
+                    {actionLabel(entry.action)}
+                  </span>
+                  <span className="text-muted-foreground shrink-0">
+                    {formatDateTimeShort(entry.createdAt)}
+                  </span>
+                </div>
+                <span className="text-foreground/80 font-medium truncate block">{actor}</span>
+                {details.map((line, index) => (
+                  <span key={`${entry.id}-detail-${index}`} className="text-muted-foreground block">
+                    {line}
+                  </span>
+                ))}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
+
   return (
     <>
-      <Card padding="none" className={cn('rounded-xl border-0 shadow-sm', className)}>
-        <div className="space-y-3 p-5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <History
-                className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500"
-                aria-hidden
-              />
-              <Heading
-                level={3}
-                size="xs"
-                className="truncate uppercase tracking-[0.1em] font-bold text-slate-500 dark:text-slate-400"
-              >
-                {sectionTitle}
-              </Heading>
-            </div>
-            {showClearButton ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 shrink-0 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/20"
-                onClick={() => setShowResetConfirm(true)}
-                disabled={loading || logs.length === 0}
-              >
-                <RotateCcw className="h-3 w-3 mr-1" />
-                {t('activityLog.reset', 'Reset')}
-              </Button>
-            ) : null}
-          </div>
-
-          {systemIdLabel ? (
-            <div className="border-b border-border/50 pb-3">
-              <div className={DETAIL_INFO_ROW_CLASS}>
-                <span className="text-slate-500 dark:text-slate-400">{t('common.id', 'ID')}</span>
-                <span className="font-mono font-extrabold text-foreground">{systemIdLabel}</span>
+      {collapsible ? (
+        <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, className)}>
+          <DetailSection
+            title={sectionTitle}
+            icon={History}
+            subtleTitle
+            className="p-5"
+            collapsible
+            defaultOpen={defaultOpen}
+            action={clearAction}
+          >
+            {body}
+          </DetailSection>
+        </Card>
+      ) : (
+        <Card padding="none" className={cn('rounded-xl border-0 shadow-sm', className)}>
+          <div className="space-y-3 p-5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <History
+                  className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+                  aria-hidden
+                />
+                <h3 className="truncate text-xs font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                  {sectionTitle}
+                </h3>
               </div>
+              {clearAction}
             </div>
-          ) : null}
-
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading', 'Loading...')}</p>
-          ) : logs.length === 0 ? (
-            <div className="mt-1 flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/30 px-4 py-8 text-center">
-              <History className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {t('activityLog.noActivity', 'No activity yet')}
-              </p>
-            </div>
-          ) : (
-            <ul className="space-y-3 text-xs">
-              {logs.map((entry) => {
-                const actor =
-                  getActivityActorLabel(entry) ?? t('activityLog.unknownUser', 'Unknown user');
-                const details = getActivityDetailLines(entry, t, { hideEntityName: true });
-                return (
-                  <li key={entry.id} className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={cn(
-                          'inline-flex px-1.5 py-0.5 rounded font-medium capitalize',
-                          ACTION_COLORS[entry.action] ?? 'bg-muted text-muted-foreground',
-                        )}
-                      >
-                        {actionLabel(entry.action)}
-                      </span>
-                      <span className="text-muted-foreground shrink-0">
-                        {formatDateTimeShort(entry.createdAt)}
-                      </span>
-                    </div>
-                    <span className="text-foreground/80 font-medium truncate block">{actor}</span>
-                    {details.map((line, index) => (
-                      <span
-                        key={`${entry.id}-detail-${index}`}
-                        className="text-muted-foreground block"
-                      >
-                        {line}
-                      </span>
-                    ))}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </Card>
+            {body}
+          </div>
+        </Card>
+      )}
       <ConfirmDialog
         isOpen={showResetConfirm}
         title={t('activityLog.resetConfirmTitle', 'Clear activity log?')}

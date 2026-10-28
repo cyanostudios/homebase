@@ -11,6 +11,8 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { FORM_GHOST_INPUT_CLASS, FORM_INPUT_ERROR_CLASS } from '@/core/ui/formFieldStyles';
 import { DETAIL_FORM_TITLE_INPUT_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -22,7 +24,7 @@ import type { ValidationError } from '../types/files';
 import { humanSize } from '../utils/humanSize';
 
 interface FileFormProps {
-  currentItem?: { id?: string; name?: string } | null;
+  currentItem?: { id?: string; name?: string; tags?: string[] } | null;
   onSave: (data: any) => Promise<boolean> | boolean;
   onCancel: () => void;
   /** Single-column layout for list detail column. */
@@ -66,13 +68,16 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   const [items, setItems] = useState<Picked[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [name, setName] = useState<string>(currentItem?.name ?? '');
+  const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (isEdit) {
       setName(currentItem?.name ?? '');
+      setTags(Array.isArray(currentItem?.tags) ? currentItem.tags : []);
       setItems([]);
     } else {
       setName('');
+      setTags([]);
     }
     clearValidationErrors();
     markClean();
@@ -146,9 +151,9 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        return await onSave({ name: name?.trim() || '' });
+        return await onSave({ name: name?.trim() || '', tags });
       }
-      const ok = await onSave({ _files: items.map((p) => p.file) });
+      const ok = await onSave({ _files: items.map((p) => p.file), tags });
       if (ok) {
         setItems([]);
       }
@@ -159,7 +164,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
     } finally {
       setIsSubmitting(false);
     }
-  }, [isEdit, onSave, name, items, isSubmitting]);
+  }, [isEdit, onSave, name, tags, items, isSubmitting]);
 
   const handleCancel = useCallback(() => {
     // Core cancel-from-edit calls openForView; files has no full view and openFileForView
@@ -299,6 +304,23 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
                 </DetailSection>
               </Card>
             )}
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('common.tags')}
+                icon={SETTINGS_CATEGORY_ICONS.tags}
+                subtleTitle
+                className="p-4"
+              >
+                <ItemTagsField
+                  settingsKey="files"
+                  value={tags}
+                  onChange={(next) => {
+                    setTags(next);
+                    markDirty();
+                  }}
+                />
+              </DetailSection>
+            </Card>
           </div>
         </DetailLayout>
         <ConfirmDialog
@@ -432,6 +454,17 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
                   </div>
                 </div>
               ) : null}
+
+              <div className="mt-6">
+                <ItemTagsField
+                  settingsKey="files"
+                  value={tags}
+                  onChange={(next) => {
+                    setTags(next);
+                    markDirty();
+                  }}
+                />
+              </div>
 
               {stacked && headerTrailing ? null : saveCancelRow}
             </DetailSection>

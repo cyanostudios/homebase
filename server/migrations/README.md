@@ -1,5 +1,18 @@
 # Migrations
 
+## 185 – Site audits plugin (okt 2026)
+
+- **`185-site-audits.sql`** — tenant-DB: `site_audits` (name, url, optional `competitor_url`, `last_score`, `last_run_at`) and `site_audit_runs` (target `site`|`competitor`, status, score, JSONB `summary`/`pages`, FK cascade). Plugin id `site-audits`. ADR: [`docs/ai/adr/SITE_AUDITS_ETAPP1.md`](../../docs/ai/adr/SITE_AUDITS_ETAPP1.md). Overview: [`docs/SITE_AUDITS_PLUGIN.md`](../../docs/SITE_AUDITS_PLUGIN.md).
+
+```bash
+npm run migrate:site-audits
+npm run set:tenant-plugins -- --email=<tenant-email> --enable=site-audits
+```
+
+`migrate:site-audits` uses `DATABASE_URL` only (all tenants on that main DB). Local first; enable with `set:tenant-plugins` without `--both`. If the enable script refuses bare localhost `DATABASE_URL`, set `TARGET_DATABASE_URL` to the same local main URL. After plugin access: **log out/in**.
+
+---
+
 ## 166 – Tenant default mail texts (sep 2026)
 
 - **`166-tenants-default-texts.sql`** — **`MAIN_DB_ONLY`**. Lägger till `tenants.default_texts` JSONB (`invoiceMail`, `estimateMail`) för Settings → Default texts och BulkEmailDialog prefill.

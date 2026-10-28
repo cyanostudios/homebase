@@ -32,6 +32,8 @@ import {
   FORM_GHOST_TEXTAREA_CLASS,
 } from '@/core/ui/formFieldStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
@@ -142,6 +144,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
       fetchMethod: 'generic_http' as IngestFetchMethod,
       isActive: true,
       notes: '',
+      tags: [] as string[],
     });
 
     const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
@@ -160,6 +163,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
         fetchMethod: 'generic_http',
         isActive: true,
         notes: '',
+        tags: [],
       });
       markClean();
     }, [markClean]);
@@ -173,6 +177,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
           fetchMethod: normalizeFetchMethod(currentIngest.fetchMethod),
           isActive: currentIngest.isActive !== false,
           notes: currentIngest.notes || '',
+          tags: Array.isArray(currentIngest.tags) ? currentIngest.tags : [],
         });
         markClean();
       } else {
@@ -447,6 +452,23 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                         />
                       </div>
                     </div>
+                  </DetailSection>
+                </Card>
+              ) : null}
+
+              {activeTab === 'information' ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={t('common.tags')}
+                    icon={SETTINGS_CATEGORY_ICONS.tags}
+                    subtleTitle
+                    className="p-4"
+                  >
+                    <ItemTagsField
+                      settingsKey="ingest"
+                      value={formData.tags}
+                      onChange={(next) => updateField('tags', next)}
+                    />
                   </DetailSection>
                 </Card>
               ) : null}

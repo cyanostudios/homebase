@@ -2,6 +2,7 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 
 const PUBLICATION_STATUSES = ['draft', 'published'];
 const DEFAULT_CURRENCY = 'SEK';
@@ -515,6 +516,7 @@ class PriceListModel {
         row.sort_order !== null && row.sort_order !== undefined ? Number(row.sort_order) : 1,
       itemCount:
         row.item_count !== null && row.item_count !== undefined ? Number(row.item_count) : 0,
+      tags: parseItemTags(row.tags),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -1077,6 +1079,7 @@ class PriceListModel {
             i.categories_enabled,
             i.currency,
             i.sort_order,
+            i.tags,
             i.created_at,
             i.updated_at,
             COALESCE(s.cnt, 0)::int AS item_count
@@ -1152,9 +1155,10 @@ class PriceListModel {
               featured,
               categories_enabled,
               currency,
-              sort_order
+              sort_order,
+              tags
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *
           `,
           [
@@ -1168,6 +1172,7 @@ class PriceListModel {
             fields.categoriesEnabled !== false,
             fields.currency ?? DEFAULT_CURRENCY,
             sortOrder,
+            serializeItemTags(data.tags),
           ],
         );
         const parent = parentRows[0];
@@ -1260,34 +1265,42 @@ class PriceListModel {
       await this.assertTitleUnique(db, userId, fields.title, id);
 
       const updated = await db.transaction(async (tx) => {
+        const setClauses = [
+          'title = $1',
+          'slug = $2',
+          'description = $3',
+          'featured_image_url = $4',
+          'publication_status = $5',
+          'featured = $6',
+          'categories_enabled = $7',
+          'currency = $8',
+        ];
+        const updateParams = [
+          fields.title,
+          fields.slug,
+          fields.description ?? null,
+          fields.featuredImageUrl ?? null,
+          fields.publicationStatus ?? 'draft',
+          fields.featured === true,
+          fields.categoriesEnabled !== false,
+          fields.currency ?? DEFAULT_CURRENCY,
+        ];
+        if (typeof data.tags !== 'undefined') {
+          setClauses.push(`tags = $${updateParams.length + 1}`);
+          updateParams.push(serializeItemTags(data.tags));
+        }
+        setClauses.push('updated_at = CURRENT_TIMESTAMP');
+        const idParam = updateParams.length + 1;
+        const userIdParam = updateParams.length + 2;
+        updateParams.push(id, userId);
         const parentRows = await tx.query(
           `
             UPDATE ${this.table}
-            SET
-              title = $1,
-              slug = $2,
-              description = $3,
-              featured_image_url = $4,
-              publication_status = $5,
-              featured = $6,
-              categories_enabled = $7,
-              currency = $8,
-              updated_at = CURRENT_TIMESTAMP
-            WHERE id = $9 AND user_id = $10
+            SET ${setClauses.join(', ')}
+            WHERE id = $${idParam} AND user_id = $${userIdParam}
             RETURNING *
           `,
-          [
-            fields.title,
-            fields.slug,
-            fields.description ?? null,
-            fields.featuredImageUrl ?? null,
-            fields.publicationStatus ?? 'draft',
-            fields.featured === true,
-            fields.categoriesEnabled !== false,
-            fields.currency ?? DEFAULT_CURRENCY,
-            id,
-            userId,
-          ],
+          updateParams,
         );
         if (!parentRows.length) {
           throw new AppError('Price list not found', 404, AppError.CODES.NOT_FOUND);

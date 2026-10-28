@@ -28,6 +28,7 @@ export interface Guide {
   hasReadyAudio: boolean;
   createdAt: string;
   updatedAt: string;
+  tags?: string[];
 }
 
 export interface GuidePayload {
@@ -38,6 +39,7 @@ export interface GuidePayload {
   lifecycleStatus?: GuideLifecycleStatus;
   sourceLanguage?: string;
   masterGuideEditorialStatus?: MasterGuideEditorialStatus;
+  tags?: string[];
 }
 
 export type PlaceProviderKey = 'nominatim' | 'google' | 'mapbox' | 'manual';

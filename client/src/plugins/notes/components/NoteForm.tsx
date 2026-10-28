@@ -36,8 +36,11 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 
 import { useNotes } from '../hooks/useNotes';
+import { NOTES_SETTINGS_KEY } from '../utils/noteColumnCount';
 
 const RichTextEditor = React.lazy(() =>
   import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
@@ -73,6 +76,7 @@ interface NoteFormState {
   content: string;
   mentions: any[];
   showTitleInContent: boolean;
+  tags: string[];
 }
 
 interface NoteFormProps {
@@ -115,6 +119,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
     content: '',
     mentions: [],
     showTitleInContent: true,
+    tags: [],
   });
 
   const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
@@ -188,6 +193,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
       content: '',
       mentions: [],
       showTitleInContent: true,
+      tags: [],
     });
     markClean();
   }, [markClean]);
@@ -199,6 +205,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
         content: currentNote.content || '',
         mentions: currentNote.mentions || [],
         showTitleInContent: currentNote.showTitleInContent !== false,
+        tags: Array.isArray(currentNote.tags) ? currentNote.tags : [],
       });
       markClean();
     } else {
@@ -599,6 +606,23 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
 
             {/* Single mount of editor: in layout when not focused; portaled when focused */}
             {activeTab === 'information' && !focusMode ? informationCard : null}
+            {activeTab === 'information' && !focusMode ? (
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('common.tags')}
+                  icon={SETTINGS_CATEGORY_ICONS.tags}
+                  iconPlugin="notes"
+                  subtleTitle
+                  className="p-4"
+                >
+                  <ItemTagsField
+                    settingsKey={NOTES_SETTINGS_KEY}
+                    value={formData.tags}
+                    onChange={(tags) => updateField('tags', tags)}
+                  />
+                </DetailSection>
+              </Card>
+            ) : null}
             {activeTab === 'files' ? filesCard : null}
           </DetailLayout>
         </form>

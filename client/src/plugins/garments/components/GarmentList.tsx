@@ -52,8 +52,11 @@ import {
   LIST_FILTER_SORT_CLUSTER_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
+import { ListTagsChipsToggle } from '@/core/ui/ListTagsChipsToggle';
+import { ListTagsEmptyRow } from '@/core/ui/ListTagsEmptyRow';
 import { pathToNavPage } from '@/core/routing/routeMap';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import {
@@ -67,6 +70,7 @@ import {
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
@@ -83,9 +87,10 @@ import {
   countInventoryItemsWithTag,
   garmentListMatchesSearch,
   inventoryItemMatchesSearch,
-  inventoryItemMatchesTagFilter,
+  inventoryItemMatchesSelectedTags,
   inventoryItemVisibleInCatalog,
   isInventoryItemArchived,
+  toggleInventoryTagFilter,
 } from '../utils/garmentListFilter';
 import { normalizeInventoryTags } from '../utils/inventoryTags';
 import {
@@ -132,6 +137,7 @@ const INVENTORY_SORT_OPTIONS: { value: InventorySortField; labelKey: string }[] 
 ];
 
 const GARMENTS_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.garments.toolbar.filtersVisible';
+const GARMENTS_TAGS_VISIBLE_STORAGE_KEY = 'homebase.garments.toolbar.tagsVisible';
 
 export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion = false }) => {
   const { t } = useTranslation();
@@ -237,7 +243,7 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
   }, [hasTeams, listSort]);
 
   const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const [inventoryTagFilter, setInventoryTagFilter] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showArchivedOnly, setShowArchivedOnly] = useState(false);
   const [bulkDeleteWarning, setBulkDeleteWarning] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -251,6 +257,19 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     GARMENTS_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const { filtersVisible: tagsVisible, setFiltersVisible: setTagsVisible } =
+    usePersistedFiltersVisible(GARMENTS_TAGS_VISIBLE_STORAGE_KEY);
+  const listTagFilter = usePluginListTags({
+    settingsKey: GARMENTS_SETTINGS_KEY,
+    storageKey: 'homebase.garments.lists.toolbar.tagsVisible',
+    items: garmentLists,
+    enabled: !isInventoryEffective,
+    isCompanion,
+    onOpenSettings: () => {
+      setListsSettingsCategory('tags');
+      attemptNavigation(() => openGarmentsSettings('lists'));
+    },
+  });
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
   const [toolbarToggleBox, setToolbarToggleBox] = useState<{
@@ -317,16 +336,17 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
   useEffect(() => {
     setSelectedIds([]);
     setSearchTerm('');
-    setInventoryTagFilter(null);
+    setSelectedTags([]);
     setPreviewList(null);
     setPreviewInventory(null);
   }, [garmentsNavPage, setSearchTerm]);
 
   useEffect(() => {
-    if (inventoryTagFilter && !availableTags.includes(inventoryTagFilter)) {
-      setInventoryTagFilter(null);
-    }
-  }, [availableTags, inventoryTagFilter]);
+    setSelectedTags((prev) => {
+      const next = prev.filter((tag) => availableTags.includes(tag));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [availableTags]);
 
   useEffect(() => {
     let cancelled = false;
@@ -462,21 +482,23 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
   );
 
   const filteredLists = useMemo(() => {
-    const filtered = garmentLists.filter((item) => garmentListMatchesSearch(item, searchTerm));
+    const filtered = garmentLists.filter(
+      (item) => garmentListMatchesSearch(item, searchTerm) && listTagFilter.matches(item),
+    );
     return [...filtered].sort((a, b) =>
       compareGarmentListsByField(a, b, listSort, sortOrder, teamNameById),
     );
-  }, [garmentLists, searchTerm, listSort, sortOrder, teamNameById]);
+  }, [garmentLists, searchTerm, listSort, sortOrder, teamNameById, listTagFilter]);
 
   const filteredInventory = useMemo(() => {
     const filtered = inventoryItems.filter(
       (item) =>
         inventoryItemVisibleInCatalog(item, { archivedOnly: showArchivedOnly, searchTerm }) &&
-        inventoryItemMatchesTagFilter(item, inventoryTagFilter) &&
+        inventoryItemMatchesSelectedTags(item, selectedTags) &&
         inventoryItemMatchesSearch(item, searchTerm),
     );
     return [...filtered].sort((a, b) => compareInventoryByField(a, b, inventorySort, sortOrder));
-  }, [inventoryItems, inventorySort, inventoryTagFilter, searchTerm, showArchivedOnly, sortOrder]);
+  }, [inventoryItems, inventorySort, selectedTags, searchTerm, showArchivedOnly, sortOrder]);
 
   const activeInventoryCount = useMemo(
     () => inventoryItems.filter((item) => !isInventoryItemArchived(item)).length,
@@ -862,6 +884,10 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
     );
   };
 
+  const toggleTagFilter = (tag: string) => {
+    setSelectedTags((prev) => toggleInventoryTagFilter(prev, tag));
+  };
+
   const renderFilterChips = () => {
     if (!isInventoryEffective) {
       return null;
@@ -873,14 +899,9 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => {
-            setInventoryTagFilter(null);
-            setShowArchivedOnly(false);
-          }}
+          onClick={() => setShowArchivedOnly(false)}
           className={cn(
-            inventoryTagFilter == null && !showArchivedOnly
-              ? LIST_FILTER_CHIP_ACTIVE_CLASS
-              : LIST_FILTER_CHIP_CLASS,
+            !showArchivedOnly ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
             isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
           )}
         >
@@ -907,17 +928,41 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
             <span className="tabular-nums font-semibold">({archivedInventoryCount})</span>
           </span>
         </Button>
+        <ListChipRowClear
+          visible={showArchivedOnly}
+          ariaLabel={t('common.clearFilters')}
+          onClear={() => setShowArchivedOnly(false)}
+        />
+      </div>
+    );
+  };
+
+  const openTagsSettings = () => {
+    setInventorySettingsCategory('tags');
+    attemptNavigation(() => openGarmentsSettings('inventory'));
+  };
+
+  const renderTagChips = () => {
+    if (!isInventoryEffective) {
+      return null;
+    }
+    if (availableTags.length === 0) {
+      return <ListTagsEmptyRow onOpenSettings={openTagsSettings} />;
+    }
+
+    return (
+      <div className={cn(LIST_FILTER_CHIP_ROW_CLASS, LIST_FILTER_CHIP_SLOT_CLASS)}>
         {availableTags.map((tag) => {
-          const isActive = inventoryTagFilter === tag;
+          const active = selectedTags.includes(tag);
           return (
             <Button
               key={tag}
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setInventoryTagFilter(isActive ? null : tag)}
+              onClick={() => toggleTagFilter(tag)}
               className={cn(
-                isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+                active ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
                 isCompanion && LIST_FILTER_CHIP_COMPANION_SIZE_CLASS,
               )}
             >
@@ -929,6 +974,11 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
             </Button>
           );
         })}
+        <ListChipRowClear
+          visible={selectedTags.length > 0}
+          ariaLabel={t('common.clearTags')}
+          onClear={() => setSelectedTags([])}
+        />
       </div>
     );
   };
@@ -1069,12 +1119,26 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                       <ListFilterChipsToggle
                         visible={filtersVisible}
                         onVisibleChange={setFiltersVisible}
+                        hasActiveSelection={isInventoryEffective && showArchivedOnly}
                         className={
                           isCompanion
                             ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
                             : 'h-11 rounded-full'
                         }
                       />
+                      {isInventoryEffective && (!isCompanion || availableTags.length > 0) ? (
+                        <ListTagsChipsToggle
+                          visible={tagsVisible}
+                          onVisibleChange={setTagsVisible}
+                          hasActiveSelection={selectedTags.length > 0}
+                          className={
+                            isCompanion
+                              ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
+                              : 'h-11 rounded-full'
+                          }
+                        />
+                      ) : null}
+                      {listTagFilter.toggle}
                       {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -1124,6 +1188,30 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                       {renderFilterChips()}
                     </div>
                   ) : null}
+                  {tagsVisible &&
+                  isInventoryEffective &&
+                  (!isCompanion || availableTags.length > 0) ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {renderTagChips()}
+                    </div>
+                  ) : null}
+                  {listTagFilter.row ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {listTagFilter.row}
+                    </div>
+                  ) : null}
                   {!isCompanion ? renderBulkActionBar('py-3') : null}
                 </div>
               </div>
@@ -1133,12 +1221,24 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
           {!isCompanion ? (
             <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
               {filtersVisible ? renderFilterChips() : null}
+              {tagsVisible && isInventoryEffective ? renderTagChips() : null}
+              {listTagFilter.row}
               <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
                 <ListFilterChipsToggle
                   visible={filtersVisible}
                   onVisibleChange={setFiltersVisible}
+                  hasActiveSelection={isInventoryEffective && showArchivedOnly}
                   className="h-7 rounded-md"
                 />
+                {isInventoryEffective ? (
+                  <ListTagsChipsToggle
+                    visible={tagsVisible}
+                    onVisibleChange={setTagsVisible}
+                    hasActiveSelection={selectedTags.length > 0}
+                    className="h-7 rounded-md"
+                  />
+                ) : null}
+                {listTagFilter.mobileToggle}
                 {renderSortDropdown('h-7 rounded-md')}
               </div>
             </div>
@@ -1350,10 +1450,10 @@ export const GarmentList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                     {isInventoryEffective ? (
                       <GarmentsInventoryStatisticsView
                         showArchivedOnly={showArchivedOnly}
-                        tagFilterActive={inventoryTagFilter != null}
+                        tagFilterActive={selectedTags.length > 0}
                         onSelectFilter={(filter) => {
                           setFiltersVisible(true);
-                          setInventoryTagFilter(null);
+                          setSelectedTags([]);
                           if (filter === 'total') {
                             setShowArchivedOnly(false);
                             return;

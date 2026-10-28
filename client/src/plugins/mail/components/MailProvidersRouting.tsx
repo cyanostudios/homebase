@@ -16,6 +16,7 @@ import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { FORM_COMPACT_SELECT_CLASS, FORM_INPUT_CLASS } from '@/core/ui/formFieldStyles';
 import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 import { cn } from '@/lib/utils';
 
 import { useMail } from '../hooks/useMail';
@@ -375,6 +376,7 @@ export function MailProvidersRouting({ onClose }: MailProvidersRoutingProps = {}
             )}
           </DetailSection>
         </Card>
+        <SettingsTagsSection settingsKey="mail" />
       </div>
     </PluginSettingsPageShell>
   );

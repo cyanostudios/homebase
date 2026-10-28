@@ -23,6 +23,7 @@ module.exports = {
     '<rootDir>/client/src/plugins/requests',
     '<rootDir>/client/src/plugins/contacts',
     '<rootDir>/client/src/plugins/ingest',
+    '<rootDir>/client/src/plugins/site-audits',
     '<rootDir>/client/src/plugins/invoices',
     '<rootDir>/client/src/plugins/estimates',
     '<rootDir>/client/src/plugins/matches',

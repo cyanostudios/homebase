@@ -8,6 +8,10 @@ describe('PulseHistoryView settings shell', () => {
   test('uses PluginSettingsPageShell with Contacts-style filter chips + toggle', () => {
     expect(historySrc).toMatch(/PluginSettingsPageShell/);
     expect(historySrc).toMatch(/ListFilterChipsToggle/);
+    expect(historySrc).toMatch(/hasActiveSelection=\{activeFilters\.length > 0\}/);
+    expect(historySrc).toMatch(/ListChipRowClear/);
+    expect(historySrc).toMatch(/common\.clearFilters/);
+    expect(historySrc).toMatch(/setActiveFilters\(\[\]\)/);
     expect(historySrc).toMatch(/usePersistedFiltersVisible/);
     expect(historySrc).toMatch(/LIST_FILTER_CHIP_ACTIVE_CLASS/);
     expect(historySrc).toMatch(/LIST_FILTER_CHIP_CLASS/);

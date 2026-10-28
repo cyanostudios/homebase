@@ -23,6 +23,7 @@ export type NavPage =
   | 'cups'
   | 'files'
   | 'ingest'
+  | 'site-audits'
   | 'guides'
   | 'instructions'
   | 'clubdesk'

@@ -5,6 +5,7 @@ export interface Note {
   mentions: Mention[];
   /** When true (default), title is shown in the note content area in view mode. */
   showTitleInContent?: boolean;
+  tags?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

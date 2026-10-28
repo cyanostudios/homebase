@@ -23,6 +23,7 @@ export interface IngestSource {
   lastFetchedAt: string | null;
   lastFetchStatus: IngestFetchStatus;
   lastFetchError: string | null;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }

@@ -1,6 +1,7 @@
 // plugins/requests/model.js
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 const DEFAULT_REQUEST_TYPE = 'general';
@@ -279,6 +280,7 @@ class RequestModel {
         plugin_target: pluginTarget,
         plugin_target_id: pluginTargetId,
         extra_data: extraDataJson,
+        tags: serializeItemTags(requestData.tags),
       });
 
       Logger.info('Request created', { requestId: result.id });
@@ -524,6 +526,9 @@ class RequestModel {
             ? (sanitizeResponseDueAt(response_due_at) ?? null)
             : (current.response_due_at ?? null),
       };
+      if (typeof requestData.tags !== 'undefined') {
+        updatePayload.tags = serializeItemTags(requestData.tags);
+      }
 
       if (!alreadyRouted && plugin_target !== undefined) {
         updatePayload.plugin_target =
@@ -617,6 +622,7 @@ class RequestModel {
       pluginRoutedEntityId:
         row.plugin_routed_entity_id != null ? String(row.plugin_routed_entity_id) : null,
       firstViewedAt: row.first_viewed_at ?? null,
+      tags: parseItemTags(row.tags),
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

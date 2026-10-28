@@ -8,11 +8,14 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 
 import { ContentSourcesSettings } from './ContentSourcesSettings';
+
+export const GUIDES_SETTINGS_KEY = 'guides';
 import { ProductionWorkerSettingsPanel } from './ProductionWorkerSettingsPanel';
 
-export type GuideSettingsCategory = 'production' | 'sources';
+export type GuideSettingsCategory = 'tags' | 'production' | 'sources';
 
 interface GuideSettingsViewProps {
   selectedCategory?: GuideSettingsCategory;
@@ -35,6 +38,12 @@ export function GuideSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'production',
         label: t('guides.settings.categories.production'),
@@ -60,6 +69,7 @@ export function GuideSettingsView({
       onCategoryChange={(id) => setActiveCategory(id as GuideSettingsCategory)}
       onClose={onClose}
     >
+      {activeCategory === 'tags' && <SettingsTagsSection settingsKey={GUIDES_SETTINGS_KEY} />}
       {activeCategory === 'production' && <ProductionWorkerSettingsPanel />}
       {activeCategory === 'sources' && <ContentSourcesSettings />}
     </PluginSettingsPageShell>

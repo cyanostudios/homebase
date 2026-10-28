@@ -62,6 +62,7 @@ export interface Request {
   pluginRoutedEntityId: string | null;
   /** When any staff member first opened/viewed the request. */
   firstViewedAt: string | null;
+  tags?: string[];
   created_at: string;
   updated_at: string;
 }

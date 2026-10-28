@@ -24,6 +24,10 @@ describe('IngestSourceList table view wiring', () => {
     expect(listSrc).toMatch(/LIST_FILTER_CHIP_ACTIVE_CLASS/);
     expect(listSrc).toMatch(/renderSortDropdown/);
     expect(listSrc).toMatch(/ListFilterChipsToggle/);
+    expect(listSrc).toMatch(/hasActiveSelection=\{activeFilters\.length > 0\}/);
+    expect(listSrc).toMatch(/ListChipRowClear/);
+    expect(listSrc).toMatch(/common\.clearFilters/);
+    expect(listSrc).toMatch(/setActiveFilters\(\[\]\)/);
     expect(listSrc).toMatch(/filtersVisible/);
     expect(listSrc).toMatch(/DropdownMenuRadioItem/);
     expect(listSrc).toMatch(/handlePrimarySortChange/);

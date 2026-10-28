@@ -1,8 +1,10 @@
 import {
   countInventoryItemsWithTag,
   inventoryItemMatchesSearch,
+  inventoryItemMatchesSelectedTags,
   inventoryItemMatchesTagFilter,
   inventoryItemVisibleInCatalog,
+  toggleInventoryTagFilter,
 } from '../garmentListFilter';
 import type { InventoryItem } from '../../types/garments';
 
@@ -37,6 +39,27 @@ describe('inventoryItemMatchesTagFilter', () => {
     const item = baseItem({ tags: ['Home'] });
     expect(inventoryItemMatchesTagFilter(item, 'home')).toBe(true);
     expect(inventoryItemMatchesTagFilter(item, 'Away')).toBe(false);
+  });
+});
+
+describe('inventoryItemMatchesSelectedTags', () => {
+  it('matches all when selection is empty', () => {
+    const item = baseItem({ tags: ['Home'] });
+    expect(inventoryItemMatchesSelectedTags(item, [])).toBe(true);
+  });
+
+  it('OR-matches any selected tag case-insensitively', () => {
+    const item = baseItem({ tags: ['Home'] });
+    expect(inventoryItemMatchesSelectedTags(item, ['home', 'Away'])).toBe(true);
+    expect(inventoryItemMatchesSelectedTags(item, ['Away', 'Training'])).toBe(false);
+  });
+});
+
+describe('toggleInventoryTagFilter', () => {
+  it('adds and removes tags from multi-select', () => {
+    expect(toggleInventoryTagFilter([], 'A')).toEqual(['A']);
+    expect(toggleInventoryTagFilter(['A'], 'B')).toEqual(['A', 'B']);
+    expect(toggleInventoryTagFilter(['A', 'B'], 'A')).toEqual(['B']);
   });
 });
 

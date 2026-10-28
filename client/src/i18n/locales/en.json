@@ -90,6 +90,12 @@
     "showTags": "Show tags",
     "hideTags": "Hide tags",
     "activeSelection": "Selection active",
+    "tagsEmptyHint": "No tags yet. Add them in Settings.",
+    "addTagsInSettings": "Add tags in Settings",
+    "tagsSettingsHint": "Create tags here. They show up as filters on the list, and can be assigned on each item.",
+    "tagsPlaceholder": "Add a tag",
+    "noMoreTags": "No more tags to add",
+    "removeTag": "Remove tag {{tag}}",
     "paymentTermsImmediate": "Immediate",
     "paymentTermsDays": "{{count}} days",
     "paymentTermsCustom": "Custom…",
@@ -154,6 +160,8 @@
     "garments": "Garments",
     "files": "Files",
     "ingest": "Ingest",
+    "site-audits": "Site audits",
+    "site-audit": "Site audit",
     "guides": "Guides",
     "guide": "Guide",
     "instructions": "Instructions",
@@ -1457,6 +1465,427 @@
       "saveFailed": "Could not save source"
     },
     "tabUnavailableInEdit": "Available in view mode only"
+  },
+  "siteAudits": {
+    "searchPlaceholder": "Search {{count}} sites...",
+    "noMatch": "No sites match your search.",
+    "noYet": "No Site audits yet",
+    "add": "Add site",
+    "sort": "Sort",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "table": {
+      "name": "Name"
+    },
+    "scoreLabel": "Score",
+    "lastRunLabel": "Last run",
+    "neverRun": "Never run",
+    "noScoreYet": "No score yet",
+    "openSite": "Open site {{name}}",
+    "quickContextTitle": "Site preview",
+    "selectToPreview": "Select a site from the list to preview it here, or add a new site.",
+    "showingOf": "Showing {{shown}} of {{total}} sites",
+    "name": "Name",
+    "namePlaceholder": "e.g. Marketing site",
+    "url": "URL",
+    "urlHint": "The site to audit. HTTPS is preferred. A path (e.g. /nordics-baltics/) limits the crawl to that section; / audits the whole host.",
+    "competitorUrl": "Competitor URL",
+    "competitorUrlHint": "Optional. When set, a competitor audit runs alongside the site audit for comparison.",
+    "sectionDetails": "Site details",
+    "runAudit": "Run audit",
+    "running": "Running…",
+    "runningWithTime": "Running… {{time}}",
+    "stopAudit": "Stop",
+    "stopAuditWithTime": "Stop · {{time}}",
+    "stopping": "Stopping…",
+    "openUrl": "Open URL",
+    "tabs": {
+      "overview": "Overview",
+      "quickWins": "Quick wins",
+      "seo": "SEO",
+      "ai": "AI readiness",
+      "security": "Security",
+      "pages": "Pages",
+      "technical": "Technical",
+      "compare": "Compare",
+      "history": "History",
+      "activity": "Activity"
+    },
+    "technical": {
+      "emptySection": "No inventory data for this run.",
+      "missing": "Missing",
+      "present": "Present",
+      "yes": "Yes",
+      "no": "No",
+      "headersMeta": "{{present}} / {{total}} present",
+      "tlsMeta": "{{days}} days left",
+      "dnsMeta": "SPF {{spf}} · DMARC {{dmarc}}",
+      "resourcesMeta": "{{scripts}} scripts · {{thirdParty}} third-party hosts",
+      "crawlMeta": "{{pages}} pages · depth {{depth}}",
+      "technologiesMeta": "{{count}} detected",
+      "sections": {
+        "headers": "Security headers",
+        "tls": "TLS",
+        "dns": "DNS",
+        "technologies": "Detected technologies",
+        "resources": "Resources",
+        "crawl": "Crawl coverage"
+      },
+      "headers": {
+        "hsts": "Strict-Transport-Security",
+        "csp": "Content-Security-Policy",
+        "xcto": "X-Content-Type-Options",
+        "referrerPolicy": "Referrer-Policy",
+        "permissionsPolicy": "Permissions-Policy",
+        "frameProtection": "Frame protection"
+      },
+      "tls": {
+        "protocol": "Protocol",
+        "authorized": "Authorized",
+        "hostnameMatch": "Hostname match",
+        "issuer": "Issuer",
+        "validTo": "Valid to",
+        "daysRemaining": "Days remaining"
+      },
+      "dns": {
+        "spf": "SPF",
+        "dmarc": "DMARC",
+        "records": "A / AAAA",
+        "ns": "NS",
+        "caa": "CAA"
+      },
+      "resources": {
+        "scripts": "Scripts",
+        "stylesheets": "Stylesheets",
+        "images": "Images",
+        "asyncDefer": "Async / defer",
+        "manifest": "Web app manifest",
+        "serviceWorker": "Service worker hint",
+        "thirdPartyScripts": "Third-party script hosts",
+        "compression": "Homepage Content-Encoding"
+      },
+      "crawl": {
+        "pathScope": "Path scope",
+        "pathScopeWholeSite": "Whole site",
+        "pages": "Pages crawled",
+        "sitemapUrls": "Sitemap URLs",
+        "maxDepth": "Max depth",
+        "sitemapOnly": "In sitemap only",
+        "notInSitemap": "Crawled, not in sitemap",
+        "sitemapOnlySample": "Sitemap-only sample"
+      },
+      "technologies": {
+        "empty": "No known technologies matched",
+        "categories": {
+          "cms": "CMS",
+          "ecommerce": "Ecommerce",
+          "analytics": "Analytics",
+          "cdn": "CDN",
+          "framework": "Framework",
+          "chat": "Chat",
+          "marketing": "Marketing",
+          "other": "Other"
+        }
+      }
+    },
+    "overallScore": "Overall score",
+    "runStatus": {
+      "queued": "Queued",
+      "running": "Running",
+      "done": "Done",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "shellOnlyNote": "This page appears to be a JS-rendered shell with little crawlable HTML — results may be incomplete (no JS rendering in etapp 1).",
+    "shellOnlyPartialNote": "{{count}} crawled page(s) look like JS shells — those results may be incomplete.",
+    "quickWins": "Quick wins",
+    "emptyQuickWins": "No critical or warning findings.",
+    "sectionMeta": {
+      "none": "No findings",
+      "separator": " · ",
+      "critical_one": "{{count}} critical",
+      "critical_other": "{{count}} critical",
+      "warning_one": "{{count}} warning",
+      "warning_other": "{{count}} warnings",
+      "info_one": "{{count}} info",
+      "info_other": "{{count}} info"
+    },
+    "pillars": {
+      "seo": "SEO",
+      "ai": "AI readiness",
+      "security": "Security",
+      "empty": "No findings in this section."
+    },
+    "pageUrl": "URL",
+    "pageTitle": "Title",
+    "pageStatus": "Status",
+    "pageFindings": "Issues",
+    "pageScore": "Score",
+    "noRunsYet": "No runs yet. Use Run audit or Quick audit to analyze this site.",
+    "noPagesYet": "No pages crawled yet.",
+    "pagesCrawled_one": "{{count}} page crawled",
+    "pagesCrawled_other": "{{count}} pages crawled",
+    "pagesCrawledFiltered": "{{shown}} of {{total}} shown · {{hidden}} hidden",
+    "pagesIncludeLabel": "Include",
+    "pagesIncludePlaceholder": "Type and press Enter (e.g. /blog)",
+    "pagesExcludeLabel": "Exclude",
+    "pagesExcludePlaceholder": "Type and press Enter (e.g. /asset/)",
+    "pagesAllFiltered": "No pages match these filters.",
+    "compareNoCompetitorUrl": "Add a competitor URL to compare scores.",
+    "compareNoData": "No competitor audit yet. Run audit to compare.",
+    "comparePending": "The competitor audit for this run has not finished yet.",
+    "compareFindings": "Findings",
+    "compareVs": "vs",
+    "categories": {
+      "indexing": "Indexing",
+      "content": "Content",
+      "technical": "Technical",
+      "sharing": "Sharing"
+    },
+    "severity": {
+      "critical": "Critical",
+      "warning": "Warning",
+      "info": "Info"
+    },
+    "runStarted": "Started",
+    "runDuration": "Duration",
+    "runStatusCol": "Status",
+    "deleteTitle": "Delete site audit",
+    "deleteConfirmThis": "Are you sure you want to delete this site audit?",
+    "deleteConfirmNamed": "Are you sure you want to delete \"{{name}}\"?",
+    "errors": {
+      "nameRequired": "Name is required",
+      "urlRequired": "URL is required",
+      "saveFailed": "Could not save site audit",
+      "deleteFailed": "Could not delete the site audit. It is still open.",
+      "runFailed": "Could not start the audit.",
+      "runBusy": "Another audit is still running. Wait for it to finish, then try again.",
+      "cancelFailed": "Could not stop the audit."
+    },
+    "relative": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago"
+    },
+    "quickAudit": "Quick audit",
+    "findingHintWhy": "Why:",
+    "findingHintFix": "Fix:",
+    "auditMode": {
+      "quick": "Quick",
+      "full": "Full"
+    },
+    "sinceLastRun": {
+      "title": "Since last run",
+      "counts": "{{added}} new · {{resolved}} resolved",
+      "added": "New ({{count}})",
+      "resolved": "Resolved ({{count}})",
+      "showLists": "Show findings",
+      "hideLists": "Hide findings",
+      "none": "None"
+    },
+    "findingHints": {
+      "noindex": {
+        "why": "Search engines may skip indexing this page.",
+        "fix": "Remove robots noindex (meta or header) if the page should appear in search."
+      },
+      "missing_canonical": {
+        "why": "Without a canonical URL, duplicate URLs can dilute ranking signals.",
+        "fix": "Add a rel=canonical link pointing to the preferred URL."
+      },
+      "http_error_status": {
+        "why": "Error status codes waste crawl budget and hurt discoverability.",
+        "fix": "Fix the underlying response or redirect to a live page with 200."
+      },
+      "redirect_response": {
+        "why": "Extra redirects slow users and crawlers.",
+        "fix": "Link directly to the final URL where possible."
+      },
+      "soft_404": {
+        "why": "A 200 “not found” page can be indexed as real content.",
+        "fix": "Return a real 404/410 status for missing content."
+      },
+      "missing_title": {
+        "why": "Titles are a primary ranking and SERP signal.",
+        "fix": "Add a unique, descriptive <title> for the page."
+      },
+      "title_too_short": {
+        "why": "Very short titles give little context to users and search.",
+        "fix": "Expand the title to roughly 30–60 characters with the main topic."
+      },
+      "title_too_long": {
+        "why": "Long titles are often truncated in search results.",
+        "fix": "Shorten the title to roughly 30–60 characters while keeping the key phrase."
+      },
+      "missing_meta_description": {
+        "why": "Meta descriptions influence click-through from search.",
+        "fix": "Add a concise meta description summarizing the page."
+      },
+      "meta_description_length": {
+        "why": "Descriptions that are too short or long are less effective in SERPs.",
+        "fix": "Aim for roughly 70–160 characters."
+      },
+      "missing_h1": {
+        "why": "An H1 helps structure the page topic for users and crawlers.",
+        "fix": "Add one clear H1 that matches the page intent."
+      },
+      "multiple_h1": {
+        "why": "Multiple H1s can blur the primary topic.",
+        "fix": "Keep a single H1 and demote other headings to H2+."
+      },
+      "shell_only": {
+        "why": "Little crawlable HTML means SEO checks see an empty shell.",
+        "fix": "Server-render key content or provide prerendered HTML for crawlers."
+      },
+      "missing_alt": {
+        "why": "Missing alt text hurts accessibility and image understanding.",
+        "fix": "Add meaningful alt attributes (or empty alt for decorative images)."
+      },
+      "thin_body": {
+        "why": "Very little body text looks thin to search engines.",
+        "fix": "Add substantive on-page content that answers the user intent."
+      },
+      "missing_h2": {
+        "why": "Subheadings improve scanability and topical structure.",
+        "fix": "Add H2 sections that break up the main topics."
+      },
+      "not_https": {
+        "why": "HTTP is insecure and often ranked lower than HTTPS.",
+        "fix": "Serve the site over HTTPS with a valid certificate."
+      },
+      "slow_response": {
+        "why": "Slow TTFB hurts UX and can affect crawl efficiency.",
+        "fix": "Optimize origin latency, caching, and server performance."
+      },
+      "large_html": {
+        "why": "Very large HTML documents are slower to download and parse.",
+        "fix": "Reduce markup weight; defer non-critical content."
+      },
+      "missing_viewport": {
+        "why": "Without a viewport meta tag, mobile layout is unreliable.",
+        "fix": "Add <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">."
+      },
+      "missing_lang": {
+        "why": "html lang helps accessibility and language targeting.",
+        "fix": "Set lang on the <html> element (e.g. lang=\"en\")."
+      },
+      "mixed_content": {
+        "why": "HTTP assets on HTTPS pages are blocked or flagged as insecure.",
+        "fix": "Load scripts, images, and styles over HTTPS only."
+      },
+      "missing_og_title": {
+        "why": "Social previews need og:title for a clear share card.",
+        "fix": "Add an Open Graph og:title meta tag."
+      },
+      "missing_og_description": {
+        "why": "og:description improves share snippet quality.",
+        "fix": "Add an Open Graph og:description meta tag."
+      },
+      "missing_og_image": {
+        "why": "Shares without og:image look incomplete.",
+        "fix": "Add an absolute HTTPS og:image URL."
+      },
+      "missing_twitter_card": {
+        "why": "Twitter/X cards need an explicit card type.",
+        "fix": "Add twitter:card (e.g. summary_large_image)."
+      },
+      "invalid_json_ld": {
+        "why": "Broken JSON-LD cannot be used as structured data.",
+        "fix": "Validate and fix the JSON-LD script content."
+      },
+      "json_ld_no_useful_type": {
+        "why": "Structured data without a useful @type adds little value.",
+        "fix": "Use a relevant schema.org type for the page (e.g. Organization, Article)."
+      },
+      "robots_txt_missing": {
+        "why": "Missing robots.txt removes a standard crawl control surface.",
+        "fix": "Publish /robots.txt with intentional allow/disallow rules."
+      },
+      "sitemap_missing": {
+        "why": "A sitemap helps crawlers discover important URLs.",
+        "fix": "Publish sitemap.xml and reference it from robots.txt."
+      },
+      "llms_txt_missing": {
+        "why": "llms.txt is an emerging signal for AI crawlers and assistants.",
+        "fix": "Add a concise /llms.txt describing preferred AI usage of the site."
+      },
+      "ai_bots_blocked": {
+        "why": "Blocking major AI bots limits AI visibility of your content.",
+        "fix": "Review robots.txt Disallow rules for AI user-agents if visibility is desired."
+      },
+      "no_cache_control": {
+        "why": "Without Cache-Control, browsers and CDNs may not cache efficiently.",
+        "fix": "Set Cache-Control (and related) headers appropriate for each asset type."
+      },
+      "no_hsts": {
+        "why": "HSTS forces HTTPS and reduces SSL stripping risk.",
+        "fix": "Send Strict-Transport-Security with a sensible max-age after HTTPS is solid."
+      },
+      "no_csp": {
+        "why": "CSP reduces XSS and unwanted script injection impact.",
+        "fix": "Introduce a Content-Security-Policy, starting in report-only if needed."
+      },
+      "no_xcto": {
+        "why": "X-Content-Type-Options: nosniff blocks MIME sniffing attacks.",
+        "fix": "Send X-Content-Type-Options: nosniff on responses."
+      },
+      "no_referrer_policy": {
+        "why": "Referrer-Policy limits sensitive URL leakage on navigation.",
+        "fix": "Set a Referrer-Policy such as strict-origin-when-cross-origin."
+      },
+      "no_permissions_policy": {
+        "why": "Permissions-Policy locks down powerful browser features.",
+        "fix": "Declare a Permissions-Policy that disables unused capabilities."
+      },
+      "no_frame_protection": {
+        "why": "Missing frame controls enable clickjacking.",
+        "fix": "Set X-Frame-Options or a CSP frame-ancestors directive."
+      },
+      "tls_hostname_mismatch": {
+        "why": "Certificate hostname mismatch breaks trust for browsers.",
+        "fix": "Install a certificate that matches the served hostname."
+      },
+      "tls_expired": {
+        "why": "Expired TLS certificates make the site unsafe in browsers.",
+        "fix": "Renew the certificate and automate renewal."
+      },
+      "tls_expiring": {
+        "why": "Certificates nearing expiry risk sudden outages.",
+        "fix": "Renew before expiry and monitor days remaining."
+      },
+      "spf_missing": {
+        "why": "SPF helps receivers verify authorized mail senders for the domain.",
+        "fix": "Publish a DNS TXT SPF record for the apex domain."
+      },
+      "dmarc_missing": {
+        "why": "DMARC aligns SPF/DKIM and sets a reporting policy.",
+        "fix": "Publish a _dmarc TXT record (start with p=none if unsure)."
+      },
+      "third_party_script_hosts": {
+        "why": "Many third-party script hosts increase supply-chain and privacy risk.",
+        "fix": "Audit and reduce third-party scripts; load only what you need."
+      },
+      "cookie_flags_missing": {
+        "why": "Cookies without Secure/HttpOnly/SameSite are easier to abuse.",
+        "fix": "Set Secure, HttpOnly, and an appropriate SameSite on session cookies."
+      },
+      "duplicate_titles": {
+        "why": "Duplicate titles make pages compete with each other in search.",
+        "fix": "Give each important URL a unique title."
+      },
+      "broken_pages": {
+        "why": "Broken pages waste crawl budget and frustrate users.",
+        "fix": "Fix or remove URLs that return client/server errors."
+      },
+      "missing_author": {
+        "why": "Author signals can support E-E-A-T for content-heavy pages.",
+        "fix": "Add visible author attribution or structured author data where relevant."
+      },
+      "probe_exposed": {
+        "why": "Exposed sensitive paths (admin, backups, env) are high-risk findings.",
+        "fix": "Block or remove the exposed path and review access controls."
+      }
+    }
   },
   "instructions": {
     "listDescription": "Create step-by-step guides for staff.",

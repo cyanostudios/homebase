@@ -100,6 +100,7 @@ export interface Estimate {
   acceptanceReasons?: string[]; // Array of reason IDs
   rejectionReasons?: string[]; // Array of reason IDs
   statusChangedAt?: Date; // When status was last changed
+  tags?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

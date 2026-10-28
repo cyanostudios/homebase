@@ -41,12 +41,13 @@ describe('ContactList table view wiring', () => {
     expect(listSrc).toMatch(/filtersVisible/);
     expect(listSrc).toMatch(/ListTagsChipsToggle/);
     expect(listSrc).toMatch(/tagsVisible/);
-    expect(listSrc).toMatch(/availableTags\.length > 0/);
+    expect(listSrc).toMatch(/ListTagsEmptyRow/);
+    expect(listSrc).toMatch(/openTagsSettings/);
     expect(listSrc).toMatch(/renderTagChips/);
     expect(listSrc).toMatch(/contactMatchesSelectedTags/);
     expect(listSrc).toMatch(/hasActiveSelection=\{activeFilters\.length > 0\}/);
     expect(listSrc).toMatch(/hasActiveSelection=\{selectedTags\.length > 0\}/);
-    expect(listSrc).toMatch(/renderChipRowClear/);
+    expect(listSrc).toMatch(/ListChipRowClear/);
     expect(listSrc).toMatch(/common\.clearFilters/);
     expect(listSrc).toMatch(/common\.clearTags/);
     expect(listSrc).toMatch(/setActiveFilters\(\[\]\)/);

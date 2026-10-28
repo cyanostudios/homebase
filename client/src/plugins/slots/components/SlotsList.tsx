@@ -54,6 +54,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -61,6 +62,7 @@ import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui
 import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { formatDateTime, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { exportItems } from '@/core/utils/exportUtils';
@@ -182,6 +184,19 @@ export function SlotsList() {
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     SLOTS_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const slotTagItems = useMemo(
+    () => slots.map((slot) => ({ ...slot, tags: slot.category ? [slot.category] : [] })),
+    [slots],
+  );
+  const tagFilter = usePluginListTags({
+    settingsKey: 'slots',
+    storageKey: 'homebase.slots.toolbar.tagsVisible',
+    items: slotTagItems,
+    onOpenSettings: () => {
+      setSettingsCategory('categories');
+      attemptNavigation(() => openSlotSettings());
+    },
+  });
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
   const [toolbarToggleBox, setToolbarToggleBox] = useState<{
@@ -290,7 +305,11 @@ export function SlotsList() {
   );
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = slots.filter((s) => slotMatchesListFilters(s, activeFilters));
+    const byFilter = slots.filter(
+      (s) =>
+        slotMatchesListFilters(s, activeFilters) &&
+        tagFilter.matches({ ...s, tags: s.category ? [s.category] : [] }),
+    );
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = byFilter.filter((s) => {
@@ -303,7 +322,15 @@ export function SlotsList() {
       return nameStr.includes(needle) || locationStr.includes(needle) || timeStr.includes(needle);
     });
     return [...filtered].sort((a, b) => compareSlotsByField(a, b, primarySort, sortOrder));
-  }, [slots, searchTerm, primarySort, sortOrder, formatDateTimeForFilter, activeFilters]);
+  }, [
+    slots,
+    searchTerm,
+    primarySort,
+    sortOrder,
+    formatDateTimeForFilter,
+    activeFilters,
+    tagFilter,
+  ]);
 
   const stats = useMemo(
     () => ({
@@ -642,6 +669,11 @@ export function SlotsList() {
           <span className="tabular-nums font-semibold">({stats.withCategory})</span>
         </span>
       </Button>
+      <ListChipRowClear
+        visible={activeFilters.length > 0}
+        ariaLabel={t('common.clearFilters')}
+        onClear={() => setActiveFilters([])}
+      />
     </div>
   );
 
@@ -858,8 +890,10 @@ export function SlotsList() {
                     <ListFilterChipsToggle
                       visible={filtersVisible}
                       onVisibleChange={setFiltersVisible}
+                      hasActiveSelection={activeFilters.length > 0}
                       className="h-11 rounded-full"
                     />
+                    {tagFilter.toggle}
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -887,6 +921,17 @@ export function SlotsList() {
                     {renderFilterChips()}
                   </div>
                 ) : null}
+                {tagFilter.row ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {tagFilter.row}
+                  </div>
+                ) : null}
                 {renderBulkActionBar('py-3')}
               </div>
             </div>
@@ -894,12 +939,15 @@ export function SlotsList() {
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
             {filtersVisible ? renderFilterChips() : null}
+            {tagFilter.row}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
               <ListFilterChipsToggle
                 visible={filtersVisible}
                 onVisibleChange={setFiltersVisible}
+                hasActiveSelection={activeFilters.length > 0}
                 className="h-7 rounded-md"
               />
+              {tagFilter.mobileToggle}
               {renderSortDropdown('h-7 rounded-md')}
             </div>
           </div>

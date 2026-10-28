@@ -2,6 +2,7 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 
 const PUBLICATION_STATUSES = ['draft', 'published'];
 
@@ -242,6 +243,7 @@ class InstructionModel {
         row.sort_order !== null && row.sort_order !== undefined ? Number(row.sort_order) : 1,
       stepCount:
         row.step_count !== null && row.step_count !== undefined ? Number(row.step_count) : 0,
+      tags: parseItemTags(row.tags),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -636,6 +638,7 @@ class InstructionModel {
             i.category,
             i.publication_status,
             i.sort_order,
+            i.tags,
             i.created_at,
             i.updated_at,
             COALESCE(s.cnt, 0)::int AS step_count
@@ -718,9 +721,10 @@ class InstructionModel {
               featured_image_url,
               category,
               publication_status,
-              sort_order
+              sort_order,
+              tags
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
           `,
           [
@@ -732,6 +736,7 @@ class InstructionModel {
             fields.category ?? null,
             fields.publicationStatus ?? 'draft',
             sortOrder,
+            serializeItemTags(data.tags),
           ],
         );
         const parent = parentRows[0];
@@ -811,32 +816,40 @@ class InstructionModel {
       }
 
       const updated = await db.transaction(async (tx) => {
+        const setClauses = [
+          'title = $1',
+          'slug = $2',
+          'description = $3',
+          'featured_image_url = $4',
+          'category = $5',
+          'publication_status = $6',
+          'sort_order = $7',
+        ];
+        const updateParams = [
+          fields.title,
+          fields.slug,
+          fields.description ?? null,
+          fields.featuredImageUrl ?? null,
+          fields.category ?? null,
+          fields.publicationStatus ?? 'draft',
+          nextSortOrder,
+        ];
+        if (typeof data.tags !== 'undefined') {
+          setClauses.push(`tags = $${updateParams.length + 1}`);
+          updateParams.push(serializeItemTags(data.tags));
+        }
+        setClauses.push('updated_at = CURRENT_TIMESTAMP');
+        const idParam = updateParams.length + 1;
+        const userIdParam = updateParams.length + 2;
+        updateParams.push(id, userId);
         const parentRows = await tx.query(
           `
             UPDATE ${this.table}
-            SET
-              title = $1,
-              slug = $2,
-              description = $3,
-              featured_image_url = $4,
-              category = $5,
-              publication_status = $6,
-              sort_order = $7,
-              updated_at = CURRENT_TIMESTAMP
-            WHERE id = $8 AND user_id = $9
+            SET ${setClauses.join(', ')}
+            WHERE id = $${idParam} AND user_id = $${userIdParam}
             RETURNING *
           `,
-          [
-            fields.title,
-            fields.slug,
-            fields.description ?? null,
-            fields.featuredImageUrl ?? null,
-            fields.category ?? null,
-            fields.publicationStatus ?? 'draft',
-            nextSortOrder,
-            id,
-            userId,
-          ],
+          updateParams,
         );
         if (!parentRows.length) {
           throw new AppError('Instruction not found', 404, AppError.CODES.NOT_FOUND);

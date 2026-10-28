@@ -1,7 +1,10 @@
 import {
+  inventoryItemMatchesSelectedTags,
+  inventoryItemMatchesTagFilter,
   inventoryItemVisibleInCatalog,
   isInventoryItemArchived,
   isInventoryItemLinkable,
+  toggleInventoryTagFilter,
 } from '../inventoryListFilter';
 import type { ClubdeskInventoryItem } from '../../types/inventory';
 
@@ -56,6 +59,21 @@ describe('clubdesk inventory catalog archive filter', () => {
         searchTerm: '',
       }),
     ).toBe(true);
+  });
+});
+
+describe('inventory tag multi-select', () => {
+  test('inventoryItemMatchesSelectedTags OR-matches selected tags', () => {
+    const tagged = item({ tags: ['Organic'] });
+    expect(inventoryItemMatchesSelectedTags(tagged, [])).toBe(true);
+    expect(inventoryItemMatchesSelectedTags(tagged, ['organic'])).toBe(true);
+    expect(inventoryItemMatchesSelectedTags(tagged, ['local', 'vegan'])).toBe(false);
+    expect(inventoryItemMatchesTagFilter(tagged, 'Organic')).toBe(true);
+  });
+
+  test('toggleInventoryTagFilter toggles membership', () => {
+    expect(toggleInventoryTagFilter(['a'], 'a')).toEqual([]);
+    expect(toggleInventoryTagFilter([], 'a')).toEqual(['a']);
   });
 });
 

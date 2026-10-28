@@ -12,10 +12,12 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 import type { ImportSchema } from '@/core/utils/importUtils';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
 
 import { useTasks } from '../hooks/useTasks';
+import { TASKS_SETTINGS_KEY } from '../utils/taskColumnCount';
 
 const getTaskImportSchema = (): ImportSchema => ({
   fields: [
@@ -33,7 +35,7 @@ const TASK_IMPORT_EXAMPLE_ROW: Record<string, string> = {
   priority: 'Medium',
 };
 
-export type TaskSettingsCategory = 'import';
+export type TaskSettingsCategory = 'tags' | 'import';
 
 interface TaskSettingsViewProps {
   selectedCategory?: TaskSettingsCategory;
@@ -50,12 +52,18 @@ export function TaskSettingsView({
   const { importTasks } = useTasks();
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
-  const [internalCategory, setInternalCategory] = useState<TaskSettingsCategory>('import');
+  const [internalCategory, setInternalCategory] = useState<TaskSettingsCategory>('tags');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'import',
         label: t('common.import'),
@@ -76,6 +84,7 @@ export function TaskSettingsView({
         onCategoryChange={(id) => setActiveCategory(id as TaskSettingsCategory)}
         onClose={onClose}
       >
+        {activeCategory === 'tags' && <SettingsTagsSection settingsKey={TASKS_SETTINGS_KEY} />}
         {activeCategory === 'import' && (
           <DetailSection
             title={t('common.import')}

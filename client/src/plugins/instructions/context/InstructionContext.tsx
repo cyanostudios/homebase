@@ -10,8 +10,8 @@ import type {
 
 export type InstructionPanelMode = 'create' | 'edit' | 'view';
 export type InstructionContentView = 'list' | 'settings';
-/** No settings categories remain; list view prefs live on the list header. */
-export type InstructionSettingsTab = '';
+/** Tag catalog in settings; list view prefs live on the list header. */
+export type InstructionSettingsTab = 'tags';
 
 export interface InstructionContextType {
   isInstructionPanelOpen: boolean;
@@ -100,7 +100,7 @@ const EMPTY_INSTRUCTION_CONTEXT: InstructionContextType = {
   deleteInstructionCategory: async () => {},
   isSaving: false,
   instructionsContentView: 'list',
-  instructionsSettingsTab: '',
+  instructionsSettingsTab: 'tags',
   openInstructionSettings: () => {},
   closeInstructionSettingsView: () => {},
   openInstructionPanel: () => {},

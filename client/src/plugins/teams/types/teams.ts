@@ -232,6 +232,7 @@ export interface Team {
   responsibles: Responsible[];
   color: TeamColor;
   external_team_id: string | null;
+  tags?: string[];
   created_at: string;
   updated_at: string;
 }

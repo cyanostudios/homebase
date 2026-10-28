@@ -45,6 +45,8 @@ import {
 import { slugify } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 
 import { useClubdesk } from '../hooks/useClubdesk';
@@ -98,6 +100,7 @@ function emptyPriceListFormData(): ClubdeskPriceListPayload {
     categoriesEnabled: true,
     currency: 'SEK',
     items: [],
+    tags: [],
   };
 }
 
@@ -114,6 +117,7 @@ function formDataFromPriceList(priceList: ClubdeskPriceList | null): ClubdeskPri
     featured: priceList.featured === true,
     categoriesEnabled: priceList.categoriesEnabled !== false,
     currency: priceList.currency || 'SEK',
+    tags: Array.isArray(priceList.tags) ? priceList.tags : [],
     items: (priceList.items || []).map((item, index) => ({
       title: item.title || '',
       description: item.description ?? null,
@@ -898,6 +902,23 @@ export const PriceListForm = React.forwardRef<
                       <p className="text-xs text-muted-foreground">{t('clubdesk.featuredHint')}</p>
                     </div>
                   </div>
+                </DetailSection>
+              </Card>
+            ) : null}
+
+            {activeTab === 'information' ? (
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('common.tags')}
+                  icon={SETTINGS_CATEGORY_ICONS.tags}
+                  subtleTitle
+                  className="p-4"
+                >
+                  <ItemTagsField
+                    settingsKey="clubdesk"
+                    value={formData.tags ?? []}
+                    onChange={(tags) => updateField('tags', tags)}
+                  />
                 </DetailSection>
               </Card>
             ) : null}

@@ -23,7 +23,9 @@ import {
   FORM_GHOST_SELECT_CLASS,
   FORM_INPUT_ERROR_CLASS,
 } from '@/core/ui/formFieldStyles';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
@@ -36,6 +38,8 @@ import {
   type GuidePayload,
   type PlaceResolved,
 } from '../types/guides';
+
+import { GUIDES_SETTINGS_KEY } from './GuideSettingsView';
 
 import { PlaceSearchField } from './PlaceSearchField';
 
@@ -66,6 +70,7 @@ interface GuideFormProps {
     lifecycleStatus: GuidePayload['lifecycleStatus'];
     sourceLanguage: string;
     masterGuideEditorialStatus: GuidePayload['masterGuideEditorialStatus'];
+    tags?: string[];
   };
   onSave: (data: GuidePayload, options?: GuideSaveOptions) => Promise<boolean> | boolean;
   onCancel: () => void;
@@ -130,6 +135,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
     lifecycleStatus: 'draft',
     sourceLanguage: 'en',
     masterGuideEditorialStatus: 'draft',
+    tags: [],
   });
 
   const isCurrentlySubmitting = externalIsSubmitting || isSaving || isSubmitting;
@@ -151,6 +157,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
       lifecycleStatus: 'draft',
       sourceLanguage: 'en',
       masterGuideEditorialStatus: 'draft',
+      tags: [],
     });
     markClean();
   }, [markClean]);
@@ -165,6 +172,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
         lifecycleStatus: currentItem.lifecycleStatus ?? 'draft',
         sourceLanguage: currentItem.sourceLanguage,
         masterGuideEditorialStatus: currentItem.masterGuideEditorialStatus ?? 'draft',
+        tags: Array.isArray(currentItem.tags) ? currentItem.tags : [],
       });
       markClean();
     } else {
@@ -463,6 +471,23 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                       )}
                     </div>
                   </div>
+                </DetailSection>
+              </Card>
+            ) : null}
+
+            {activeTab === 'details' ? (
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('common.tags')}
+                  icon={SETTINGS_CATEGORY_ICONS.tags}
+                  subtleTitle
+                  className="p-4"
+                >
+                  <ItemTagsField
+                    settingsKey={GUIDES_SETTINGS_KEY}
+                    value={formData.tags ?? []}
+                    onChange={(tags) => updateField('tags', tags)}
+                  />
                 </DetailSection>
               </Card>
             ) : null}

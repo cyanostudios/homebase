@@ -61,6 +61,8 @@ const RichTextEditor = React.lazy(() =>
 import { slugify } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 
 import { useClubdesk } from '../hooks/useClubdesk';
@@ -219,6 +221,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
       publicationStatus: 'draft',
       featured: false,
       steps: [],
+      tags: [],
     });
 
     const isCurrentlySubmitting = externalIsSubmitting || isSaving || isSubmitting;
@@ -282,6 +285,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
         publicationStatus: 'draft',
         featured: false,
         steps: [],
+        tags: [],
       });
       setSlugTouched(false);
       setCategoryOrderNames(null);
@@ -305,6 +309,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
             sequenceOrder: step.sequenceOrder ?? index + 1,
             imageUrl: step.imageUrl ?? null,
           })),
+          tags: Array.isArray(clubdesk.tags) ? clubdesk.tags : [],
         });
         setSlugTouched(true);
         setCategoryOrderNames(null);
@@ -788,6 +793,23 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                         </p>
                       </div>
                     </div>
+                  </DetailSection>
+                </Card>
+              ) : null}
+
+              {activeTab === 'information' ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={t('common.tags')}
+                    icon={SETTINGS_CATEGORY_ICONS.tags}
+                    subtleTitle
+                    className="p-4"
+                  >
+                    <ItemTagsField
+                      settingsKey="clubdesk"
+                      value={formData.tags ?? []}
+                      onChange={(tags) => updateField('tags', tags)}
+                    />
                   </DetailSection>
                 </Card>
               ) : null}

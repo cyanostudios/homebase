@@ -17,6 +17,7 @@ import {
 } from '@/core/ui/PluginSettingsPageShell';
 import { TableColumnsSettingsSection } from '@/core/ui/TableColumnsSettingsSection';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 
 import { useGarments } from '../hooks/useGarments';
 import type { GarmentCheckboxColumn } from '../types/garments';
@@ -41,7 +42,7 @@ import {
 } from '../utils/personMatrixIdentityColumns';
 import { GarmentListCustomColumnsSettingsSection } from './GarmentListCustomColumnsSettingsSection';
 
-export type GarmentsListsSettingsCategory = 'customColumns';
+export type GarmentsListsSettingsCategory = 'tags' | 'customColumns';
 
 const IDENTITY_LABEL_KEYS: Record<PersonMatrixIdentityColumnId, string> = {
   name: 'garments.personName',
@@ -125,6 +126,12 @@ export function GarmentsListsSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'customColumns',
         label: t('garments.settingsCategories.customColumns'),
@@ -333,6 +340,7 @@ export function GarmentsListsSettingsView({
         ) : null
       }
     >
+      {activeCategory === 'tags' && <SettingsTagsSection settingsKey={GARMENTS_SETTINGS_KEY} />}
       {activeCategory === 'customColumns' && (
         <div className="space-y-6">
           <DetailSection

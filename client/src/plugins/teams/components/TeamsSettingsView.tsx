@@ -13,6 +13,8 @@ import {
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 
@@ -25,19 +27,27 @@ import { TeamsVenuesSettingsSection } from './TeamsVenuesSettingsSection';
 
 const TEAMS_SETTINGS_KEY = 'teams';
 
-export type TeamsSettingsCategory = 'season' | 'overview' | 'venues';
+export type TeamsSettingsCategory = 'tags' | 'season' | 'overview' | 'venues';
 
 interface TeamsSettingsViewProps {
+  selectedCategory?: TeamsSettingsCategory;
+  onSelectedCategoryChange?: (category: TeamsSettingsCategory) => void;
   onClose?: () => void;
 }
 
-export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
+export function TeamsSettingsView({
+  selectedCategory,
+  onSelectedCategoryChange,
+  onClose,
+}: TeamsSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const enabledPlugins = useEnabledPlugins();
   const hasMatchesPlugin = enabledPlugins.has('matches');
 
-  const [activeCategory, setActiveCategory] = useState<TeamsSettingsCategory>('season');
+  const [internalCategory, setInternalCategory] = useState<TeamsSettingsCategory>('season');
+  const activeCategory = selectedCategory ?? internalCategory;
+  const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
   const [activeSeason, setActiveSeason] = useState('');
   const [initialSeason, setInitialSeason] = useState('');
   const [overviewCardOrder, setOverviewCardOrder] = useState<OverviewCardId[]>(() =>
@@ -51,6 +61,12 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'season',
         label: t('teams.settingsCategories.season'),
@@ -208,6 +224,7 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
         ) : null
       }
     >
+      {activeCategory === 'tags' && <SettingsTagsSection settingsKey={TEAMS_SETTINGS_KEY} />}
       {activeCategory === 'season' && (
         <DetailSection
           title={t('teams.settings.seasonSection')}

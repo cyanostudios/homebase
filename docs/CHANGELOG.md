@@ -4,6 +4,133 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-10-25 – Site audits etapp 1.4 (Diff, actionable findings, Quick audit)
+
+**Typ:** Enhancement (plugin)  
+**Scope:** Three additions on the existing crawl (no analytics/GEO): (1) **Quick audit** — `POST /:id/runs` optional `{ mode: 'full'|'quick' }` (default full); quick caps 50 pages / 50 ms delay, skips security path probes and homepage compression probe; persists `summary.siteMeta.auditMode`. (2) **Finding codes** — every scoring finding carries a stable `code`; UI shows curated i18n why/fix hints (`siteAudits.findingHints.*`); unknown/missing codes show message only. (3) **Run diff** — client util compares the selected site run to the previous **done** site run (score/category Δ, new/resolved critical+warning); Overview **Since last run**, History compact score Δ. Score weights unchanged.  
+**Risk:** Low — SA-R13–R14 in [`ai/adr/SITE_AUDITS_ETAPP1_4.md`](./ai/adr/SITE_AUDITS_ETAPP1_4.md). Security Approved; QA Approved.
+
+**Verifierat beteende:**
+
+- **Backend:** controller/runAudit/crawler/scoring + service Jest (135).
+- **Client:** Quick audit controls, finding hints, `siteAuditRunDiff`, Overview/History wiring + i18n en/sv; FE Jest site-audits (44).
+
+**Docs:** [`SITE_AUDITS_PLUGIN.md`](./SITE_AUDITS_PLUGIN.md), [`ai/adr/SITE_AUDITS_ETAPP1_4.md`](./ai/adr/SITE_AUDITS_ETAPP1_4.md), [`ai/design/SITE_AUDITS_UX.md`](./ai/design/SITE_AUDITS_UX.md).
+
+---
+
+## 2026-10-22 – Site audits: path-scoped crawl
+
+**Typ:** Enhancement (plugin)  
+**Scope:** Crawl stays under the start URL path prefix when it is not `/` (e.g. `…/nordics-baltics/` → only that section). Stored as `siteMeta.pathScope`; Technical → Crawl shows scope. Root `/` still audits the whole host.  
+**Risk:** Low — intentional narrower crawl; site-level probes (llms.txt, security paths) remain origin-wide.
+
+**Docs:** [`SITE_AUDITS_PLUGIN.md`](./SITE_AUDITS_PLUGIN.md), [`ai/design/SITE_AUDITS_UX.md`](./ai/design/SITE_AUDITS_UX.md).
+
+---
+
+## 2026-10-22 – Site audits: stop run + duration clock
+
+**Typ:** Enhancement (plugin)  
+**Scope:** Stop an active audit (`POST /:id/runs/:runId/cancel`, status `cancelled`, AbortSignal through crawl delays). Live elapsed time on Run/Stop controls while running; History adds a Duration column (`finishedAt − startedAt`). Migration `186-site-audit-runs-cancelled.sql`.  
+**Risk:** Low — cancel is best-effort mid-request (stops between fetches); in-memory abort map is single-process.
+
+**Docs:** [`SITE_AUDITS_PLUGIN.md`](./SITE_AUDITS_PLUGIN.md), [`ai/design/SITE_AUDITS_UX.md`](./ai/design/SITE_AUDITS_UX.md).
+
+---
+
+## 2026-10-21 – Site audits etapp 1.3 (Detected technologies)
+
+**Typ:** Enhancement (plugin)  
+**Scope:** BuiltWith-inspired **self-hosted** technology fingerprint from existing crawl signals (homepage headers, `meta[name=generator]`, asset path hits, third-party hosts). **No** BuiltWith/Wappalyzer APIs or external tech-lookup SaaS. Curated local catalog (~52 rules, `CATALOG_VERSION=1`) in `techFingerprintCatalog.js`. Result stored as `summary.siteMeta.technologies` (`items[]` + `catalogVersion`; caps 40 items / 3 evidence / 200-char truncation). SEO score weights unchanged; inventory only (no new findings or deductions). Technical tab: collapsible **Detected technologies** first among infra sections.  
+**Risk:** Low — SA-R10–R12 in [`ai/adr/SITE_AUDITS_ETAPP1_3.md`](./ai/adr/SITE_AUDITS_ETAPP1_3.md). Security Approved; QA Approved.
+
+**Verifierat beteende:**
+
+- **Backend:** `techFingerprint.js` + catalog; `htmlAnalyzer` `techHints`; `analyzeSite` attaches technologies; Jest site-audits suites green (156).
+- **Client:** `SiteAuditTechnicalView` technologies section + i18n `siteAudits.technical.technologies.*`.
+
+**Docs:** [`SITE_AUDITS_PLUGIN.md`](./SITE_AUDITS_PLUGIN.md), [`ai/adr/SITE_AUDITS_ETAPP1_3.md`](./ai/adr/SITE_AUDITS_ETAPP1_3.md), [`ai/design/SITE_AUDITS_UX.md`](./ai/design/SITE_AUDITS_UX.md).
+
+---
+
+## 2026-10-21 – Site audits: crawl cap 500 pages
+
+**Typ:** Enhancement (plugin)  
+**Scope:** Raises `MAX_PAGES` from 100 to **500** same-host HTML pages per run (`crawler.js`; `runAudit.js` slices to `MAX_PAGES`). Queue cap is `MAX_PAGES * 4` (2000). Score weights, SSRF, stale-run window (30 min), and probe extras unchanged.  
+**Risk:** Medium — longer runs and larger JSONB `pages` payloads; runs that exceed 30 minutes are still marked failed by `failStaleRuns`.
+
+**Docs:** [`SITE_AUDITS_PLUGIN.md`](./SITE_AUDITS_PLUGIN.md), [`ai/adr/SITE_AUDITS_ETAPP1.md`](./ai/adr/SITE_AUDITS_ETAPP1.md).
+
+---
+
+## 2026-10-21 – Site audits etapp 1.2 (Technical inventory)
+
+**Typ:** Enhancement (plugin)  
+**Scope:** Self-hosted technical inventory on the existing crawl — **no** Lighthouse, PageSpeed Insights, Chromium, or third-party scan APIs/quotas. SEO score weights unchanged. New detail tab **Technical** / **Tekniskt**: security headers matrix (HSTS/CSP/XCTO + Referrer-Policy / Permissions-Policy / frame protection), TLS peek, DNS SPF/DMARC, resource/third-party hosts, crawl vs sitemap coverage. Homepage-only compression probe (`Accept-Encoding`); main crawl still omits it. New security findings per ADR; inventory stored in `summary.siteMeta` (no migration).  
+**Risk:** Low — SA-R7–R9 in [`ai/adr/SITE_AUDITS_ETAPP1_2.md`](./ai/adr/SITE_AUDITS_ETAPP1_2.md). Security Approved; QA Approved.
+
+**Verifierat beteende:**
+
+- **Backend:** `tlsInventory.js`, `dnsInventory.js`, `securityHeadersInventory.js`, `resourceInventory.js`, `crawlGraph.js`; crawler + scoring wire; Jest services + client suites green.
+- **Client:** `SiteAuditTechnicalView`, `?tab=technical`, i18n `siteAudits.technical.*`.
+
+**Docs:** [`SITE_AUDITS_PLUGIN.md`](./SITE_AUDITS_PLUGIN.md), [`ai/adr/SITE_AUDITS_ETAPP1_2.md`](./ai/adr/SITE_AUDITS_ETAPP1_2.md), [`ai/design/SITE_AUDITS_UX.md`](./ai/design/SITE_AUDITS_UX.md).
+
+---
+
+## 2026-10-21 – Site audits: crawl cap 100 pages
+
+**Typ:** Enhancement (plugin)  
+**Scope:** Raises `MAX_PAGES` from 25 to **100** same-host HTML pages per run (`crawler.js`; `runAudit.js` persists `summary.pages.slice(0, MAX_PAGES)`). Queue cap follows as `MAX_PAGES * 4` (400). Score weights, SSRF rules, and probe extras (llms.txt / security paths) unchanged — probes still do not count toward the HTML cap.  
+**Risk:** Low–Medium — longer runs and larger JSONB `pages` payloads on big sites; concurrency gates (1/user, 2 global) unchanged.
+
+**Docs:** [`SITE_AUDITS_PLUGIN.md`](./SITE_AUDITS_PLUGIN.md), [`ai/adr/SITE_AUDITS_ETAPP1.md`](./ai/adr/SITE_AUDITS_ETAPP1.md).
+
+---
+
+## 2026-10-21 – Site audits etapp 1.1 (Sitegrade parity)
+
+**Typ:** Enhancement (plugin)  
+**Scope:** Extends etapp 1 without changing score weights (indexing 30% / content 30% / technical 25% / sharing 15%), crawl cap (25 HTML pages), SSRF rules, or run orchestration. Adds **AI readiness** checks: `{origin}/llms.txt`, AI crawler blocks in `robots.txt` (`GPTBot`, `ClaudeBot`, `Google-Extended`, `CCBot`, `PerplexityBot`), thin body text, H1 without H2, JSON-LD without useful `@type`, homepage author. Adds **security** checks: homepage HSTS / CSP / `X-Content-Type-Options`, HTTPS `Set-Cookie` flags, mixed content on HTTPS pages, and five same-host **path probes** (`/.env`, `/.git/HEAD`, `/wp-config.php`, `/server-status`, `/phpinfo.php`) with body signatures (not counted toward the 25-page cap). Findings may carry UI-only `pillar` (`seo` | `ai` | `security`). Overview tab: **Quick wins** plus SEO / AI readiness / Security sections. **Not built:** analytics, GEO / AI visibility (etapp 5), uptime, PDF/share.  
+**Risk:** Medium accepted for outbound probes and log noise; residuals SA-R4–R6 in [`ai/adr/SITE_AUDITS_ETAPP1_1.md`](./ai/adr/SITE_AUDITS_ETAPP1_1.md). Etapp 1 SSRF residuals SA-R1–R3 unchanged.
+
+**Sammanfattning:** Sitegrade-style AI readiness and security hygiene on the same manual SEO crawl; richer Overview grouping.
+
+**Verifierat beteende:**
+
+- **Backend:** `plugins/site-audits/services/crawler.js` (llms.txt + probes after BFS), `securityProbes.js`, `robotsParser.summarizeAiBots`, extended `scoring.js` / `htmlAnalyzer.js`. `summary.siteMeta` extended in JSONB (no new migration).
+- **Client:** `SiteAuditRunOverview.tsx`, `siteAuditFindings.ts`, i18n `siteAudits.quickWins` / `siteAudits.pillars.*`.
+
+**Docs:** [`SITE_AUDITS_PLUGIN.md`](./SITE_AUDITS_PLUGIN.md), [`ai/adr/SITE_AUDITS_ETAPP1_1.md`](./ai/adr/SITE_AUDITS_ETAPP1_1.md), [`ai/design/SITE_AUDITS_UX.md`](./ai/design/SITE_AUDITS_UX.md) (etapp 1.1 Overview).
+
+---
+
+## 2026-10-20 – Site audits etapp 1 (technical SEO)
+
+**Typ:** Feature (plugin)  
+**Scope:** New tenant plugin `site-audits` (Tools). One list item is one public site plus an optional competitor URL. Manual `POST /api/site-audits/:id/runs` returns **202** and crawls in-process (max 25 same-host HTML pages, robots.txt respected, no JS execution). Score 0–100 with weights indexing 30% / content 30% / technical 25% / sharing 15%. SSRF guard allows http and https, rejects URL credentials and private/reserved IPs (DNS + connect-time lookup), follows redirects manually (max 5). Uptime is out of scope. Etapps 2–5 (analytics, GA4, company ID, **GEO / AI visibility**) are roadmap-only and not built. List tags are not used in v1.  
+**Risk:** Low–Medium accepted. Security Approved for etapp 1 SSRF/outbound; residuals SA-R1 (per-process concurrency), SA-R2 (non-default ports on public hosts), SA-R3 (mixed DNS A/AAAA) documented in [`ai/adr/SITE_AUDITS_ETAPP1.md`](./ai/adr/SITE_AUDITS_ETAPP1.md).
+
+**Sammanfattning:** Manuell teknisk SEO-audit av en publik sajt, med valfri konkurrentjämförelse. Ingen uptime, ingen analytics.
+
+**Verifierat beteende:**
+
+- **Plugin:** `plugins/site-audits/` (`plugin.config.js` route `/api/site-audits`). Client: `client/src/plugins/site-audits/`, route `/site-audits`, nav label “Site audits” (en/sv), display prefix `AUD`.
+- **Schema:** `server/migrations/185-site-audits.sql` — `site_audits`, `site_audit_runs` (FK cascade, JSONB `summary`/`pages`). Apply locally with `npm run migrate:site-audits` (`DATABASE_URL` only). Enable with `npm run set:tenant-plugins -- --email=… --enable=site-audits` (script also requires `--email` or `--tenant-id`). Local first; no `--both` unless a release is requested. Log out/in after access changes.
+- **Run:** concurrency 1 job/user and 2 global (in-memory). Stale `queued`/`running` runs older than 30 minutes are marked `failed` lazily before start, run list, and single-run poll (`getRunById`), not at plugin boot.
+- **UI:** mail-layout list, form (name, URL, competitor URL), detail tabs Overview / Pages / Compare / History / Activity. Poll every 2s while a run is active. No settings page and no list tags.
+
+**Begränsningar:**
+
+- Etapps 2–5 have no implementation. Roadmap in ADR / `SITE_AUDITS_PLUGIN.md`: (2) first-party analytics, (3) GA4, (4) company identification, (5) GEO / AI visibility (prompt-based LLM mentions / share of voice). Each needs its own ADR before build.
+- Alt text is extracted in `htmlAnalyzer.js`; missing/blank alt on any image yields a content warning and score deduction.
+- Fetched HTML is not rendered in the UI.
+
+**Docs:** [`SITE_AUDITS_PLUGIN.md`](./SITE_AUDITS_PLUGIN.md), [`ai/adr/SITE_AUDITS_ETAPP1.md`](./ai/adr/SITE_AUDITS_ETAPP1.md), [`ai/design/SITE_AUDITS_UX.md`](./ai/design/SITE_AUDITS_UX.md).
+
+---
+
 ## 2026-10-08 – Invoicable inventory → invoice/estimate line items (Garments + Clubdesk)
 
 **Typ:** Feature (UI + client settings)  

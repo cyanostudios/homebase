@@ -2,6 +2,7 @@
 // V3 with @homebase/core SDK
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 const TEAM_STATUSES = ['active', 'dormant', 'break'];
@@ -425,6 +426,7 @@ class TeamModel {
         responsibles: JSON.stringify(sanitizeResponsibles(responsibles)),
         color: TEAM_COLORS.includes(color) ? color : 'green',
         external_team_id: nextExternalTeamId,
+        tags: serializeItemTags(teamData.tags),
       });
 
       Logger.info('Team created', { teamId: result.id });
@@ -498,7 +500,7 @@ class TeamModel {
           ? jsonbParam(appendPlayerCountHistory(current.player_count_history, nextPlayerCount))
           : jsonbParam(sanitizePlayerCountHistory(current.player_count_history));
 
-      const result = await db.update('teams', teamId, {
+      const teamUpdatePayload = {
         name: trimmedName.slice(0, 255),
         age_group:
           age_group !== undefined
@@ -562,7 +564,12 @@ class TeamModel {
             : (current.color ?? 'green'),
         external_team_id:
           external_team_id !== undefined ? nextExternalTeamId : (current.external_team_id ?? null),
-      });
+      };
+      if (typeof teamData.tags !== 'undefined') {
+        teamUpdatePayload.tags = serializeItemTags(teamData.tags);
+      }
+
+      const result = await db.update('teams', teamId, teamUpdatePayload);
 
       Logger.info('Team updated', { teamId });
       const team = this.transformRow(result);
@@ -797,6 +804,7 @@ class TeamModel {
       color: row.color || 'green',
       external_team_id:
         row.external_team_id != null ? sanitizeExternalTeamId(row.external_team_id) : null,
+      tags: parseItemTags(row.tags),
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

@@ -50,6 +50,7 @@ export interface ClubdeskPriceList {
   sortOrder?: number;
   itemCount?: number;
   items?: ClubdeskPriceListItem[];
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -83,4 +84,5 @@ export interface ClubdeskPriceListPayload {
   categoriesEnabled: boolean;
   currency: string;
   items: ClubdeskPriceListItemPayload[];
+  tags?: string[];
 }

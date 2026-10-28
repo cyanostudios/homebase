@@ -80,7 +80,7 @@ export function InstructionProvider({
   const [instructionsContentView, setInstructionsContentView] =
     useState<InstructionContentView>('list');
   const [instructionsSettingsTab, setInstructionsSettingsTab] =
-    useState<InstructionSettingsTab>('');
+    useState<InstructionSettingsTab>('tags');
   const [recentlyDuplicatedInstructionId, setRecentlyDuplicatedInstructionId] = useState<
     string | null
   >(null);
@@ -219,7 +219,7 @@ export function InstructionProvider({
       setCurrentInstruction(null);
       setPanelMode('create');
       setValidationErrors([]);
-      setInstructionsSettingsTab(options?.tab ?? '');
+      setInstructionsSettingsTab(options?.tab ?? 'tags');
       setInstructionsContentView('settings');
       onCloseOtherPanels();
       navigateToBase();

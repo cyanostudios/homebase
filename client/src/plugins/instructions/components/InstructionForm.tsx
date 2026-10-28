@@ -57,6 +57,8 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { slugify } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 
 import { useInstructions } from '../hooks/useInstructions';
@@ -135,6 +137,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
       category: null,
       publicationStatus: 'draft',
       steps: [],
+      tags: [],
     });
 
     const isCurrentlySubmitting = externalIsSubmitting || isSaving || isSubmitting;
@@ -197,6 +200,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
         category: null,
         publicationStatus: 'draft',
         steps: [],
+        tags: [],
       });
       setSlugTouched(false);
       markClean();
@@ -217,6 +221,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
             sequenceOrder: step.sequenceOrder ?? index + 1,
             imageUrl: step.imageUrl ?? null,
           })),
+          tags: Array.isArray(instruction.tags) ? instruction.tags : [],
         });
         setSlugTouched(true);
         markClean();
@@ -649,6 +654,21 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                       </Select>
                     </div>
                   </div>
+                </DetailSection>
+              </Card>
+
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('common.tags')}
+                  icon={SETTINGS_CATEGORY_ICONS.tags}
+                  subtleTitle
+                  className="p-4"
+                >
+                  <ItemTagsField
+                    settingsKey="instructions"
+                    value={formData.tags ?? []}
+                    onChange={(tags) => updateField('tags', tags)}
+                  />
                 </DetailSection>
               </Card>
 

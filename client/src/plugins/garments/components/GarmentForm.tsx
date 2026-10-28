@@ -53,6 +53,8 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
@@ -198,6 +200,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
   const [listForm, setListForm] = useState<GarmentListPayload>({
     name: '',
     teamId: null,
+    tags: [],
   });
   const [inventoryForm, setInventoryForm] = useState<InventoryItemPayload>({
     articleName: '',
@@ -225,7 +228,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
   }, [formKey, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   const resetForm = useCallback(() => {
-    setListForm({ name: '', teamId: null });
+    setListForm({ name: '', teamId: null, tags: [] });
     setInventoryForm({
       articleName: '',
       brand: '',
@@ -298,6 +301,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
       setListForm({
         name: currentList.name,
         teamId: currentList.teamId,
+        tags: normalizeInventoryTags(currentList.tags),
       });
       markClean();
     } else {
@@ -358,7 +362,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
   const getFieldError = (field: string) => validationErrors.find((err) => err.field === field);
   const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
 
-  const updateListField = (field: keyof GarmentListPayload, value: string | null) => {
+  const updateListField = (field: keyof GarmentListPayload, value: string | null | string[]) => {
     setListForm((prev) => ({ ...prev, [field]: value }));
     markDirty();
     clearValidationErrors();
@@ -1063,6 +1067,23 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     </Card>
   );
 
+  const listTagsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('common.tags')}
+        icon={SETTINGS_CATEGORY_ICONS.tags}
+        subtleTitle
+        className="p-4"
+      >
+        <ItemTagsField
+          settingsKey={GARMENTS_SETTINGS_KEY}
+          value={Array.isArray(listForm.tags) ? listForm.tags : []}
+          onChange={(tags) => updateListField('tags', tags)}
+        />
+      </DetailSection>
+    </Card>
+  );
+
   return (
     <>
       <div className="plugin-garments">
@@ -1102,6 +1123,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
               <>
                 {listFormHeader}
                 {listDetailsCard}
+                {listTagsCard}
               </>
             )}
           </form>

@@ -30,9 +30,12 @@ import { DETAIL_FORM_TITLE_INPUT_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/u
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 
 import { useTasks } from '../hooks/useTasks';
+import { TASKS_SETTINGS_KEY } from '../utils/taskColumnCount';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
 
 import { TaskAssignedTeamSelect } from './TaskAssignedTeamSelect';
@@ -81,6 +84,7 @@ interface TaskFormState {
   dueDate: Date | null;
   assignedToIds: string[];
   teamId: string | null;
+  tags: string[];
 }
 
 interface TaskFormProps {
@@ -162,6 +166,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
     dueDate: null,
     assignedToIds: [],
     teamId: null,
+    tags: [],
   });
 
   const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
@@ -186,6 +191,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
       dueDate: null,
       assignedToIds: [],
       teamId: null,
+      tags: [],
     });
     markClean();
   }, [markClean]);
@@ -210,6 +216,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
           currentTask.teamId !== ''
             ? String(currentTask.teamId)
             : null,
+        tags: Array.isArray(currentTask.tags) ? currentTask.tags : [],
       });
       markClean();
     } else {
@@ -276,7 +283,10 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
     markDirty();
   };
 
-  const updateField = <K extends keyof TaskFormState>(field: K, value: TaskFormState[K]) => {
+  const updateField = (
+    field: keyof TaskFormState,
+    value: string | boolean | Date | null | string[] | any[],
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (validationErrors.length > 0) {
       clearValidationErrors();
@@ -544,6 +554,22 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
             {activeTab === 'information' ? informationCard : null}
 
             {activeTab === 'information' ? propertiesCard : null}
+            {activeTab === 'information' ? (
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('common.tags')}
+                  icon={SETTINGS_CATEGORY_ICONS.tags}
+                  subtleTitle
+                  className="p-4"
+                >
+                  <ItemTagsField
+                    settingsKey={TASKS_SETTINGS_KEY}
+                    value={formData.tags}
+                    onChange={(tags) => updateField('tags', tags)}
+                  />
+                </DetailSection>
+              </Card>
+            ) : null}
             {activeTab === 'assignees' ? assigneesCard : null}
           </form>
         </DetailLayout>

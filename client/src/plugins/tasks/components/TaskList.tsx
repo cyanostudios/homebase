@@ -57,6 +57,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
@@ -71,6 +72,7 @@ import {
 import { handleStatKpiListFilterSelect } from '@/core/ui/statKpiListFilterLink';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
@@ -194,12 +196,22 @@ export function TaskList({ isCompanion = false }: { isCompanion?: boolean } = {}
   const tableColumnIds = isCompanion ? COMPANION_VISIBLE_COLUMN_IDS : visibleColumnIds;
   const [activeFilters, setActiveFilters] =
     useState<TaskListFilterSelection>(TASK_LIST_FILTER_INITIAL);
-  const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('import');
+  const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('tags');
   const [previewTask, setPreviewTask] = useState<Task | null>(null);
   const { toolbarCollapsed, toggleToolbarCollapsed } = usePersistedToolbarCollapsed();
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     TASKS_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const tagFilter = usePluginListTags({
+    settingsKey: TASKS_SETTINGS_KEY,
+    storageKey: 'homebase.tasks.toolbar.tagsVisible',
+    items: tasks,
+    isCompanion,
+    onOpenSettings: () => {
+      setSettingsCategory('tags');
+      attemptNavigation(() => openTaskSettings());
+    },
+  });
   const restoredPendingTaskRef = useRef(false);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
@@ -322,7 +334,9 @@ export function TaskList({ isCompanion = false }: { isCompanion?: boolean } = {}
 
   const sortedTasks = useMemo(() => {
     const now = Date.now();
-    const byFilter = tasks.filter((task) => taskMatchesListFilters(task, activeFilters, now));
+    const byFilter = tasks.filter(
+      (task) => taskMatchesListFilters(task, activeFilters, now) && tagFilter.matches(task),
+    );
 
     const q = searchTerm.toLowerCase();
     const filtered = byFilter.filter((task) => {
@@ -366,6 +380,7 @@ export function TaskList({ isCompanion = false }: { isCompanion?: boolean } = {}
     getAssignedTeamName,
     hasTeamsPlugin,
     activeFilters,
+    tagFilter,
   ]);
 
   useEffect(() => {
@@ -672,6 +687,11 @@ export function TaskList({ isCompanion = false }: { isCompanion?: boolean } = {}
             </Button>
           );
         })}
+        <ListChipRowClear
+          visible={activeFilters.length > 0}
+          ariaLabel={t('common.clearFilters')}
+          onClear={() => setActiveFilters([])}
+        />
       </div>
     );
   };
@@ -911,12 +931,14 @@ export function TaskList({ isCompanion = false }: { isCompanion?: boolean } = {}
                       <ListFilterChipsToggle
                         visible={filtersVisible}
                         onVisibleChange={setFiltersVisible}
+                        hasActiveSelection={activeFilters.length > 0}
                         className={
                           isCompanion
                             ? PLUGIN_PAGE_COMPANION_TOOLBAR_CONTROL_CLASS
                             : 'h-11 rounded-full'
                         }
                       />
+                      {tagFilter.toggle}
                       {!isCompanion ? renderSelectControls('h-11 rounded-full') : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -962,6 +984,17 @@ export function TaskList({ isCompanion = false }: { isCompanion?: boolean } = {}
                       {renderFilterChips()}
                     </div>
                   ) : null}
+                  {tagFilter.row ? (
+                    <div
+                      className={cn(
+                        LIST_FILTER_AND_SORT_ROW_CLASS,
+                        'pt-2',
+                        toolbarCollapsed && !isCompanion && 'pointer-events-none',
+                      )}
+                    >
+                      {tagFilter.row}
+                    </div>
+                  ) : null}
                   {!isCompanion ? renderBulkActionBar('py-3') : null}
                 </div>
               </div>
@@ -971,12 +1004,15 @@ export function TaskList({ isCompanion = false }: { isCompanion?: boolean } = {}
           {!isCompanion ? (
             <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
               {filtersVisible ? renderFilterChips() : null}
+              {tagFilter.row}
               <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
                 <ListFilterChipsToggle
                   visible={filtersVisible}
                   onVisibleChange={setFiltersVisible}
+                  hasActiveSelection={activeFilters.length > 0}
                   className="h-7 rounded-md"
                 />
+                {tagFilter.mobileToggle}
                 {renderSortDropdown('h-7 rounded-md')}
               </div>
             </div>

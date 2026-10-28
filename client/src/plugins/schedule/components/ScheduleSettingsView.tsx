@@ -27,6 +27,8 @@ import {
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
@@ -39,12 +41,13 @@ import {
   buildScheduleEventPayload,
   DEFAULT_SCHEDULE_ID,
   normalizeScheduleGridSettings,
+  SCHEDULE_SETTINGS_KEY,
   type ScheduleGridSettings,
 } from '../types/schedule';
 
 import { ScheduleLockToggle } from './ScheduleLockToggle';
 
-export type ScheduleSettingsCategory = 'default' | 'plans';
+export type ScheduleSettingsCategory = 'tags' | 'default' | 'plans';
 
 function ScheduleSettingsActionsRow({ actions }: { actions: DetailHeaderMenuAction[] }) {
   if (actions.length === 0) {
@@ -312,6 +315,12 @@ export function ScheduleSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'default',
         label: t('schedule.settingsCategories.default'),
@@ -586,6 +595,7 @@ export function ScheduleSettingsView({
         onClose={onClose}
         wrapContentInCard={false}
       >
+        {activeCategory === 'tags' && <SettingsTagsSection settingsKey={SCHEDULE_SETTINGS_KEY} />}
         {activeCategory === 'default' ? (
           <Card padding="md" className={DETAIL_VIEW_CARD_CLASS}>
             <div className="space-y-6">

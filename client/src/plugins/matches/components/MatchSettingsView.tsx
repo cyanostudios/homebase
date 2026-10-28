@@ -16,6 +16,7 @@ import {
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
+import { SettingsTagsSection } from '@/core/ui/SettingsTagsSection';
 
 import { matchesApi } from '../api/matchesApi';
 import { MATCHES_SETTINGS_KEY } from '../utils/matchColumnCount';
@@ -26,7 +27,7 @@ import { MatchApiImportProgressDialog } from './MatchApiImportProgressDialog';
 const DEFAULT_API_BASE_URL = 'https://forening-api.svenskfotboll.se';
 const MASKED_API_KEY = '••••••••';
 
-export type MatchSettingsCategory = 'api';
+export type MatchSettingsCategory = 'tags' | 'api';
 
 interface MatchSettingsViewProps {
   selectedCategory?: MatchSettingsCategory;
@@ -73,6 +74,12 @@ export function MatchSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
+      {
+        id: 'tags',
+        label: t('common.tags'),
+        description: t('common.tagsSettingsHint'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+      },
       {
         id: 'api',
         label: t('matches.apiSettings'),
@@ -197,6 +204,7 @@ export function MatchSettingsView({
           ) : null
         }
       >
+        {activeCategory === 'tags' && <SettingsTagsSection settingsKey={MATCHES_SETTINGS_KEY} />}
         {activeCategory === 'api' && (
           <DetailSection
             title={t('matches.apiSettings')}

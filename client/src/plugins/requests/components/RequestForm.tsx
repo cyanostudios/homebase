@@ -53,12 +53,15 @@ import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
+import { ItemTagsField } from '@/core/ui/ItemTagsField';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 
 import type { RequestPayload } from '../api/requestsApi';
 import { useRequests } from '../hooks/useRequests';
 import type { Request } from '../types/requests';
 import { REQUEST_SOURCE_COLORS, responseDueAtFromDays } from '../types/requests';
 import { findRequestTypeConfig, intakeFieldLabelKey } from '../utils/requestTypeConfig';
+import { REQUESTS_SETTINGS_KEY } from '../utils/requestTableColumns';
 
 import { RequestAssignedTeamSelect } from './RequestAssignedTeamSelect';
 import { RequestAssigneeSelect } from './RequestAssigneeSelect';
@@ -153,6 +156,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
     assignedToIds: [] as string[],
     internalNotes: '',
     responseDueAt: responseDueAtFromDays(7, createCreatedAtRef.current),
+    tags: [] as string[],
   });
   const [extraData, setExtraData] = useState<Record<string, string>>({});
   const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -206,6 +210,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
         responseDueAt:
           item.responseDueAt ||
           responseDueAtFromDays(7, item.created_at || createCreatedAtRef.current),
+        tags: Array.isArray(item.tags) ? item.tags : [],
       });
       setExtraData(item.extraData ? { ...item.extraData } : {});
     } else {
@@ -223,6 +228,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
         assignedToIds: [],
         internalNotes: '',
         responseDueAt: responseDueAtFromDays(7, createCreatedAtRef.current),
+        tags: [],
       });
       setExtraData({});
     }
@@ -329,6 +335,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
       internal_notes: form.internalNotes.trim() || null,
       response_due_at: form.responseDueAt || null,
       extra_data: showPluginIntake ? (payloadExtra ?? {}) : null,
+      tags: form.tags,
     };
     const success = await onSave(payload);
     if (success) {
@@ -753,6 +760,21 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
               />
             </div>
           </div>
+        </DetailSection>
+      </Card>
+
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('common.tags')}
+          icon={SETTINGS_CATEGORY_ICONS.tags}
+          subtleTitle
+          className="p-4"
+        >
+          <ItemTagsField
+            settingsKey={REQUESTS_SETTINGS_KEY}
+            value={form.tags}
+            onChange={(tags) => updateForm('tags', tags)}
+          />
         </DetailSection>
       </Card>
     </>

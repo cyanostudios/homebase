@@ -79,6 +79,7 @@ export interface Invoice {
   updatedAt?: Date | string | null;
 
   estimateId?: string | null;
+  tags?: string[];
 }
 
 export interface InvoicePayment {

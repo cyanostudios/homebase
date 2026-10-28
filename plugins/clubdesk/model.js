@@ -2,6 +2,7 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 
 const PUBLICATION_STATUSES = ['draft', 'published'];
 
@@ -264,6 +265,7 @@ class ClubdeskModel {
         row.sort_order !== null && row.sort_order !== undefined ? Number(row.sort_order) : 1,
       stepCount:
         row.step_count !== null && row.step_count !== undefined ? Number(row.step_count) : 0,
+      tags: parseItemTags(row.tags),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -651,6 +653,7 @@ class ClubdeskModel {
             i.publication_status,
             i.featured,
             i.sort_order,
+            i.tags,
             i.created_at,
             i.updated_at,
             COALESCE(s.cnt, 0)::int AS step_count
@@ -734,9 +737,10 @@ class ClubdeskModel {
               category,
               publication_status,
               featured,
-              sort_order
+              sort_order,
+              tags
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
           `,
           [
@@ -749,6 +753,7 @@ class ClubdeskModel {
             fields.publicationStatus ?? 'draft',
             fields.featured === true,
             sortOrder,
+            serializeItemTags(data.tags),
           ],
         );
         const parent = parentRows[0];
@@ -829,34 +834,42 @@ class ClubdeskModel {
       }
 
       const updated = await db.transaction(async (tx) => {
+        const setClauses = [
+          'title = $1',
+          'slug = $2',
+          'description = $3',
+          'featured_image_url = $4',
+          'category = $5',
+          'publication_status = $6',
+          'featured = $7',
+          'sort_order = $8',
+        ];
+        const updateParams = [
+          fields.title,
+          fields.slug,
+          fields.description ?? null,
+          fields.featuredImageUrl ?? null,
+          fields.category ?? null,
+          fields.publicationStatus ?? 'draft',
+          fields.featured === true,
+          nextSortOrder,
+        ];
+        if (typeof data.tags !== 'undefined') {
+          setClauses.push(`tags = $${updateParams.length + 1}`);
+          updateParams.push(serializeItemTags(data.tags));
+        }
+        setClauses.push('updated_at = CURRENT_TIMESTAMP');
+        const idParam = updateParams.length + 1;
+        const userIdParam = updateParams.length + 2;
+        updateParams.push(id, userId);
         const parentRows = await tx.query(
           `
             UPDATE ${this.table}
-            SET
-              title = $1,
-              slug = $2,
-              description = $3,
-              featured_image_url = $4,
-              category = $5,
-              publication_status = $6,
-              featured = $7,
-              sort_order = $8,
-              updated_at = CURRENT_TIMESTAMP
-            WHERE id = $9 AND user_id = $10
+            SET ${setClauses.join(', ')}
+            WHERE id = $${idParam} AND user_id = $${userIdParam}
             RETURNING *
           `,
-          [
-            fields.title,
-            fields.slug,
-            fields.description ?? null,
-            fields.featuredImageUrl ?? null,
-            fields.category ?? null,
-            fields.publicationStatus ?? 'draft',
-            fields.featured === true,
-            nextSortOrder,
-            id,
-            userId,
-          ],
+          updateParams,
         );
         if (!parentRows.length) {
           throw new AppError('Clubdesk not found', 404, AppError.CODES.NOT_FOUND);

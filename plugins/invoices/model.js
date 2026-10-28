@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { Logger, Database, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 const {
   registerPublicShareRoute,
   RESOURCE_INVOICE,
@@ -170,6 +171,7 @@ class InvoiceModel {
       paidAt: row.paid_at,
       amountPaid: parseFloat(row.amount_paid || 0),
       estimateId: row.estimate_id ? row.estimate_id.toString() : null,
+      tags: parseItemTags(row.tags),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -728,6 +730,7 @@ class InvoiceModel {
         paid_at: null,
         amount_paid: 0,
         estimate_id: prepared.estimateId,
+        tags: serializeItemTags(invoiceData.tags),
       });
 
       const created = this.transformRow(result);
@@ -830,7 +833,7 @@ class InvoiceModel {
         total,
       } = prepared.totals;
 
-      await db.update('invoices', invoiceId, {
+      const invoiceUpdatePayload = {
         contact_id: prepared.contactId,
         contact_name: prepared.contactName || '',
         organization_number: prepared.organizationNumber || '',
@@ -860,7 +863,12 @@ class InvoiceModel {
         total: total,
         status: prepared.status,
         estimate_id: prepared.estimateId,
-      });
+      };
+      if (typeof invoiceData.tags !== 'undefined') {
+        invoiceUpdatePayload.tags = serializeItemTags(invoiceData.tags);
+      }
+
+      await db.update('invoices', invoiceId, invoiceUpdatePayload);
 
       Logger.info('Invoice updated', { invoiceId });
 

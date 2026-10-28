@@ -2,6 +2,24 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Site audits etapp 1.3 (2026-10-21)
+
+Verified against `plugins/site-audits/` and `client/src/plugins/site-audits/`. Etapp 1.4: Quick audit mode (`mode` on POST runs; caps 50/50ms; skip probes+compression; `auditMode`), stable finding `code` + i18n hints, client run-diff (Since last run / History Δ). Weights unchanged. ADR: `docs/ai/adr/SITE_AUDITS_ETAPP1_4.md`. Residuals SA-R13–R14. Product changelog: `docs/CHANGELOG.md` (2026-10-25).
+
+Verified against `plugins/site-audits/` and `client/src/plugins/site-audits/`. BuiltWith-inspired self-hosted technology fingerprint (`siteMeta.technologies`) from crawl headers/HTML/hosts; curated local catalog; no external tech APIs. Weights unchanged. Technical tab: Detected technologies section. ADR: `docs/ai/adr/SITE_AUDITS_ETAPP1_3.md`. Residuals SA-R10–R12. Product changelog: `docs/CHANGELOG.md` (2026-10-21).
+
+## Site audits etapp 1.2 (2026-10-21)
+
+Verified against `plugins/site-audits/` and `client/src/plugins/site-audits/`. Self-hosted technical inventory (TLS, DNS SPF/DMARC, security headers matrix, resources, crawl graph) with Technical tab; no Lighthouse/PSI. Weights unchanged. ADR: `docs/ai/adr/SITE_AUDITS_ETAPP1_2.md`. Residuals SA-R7–R9. Product changelog: `docs/CHANGELOG.md` (2026-10-21).
+
+## Site audits etapp 1.1 (2026-10-21)
+
+Verified against `plugins/site-audits/` and `client/src/plugins/site-audits/`. Sitegrade parity: llms.txt, AI bot robots summary, security headers/cookies/mixed content, five path probes, finding `pillar`, Overview Quick wins + pillar sections. Weights and crawl cap unchanged. ADR: `docs/ai/adr/SITE_AUDITS_ETAPP1_1.md`. Operator doc: `docs/SITE_AUDITS_PLUGIN.md`. Product changelog: `docs/CHANGELOG.md` (2026-10-21). Residuals SA-R4–R6 in 1.1 ADR. Analytics and GEO remain etapps 2–5, not built.
+
+## Site audits etapp 1 (2026-10-20)
+
+Verified against `plugins/site-audits/` and `client/src/plugins/site-audits/`. Etapp 1 is a manual technical SEO audit (crawl, score, optional competitor compare). Etapps 2–5 are not implemented. Roadmap: (2) first-party analytics, (3) GA4, (4) company identification, (5) **GEO / AI visibility** (prompt catalogue + LLM mention / share of voice via `ai-providers`; separate UI tab; own ADR before build). Uptime is out of scope. List tags are skipped in v1. Operator overview: `docs/SITE_AUDITS_PLUGIN.md`. ADR: `docs/ai/adr/SITE_AUDITS_ETAPP1.md`. UX: `docs/ai/design/SITE_AUDITS_UX.md`. Product changelog: `docs/CHANGELOG.md` (2026-10-20). ADR aligned to code: lazy stale sweep (including poll path), fire-and-forget 202 job, alt text parsed and scored (content warning + deduction when any image lacks alt), missing `Content-Encoding` not scored; Security Approved for etapp 1 SSRF with residuals SA-R1–R3 in the ADR.
+
 ## Contacts tabular import field coverage (2026-10-08)
 
 Verifierad mot QA + Security Godkänt: utökad `getContactImportSchema` (Fortnox-vänliga SV/EN-alias), `mapContactImportRow` → full `createContact`-payload, kundnummer utanför schema, tom Type + personnummer-heuristik → private, rad-för-rad `POST /api/contacts`. ADR `TABULAR_IMPORT_EXPORT.md` § Contacts adapter; produkt-CHANGELOG 2026-10-08; `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §5 referens. v1-gränser oförändrade (create-only; 5 MB / 2000 rader).

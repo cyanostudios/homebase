@@ -15,6 +15,7 @@ import {
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -45,12 +46,14 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import { PLUGIN_PAGE_LIST_SHELL_CLASS, PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { usePersistedFiltersVisible } from '@/core/ui/usePersistedFiltersVisible';
 import { usePersistedListSearch } from '@/core/ui/usePersistedListSearch';
+import { usePluginListTags } from '@/core/ui/usePluginListTags';
 import { usePersistedToolbarCollapsed } from '@/core/ui/usePersistedToolbarCollapsed';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -91,6 +94,7 @@ const PRICE_LIST_FILTERS_VISIBLE_STORAGE_KEY = 'homebase.clubdesk.priceList.tool
 
 export const PriceListList: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const {
     priceLists,
     deletePriceLists,
@@ -132,6 +136,14 @@ export const PriceListList: React.FC = () => {
   const { filtersVisible, setFiltersVisible } = usePersistedFiltersVisible(
     PRICE_LIST_FILTERS_VISIBLE_STORAGE_KEY,
   );
+  const tagFilter = usePluginListTags({
+    settingsKey: 'clubdesk',
+    storageKey: 'homebase.clubdesk.pricelist.toolbar.tagsVisible',
+    items: priceLists,
+    onOpenSettings: () => {
+      navigate('/clubdesk/inventory', { state: { openSettings: 'tags' } });
+    },
+  });
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
   const [toolbarToggleBox, setToolbarToggleBox] = useState<{
@@ -291,7 +303,9 @@ export const PriceListList: React.FC = () => {
   );
 
   const sortedPriceLists = useMemo(() => {
-    const byFilter = priceLists.filter((item) => priceListMatchesListFilters(item, activeFilters));
+    const byFilter = priceLists.filter(
+      (item) => priceListMatchesListFilters(item, activeFilters) && tagFilter.matches(item),
+    );
 
     const q = searchTerm.toLowerCase();
     const filtered = byFilter.filter(
@@ -303,7 +317,7 @@ export const PriceListList: React.FC = () => {
     );
 
     return [...filtered].sort((a, b) => comparePriceListsByField(a, b, primarySort, sortOrder));
-  }, [priceLists, searchTerm, primarySort, sortOrder, activeFilters]);
+  }, [priceLists, searchTerm, primarySort, sortOrder, activeFilters, tagFilter]);
 
   const isFilterActive = (filter: PriceListListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: PriceListListFilter) => {
@@ -481,6 +495,11 @@ export const PriceListList: React.FC = () => {
           <span className="tabular-nums font-semibold">({stats.published})</span>
         </span>
       </Button>
+      <ListChipRowClear
+        visible={activeFilters.length > 0}
+        ariaLabel={t('common.clearFilters')}
+        onClear={() => setActiveFilters([])}
+      />
     </div>
   );
 
@@ -680,8 +699,10 @@ export const PriceListList: React.FC = () => {
                     <ListFilterChipsToggle
                       visible={filtersVisible}
                       onVisibleChange={setFiltersVisible}
+                      hasActiveSelection={activeFilters.length > 0}
                       className="h-11 rounded-full"
                     />
+                    {tagFilter.toggle}
                     {renderSelectControls('h-11 rounded-full')}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -711,6 +732,17 @@ export const PriceListList: React.FC = () => {
                     {renderFilterChips()}
                   </div>
                 ) : null}
+                {tagFilter.row ? (
+                  <div
+                    className={cn(
+                      LIST_FILTER_AND_SORT_ROW_CLASS,
+                      'pt-2',
+                      toolbarCollapsed && 'pointer-events-none',
+                    )}
+                  >
+                    {tagFilter.row}
+                  </div>
+                ) : null}
                 {renderBulkActionBar('py-3')}
               </div>
             </div>
@@ -718,12 +750,15 @@ export const PriceListList: React.FC = () => {
 
           <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
             {filtersVisible ? renderFilterChips() : null}
+            {tagFilter.row}
             <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
               <ListFilterChipsToggle
                 visible={filtersVisible}
                 onVisibleChange={setFiltersVisible}
+                hasActiveSelection={activeFilters.length > 0}
                 className="h-7 rounded-md"
               />
+              {tagFilter.mobileToggle}
               {renderSortDropdown('h-7 rounded-md')}
             </div>
           </div>

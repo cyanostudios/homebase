@@ -1,5 +1,6 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { parseItemTags, serializeItemTags } = require('../../server/core/utils/itemTags');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 const { clampPageviewDays, fillPageviewSeries } = require('./services/pageviewStats');
 const {
@@ -112,6 +113,7 @@ class CupsModel {
         row.ratings_count !== null && row.ratings_count !== undefined
           ? Number(row.ratings_count)
           : 0,
+      tags: parseItemTags(row.tags),
     };
   }
 
@@ -185,6 +187,7 @@ class CupsModel {
         external_id: data.external_id?.trim() || null,
         last_seen_at: data.last_seen_at !== undefined ? data.last_seen_at : null,
         deleted_at: data.deleted_at !== undefined ? data.deleted_at : null,
+        tags: serializeItemTags(data.tags),
       });
       return this.transformRow(row);
     } catch (error) {
@@ -200,7 +203,7 @@ class CupsModel {
       if (!existing.length) {
         throw new AppError('Cup not found', 404, AppError.CODES.NOT_FOUND);
       }
-      const row = await db.update('cups', id, {
+      const cupUpdatePayload = {
         name: (data.name || '').trim(),
         organizer: data.organizer?.trim() || null,
         location: data.location?.trim() || null,
@@ -270,7 +273,11 @@ class CupsModel {
           data.last_seen_at !== undefined ? data.last_seen_at : (existing[0].last_seen_at ?? null),
         deleted_at:
           data.deleted_at !== undefined ? data.deleted_at : (existing[0].deleted_at ?? null),
-      });
+      };
+      if (typeof data.tags !== 'undefined') {
+        cupUpdatePayload.tags = serializeItemTags(data.tags);
+      }
+      const row = await db.update('cups', id, cupUpdatePayload);
       return this.transformRow(row);
     } catch (error) {
       if (error instanceof AppError) throw error;

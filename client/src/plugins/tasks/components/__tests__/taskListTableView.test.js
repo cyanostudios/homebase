@@ -30,6 +30,10 @@ describe('TaskList table view wiring', () => {
     expect(listSrc).toMatch(/renderSortDropdown/);
     expect(listSrc).toMatch(/ListFilterChipsToggle/);
     expect(listSrc).toMatch(/filtersVisible/);
+    expect(listSrc).toMatch(/hasActiveSelection=\{activeFilters\.length > 0\}/);
+    expect(listSrc).toMatch(/ListChipRowClear/);
+    expect(listSrc).toMatch(/common\.clearFilters/);
+    expect(listSrc).toMatch(/setActiveFilters\(\[\]\)/);
     expect(listSrc).toMatch(/RoundExpandableQuickAdd/);
     expect(listSrc).toMatch(/icon=\{CheckSquare\}/);
     expect(listSrc).toMatch(/useState<SortField>\('createdAt'\)/);

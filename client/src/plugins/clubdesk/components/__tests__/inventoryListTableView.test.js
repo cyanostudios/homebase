@@ -68,6 +68,20 @@ describe('Clubdesk InventoryList table view wiring', () => {
     expect(statsSrc).not.toMatch(/space-y-6 p-4/);
   });
 
+  test('inventory list wires contacts-style tags toolbar and settings tags', () => {
+    expect(listSrc).toMatch(/CLUBDESK_INVENTORY_SETTINGS_KEY/);
+    expect(listSrc).toMatch(/normalizeInventoryTags/);
+    expect(listSrc).toMatch(/ListTagsChipsToggle/);
+    expect(listSrc).toMatch(/ListTagsEmptyRow/);
+    expect(listSrc).toMatch(/openTagsSettings/);
+    expect(listSrc).toMatch(/openInventorySettings\('tags'\)/);
+    expect(listSrc).toMatch(/homebase\.clubdesk\.inventory\.toolbar\.tagsVisible/);
+    expect(listSrc).toMatch(/inventoryItemMatchesSelectedTags/);
+    expect(listSrc).toMatch(/renderTagChips/);
+    expect(listSrc).toMatch(/ListChipRowClear/);
+    expect(listSrc).toMatch(/hasActiveSelection=\{filtersHaveActiveSelection\}/);
+  });
+
   test('inventory tags settings key is allowlisted clubdesk category', () => {
     const keySrc = fs.readFileSync(
       path.join(__dirname, '../../utils/clubdeskInventorySettingsKey.ts'),

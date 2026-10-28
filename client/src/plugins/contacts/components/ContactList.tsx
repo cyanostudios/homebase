@@ -62,9 +62,11 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { InlinePanelFormActions } from '@/core/ui/InlinePanelFormActions';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListChipRowClear } from '@/core/ui/ListChipRowClear';
 import { ListFilterChipsToggle } from '@/core/ui/ListFilterChipsToggle';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListTagsChipsToggle } from '@/core/ui/ListTagsChipsToggle';
+import { ListTagsEmptyRow } from '@/core/ui/ListTagsEmptyRow';
 import { useMobileActions, useRegisterMobileSearch } from '@/core/ui/MobileActionsContext';
 import {
   PLUGIN_PAGE_COMPANION_SECTION_GAP_CLASS,
@@ -609,32 +611,14 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
   const headerDropdownTriggerDangerClass =
     'gap-1.5 border-0 bg-red-600/10 px-3.5 text-sm font-extrabold text-red-700 shadow-none hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white';
 
-  const renderChipRowClear = (opts: {
-    visible: boolean;
-    ariaLabel: string;
-    onClear: () => void;
-  }) => {
-    if (!opts.visible) {
-      return null;
-    }
-    return (
-      <RoundIconLabelButton
-        type="button"
-        icon={X}
-        label={opts.ariaLabel}
-        size="xs"
-        expandOnHover={false}
-        variant="secondary"
-        className="shrink-0 bg-white text-red-600 shadow-sm hover:bg-red-600 hover:text-white dark:bg-white dark:text-red-600 dark:hover:bg-red-600 dark:hover:text-white"
-        contentClassName="text-red-600 group-hover:text-white dark:text-red-600 dark:group-hover:text-white"
-        onClick={opts.onClear}
-      />
-    );
+  const openTagsSettings = () => {
+    setSettingsCategory('tags');
+    attemptNavigation(() => openContactSettings());
   };
 
   const renderTagChips = () => {
     if (availableTags.length === 0) {
-      return null;
+      return <ListTagsEmptyRow onOpenSettings={openTagsSettings} />;
     }
 
     return (
@@ -661,11 +645,11 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
             </Button>
           );
         })}
-        {renderChipRowClear({
-          visible: selectedTags.length > 0,
-          ariaLabel: t('common.clearTags'),
-          onClear: () => setSelectedTags([]),
-        })}
+        <ListChipRowClear
+          visible={selectedTags.length > 0}
+          ariaLabel={t('common.clearTags')}
+          onClear={() => setSelectedTags([])}
+        />
       </div>
     );
   };
@@ -744,11 +728,11 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
             </Button>
           );
         })}
-        {renderChipRowClear({
-          visible: activeFilters.length > 0,
-          ariaLabel: t('common.clearFilters'),
-          onClear: () => setActiveFilters([]),
-        })}
+        <ListChipRowClear
+          visible={activeFilters.length > 0}
+          ariaLabel={t('common.clearFilters')}
+          onClear={() => setActiveFilters([])}
+        />
       </div>
     );
   };
@@ -1060,7 +1044,7 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                             : 'h-11 rounded-full'
                         }
                       />
-                      {availableTags.length > 0 ? (
+                      {!isCompanion || availableTags.length > 0 ? (
                         <ListTagsChipsToggle
                           visible={tagsVisible}
                           onVisibleChange={setTagsVisible}
@@ -1107,7 +1091,7 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                       {renderFilterChips()}
                     </div>
                   ) : null}
-                  {tagsVisible && availableTags.length > 0 ? (
+                  {tagsVisible && (!isCompanion || availableTags.length > 0) ? (
                     <div
                       className={cn(
                         LIST_FILTER_AND_SORT_ROW_CLASS,
@@ -1127,7 +1111,7 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
           {!isCompanion ? (
             <div className={cn(LIST_FILTER_AND_SORT_ROW_CLASS, 'shrink-0 md:hidden')}>
               {filtersVisible ? renderFilterChips() : null}
-              {tagsVisible && availableTags.length > 0 ? renderTagChips() : null}
+              {tagsVisible ? renderTagChips() : null}
               <div className={LIST_FILTER_SORT_CLUSTER_CLASS}>
                 <ListFilterChipsToggle
                   visible={filtersVisible}
@@ -1135,14 +1119,12 @@ export const ContactList: React.FC<{ isCompanion?: boolean }> = ({ isCompanion =
                   hasActiveSelection={activeFilters.length > 0}
                   className="h-7 rounded-md"
                 />
-                {availableTags.length > 0 ? (
-                  <ListTagsChipsToggle
-                    visible={tagsVisible}
-                    onVisibleChange={setTagsVisible}
-                    hasActiveSelection={selectedTags.length > 0}
-                    className="h-7 rounded-md"
-                  />
-                ) : null}
+                <ListTagsChipsToggle
+                  visible={tagsVisible}
+                  onVisibleChange={setTagsVisible}
+                  hasActiveSelection={selectedTags.length > 0}
+                  className="h-7 rounded-md"
+                />
                 {renderSortDropdown('h-7 rounded-md')}
               </div>
             </div>
