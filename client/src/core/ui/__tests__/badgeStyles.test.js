@@ -22,7 +22,7 @@ describe('badgeStyles chips', () => {
   });
 
   test('status colors are text-only, not fills or borders', () => {
-    expect(QC_STATUS_BADGE_COLORS.info).toMatch(/text-blue/);
+    expect(QC_STATUS_BADGE_COLORS.info).toMatch(/text-info/);
     expect(QC_STATUS_BADGE_COLORS.info).not.toMatch(/border-/);
     expect(QC_STATUS_BADGE_COLORS.info).not.toMatch(/bg-blue/);
     expect(QC_STATUS_BADGE_COLORS.info).not.toMatch(/ring-1/);

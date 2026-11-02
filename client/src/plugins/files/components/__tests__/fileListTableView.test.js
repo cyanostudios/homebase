@@ -15,7 +15,7 @@ describe('FileList table view wiring', () => {
     expect(listSrc).not.toMatch(/FileListItem/);
     expect(listSrc).toMatch(/createPortal/);
     expect(listSrc).toMatch(/toolbarEdgeToggle/);
-    expect(listSrc).toMatch(/left-sidebar-nav/);
+    expect(listSrc).toMatch(/useToolbarToggleAnchorBox/);
     expect(listSrc).toMatch(/md:pt-3/);
     expect(listSrc).toMatch(/toolbarCollapsed/);
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);

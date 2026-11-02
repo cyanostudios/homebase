@@ -21,7 +21,7 @@ describe('SlotsList table view wiring', () => {
     expect(listSrc).toMatch(/selectionEnabled=\{selectionMode\}/);
     expect(listSrc).toMatch(/createPortal/);
     expect(listSrc).toMatch(/toolbarEdgeToggle/);
-    expect(listSrc).toMatch(/left-sidebar-nav/);
+    expect(listSrc).toMatch(/useToolbarToggleAnchorBox/);
     expect(listSrc).toMatch(/md:pt-3/);
     expect(listSrc).toMatch(/toolbarCollapsed/);
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);

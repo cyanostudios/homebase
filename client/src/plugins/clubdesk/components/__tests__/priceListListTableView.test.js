@@ -15,7 +15,7 @@ describe('PriceListList table view wiring', () => {
     expect(listSrc).toMatch(/PriceListListTable/);
     expect(listSrc).toMatch(/createPortal/);
     expect(listSrc).toMatch(/toolbarEdgeToggle/);
-    expect(listSrc).toMatch(/left-sidebar-nav/);
+    expect(listSrc).toMatch(/useToolbarToggleAnchorBox/);
     expect(listSrc).toMatch(/md:pt-3/);
     expect(listSrc).toMatch(/toolbarCollapsed/);
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);
