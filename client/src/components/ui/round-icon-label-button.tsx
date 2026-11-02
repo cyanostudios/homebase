@@ -45,10 +45,10 @@ const variantClasses: Record<RoundIconLabelButtonVariant, string> = {
   category:
     'bg-slate-100 text-sky-500 hover:bg-slate-200 dark:bg-slate-800/60 dark:text-sky-400 dark:hover:bg-slate-700/80',
   success:
-    'border-none bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700',
-  /** Idle: soft green; hover: solid green. */
-  successSoft:
-    'bg-green-600/10 text-green-700 hover:bg-green-600 hover:text-white dark:text-green-400 dark:hover:bg-green-600 dark:hover:text-white',
+    'border-none bg-success text-success-foreground hover:bg-success/90 dark:hover:brightness-110',
+  /** Idle: soft success; hover: solid success. */
+  successSoft: 'bg-success/10 text-success hover:bg-success hover:text-success-foreground',
+  /* Solid red-600 (not --destructive pink) — keep danger chrome distinct from status text. */
   danger:
     'border-none bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700',
   /** Idle: soft primary; hover: solid red. */
@@ -56,9 +56,9 @@ const variantClasses: Record<RoundIconLabelButtonVariant, string> = {
     'bg-primary/10 text-primary hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white',
 };
 
-/** Height / type / icon — `xs` is ~75% of `sm` (25% smaller). */
+/** Height / type / icon — scale 14 / 16 / 20 (`size-3.5` / `size-4` / `size-5`). */
 const sizeShellClasses: Record<RoundIconLabelButtonSize, string> = {
-  xs: 'h-[2.0625rem] min-w-[2.0625rem] text-xs [&_svg]:size-[0.9375rem]',
+  xs: 'h-[2.0625rem] min-w-[2.0625rem] text-xs [&_svg]:size-3.5',
   sm: 'h-11 min-w-11 text-sm [&_svg]:size-5',
   md: 'h-12 min-w-12 text-base [&_svg]:size-5',
 };

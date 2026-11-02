@@ -31,10 +31,10 @@ export const LINKED_SECTION_BADGE_CLASS =
  */
 export const QC_STATUS_BADGE_COLORS = {
   neutral: 'text-slate-700 dark:text-slate-300',
-  info: 'text-blue-700 dark:text-blue-300',
-  success: 'text-emerald-800 dark:text-emerald-300',
-  danger: 'text-red-700 dark:text-red-300',
-  warning: 'text-amber-800 dark:text-amber-300',
+  info: 'text-info',
+  success: 'text-success',
+  danger: 'text-destructive',
+  warning: 'text-warning',
   muted: 'text-muted-foreground',
   purple: 'text-violet-700 dark:text-violet-300',
   orange: 'text-orange-800 dark:text-orange-200',
@@ -83,8 +83,8 @@ export const DUE_DATE_BADGE_COLORS = {
 export const DUE_DATE_TEXT_COLORS = {
   overdue: 'text-destructive font-extrabold',
   today: 'text-orange-600 dark:text-orange-400 font-extrabold',
-  soon: 'text-amber-600 dark:text-amber-400 font-extrabold',
-  later: 'text-emerald-700 dark:text-emerald-300 font-extrabold',
+  soon: 'text-warning font-extrabold',
+  later: 'text-success font-extrabold',
   muted: 'text-muted-foreground',
 } as const;
 

@@ -43,6 +43,16 @@
     --destructive: 348 86% 56%;
     --destructive-foreground: 0 0% 98%;
 
+    /* Success ≈ green-600 fill / emerald-700 text role */
+    --success: 142 71% 36%;
+    --success-foreground: 0 0% 98%;
+    /* Warning ≈ amber-800 text role */
+    --warning: 27 96% 31%;
+    --warning-foreground: 0 0% 98%;
+    /* Info ≈ blue-700 text role */
+    --info: 221 83% 40%;
+    --info-foreground: 0 0% 98%;
+
     /* Border: gray-300 (#E4E6EF) */
     --border: 220 15% 90%;
     --input: 220 15% 90%;
@@ -125,6 +135,14 @@
 
     --destructive: 4 81% 64%;
     --destructive-foreground: 213 12% 84%;
+
+    /* Success / warning / info — dark text roles ≈ emerald-300 / amber-300 / blue-300 */
+    --success: 156 72% 67%;
+    --success-foreground: 215 28% 7%;
+    --warning: 43 96% 56%;
+    --warning-foreground: 215 28% 7%;
+    --info: 213 94% 68%;
+    --info-foreground: 215 28% 7%;
 
     --border: 215 14% 21%;
     --input: 215 14% 21%;

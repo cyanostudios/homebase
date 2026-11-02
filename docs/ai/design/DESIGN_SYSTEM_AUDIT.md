@@ -336,29 +336,31 @@ Dominanta steg: `gap-2`, `gap-3`, `px-3`, `gap-1.5`, `p-6`, `p-4`, `space-y-4`. 
 
 ---
 
-## 6. Öppna frågor (beslut krävs innan mall)
+## 6. Öppna frågor — **besvarade 2026-10-30**
 
-Inga beslut tas här — endast frågor till UI/UX + arkitekt:
+Beslut och implementation: [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md).
 
-1. **Neutral bakgrund:** byta SPA till Wint-lik varm `#F4F4F0`, behålla kall `210 40% 96%`, eller ny hybrid?
-2. **Primär hex:** behålla `#009EF7` eller flytta mot Wint `#37B9F5` / `#0F9BF0`?
-3. **Success/warning/info tokens:** införa CSS-variabler + utilities, eller fortsätta `QC_STATUS_BADGE_COLORS` + råa klasser?
-4. **Statusbadge-språk:** behålla text-only outline (nuvarande V3) eller anta Wint soft-fill pills (kräver V3-uppdatering)?
-5. **Knapptyp:** en kanon — `Button` _eller_ `RoundIconLabelButton` per yta (list toolbar / dialog / rail) med tydlig matris?
-6. **Publika sajter:** behålla brand-öar, eller gemensam token-kontrakt med appens semantiska roller (brand skiljer, roller samma)?
-7. **Radie:** hur många nivåer (förslag: sm/md/lg + full)?
-8. **Ikonstorlek:** hur många (förslag: 14 / 16 / 20)?
-9. **Död kod:** ta bort shadcn `sidebar`, `navigation-menu`, `DetailCard` i hygiene-pass?
-10. **Saknade primitives:** prioritera Toast, Tabs, Combobox, Dialog — eller medvetet fortsätta chips + ConfirmDialog?
+1. **Neutral bakgrund:** behåll kall `210 40% 96%`.
+2. **Primär hex:** behåll `#009EF7`.
+3. **Success/warning/info tokens:** nya CSS-tokens + utilities.
+4. **Statusbadge-språk:** behåll V3 text-only outline.
+5. **Knapptyp:** matris — round för chrome (header/dialog/rail/bulk/settings); `Button` för formulär/länk/`asChild`/tät X.
+6. **Publika sajter:** behåll brand-öar.
+7. **Radie:** `sm` / `md` / `lg` / `full`.
+8. **Ikonstorlek:** 14 / 16 / 20.
+9. **Död kod:** ta bort (shadcn sidebar, navigation-menu, DetailCard, tooltip, separator).
+10. **Saknade primitives:** bygg Dialog, Tabs, Toast, Combobox (call sites migreras senare).
 
 ---
 
-## 7. Rekommenderad nästa fas (inte denna leverans)
+## 7. Nästa fas (efter foundation 2026-10-30)
 
-1. UI/UX-designer: designmall (färgroller, typeskala, komponentmatris) med beslut på §6.
-2. Lösningsarkitekt: tokenkontrakt + migrationsordning (CSS vars → utilities → ersätt råa klasser).
-3. Frontend: konsolidera knappar/badges/tabeller enligt mall; UI Hygiene: döda oanvända primitives.
-4. Documentation: uppdatera `UI_AND_UX_STANDARDS_V3.md` när besluten är fattade.
+Foundation är införd — se [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md). Kvarstår:
+
+1. Gradvis ersätta råa `green-*` / `amber-*` / `blue-*` statusytor med `success` / `warning` / `info`.
+2. Migrera plugin-dialoger till `components/ui/dialog` där det passar (ConfirmDialog stannar på AlertDialog).
+3. Undvika nya `rounded-xl` / icke-kanoniska ikonstorlekar; legacy lämnas.
+4. Diagramserie-tokens (`--chart-*`) — eget beslut.
 
 ---
 

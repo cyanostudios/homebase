@@ -465,7 +465,9 @@ export function ContactProvider({
 
   const [browseOrderIds, setBrowseOrderIdsState] = useState<string[]>([]);
   const setBrowseOrderIds = useCallback((ids: string[]) => {
-    setBrowseOrderIdsState(ids);
+    setBrowseOrderIdsState((prev) =>
+      prev.length === ids.length && prev.every((id, i) => id === ids[i]) ? prev : ids,
+    );
   }, []);
 
   const {
