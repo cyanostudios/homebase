@@ -170,9 +170,9 @@ On viewports below Tailwind `md` (≤767px), text `input` / `textarea` / `select
 
 ### Card Layout
 
-All grid cards must use `DetailCard` or `Card` with standardized padding.
+All grid cards must use shared `Card` (or detail `DetailSection` / `DETAIL_VIEW_CARD_CLASS`). Legacy `DetailCard` was removed 2026-10-30.
 
-- **Padding:** `p-5` (standard) or `padding="sm"` on `DetailCard`.
+- **Padding:** `p-5` (standard) or `Card` `padding` prop.
 - **Active Plugin Context:** Apply the plugin's semantic class to the container (e.g., `plugin-notes`).
 - **Hover State:** `hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md`
 - **Selection Ring:** `bg-plugin-subtle ring-1 ring-plugin-subtle/50 border-plugin-subtle`
@@ -241,14 +241,16 @@ In the `View` component, the "Information" section (System ID, Dates) should use
 </div>
 ```
 
-### 3.1 List toolbar buttons
+### 3.1 Buttons (canonical matrix)
 
-List views place toolbar actions inside the main list card (same shell as table/grid content). All toolbar actions (Settings, Grid, List, Import, etc.) must use the same button style for consistency:
+Canonical design system: [`ai/design/DESIGN_SYSTEM.md`](ai/design/DESIGN_SYSTEM.md).
 
-- **Component:** `Button` from `@/components/ui/button`.
-- **Variant:** `variant="secondary"` for secondary actions.
-- **Size:** `size="sm"`, `className="h-9 text-xs px-3"`.
-- **Icon + label:** Use the `icon` prop (e.g. `icon={Settings}`) and put the label as children (e.g. `Settings`). Do not use icon-only buttons for primary toolbar actions like Settings—use the same style as in Files, Contacts, and Mail.
+| Surface                                                                                                            | Component                                                          |
+| ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Page header (Add / Close / Save), dialog footer, right rail, bulk bar, settings category pills                     | `RoundIconLabelButton` (`@/components/ui/round-icon-label-button`) |
+| Form-adjacent actions, `variant="link"`, `asChild` wrapping a non-round control, dense badge dismiss (icon-only X) | `Button` (`@/components/ui/button`)                                |
+
+List toolbar chrome follows the round row (same as Contacts / Tasks). Do not introduce a second rectangular toolbar style for Settings / Add / bulk.
 
 ### 3.2 Plugin settings
 
@@ -291,10 +293,11 @@ List views place toolbar actions inside the main list card (same shell as table/
 
 ### 4.0 Round icon-label buttons
 
-Primary action pattern for dialogs, bulk bars, and quick context chrome.
+Primary action pattern for dialogs, bulk bars, and quick context chrome. See also §3.1 button matrix.
 
 - **Component:** `RoundIconLabelButton` (`@/components/ui/round-icon-label-button.tsx`); alias `ExpandableIconButton` for legacy imports.
-- **Variants:** `primary` (blue), `soft` (light primary idle → solid primary hover), `secondary` (gray), `success` (green), `successSoft` (soft green idle → solid green hover), `danger` (red), `dangerSoft` (soft idle → red hover). Rail tools and settings body actions commonly use `secondary` / `soft` / `dangerSoft` at `size="xs"`.
+- **Variants:** `primary` (blue), `soft` (light primary idle → solid primary hover), `secondary` (gray), `success` / `successSoft` (semantic `--success` tokens), `danger` / `dangerSoft` (solid red fills — not `--destructive` pink). Rail tools and settings body actions commonly use `secondary` / `soft` / `dangerSoft` at `size="xs"`.
+- **Status colors:** semantic CSS tokens `--success`, `--warning`, `--info` (plus existing `--destructive`). Status **labels** stay text-only outline via `BADGE_CHIP_*` / `QC_STATUS_BADGE_COLORS` — no soft-fill pills.
 - **Expansion:** `alwaysExpanded` — icon + label always visible (dialog Save/Close, bulk pills). Default collapsed — icon-only; label on hover unless `expandOnHover={false}` (e.g. quick context Close, prev/next chevrons).
 - **Dialog wrappers:** `DialogRoundButtons`, `AlertDialogRound*` (`@/core/ui/DialogRoundButtons.tsx`).
 - **Quick context:** Mail-layout `*QuickContextPanel` or `*DetailHeaderMenus` with `leading` in the view header (Contacts / Cups / Slots). Do not duplicate ghost icon buttons. Legacy sticky list-side QC is removed (do not reintroduce).
@@ -429,4 +432,4 @@ After this palette is approved:
 
 ## Verification note
 
-This document has been verified against the current implementation (DetailLayout, DetailCard, Sidebar, Dashboard, BulkActionBar, list/grid patterns). When making layout or design changes, update this document so it stays the single source of truth for UI/UX standards. The **§5.1 iOS Mail reference** is a planned-alignment note only until phase 2 lands CSS/UI changes.
+This document has been verified against the current implementation (DetailLayout, DetailSection, Sidebar, Dashboard, BulkActionBar, list/table patterns). Design-system tokens and button matrix: [`ai/design/DESIGN_SYSTEM.md`](ai/design/DESIGN_SYSTEM.md). When making layout or design changes, update this document so it stays the single source of truth for UI/UX standards. The **§5.1 iOS Mail reference** is a planned-alignment note only until phase 2 lands CSS/UI changes.

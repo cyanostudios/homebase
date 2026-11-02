@@ -61,7 +61,7 @@ describe('formatTaskDueDisplay', () => {
     const display = formatTaskDueDisplay(localNoon(2026, 8, 18), 'in progress', NOW);
     expect(display?.urgency).toBe('later');
     expect(display?.text).toMatch(/18/);
-    expect(display?.badgeClassName).toContain('emerald');
-    expect(display?.textClassName).toContain('emerald');
+    expect(display?.badgeClassName).toContain('text-success');
+    expect(display?.textClassName).toContain('text-success');
   });
 });

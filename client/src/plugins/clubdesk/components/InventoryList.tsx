@@ -16,7 +16,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +36,7 @@ import { ExpandableIconButton } from '@/components/ui/expandable-icon-button';
 import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
+import { useToolbarToggleAnchorBox } from '@/core/hooks/useToolbarToggleAnchorBox';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkActionRoundBar, type BulkActionRoundItem } from '@/core/ui/BulkActionRoundBar';
@@ -193,11 +194,7 @@ export const InventoryList: React.FC = () => {
     usePersistedFiltersVisible(INVENTORY_TAGS_VISIBLE_STORAGE_KEY);
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
-  const [toolbarToggleBox, setToolbarToggleBox] = useState<{
-    top: number;
-    left: number;
-    width: number;
-  } | null>(null);
+  const toolbarToggleBox = useToolbarToggleAnchorBox(pageShellRef);
 
   const inlineForm =
     showDesktopSplit &&
@@ -328,38 +325,6 @@ export const InventoryList: React.FC = () => {
       });
     }
   }, [showDesktopSplit, isClubdeskPanelOpen, activeDomain, panelMode, currentInventoryItem]);
-
-  const updateToolbarToggleBox = useCallback(() => {
-    const el = pageShellRef.current;
-    if (!el) {
-      return;
-    }
-    const rect = el.getBoundingClientRect();
-    const sidebarToggle = document.querySelector<HTMLElement>('[aria-controls="left-sidebar-nav"]');
-    const sidebarTop = sidebarToggle?.getBoundingClientRect().top;
-    setToolbarToggleBox({
-      top: typeof sidebarTop === 'number' ? sidebarTop : rect.top + 4,
-      left: rect.left,
-      width: rect.width,
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    updateToolbarToggleBox();
-    window.addEventListener('resize', updateToolbarToggleBox);
-    const scrollParent = pageShellRef.current?.closest('.overflow-y-auto, .overflow-auto');
-    scrollParent?.addEventListener('scroll', updateToolbarToggleBox, { passive: true });
-    const ro =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateToolbarToggleBox) : null;
-    if (pageShellRef.current && ro) {
-      ro.observe(pageShellRef.current);
-    }
-    return () => {
-      window.removeEventListener('resize', updateToolbarToggleBox);
-      scrollParent?.removeEventListener('scroll', updateToolbarToggleBox);
-      ro?.disconnect();
-    };
-  }, [updateToolbarToggleBox]);
 
   const handlePrimarySortChange = (field: InventorySortField) => {
     setPrimarySort(field);
@@ -682,7 +647,7 @@ export const InventoryList: React.FC = () => {
     SORT_FIELD_OPTIONS[0].labelKey;
 
   const renderSortDropdown = (triggerClassName: string) => (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"

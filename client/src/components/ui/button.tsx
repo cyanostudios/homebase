@@ -80,7 +80,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           slotSingleChild(children)
         ) : (
           <>
-            {Icon && <Icon className="h-4 w-4" />}
+            {Icon && <Icon className="size-4" />}
             {children}
           </>
         )}

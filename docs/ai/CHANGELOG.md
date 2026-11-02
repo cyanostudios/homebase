@@ -2,6 +2,10 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Design system foundation (2026-10-30)
+
+Audit §6 beslut låsta. Dokument: `docs/ai/design/DESIGN_SYSTEM.md`. Kod: `--success` / `--warning` / `--info` tokens; död UI borttagen; primitives Dialog, Tabs, Toast (sonner), Combobox tillagda. Bakgrund, primär, badge-outline och publika brand-öar oförändrade.
+
 ## Site audits etapp 1.3 (2026-10-21)
 
 Verified against `plugins/site-audits/` and `client/src/plugins/site-audits/`. Etapp 1.4: Quick audit mode (`mode` on POST runs; caps 50/50ms; skip probes+compression; `auditMode`), stable finding `code` + i18n hints, client run-diff (Since last run / History Δ). Weights unchanged. ADR: `docs/ai/adr/SITE_AUDITS_ETAPP1_4.md`. Residuals SA-R13–R14. Product changelog: `docs/CHANGELOG.md` (2026-10-25).

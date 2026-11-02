@@ -17,7 +17,7 @@ describe('RequestList table view wiring', () => {
     expect(listSrc).not.toMatch(/setListViewMode/);
     expect(listSrc).toMatch(/createPortal/);
     expect(listSrc).toMatch(/toolbarEdgeToggle/);
-    expect(listSrc).toMatch(/left-sidebar-nav/);
+    expect(listSrc).toMatch(/useToolbarToggleAnchorBox/);
     expect(listSrc).toMatch(/md:pt-3/);
     expect(listSrc).toMatch(/toolbarCollapsed/);
     expect(listSrc).toMatch(/toggleToolbarCollapsed/);

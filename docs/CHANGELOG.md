@@ -4,6 +4,10 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-10-30 – Design system foundation
+
+Locked audit decisions in [`docs/ai/design/DESIGN_SYSTEM.md`](ai/design/DESIGN_SYSTEM.md). SPA gains semantic `--success` / `--warning` / `--info` tokens (badges + success round buttons); keeps primary `#009EF7`, cold background, text-only status badges, and public brand islands. Removed unused shadcn `sidebar` / `navigation-menu` / `DetailCard` / `tooltip` / `separator`. Added primitives: `dialog`, `tabs`, `combobox` (cmdk), toast host (`sonner` in `main.tsx`). No mass migration of existing dialogs or radius/icon sizes.
+
 ## 2026-10-25 – Site audits etapp 1.4 (Diff, actionable findings, Quick audit)
 
 **Typ:** Enhancement (plugin)  

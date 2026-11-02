@@ -17,7 +17,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -37,6 +37,7 @@ import { RoundExpandableSearch } from '@/components/ui/round-expandable-search';
 import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { useApp } from '@/core/api/AppContext';
 import { useRegisterBrowseOrder } from '@/core/hooks/useRegisterBrowseOrder';
+import { useToolbarToggleAnchorBox } from '@/core/hooks/useToolbarToggleAnchorBox';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
@@ -182,11 +183,7 @@ export function EstimateList() {
   });
   const pageShellRef = useRef<HTMLDivElement>(null);
   const inlineFormRef = useRef<PanelFormHandle | null>(null);
-  const [toolbarToggleBox, setToolbarToggleBox] = useState<{
-    top: number;
-    left: number;
-    width: number;
-  } | null>(null);
+  const toolbarToggleBox = useToolbarToggleAnchorBox(pageShellRef);
 
   const inlineForm =
     showDesktopSplit && isEstimatePanelOpen && (panelMode === 'create' || panelMode === 'edit');
@@ -197,38 +194,6 @@ export function EstimateList() {
     (inlineForm || inlinePanelView) && currentEstimate != null
       ? currentEstimate.id
       : (previewEstimate?.id ?? null);
-
-  const updateToolbarToggleBox = useCallback(() => {
-    const el = pageShellRef.current;
-    if (!el) {
-      return;
-    }
-    const rect = el.getBoundingClientRect();
-    const sidebarToggle = document.querySelector<HTMLElement>('[aria-controls="left-sidebar-nav"]');
-    const sidebarTop = sidebarToggle?.getBoundingClientRect().top;
-    setToolbarToggleBox({
-      top: typeof sidebarTop === 'number' ? sidebarTop : rect.top + 4,
-      left: rect.left,
-      width: rect.width,
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    updateToolbarToggleBox();
-    window.addEventListener('resize', updateToolbarToggleBox);
-    const scrollParent = pageShellRef.current?.closest('.overflow-y-auto, .overflow-auto');
-    scrollParent?.addEventListener('scroll', updateToolbarToggleBox, { passive: true });
-    const ro =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateToolbarToggleBox) : null;
-    if (pageShellRef.current && ro) {
-      ro.observe(pageShellRef.current);
-    }
-    return () => {
-      window.removeEventListener('resize', updateToolbarToggleBox);
-      scrollParent?.removeEventListener('scroll', updateToolbarToggleBox);
-      ro?.disconnect();
-    };
-  }, [updateToolbarToggleBox]);
 
   useEffect(() => {
     let cancelled = false;
@@ -616,7 +581,7 @@ export function EstimateList() {
     SORT_FIELD_OPTIONS[0].labelKey;
 
   const renderSortDropdown = (triggerClassName: string) => (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"

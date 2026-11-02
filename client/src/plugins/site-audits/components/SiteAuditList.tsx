@@ -339,7 +339,7 @@ export const SiteAuditList: React.FC = () => {
     sortFieldOptions[0].label;
 
   const renderSortDropdown = (triggerClassName: string) => (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
